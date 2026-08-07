@@ -9,6 +9,10 @@ interface MediaItem {
   caption: string;
 }
 
+function isShowableAsImage(item: MediaItem) {
+  return Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
+}
+
 export function MediaGridSection({
   title,
   emptyLabel,
@@ -30,9 +34,16 @@ export function MediaGridSection({
 
       {items.length > 0 ? (
         <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {items.map((item) => {
-            const showAsImage =
-              Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
+          {(() => {
+            const imageItems = items.filter(isShowableAsImage);
+            const gallery = imageItems.map((i) => ({
+              src: i.image_url,
+              alt: i.caption || title,
+              sourceUrl: i.source_url,
+            }));
+
+            return items.map((item) => {
+            const showAsImage = isShowableAsImage(item);
             const href = item.source_url ?? item.image_url;
 
             return (
@@ -46,6 +57,8 @@ export function MediaGridSection({
                     alt={item.caption || title}
                     sourceUrl={item.source_url}
                     className="h-24 w-full object-cover"
+                    gallery={gallery}
+                    index={imageItems.findIndex((i) => i.id === item.id)}
                   />
                 ) : (
                   <a
@@ -74,7 +87,8 @@ export function MediaGridSection({
                 </div>
               </div>
             );
-          })}
+            });
+          })()}
         </div>
       ) : (
         <p className="mb-4 text-sm text-neutral-500">{emptyLabel}</p>

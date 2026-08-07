@@ -5,6 +5,10 @@ import { isLikelyImageUrl } from "@/lib/references";
 import { TatuLogo } from "@/components/TatuLogo";
 import { LightboxImage } from "@/components/LightboxImage";
 
+function isShowableAsImage(item: { source_url: string | null; image_url: string }) {
+  return Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
+}
+
 export const dynamic = "force-dynamic";
 
 type Params = Promise<{ slug: string }>;
@@ -157,10 +161,18 @@ export default async function PublicGuidePage({
 
                           {sceneReferences.length > 0 ? (
                             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                              {sceneReferences.map((reference) => {
-                                const showAsImage =
-                                  Boolean(reference.source_url) ||
-                                  isLikelyImageUrl(reference.image_url);
+                              {(() => {
+                                const imageReferences = sceneReferences.filter(
+                                  isShowableAsImage
+                                );
+                                const gallery = imageReferences.map((r) => ({
+                                  src: r.image_url,
+                                  alt: r.caption || "Referência visual",
+                                  sourceUrl: r.source_url,
+                                }));
+
+                                return sceneReferences.map((reference) => {
+                                const showAsImage = isShowableAsImage(reference);
                                 const href =
                                   reference.source_url ?? reference.image_url;
 
@@ -178,6 +190,10 @@ export default async function PublicGuidePage({
                                       }
                                       sourceUrl={reference.source_url}
                                       className="h-28 w-full object-cover"
+                                      gallery={gallery}
+                                      index={imageReferences.findIndex(
+                                        (r) => r.id === reference.id
+                                      )}
                                     />
                                   ) : (
                                     <a
@@ -196,7 +212,8 @@ export default async function PublicGuidePage({
                                   ) : null}
                                 </figure>
                                 );
-                              })}
+                                });
+                              })()}
                             </div>
                           ) : null}
                         </div>
@@ -216,9 +233,16 @@ export default async function PublicGuidePage({
               Fotos
             </h2>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {guide.photo_items.map((item) => {
-                const showAsImage =
-                  Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
+              {(() => {
+                const imagePhotos = guide.photo_items.filter(isShowableAsImage);
+                const gallery = imagePhotos.map((i) => ({
+                  src: i.image_url,
+                  alt: i.caption || "Foto",
+                  sourceUrl: i.source_url,
+                }));
+
+                return guide.photo_items.map((item) => {
+                const showAsImage = isShowableAsImage(item);
                 const href = item.source_url ?? item.image_url;
 
                 return (
@@ -232,6 +256,8 @@ export default async function PublicGuidePage({
                         alt={item.caption || "Foto"}
                         sourceUrl={item.source_url}
                         className="h-32 w-full object-cover"
+                        gallery={gallery}
+                        index={imagePhotos.findIndex((i) => i.id === item.id)}
                       />
                     ) : (
                       <a
@@ -250,7 +276,8 @@ export default async function PublicGuidePage({
                     ) : null}
                   </figure>
                 );
-              })}
+                });
+              })()}
             </div>
           </section>
         ) : null}
@@ -261,9 +288,16 @@ export default async function PublicGuidePage({
               Cards
             </h2>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {guide.card_items.map((item) => {
-                const showAsImage =
-                  Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
+              {(() => {
+                const imageCards = guide.card_items.filter(isShowableAsImage);
+                const gallery = imageCards.map((i) => ({
+                  src: i.image_url,
+                  alt: i.caption || "Card",
+                  sourceUrl: i.source_url,
+                }));
+
+                return guide.card_items.map((item) => {
+                const showAsImage = isShowableAsImage(item);
                 const href = item.source_url ?? item.image_url;
 
                 return (
@@ -277,6 +311,8 @@ export default async function PublicGuidePage({
                         alt={item.caption || "Card"}
                         sourceUrl={item.source_url}
                         className="h-32 w-full object-cover"
+                        gallery={gallery}
+                        index={imageCards.findIndex((i) => i.id === item.id)}
                       />
                     ) : (
                       <a
@@ -295,7 +331,8 @@ export default async function PublicGuidePage({
                     ) : null}
                   </figure>
                 );
-              })}
+                });
+              })()}
             </div>
           </section>
         ) : null}

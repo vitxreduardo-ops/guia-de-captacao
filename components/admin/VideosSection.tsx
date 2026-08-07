@@ -13,6 +13,10 @@ import { LightboxImage } from "@/components/LightboxImage";
 import type { Scene, VideoWithScenes, VisualReference } from "@/lib/guides";
 import { isLikelyImageUrl } from "@/lib/references";
 
+function isShowableAsImage(item: { source_url: string | null; image_url: string }) {
+  return Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
+}
+
 function SceneReferences({
   guideId,
   sceneId,
@@ -30,10 +34,16 @@ function SceneReferences({
 
       {references.length > 0 ? (
         <div className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {references.map((reference) => {
-            const showAsImage =
-              Boolean(reference.source_url) ||
-              isLikelyImageUrl(reference.image_url);
+          {(() => {
+            const imageReferences = references.filter(isShowableAsImage);
+            const gallery = imageReferences.map((r) => ({
+              src: r.image_url,
+              alt: r.caption || "Referência visual",
+              sourceUrl: r.source_url,
+            }));
+
+            return references.map((reference) => {
+            const showAsImage = isShowableAsImage(reference);
             const href = reference.source_url ?? reference.image_url;
 
             return (
@@ -47,6 +57,10 @@ function SceneReferences({
                     alt={reference.caption || "Referência visual"}
                     sourceUrl={reference.source_url}
                     className="h-20 w-full object-cover"
+                    gallery={gallery}
+                    index={imageReferences.findIndex(
+                      (r) => r.id === reference.id
+                    )}
                   />
                 ) : (
                   <a
@@ -75,7 +89,8 @@ function SceneReferences({
                 </div>
               </div>
             );
-          })}
+            });
+          })()}
         </div>
       ) : (
         <p className="mb-3 text-xs text-neutral-400">
