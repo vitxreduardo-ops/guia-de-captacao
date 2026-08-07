@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { toggleSceneRecordedAction } from "./actions";
 import { getGuideBySlugWithSections } from "@/lib/guides";
 import { isLikelyImageUrl } from "@/lib/references";
+import { TatuLogo } from "@/components/TatuLogo";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,7 @@ export default async function PublicGuidePage({
     <div className="min-h-screen bg-neutral-50">
       <div className="mx-auto max-w-3xl px-4 py-12">
         <header className="mb-10 border-b border-neutral-200 pb-6">
+          <TatuLogo className="mx-auto mb-10 block h-9 w-auto text-black" />
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
             Guia de gravação
           </p>
