@@ -44,6 +44,24 @@ create table if not exists visual_references (
   position integer not null default 0
 );
 
+create table if not exists photo_items (
+  id uuid primary key default gen_random_uuid(),
+  guide_id uuid not null references guides(id) on delete cascade,
+  position integer not null default 0,
+  image_url text not null,
+  source_url text,
+  caption text not null default ''
+);
+
+create table if not exists card_items (
+  id uuid primary key default gen_random_uuid(),
+  guide_id uuid not null references guides(id) on delete cascade,
+  position integer not null default 0,
+  image_url text not null,
+  source_url text,
+  caption text not null default ''
+);
+
 create table if not exists shot_list_items (
   id uuid primary key default gen_random_uuid(),
   guide_id uuid not null references guides(id) on delete cascade,
@@ -66,6 +84,8 @@ create table if not exists checklist_items (
 create index if not exists videos_guide_id_idx on videos(guide_id);
 create index if not exists scenes_video_id_idx on scenes(video_id);
 create index if not exists visual_references_guide_id_idx on visual_references(guide_id);
+create index if not exists photo_items_guide_id_idx on photo_items(guide_id);
+create index if not exists card_items_guide_id_idx on card_items(guide_id);
 create index if not exists shot_list_items_guide_id_idx on shot_list_items(guide_id);
 create index if not exists checklist_items_guide_id_idx on checklist_items(guide_id);
 
@@ -80,5 +100,7 @@ alter table guides enable row level security;
 alter table videos enable row level security;
 alter table scenes enable row level security;
 alter table visual_references enable row level security;
+alter table photo_items enable row level security;
+alter table card_items enable row level security;
 alter table shot_list_items enable row level security;
 alter table checklist_items enable row level security;

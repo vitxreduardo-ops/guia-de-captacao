@@ -182,6 +182,82 @@ function GuidePdfDocument({ guide }: { guide: GuideWithSections }) {
           </View>
         ) : null}
 
+        {guide.photo_items.length > 0 ? (
+          <View>
+            <Text style={styles.sectionTitle}>Fotos</Text>
+            <View style={styles.referencesGrid}>
+              {guide.photo_items.map((item) => {
+                const showAsImage =
+                  Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
+                const href = item.source_url ?? item.image_url;
+
+                return (
+                  <View key={item.id} style={styles.referenceItem}>
+                    {showAsImage ? (
+                      <Link src={href}>
+                        {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image is not an HTML img and has no alt prop */}
+                        <Image
+                          src={item.image_url}
+                          style={styles.referenceImage}
+                        />
+                      </Link>
+                    ) : (
+                      <Link src={href} style={styles.referenceLinkBox}>
+                        <Text style={styles.referenceLinkText}>
+                          Abrir link
+                        </Text>
+                      </Link>
+                    )}
+                    {item.caption ? (
+                      <Text style={styles.referenceCaption}>
+                        {item.caption}
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
+
+        {guide.card_items.length > 0 ? (
+          <View>
+            <Text style={styles.sectionTitle}>Cards</Text>
+            <View style={styles.referencesGrid}>
+              {guide.card_items.map((item) => {
+                const showAsImage =
+                  Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
+                const href = item.source_url ?? item.image_url;
+
+                return (
+                  <View key={item.id} style={styles.referenceItem}>
+                    {showAsImage ? (
+                      <Link src={href}>
+                        {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image is not an HTML img and has no alt prop */}
+                        <Image
+                          src={item.image_url}
+                          style={styles.referenceImage}
+                        />
+                      </Link>
+                    ) : (
+                      <Link src={href} style={styles.referenceLinkBox}>
+                        <Text style={styles.referenceLinkText}>
+                          Abrir link
+                        </Text>
+                      </Link>
+                    )}
+                    {item.caption ? (
+                      <Text style={styles.referenceCaption}>
+                        {item.caption}
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
+
         {guide.shot_list_items.length > 0 ? (
           <View>
             <Text style={styles.sectionTitle}>Shot list / decupagem</Text>

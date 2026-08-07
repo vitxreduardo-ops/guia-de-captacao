@@ -42,6 +42,24 @@ export interface VisualReference {
   position: number;
 }
 
+export interface PhotoItem {
+  id: string;
+  guide_id: string;
+  position: number;
+  image_url: string;
+  source_url: string | null;
+  caption: string;
+}
+
+export interface CardItem {
+  id: string;
+  guide_id: string;
+  position: number;
+  image_url: string;
+  source_url: string | null;
+  caption: string;
+}
+
 export interface ShotListItem {
   id: string;
   guide_id: string;
@@ -68,6 +86,8 @@ export interface VideoWithScenes extends Video {
 export interface GuideWithSections extends Guide {
   videos: VideoWithScenes[];
   visual_references: VisualReference[];
+  photo_items: PhotoItem[];
+  card_items: CardItem[];
   shot_list_items: ShotListItem[];
   checklist_items: ChecklistItem[];
 }
@@ -122,32 +142,50 @@ export async function listGuides(): Promise<Guide[]> {
 async function attachSections(guide: Guide): Promise<GuideWithSections> {
   const supabase = getSupabaseServerClient();
 
-  const [videosResult, visualReferences, shotListItems, checklistItems] =
-    await Promise.all([
-      supabase
-        .from("videos")
-        .select("*")
-        .eq("guide_id", guide.id)
-        .order("position", { ascending: true }),
-      supabase
-        .from("visual_references")
-        .select("*")
-        .eq("guide_id", guide.id)
-        .order("position", { ascending: true }),
-      supabase
-        .from("shot_list_items")
-        .select("*")
-        .eq("guide_id", guide.id)
-        .order("position", { ascending: true }),
-      supabase
-        .from("checklist_items")
-        .select("*")
-        .eq("guide_id", guide.id)
-        .order("position", { ascending: true }),
-    ]);
+  const [
+    videosResult,
+    visualReferences,
+    photoItems,
+    cardItems,
+    shotListItems,
+    checklistItems,
+  ] = await Promise.all([
+    supabase
+      .from("videos")
+      .select("*")
+      .eq("guide_id", guide.id)
+      .order("position", { ascending: true }),
+    supabase
+      .from("visual_references")
+      .select("*")
+      .eq("guide_id", guide.id)
+      .order("position", { ascending: true }),
+    supabase
+      .from("photo_items")
+      .select("*")
+      .eq("guide_id", guide.id)
+      .order("position", { ascending: true }),
+    supabase
+      .from("card_items")
+      .select("*")
+      .eq("guide_id", guide.id)
+      .order("position", { ascending: true }),
+    supabase
+      .from("shot_list_items")
+      .select("*")
+      .eq("guide_id", guide.id)
+      .order("position", { ascending: true }),
+    supabase
+      .from("checklist_items")
+      .select("*")
+      .eq("guide_id", guide.id)
+      .order("position", { ascending: true }),
+  ]);
 
   if (videosResult.error) throw videosResult.error;
   if (visualReferences.error) throw visualReferences.error;
+  if (photoItems.error) throw photoItems.error;
+  if (cardItems.error) throw cardItems.error;
   if (shotListItems.error) throw shotListItems.error;
   if (checklistItems.error) throw checklistItems.error;
 
@@ -174,6 +212,8 @@ async function attachSections(guide: Guide): Promise<GuideWithSections> {
     ...guide,
     videos: videosWithScenes,
     visual_references: visualReferences.data ?? [],
+    photo_items: photoItems.data ?? [],
+    card_items: cardItems.data ?? [],
     shot_list_items: shotListItems.data ?? [],
     checklist_items: checklistItems.data ?? [],
   };
@@ -375,6 +415,55 @@ export async function deleteVisualReference(id: string) {
     .delete()
     .eq("id", id);
   if (error) throw error;
+}
+
+// Fotos e Cards (painéis de imagens embedadas no nível do guia)
+
+type MediaItemTable = "photo_items" | "card_items";
+
+async function addMediaItem(
+  table: MediaItemTable,
+  guideId: string,
+  fields: { image_url: string; source_url?: string | null; caption: string }
+) {
+  const supabase = getSupabaseServerClient();
+  const position = await nextPosition(table, "guide_id", guideId);
+  const { error } = await supabase.from(table).insert({
+    guide_id: guideId,
+    position,
+    image_url: fields.image_url,
+    source_url: fields.source_url ?? null,
+    caption: fields.caption,
+  });
+  if (error) throw error;
+}
+
+async function deleteMediaItem(table: MediaItemTable, id: string) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase.from(table).delete().eq("id", id);
+  if (error) throw error;
+}
+
+export function addPhotoItem(
+  guideId: string,
+  fields: { image_url: string; source_url?: string | null; caption: string }
+) {
+  return addMediaItem("photo_items", guideId, fields);
+}
+
+export function deletePhotoItem(id: string) {
+  return deleteMediaItem("photo_items", id);
+}
+
+export function addCardItem(
+  guideId: string,
+  fields: { image_url: string; source_url?: string | null; caption: string }
+) {
+  return addMediaItem("card_items", guideId, fields);
+}
+
+export function deleteCardItem(id: string) {
+  return deleteMediaItem("card_items", id);
 }
 
 // Shot list

@@ -2,12 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  addCardItem,
   addChecklistItem,
+  addPhotoItem,
   addScene,
   addShotListItem,
   addVideo,
   addVisualReference,
+  deleteCardItem,
   deleteChecklistItem,
+  deletePhotoItem,
   deleteScene,
   deleteShotListItem,
   deleteVideo,
@@ -183,6 +187,71 @@ export async function deleteVisualReferenceAction(formData: FormData) {
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
   await deleteVisualReference(id);
+  revalidateGuide(guideId);
+}
+
+async function resolveMediaItemInput(formData: FormData, guideId: string) {
+  const caption = String(formData.get("caption") ?? "").trim();
+  const urlInput = String(formData.get("image_url") ?? "").trim();
+  const file = formData.get("file");
+
+  let imageUrl = "";
+  let sourceUrl: string | null = null;
+
+  if (file instanceof File && file.size > 0) {
+    imageUrl = await uploadReferenceImage(guideId, file);
+  } else if (urlInput) {
+    const resolved = await resolveReferenceImage(urlInput);
+    imageUrl = resolved.image_url;
+    sourceUrl = resolved.source_url;
+  }
+
+  return { imageUrl, sourceUrl, caption };
+}
+
+export async function addPhotoItemAction(formData: FormData) {
+  const guideId = String(formData.get("guide_id"));
+  const { imageUrl, sourceUrl, caption } = await resolveMediaItemInput(
+    formData,
+    guideId
+  );
+  if (!imageUrl) return;
+
+  await addPhotoItem(guideId, {
+    image_url: imageUrl,
+    source_url: sourceUrl,
+    caption,
+  });
+  revalidateGuide(guideId);
+}
+
+export async function deletePhotoItemAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const guideId = String(formData.get("guide_id"));
+  await deletePhotoItem(id);
+  revalidateGuide(guideId);
+}
+
+export async function addCardItemAction(formData: FormData) {
+  const guideId = String(formData.get("guide_id"));
+  const { imageUrl, sourceUrl, caption } = await resolveMediaItemInput(
+    formData,
+    guideId
+  );
+  if (!imageUrl) return;
+
+  await addCardItem(guideId, {
+    image_url: imageUrl,
+    source_url: sourceUrl,
+    caption,
+  });
+  revalidateGuide(guideId);
+}
+
+export async function deleteCardItemAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const guideId = String(formData.get("guide_id"));
+  await deleteCardItem(id);
   revalidateGuide(guideId);
 }
 

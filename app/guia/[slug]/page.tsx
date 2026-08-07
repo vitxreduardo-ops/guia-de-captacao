@@ -215,6 +215,100 @@ export default async function PublicGuidePage({
           </section>
         ) : null}
 
+        {guide.photo_items.length > 0 ? (
+          <section className="mb-10">
+            <h2 className="mb-4 text-lg font-semibold text-neutral-900">
+              Fotos
+            </h2>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {guide.photo_items.map((item) => {
+                const showAsImage =
+                  Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
+                const href = item.source_url ?? item.image_url;
+
+                return (
+                  <figure
+                    key={item.id}
+                    className="overflow-hidden rounded-md border border-neutral-200 bg-white"
+                  >
+                    {showAsImage ? (
+                      <a href={href} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={item.image_url}
+                          alt={item.caption || "Foto"}
+                          className="h-32 w-full object-cover"
+                        />
+                      </a>
+                    ) : (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex h-32 w-full items-center justify-center bg-neutral-100 px-2 text-center text-xs font-medium text-neutral-600 underline"
+                      >
+                        Abrir link ↗
+                      </a>
+                    )}
+                    {item.caption ? (
+                      <figcaption className="p-1.5 text-xs text-neutral-500">
+                        {item.caption}
+                      </figcaption>
+                    ) : null}
+                  </figure>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
+        {guide.card_items.length > 0 ? (
+          <section className="mb-10">
+            <h2 className="mb-4 text-lg font-semibold text-neutral-900">
+              Cards
+            </h2>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {guide.card_items.map((item) => {
+                const showAsImage =
+                  Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
+                const href = item.source_url ?? item.image_url;
+
+                return (
+                  <figure
+                    key={item.id}
+                    className="overflow-hidden rounded-md border border-neutral-200 bg-white"
+                  >
+                    {showAsImage ? (
+                      <a href={href} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={item.image_url}
+                          alt={item.caption || "Card"}
+                          className="h-32 w-full object-cover"
+                        />
+                      </a>
+                    ) : (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex h-32 w-full items-center justify-center bg-neutral-100 px-2 text-center text-xs font-medium text-neutral-600 underline"
+                      >
+                        Abrir link ↗
+                      </a>
+                    )}
+                    {item.caption ? (
+                      <figcaption className="p-1.5 text-xs text-neutral-500">
+                        {item.caption}
+                      </figcaption>
+                    ) : null}
+                  </figure>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
         {guide.shot_list_items.length > 0 ? (
           <section className="mb-10">
             <h2 className="mb-4 text-lg font-semibold text-neutral-900">
