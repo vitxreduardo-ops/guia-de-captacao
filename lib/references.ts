@@ -53,15 +53,26 @@ export async function fetchOgImage(url: string): Promise<string | null> {
 
     clearTimeout(timeout);
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.error(
+        `[fetchOgImage] resposta não-ok para ${url}: status ${response.status}`
+      );
+      return null;
+    }
 
     const html = await response.text();
     const match = html.match(OG_IMAGE_REGEX);
     const imageUrl = match?.[1] ?? match?.[2];
-    if (!imageUrl) return null;
+    if (!imageUrl) {
+      console.error(
+        `[fetchOgImage] og:image não encontrada em ${url} (html length: ${html.length})`
+      );
+      return null;
+    }
 
     return imageUrl.replace(/&amp;/g, "&");
-  } catch {
+  } catch (error) {
+    console.error(`[fetchOgImage] erro ao buscar ${url}:`, error);
     return null;
   }
 }
