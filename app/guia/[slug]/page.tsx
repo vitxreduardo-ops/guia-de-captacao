@@ -3,6 +3,7 @@ import { toggleSceneRecordedAction } from "./actions";
 import { getGuideBySlugWithSections } from "@/lib/guides";
 import { isLikelyImageUrl } from "@/lib/references";
 import { TatuLogo } from "@/components/TatuLogo";
+import { LightboxImage } from "@/components/LightboxImage";
 
 export const dynamic = "force-dynamic";
 
@@ -169,21 +170,15 @@ export default async function PublicGuidePage({
                                   className="overflow-hidden rounded-md border border-neutral-200 bg-white"
                                 >
                                   {showAsImage ? (
-                                    <a
-                                      href={href}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                    >
-                                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                                      <img
-                                        src={reference.image_url}
-                                        alt={
-                                          reference.caption ||
-                                          "Referência visual"
-                                        }
-                                        className="h-28 w-full object-cover"
-                                      />
-                                    </a>
+                                    <LightboxImage
+                                      src={reference.image_url}
+                                      alt={
+                                        reference.caption ||
+                                        "Referência visual"
+                                      }
+                                      sourceUrl={reference.source_url}
+                                      className="h-28 w-full object-cover"
+                                    />
                                   ) : (
                                     <a
                                       href={href}
@@ -232,14 +227,12 @@ export default async function PublicGuidePage({
                     className="overflow-hidden rounded-md border border-neutral-200 bg-white"
                   >
                     {showAsImage ? (
-                      <a href={href} target="_blank" rel="noreferrer">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={item.image_url}
-                          alt={item.caption || "Foto"}
-                          className="h-32 w-full object-cover"
-                        />
-                      </a>
+                      <LightboxImage
+                        src={item.image_url}
+                        alt={item.caption || "Foto"}
+                        sourceUrl={item.source_url}
+                        className="h-32 w-full object-cover"
+                      />
                     ) : (
                       <a
                         href={href}
@@ -279,14 +272,12 @@ export default async function PublicGuidePage({
                     className="overflow-hidden rounded-md border border-neutral-200 bg-white"
                   >
                     {showAsImage ? (
-                      <a href={href} target="_blank" rel="noreferrer">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={item.image_url}
-                          alt={item.caption || "Card"}
-                          className="h-32 w-full object-cover"
-                        />
-                      </a>
+                      <LightboxImage
+                        src={item.image_url}
+                        alt={item.caption || "Card"}
+                        sourceUrl={item.source_url}
+                        className="h-32 w-full object-cover"
+                      />
                     ) : (
                       <a
                         href={href}

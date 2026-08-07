@@ -1,4 +1,5 @@
 import { DeleteButton } from "@/components/admin/DeleteButton";
+import { LightboxImage } from "@/components/LightboxImage";
 import { isLikelyImageUrl } from "@/lib/references";
 
 interface MediaItem {
@@ -40,14 +41,12 @@ export function MediaGridSection({
                 className="overflow-hidden rounded-md border border-neutral-200 bg-white"
               >
                 {showAsImage ? (
-                  <a href={href} target="_blank" rel="noreferrer">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={item.image_url}
-                      alt={item.caption || title}
-                      className="h-24 w-full object-cover"
-                    />
-                  </a>
+                  <LightboxImage
+                    src={item.image_url}
+                    alt={item.caption || title}
+                    sourceUrl={item.source_url}
+                    className="h-24 w-full object-cover"
+                  />
                 ) : (
                   <a
                     href={href}
