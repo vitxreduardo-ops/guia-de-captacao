@@ -40,6 +40,7 @@ export interface VisualReference {
   source_url: string | null;
   caption: string;
   position: number;
+  selected: boolean;
 }
 
 export interface PhotoItem {
@@ -49,6 +50,7 @@ export interface PhotoItem {
   image_url: string;
   source_url: string | null;
   caption: string;
+  selected: boolean;
 }
 
 export interface CardItem {
@@ -58,6 +60,7 @@ export interface CardItem {
   image_url: string;
   source_url: string | null;
   caption: string;
+  selected: boolean;
 }
 
 export interface ShotListItem {
@@ -417,6 +420,18 @@ export async function deleteVisualReference(id: string) {
   if (error) throw error;
 }
 
+export async function toggleVisualReferenceSelected(
+  id: string,
+  selected: boolean
+) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("visual_references")
+    .update({ selected })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 // Fotos e Cards (painéis de imagens embedadas no nível do guia)
 
 type MediaItemTable = "photo_items" | "card_items";
@@ -444,6 +459,19 @@ async function deleteMediaItem(table: MediaItemTable, id: string) {
   if (error) throw error;
 }
 
+async function toggleMediaItemSelected(
+  table: MediaItemTable,
+  id: string,
+  selected: boolean
+) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from(table)
+    .update({ selected })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 export function addPhotoItem(
   guideId: string,
   fields: { image_url: string; source_url?: string | null; caption: string }
@@ -455,6 +483,10 @@ export function deletePhotoItem(id: string) {
   return deleteMediaItem("photo_items", id);
 }
 
+export function togglePhotoItemSelected(id: string, selected: boolean) {
+  return toggleMediaItemSelected("photo_items", id, selected);
+}
+
 export function addCardItem(
   guideId: string,
   fields: { image_url: string; source_url?: string | null; caption: string }
@@ -464,6 +496,10 @@ export function addCardItem(
 
 export function deleteCardItem(id: string) {
   return deleteMediaItem("card_items", id);
+}
+
+export function toggleCardItemSelected(id: string, selected: boolean) {
+  return toggleMediaItemSelected("card_items", id, selected);
 }
 
 // Shot list

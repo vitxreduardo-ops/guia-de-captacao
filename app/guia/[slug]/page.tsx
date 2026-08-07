@@ -1,5 +1,10 @@
 import { notFound } from "next/navigation";
-import { toggleSceneRecordedAction } from "./actions";
+import {
+  toggleCardItemSelectedAction,
+  togglePhotoItemSelectedAction,
+  toggleSceneRecordedAction,
+  toggleVisualReferenceSelectedAction,
+} from "./actions";
 import { getGuideBySlugWithSections } from "@/lib/guides";
 import { isLikelyImageUrl } from "@/lib/references";
 import { TatuLogo } from "@/components/TatuLogo";
@@ -166,9 +171,11 @@ export default async function PublicGuidePage({
                                   isShowableAsImage
                                 );
                                 const gallery = imageReferences.map((r) => ({
+                                  id: r.id,
                                   src: r.image_url,
                                   alt: r.caption || "Referência visual",
                                   sourceUrl: r.source_url,
+                                  selected: r.selected,
                                 }));
 
                                 return sceneReferences.map((reference) => {
@@ -183,16 +190,22 @@ export default async function PublicGuidePage({
                                 >
                                   {showAsImage ? (
                                     <LightboxImage
+                                      id={reference.id}
                                       src={reference.image_url}
                                       alt={
                                         reference.caption ||
                                         "Referência visual"
                                       }
                                       sourceUrl={reference.source_url}
+                                      selected={reference.selected}
                                       className="h-28 w-full object-cover"
                                       gallery={gallery}
                                       index={imageReferences.findIndex(
                                         (r) => r.id === reference.id
+                                      )}
+                                      onToggleSelected={toggleVisualReferenceSelectedAction.bind(
+                                        null,
+                                        guide.slug
                                       )}
                                     />
                                   ) : (
@@ -236,9 +249,11 @@ export default async function PublicGuidePage({
               {(() => {
                 const imagePhotos = guide.photo_items.filter(isShowableAsImage);
                 const gallery = imagePhotos.map((i) => ({
+                  id: i.id,
                   src: i.image_url,
                   alt: i.caption || "Foto",
                   sourceUrl: i.source_url,
+                  selected: i.selected,
                 }));
 
                 return guide.photo_items.map((item) => {
@@ -252,12 +267,18 @@ export default async function PublicGuidePage({
                   >
                     {showAsImage ? (
                       <LightboxImage
+                        id={item.id}
                         src={item.image_url}
                         alt={item.caption || "Foto"}
                         sourceUrl={item.source_url}
+                        selected={item.selected}
                         className="h-32 w-full object-cover"
                         gallery={gallery}
                         index={imagePhotos.findIndex((i) => i.id === item.id)}
+                        onToggleSelected={togglePhotoItemSelectedAction.bind(
+                          null,
+                          guide.slug
+                        )}
                       />
                     ) : (
                       <a
@@ -291,9 +312,11 @@ export default async function PublicGuidePage({
               {(() => {
                 const imageCards = guide.card_items.filter(isShowableAsImage);
                 const gallery = imageCards.map((i) => ({
+                  id: i.id,
                   src: i.image_url,
                   alt: i.caption || "Card",
                   sourceUrl: i.source_url,
+                  selected: i.selected,
                 }));
 
                 return guide.card_items.map((item) => {
@@ -307,12 +330,18 @@ export default async function PublicGuidePage({
                   >
                     {showAsImage ? (
                       <LightboxImage
+                        id={item.id}
                         src={item.image_url}
                         alt={item.caption || "Card"}
                         sourceUrl={item.source_url}
+                        selected={item.selected}
                         className="h-32 w-full object-cover"
                         gallery={gallery}
                         index={imageCards.findIndex((i) => i.id === item.id)}
+                        onToggleSelected={toggleCardItemSelectedAction.bind(
+                          null,
+                          guide.slug
+                        )}
                       />
                     ) : (
                       <a

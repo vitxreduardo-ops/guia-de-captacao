@@ -12,6 +12,8 @@ import {
   addPhotoItemAction,
   deleteCardItemAction,
   deletePhotoItemAction,
+  toggleCardItemSelectedAction,
+  togglePhotoItemSelectedAction,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +50,10 @@ export default async function GuideEditPage({
           items={guide.photo_items}
           addAction={addPhotoItemAction}
           deleteAction={deletePhotoItemAction}
+          toggleSelectedAction={togglePhotoItemSelectedAction.bind(
+            null,
+            guide.id
+          )}
         />
         <MediaGridSection
           title="Cards"
@@ -56,6 +62,10 @@ export default async function GuideEditPage({
           items={guide.card_items}
           addAction={addCardItemAction}
           deleteAction={deleteCardItemAction}
+          toggleSelectedAction={toggleCardItemSelectedAction.bind(
+            null,
+            guide.id
+          )}
         />
         <ShotListSection guideId={guide.id} items={guide.shot_list_items} />
         <ChecklistSection guideId={guide.id} items={guide.checklist_items} />

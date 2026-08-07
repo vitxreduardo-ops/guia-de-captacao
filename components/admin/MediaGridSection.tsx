@@ -7,6 +7,7 @@ interface MediaItem {
   image_url: string;
   source_url: string | null;
   caption: string;
+  selected: boolean;
 }
 
 function isShowableAsImage(item: MediaItem) {
@@ -20,6 +21,7 @@ export function MediaGridSection({
   items,
   addAction,
   deleteAction,
+  toggleSelectedAction,
 }: {
   title: string;
   emptyLabel: string;
@@ -27,6 +29,7 @@ export function MediaGridSection({
   items: MediaItem[];
   addAction: (formData: FormData) => void | Promise<void>;
   deleteAction: (formData: FormData) => void | Promise<void>;
+  toggleSelectedAction: (id: string, selected: boolean) => void | Promise<void>;
 }) {
   return (
     <section className="rounded-lg border border-neutral-200 bg-white p-4">
@@ -37,9 +40,11 @@ export function MediaGridSection({
           {(() => {
             const imageItems = items.filter(isShowableAsImage);
             const gallery = imageItems.map((i) => ({
+              id: i.id,
               src: i.image_url,
               alt: i.caption || title,
               sourceUrl: i.source_url,
+              selected: i.selected,
             }));
 
             return items.map((item) => {
@@ -53,12 +58,15 @@ export function MediaGridSection({
               >
                 {showAsImage ? (
                   <LightboxImage
+                    id={item.id}
                     src={item.image_url}
                     alt={item.caption || title}
                     sourceUrl={item.source_url}
+                    selected={item.selected}
                     className="h-24 w-full object-cover"
                     gallery={gallery}
                     index={imageItems.findIndex((i) => i.id === item.id)}
+                    onToggleSelected={toggleSelectedAction}
                   />
                 ) : (
                   <a

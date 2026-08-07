@@ -18,7 +18,10 @@ import {
   deleteVisualReference,
   getGuideWithSections,
   setGuideStatus,
+  toggleCardItemSelected,
   toggleChecklistItem,
+  togglePhotoItemSelected,
+  toggleVisualReferenceSelected,
   updateGuideInfo,
   updateScene,
   updateVideo,
@@ -190,6 +193,15 @@ export async function deleteVisualReferenceAction(formData: FormData) {
   revalidateGuide(guideId);
 }
 
+export async function toggleVisualReferenceSelectedAction(
+  guideId: string,
+  id: string,
+  selected: boolean
+) {
+  await toggleVisualReferenceSelected(id, selected);
+  revalidateGuide(guideId);
+}
+
 async function resolveMediaItemInput(formData: FormData, guideId: string) {
   const caption = String(formData.get("caption") ?? "").trim();
   const urlInput = String(formData.get("image_url") ?? "").trim();
@@ -232,6 +244,15 @@ export async function deletePhotoItemAction(formData: FormData) {
   revalidateGuide(guideId);
 }
 
+export async function togglePhotoItemSelectedAction(
+  guideId: string,
+  id: string,
+  selected: boolean
+) {
+  await togglePhotoItemSelected(id, selected);
+  revalidateGuide(guideId);
+}
+
 export async function addCardItemAction(formData: FormData) {
   const guideId = String(formData.get("guide_id"));
   const { imageUrl, sourceUrl, caption } = await resolveMediaItemInput(
@@ -252,6 +273,15 @@ export async function deleteCardItemAction(formData: FormData) {
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
   await deleteCardItem(id);
+  revalidateGuide(guideId);
+}
+
+export async function toggleCardItemSelectedAction(
+  guideId: string,
+  id: string,
+  selected: boolean
+) {
+  await toggleCardItemSelected(id, selected);
   revalidateGuide(guideId);
 }
 

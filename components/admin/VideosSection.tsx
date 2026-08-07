@@ -5,6 +5,7 @@ import {
   deleteSceneAction,
   deleteVideoAction,
   deleteVisualReferenceAction,
+  toggleVisualReferenceSelectedAction,
   updateSceneAction,
   updateVideoAction,
 } from "@/app/admin/guias/[id]/actions";
@@ -37,9 +38,11 @@ function SceneReferences({
           {(() => {
             const imageReferences = references.filter(isShowableAsImage);
             const gallery = imageReferences.map((r) => ({
+              id: r.id,
               src: r.image_url,
               alt: r.caption || "Referência visual",
               sourceUrl: r.source_url,
+              selected: r.selected,
             }));
 
             return references.map((reference) => {
@@ -53,13 +56,19 @@ function SceneReferences({
               >
                 {showAsImage ? (
                   <LightboxImage
+                    id={reference.id}
                     src={reference.image_url}
                     alt={reference.caption || "Referência visual"}
                     sourceUrl={reference.source_url}
+                    selected={reference.selected}
                     className="h-20 w-full object-cover"
                     gallery={gallery}
                     index={imageReferences.findIndex(
                       (r) => r.id === reference.id
+                    )}
+                    onToggleSelected={toggleVisualReferenceSelectedAction.bind(
+                      null,
+                      guideId
                     )}
                   />
                 ) : (

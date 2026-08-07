@@ -3,30 +3,39 @@
 import { useEffect, useState } from "react";
 
 export interface GalleryItem {
+  id: string;
   src: string;
   alt: string;
   sourceUrl?: string | null;
+  selected?: boolean;
 }
 
 export function LightboxImage({
+  id,
   src,
   alt,
   className,
   sourceUrl,
+  selected = false,
   gallery,
   index,
+  onToggleSelected,
 }: {
+  id: string;
   src: string;
   alt: string;
   className?: string;
   sourceUrl?: string | null;
+  selected?: boolean;
   gallery?: GalleryItem[];
   index?: number;
+  onToggleSelected?: (id: string, selected: boolean) => void | Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(index ?? 0);
 
-  const items = gallery && gallery.length > 0 ? gallery : [{ src, alt, sourceUrl }];
+  const items =
+    gallery && gallery.length > 0 ? gallery : [{ id, src, alt, sourceUrl, selected }];
   const canNavigate = items.length > 1;
   const current = items[currentIndex] ?? items[0];
 
@@ -62,10 +71,21 @@ export function LightboxImage({
           setCurrentIndex(index ?? 0);
           setOpen(true);
         }}
-        className="block w-full cursor-zoom-in"
+        className="relative block w-full cursor-zoom-in"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={alt} className={className} />
+        <img
+          src={src}
+          alt={alt}
+          className={`${className ?? ""} ${
+            selected ? "opacity-40 grayscale" : ""
+          }`}
+        />
+        {selected ? (
+          <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-green-600 text-xs text-white">
+            ✓
+          </span>
+        ) : null}
       </button>
 
       {open ? (
@@ -103,13 +123,21 @@ export function LightboxImage({
               className="max-h-[85vh] max-w-full rounded-md object-contain"
               onClick={(event) => event.stopPropagation()}
             />
-            {canNavigate ? (
-              <p
+            {onToggleSelected ? (
+              <label
                 onClick={(event) => event.stopPropagation()}
-                className="text-sm text-white/80"
+                className="flex cursor-pointer items-center gap-2 rounded-md bg-white/90 px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-white"
               >
-                {currentIndex + 1} / {items.length}
-              </p>
+                <input
+                  type="checkbox"
+                  checked={Boolean(current.selected)}
+                  onChange={() =>
+                    onToggleSelected(current.id, !current.selected)
+                  }
+                  className="h-4 w-4 accent-green-600"
+                />
+                Selecionada
+              </label>
             ) : null}
             {current.sourceUrl ? (
               <a

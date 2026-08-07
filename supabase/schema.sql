@@ -41,7 +41,8 @@ create table if not exists visual_references (
   image_url text not null,
   source_url text,
   caption text not null default '',
-  position integer not null default 0
+  position integer not null default 0,
+  selected boolean not null default false
 );
 
 create table if not exists photo_items (
@@ -50,7 +51,8 @@ create table if not exists photo_items (
   position integer not null default 0,
   image_url text not null,
   source_url text,
-  caption text not null default ''
+  caption text not null default '',
+  selected boolean not null default false
 );
 
 create table if not exists card_items (
@@ -59,7 +61,8 @@ create table if not exists card_items (
   position integer not null default 0,
   image_url text not null,
   source_url text,
-  caption text not null default ''
+  caption text not null default '',
+  selected boolean not null default false
 );
 
 create table if not exists shot_list_items (
