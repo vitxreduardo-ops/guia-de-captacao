@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { toggleSceneRecordedAction } from "./actions";
 import { getGuideBySlugWithSections } from "@/lib/guides";
 import { isLikelyImageUrl } from "@/lib/references";
 
@@ -72,18 +73,34 @@ export default async function PublicGuidePage({
             <h2 className="mb-4 text-lg font-semibold text-neutral-900">
               Vídeos
             </h2>
-            <div className="space-y-6">
-              {guide.videos.map((video, videoIndex) => (
-                <div
-                  key={video.id}
-                  className="rounded-lg border border-neutral-300 bg-white p-4"
-                >
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                    Vídeo {videoIndex + 1}
-                    {video.title ? ` — ${video.title}` : ""}
-                  </p>
+            <div className="space-y-3">
+              {guide.videos.map((video, videoIndex) => {
+                const videoCompleted =
+                  video.scenes.length > 0 &&
+                  video.scenes.every((scene) => scene.recorded);
 
-                  <div className="space-y-4">
+                return (
+                <details
+                  key={`${video.id}-${videoCompleted}`}
+                  name="videos"
+                  className="group rounded-lg border border-neutral-300 bg-white"
+                >
+                  <summary className="flex cursor-pointer select-none list-none items-center justify-between p-4 marker:hidden [&::-webkit-details-marker]:hidden">
+                    <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                      {videoCompleted ? (
+                        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-green-600 text-[10px] text-white">
+                          ✓
+                        </span>
+                      ) : null}
+                      Vídeo {videoIndex + 1}
+                      {video.title ? ` — ${video.title}` : ""}
+                    </span>
+                    <span className="text-neutral-400 transition-transform group-open:rotate-180">
+                      ▾
+                    </span>
+                  </summary>
+
+                  <div className="space-y-4 border-t border-neutral-200 p-4">
                     {video.scenes.map((scene, sceneIndex) => {
                       const sceneReferences = guide.visual_references.filter(
                         (reference) => reference.scene_id === scene.id
@@ -91,12 +108,46 @@ export default async function PublicGuidePage({
                       return (
                         <div
                           key={scene.id}
-                          className="rounded-md border border-neutral-200 bg-neutral-50 p-3"
+                          className={`rounded-md border p-3 ${
+                            scene.recorded
+                              ? "border-green-300 bg-green-50"
+                              : "border-neutral-200 bg-neutral-50"
+                          }`}
                         >
-                          <p className="mb-1 text-sm font-medium text-neutral-900">
-                            Cena {sceneIndex + 1}
-                            {scene.title ? ` — ${scene.title}` : ""}
-                          </p>
+                          <div className="mb-1 flex items-start justify-between gap-2">
+                            <p className="text-sm font-medium text-neutral-900">
+                              Cena {sceneIndex + 1}
+                              {scene.title ? ` — ${scene.title}` : ""}
+                            </p>
+                            <form action={toggleSceneRecordedAction}>
+                              <input type="hidden" name="id" value={scene.id} />
+                              <input type="hidden" name="slug" value={guide.slug} />
+                              <input
+                                type="hidden"
+                                name="recorded"
+                                value={(!scene.recorded).toString()}
+                              />
+                              <button
+                                type="submit"
+                                className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium ${
+                                  scene.recorded
+                                    ? "border-green-300 bg-green-100 text-green-700"
+                                    : "border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-100"
+                                }`}
+                              >
+                                <span
+                                  className={`flex h-4 w-4 items-center justify-center rounded border ${
+                                    scene.recorded
+                                      ? "border-green-600 bg-green-600 text-white"
+                                      : "border-neutral-300"
+                                  }`}
+                                >
+                                  {scene.recorded ? "✓" : ""}
+                                </span>
+                                {scene.recorded ? "Gravada" : "Gravar"}
+                              </button>
+                            </form>
+                          </div>
                           <p className="whitespace-pre-wrap text-sm text-neutral-600">
                             {scene.script || "—"}
                           </p>
@@ -155,8 +206,9 @@ export default async function PublicGuidePage({
                       );
                     })}
                   </div>
-                </div>
-              ))}
+                </details>
+                );
+              })}
             </div>
           </section>
         ) : null}

@@ -30,7 +30,8 @@ create table if not exists scenes (
   video_id uuid not null references videos(id) on delete cascade,
   position integer not null default 0,
   title text not null default '',
-  script text not null default ''
+  script text not null default '',
+  recorded boolean not null default false
 );
 
 create table if not exists visual_references (

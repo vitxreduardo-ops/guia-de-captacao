@@ -18,6 +18,7 @@ npm install
 2. No **SQL Editor**, rode o conteúdo de [`supabase/schema.sql`](supabase/schema.sql) — cria as tabelas `guides`, `videos`, `scenes`, `visual_references`, `shot_list_items` e `checklist_items`.
    - Se você já tinha rodado uma versão anterior deste schema (sem a tabela `videos`), rode em vez disso [`supabase/migrations/0002_add_videos.sql`](supabase/migrations/0002_add_videos.sql) — preserva os guias e cenas já criados.
    - Se seu banco já tem a tabela `videos` mas ainda não tem `visual_references.source_url`, rode [`supabase/migrations/0004_add_reference_source_url.sql`](supabase/migrations/0004_add_reference_source_url.sql).
+   - Se seu banco ainda não tem `scenes.recorded`, rode [`supabase/migrations/0005_add_scene_recorded.sql`](supabase/migrations/0005_add_scene_recorded.sql) — usado pelo checklist de "cena gravada" na página pública.
 3. Em **Storage**, crie um bucket público chamado `guide-references` (usado para as imagens de referência visual enviadas por upload).
 4. Em **Project Settings > API**, copie a **Project URL** e a **service_role key**.
 
@@ -45,7 +46,7 @@ Abra [http://localhost:3000/admin](http://localhost:3000/admin) e entre com a se
 - **`/admin`** — lista de guias, criação de novos guias.
 - **`/admin/guias/[id]`** — formulário de edição: dados gerais, vídeos (cada vídeo pode ter várias cenas, cada cena com roteiro e referências visuais próprias — upload de arquivo ou link de imagem) shot list/decupagem e checklist de equipamento/locação. Um botão publica o guia.
   - Se o link colado numa referência visual não for uma imagem direta (ex: post do Instagram/Pinterest), o sistema tenta extrair a imagem de capa (`og:image`) automaticamente e mostra ela como referência, guardando o link original para abrir a publicação de origem. Se não conseguir extrair, mostra como um link clicável simples.
-- **`/guia/[slug]`** — página pública, somente leitura, visível para qualquer pessoa com o link assim que o guia é publicado.
+- **`/guia/[slug]`** — página pública, visível para qualquer pessoa com o link assim que o guia é publicado. Os blocos de vídeo começam minimizados (só um aberto por vez). Cada cena tem um botão "Gravar": ao marcar, a cena fica verde; quando todas as cenas de um vídeo são marcadas, o bloco minimiza sozinho e ganha um ✓ ao lado do título. Não exige login, então qualquer pessoa com o link pode marcar/desmarcar.
 - **`/api/guias/[slug]/pdf`** — gera e retorna um PDF com o mesmo conteúdo do guia (via [`@react-pdf/renderer`](https://react-pdf.org/)).
 
 ## Deploy (Vercel)

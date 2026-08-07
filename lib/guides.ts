@@ -29,6 +29,7 @@ export interface Scene {
   position: number;
   title: string;
   script: string;
+  recorded: boolean;
 }
 
 export interface VisualReference {
@@ -327,6 +328,15 @@ export async function updateScene(
 export async function deleteScene(id: string) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase.from("scenes").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function toggleSceneRecorded(id: string, recorded: boolean) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("scenes")
+    .update({ recorded })
+    .eq("id", id);
   if (error) throw error;
 }
 
