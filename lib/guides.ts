@@ -36,6 +36,7 @@ export interface VisualReference {
   guide_id: string;
   scene_id: string | null;
   image_url: string;
+  source_url: string | null;
   caption: string;
   position: number;
 }
@@ -333,7 +334,12 @@ export async function deleteScene(id: string) {
 
 export async function addVisualReference(
   guideId: string,
-  fields: { image_url: string; caption: string; scene_id: string | null }
+  fields: {
+    image_url: string;
+    source_url?: string | null;
+    caption: string;
+    scene_id: string | null;
+  }
 ) {
   const supabase = getSupabaseServerClient();
   const position = await nextPosition(
@@ -345,6 +351,7 @@ export async function addVisualReference(
     guide_id: guideId,
     position,
     image_url: fields.image_url,
+    source_url: fields.source_url ?? null,
     caption: fields.caption,
     scene_id: fields.scene_id,
   });

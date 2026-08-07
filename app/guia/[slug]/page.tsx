@@ -103,14 +103,21 @@ export default async function PublicGuidePage({
 
                           {sceneReferences.length > 0 ? (
                             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                              {sceneReferences.map((reference) => (
+                              {sceneReferences.map((reference) => {
+                                const showAsImage =
+                                  Boolean(reference.source_url) ||
+                                  isLikelyImageUrl(reference.image_url);
+                                const href =
+                                  reference.source_url ?? reference.image_url;
+
+                                return (
                                 <figure
                                   key={reference.id}
                                   className="overflow-hidden rounded-md border border-neutral-200 bg-white"
                                 >
-                                  {isLikelyImageUrl(reference.image_url) ? (
+                                  {showAsImage ? (
                                     <a
-                                      href={reference.image_url}
+                                      href={href}
                                       target="_blank"
                                       rel="noreferrer"
                                     >
@@ -126,7 +133,7 @@ export default async function PublicGuidePage({
                                     </a>
                                   ) : (
                                     <a
-                                      href={reference.image_url}
+                                      href={href}
                                       target="_blank"
                                       rel="noreferrer"
                                       className="flex h-28 w-full items-center justify-center bg-neutral-100 px-2 text-center text-xs font-medium text-neutral-600 underline"
@@ -140,7 +147,8 @@ export default async function PublicGuidePage({
                                     </figcaption>
                                   ) : null}
                                 </figure>
-                              ))}
+                                );
+                              })}
                             </div>
                           ) : null}
                         </div>

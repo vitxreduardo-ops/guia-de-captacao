@@ -38,6 +38,7 @@ create table if not exists visual_references (
   guide_id uuid not null references guides(id) on delete cascade,
   scene_id uuid references scenes(id) on delete set null,
   image_url text not null,
+  source_url text,
   caption text not null default '',
   position integer not null default 0
 );

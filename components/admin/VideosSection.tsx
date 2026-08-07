@@ -29,51 +29,54 @@ function SceneReferences({
 
       {references.length > 0 ? (
         <div className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {references.map((reference) => (
-            <div
-              key={reference.id}
-              className="overflow-hidden rounded-md border border-neutral-200 bg-white"
-            >
-              {isLikelyImageUrl(reference.image_url) ? (
-                <a
-                  href={reference.image_url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={reference.image_url}
-                    alt={reference.caption || "Referência visual"}
-                    className="h-20 w-full object-cover"
-                  />
-                </a>
-              ) : (
-                <a
-                  href={reference.image_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex h-20 w-full items-center justify-center bg-neutral-100 px-2 text-center text-[11px] font-medium text-neutral-600 underline"
-                >
-                  Abrir link ↗
-                </a>
-              )}
-              <div className="p-1.5">
-                {reference.caption ? (
-                  <p className="truncate text-[11px] text-neutral-600">
-                    {reference.caption}
-                  </p>
-                ) : null}
-                <form action={deleteVisualReferenceAction}>
-                  <input type="hidden" name="id" value={reference.id} />
-                  <input type="hidden" name="guide_id" value={guideId} />
-                  <DeleteButton
-                    label="Remover"
-                    confirmMessage="Remover esta referência visual?"
-                  />
-                </form>
+          {references.map((reference) => {
+            const showAsImage =
+              Boolean(reference.source_url) ||
+              isLikelyImageUrl(reference.image_url);
+            const href = reference.source_url ?? reference.image_url;
+
+            return (
+              <div
+                key={reference.id}
+                className="overflow-hidden rounded-md border border-neutral-200 bg-white"
+              >
+                {showAsImage ? (
+                  <a href={href} target="_blank" rel="noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={reference.image_url}
+                      alt={reference.caption || "Referência visual"}
+                      className="h-20 w-full object-cover"
+                    />
+                  </a>
+                ) : (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex h-20 w-full items-center justify-center bg-neutral-100 px-2 text-center text-[11px] font-medium text-neutral-600 underline"
+                  >
+                    Abrir link ↗
+                  </a>
+                )}
+                <div className="p-1.5">
+                  {reference.caption ? (
+                    <p className="truncate text-[11px] text-neutral-600">
+                      {reference.caption}
+                    </p>
+                  ) : null}
+                  <form action={deleteVisualReferenceAction}>
+                    <input type="hidden" name="id" value={reference.id} />
+                    <input type="hidden" name="guide_id" value={guideId} />
+                    <DeleteButton
+                      label="Remover"
+                      confirmMessage="Remover esta referência visual?"
+                    />
+                  </form>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <p className="mb-3 text-xs text-neutral-400">

@@ -17,6 +17,7 @@ npm install
 1. Crie um projeto em [supabase.com](https://supabase.com).
 2. No **SQL Editor**, rode o conteúdo de [`supabase/schema.sql`](supabase/schema.sql) — cria as tabelas `guides`, `videos`, `scenes`, `visual_references`, `shot_list_items` e `checklist_items`.
    - Se você já tinha rodado uma versão anterior deste schema (sem a tabela `videos`), rode em vez disso [`supabase/migrations/0002_add_videos.sql`](supabase/migrations/0002_add_videos.sql) — preserva os guias e cenas já criados.
+   - Se seu banco já tem a tabela `videos` mas ainda não tem `visual_references.source_url`, rode [`supabase/migrations/0004_add_reference_source_url.sql`](supabase/migrations/0004_add_reference_source_url.sql).
 3. Em **Storage**, crie um bucket público chamado `guide-references` (usado para as imagens de referência visual enviadas por upload).
 4. Em **Project Settings > API**, copie a **Project URL** e a **service_role key**.
 
@@ -42,7 +43,8 @@ Abra [http://localhost:3000/admin](http://localhost:3000/admin) e entre com a se
 ## Como funciona
 
 - **`/admin`** — lista de guias, criação de novos guias.
-- **`/admin/guias/[id]`** — formulário de edição: dados gerais, vídeos (cada vídeo pode ter várias cenas, cada cena com roteiro e referências visuais próprias — upload de arquivo ou link de imagem), shot list/decupagem e checklist de equipamento/locação. Um botão publica o guia.
+- **`/admin/guias/[id]`** — formulário de edição: dados gerais, vídeos (cada vídeo pode ter várias cenas, cada cena com roteiro e referências visuais próprias — upload de arquivo ou link de imagem) shot list/decupagem e checklist de equipamento/locação. Um botão publica o guia.
+  - Se o link colado numa referência visual não for uma imagem direta (ex: post do Instagram/Pinterest), o sistema tenta extrair a imagem de capa (`og:image`) automaticamente e mostra ela como referência, guardando o link original para abrir a publicação de origem. Se não conseguir extrair, mostra como um link clicável simples.
 - **`/guia/[slug]`** — página pública, somente leitura, visível para qualquer pessoa com o link assim que o guia é publicado.
 - **`/api/guias/[slug]/pdf`** — gera e retorna um PDF com o mesmo conteúdo do guia (via [`@react-pdf/renderer`](https://react-pdf.org/)).
 

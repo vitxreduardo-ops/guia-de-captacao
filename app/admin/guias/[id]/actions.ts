@@ -20,12 +20,34 @@ import {
   updateVideo,
   type ChecklistCategory,
 } from "@/lib/guides";
+import { fetchOgImage, isLikelyImageUrl } from "@/lib/references";
 import { uploadReferenceImage } from "@/lib/storage";
 
 function revalidateGuide(id: string, slug?: string | null) {
   revalidatePath(`/admin/guias/${id}`);
   revalidatePath("/admin");
   if (slug) revalidatePath(`/guia/${slug}`);
+}
+
+/**
+ * Quando o usuário cola um link que não é uma imagem direta (ex: post do
+ * Instagram/Pinterest), tenta extrair a imagem de capa (og:image) do link
+ * pra usar como referência visual, guardando o link original em source_url.
+ * Se não conseguir, mantém o comportamento anterior (link tratado como link).
+ */
+async function resolveReferenceImage(
+  urlInput: string
+): Promise<{ image_url: string; source_url: string | null }> {
+  if (isLikelyImageUrl(urlInput)) {
+    return { image_url: urlInput, source_url: null };
+  }
+
+  const ogImage = await fetchOgImage(urlInput);
+  if (ogImage) {
+    return { image_url: ogImage, source_url: urlInput };
+  }
+
+  return { image_url: urlInput, source_url: null };
 }
 
 export async function updateGuideInfoAction(formData: FormData) {
@@ -88,14 +110,21 @@ export async function addSceneAction(formData: FormData) {
   const caption = String(formData.get("caption") ?? "").trim();
   const file = formData.get("file");
 
-  let imageUrl = urlInput;
+  let imageUrl = "";
+  let sourceUrl: string | null = null;
+
   if (file instanceof File && file.size > 0) {
     imageUrl = await uploadReferenceImage(guideId, file);
+  } else if (urlInput) {
+    const resolved = await resolveReferenceImage(urlInput);
+    imageUrl = resolved.image_url;
+    sourceUrl = resolved.source_url;
   }
 
   if (imageUrl) {
     await addVisualReference(guideId, {
       image_url: imageUrl,
+      source_url: sourceUrl,
       caption,
       scene_id: scene.id,
     });
@@ -127,16 +156,22 @@ export async function addVisualReferenceAction(formData: FormData) {
   const urlInput = String(formData.get("image_url") ?? "").trim();
   const file = formData.get("file");
 
-  let imageUrl = urlInput;
+  let imageUrl = "";
+  let sourceUrl: string | null = null;
 
   if (file instanceof File && file.size > 0) {
     imageUrl = await uploadReferenceImage(guideId, file);
+  } else if (urlInput) {
+    const resolved = await resolveReferenceImage(urlInput);
+    imageUrl = resolved.image_url;
+    sourceUrl = resolved.source_url;
   }
 
   if (!imageUrl) return;
 
   await addVisualReference(guideId, {
     image_url: imageUrl,
+    source_url: sourceUrl,
     caption,
     scene_id: sceneId,
   });

@@ -134,13 +134,20 @@ function GuidePdfDocument({ guide }: { guide: GuideWithSections }) {
 
                       {sceneReferences.length > 0 ? (
                         <View style={styles.referencesGrid}>
-                          {sceneReferences.map((reference) => (
+                          {sceneReferences.map((reference) => {
+                            const showAsImage =
+                              Boolean(reference.source_url) ||
+                              isLikelyImageUrl(reference.image_url);
+                            const href =
+                              reference.source_url ?? reference.image_url;
+
+                            return (
                             <View
                               key={reference.id}
                               style={styles.referenceItem}
                             >
-                              {isLikelyImageUrl(reference.image_url) ? (
-                                <Link src={reference.image_url}>
+                              {showAsImage ? (
+                                <Link src={href}>
                                   {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image is not an HTML img and has no alt prop */}
                                   <Image
                                     src={reference.image_url}
@@ -149,7 +156,7 @@ function GuidePdfDocument({ guide }: { guide: GuideWithSections }) {
                                 </Link>
                               ) : (
                                 <Link
-                                  src={reference.image_url}
+                                  src={href}
                                   style={styles.referenceLinkBox}
                                 >
                                   <Text style={styles.referenceLinkText}>
@@ -163,7 +170,8 @@ function GuidePdfDocument({ guide }: { guide: GuideWithSections }) {
                                 </Text>
                               ) : null}
                             </View>
-                          ))}
+                            );
+                          })}
                         </View>
                       ) : null}
                     </View>
