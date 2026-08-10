@@ -9,6 +9,7 @@ import { getGuideBySlugWithSections } from "@/lib/guides";
 import { isLikelyImageUrl } from "@/lib/references";
 import { TatuLogo } from "@/components/TatuLogo";
 import { LightboxImage } from "@/components/LightboxImage";
+import { Accordion } from "@/components/Accordion";
 
 function isShowableAsImage(item: { source_url: string | null; image_url: string }) {
   return Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
@@ -92,13 +93,11 @@ export default async function PublicGuidePage({
                   video.scenes.every((scene) => scene.recorded);
 
                 return (
-                <details
-                  key={`${video.id}-${videoCompleted}`}
-                  name="videos"
-                  className="group rounded-lg border border-neutral-300 bg-white"
-                >
-                  <summary className="flex cursor-pointer select-none list-none items-center justify-between p-4 marker:hidden [&::-webkit-details-marker]:hidden">
-                    <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                <Accordion
+                  key={video.id}
+                  className="rounded-lg border border-neutral-300 bg-white"
+                  summary={
+                    <span className="flex items-center gap-2 p-4 text-xs font-semibold uppercase tracking-wide text-neutral-500">
                       {videoCompleted ? (
                         <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-green-600 text-[10px] text-white">
                           ✓
@@ -107,11 +106,8 @@ export default async function PublicGuidePage({
                       Vídeo {videoIndex + 1}
                       {video.title ? ` — ${video.title}` : ""}
                     </span>
-                    <span className="text-neutral-400 transition-transform group-open:rotate-180">
-                      ▾
-                    </span>
-                  </summary>
-
+                  }
+                >
                   <div className="space-y-4 border-t border-neutral-200 p-4">
                     {video.scenes.map((scene, sceneIndex) => {
                       const sceneReferences = guide.visual_references.filter(
@@ -233,7 +229,7 @@ export default async function PublicGuidePage({
                       );
                     })}
                   </div>
-                </details>
+                </Accordion>
                 );
               })}
             </div>
