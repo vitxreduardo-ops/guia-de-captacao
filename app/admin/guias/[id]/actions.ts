@@ -32,7 +32,7 @@ import { uploadReferenceImage } from "@/lib/storage";
 
 function revalidateGuide(id: string, slug?: string | null) {
   revalidatePath(`/admin/guias/${id}`);
-  revalidatePath("/admin");
+  revalidatePath("/admin/guias");
   if (slug) revalidatePath(`/guia/${slug}`);
 }
 

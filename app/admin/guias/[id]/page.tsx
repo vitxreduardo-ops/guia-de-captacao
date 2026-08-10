@@ -32,7 +32,7 @@ export default async function GuideEditPage({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <AdminHeader title={guide.title} backHref="/admin" />
+      <AdminHeader title={guide.title} backHref="/admin/guias" />
 
       <div className="space-y-8">
         <PublishBox guide={guide} />
