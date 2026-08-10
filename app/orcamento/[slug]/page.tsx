@@ -6,6 +6,7 @@ import { TatuLogo } from "@/components/TatuLogo";
 import { Accordion } from "@/components/Accordion";
 import { LightboxImage } from "@/components/LightboxImage";
 import { Reveal, RevealStagger, RevealItem } from "@/components/Reveal";
+import { ScrollHint } from "@/components/ScrollHint";
 
 export const dynamic = "force-dynamic";
 
@@ -127,12 +128,14 @@ export default async function PublicBudgetPage({
   return (
     <div className="min-h-screen">
       <section
-        className={`relative flex min-h-[100dvh] flex-col overflow-hidden px-4 py-12 sm:px-8 sm:py-16 ${heroTone.bg} ${heroTone.text}`}
+        className={`relative flex min-h-[100dvh] flex-col overflow-hidden px-4 py-8 sm:px-8 sm:py-10 ${heroTone.bg} ${heroTone.text}`}
       >
         <HeroBackground url={budget.hero_bg_video_url} />
         {hasVideo ? <div className="absolute inset-0 bg-black/50" /> : null}
+        <div className="relative mx-auto w-full max-w-3xl">
+          <TatuLogo className="mx-auto block h-8 w-auto" />
+        </div>
         <div className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center">
-          <TatuLogo className="mb-10 block h-8 w-auto" />
           {budget.hero_eyebrow ? (
             <p className="mb-4 text-xs font-bold uppercase tracking-widest">
               {budget.hero_eyebrow}
@@ -158,6 +161,7 @@ export default async function PublicBudgetPage({
             </a>
           ) : null}
         </div>
+        <ScrollHint className={heroTone.text} />
       </section>
 
       {hasAbout && aboutTone ? (
