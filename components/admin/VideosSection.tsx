@@ -9,6 +9,7 @@ import {
   updateSceneAction,
   updateVideoAction,
 } from "@/app/admin/guias/[id]/actions";
+import { Accordion } from "@/components/Accordion";
 import { DeleteButton } from "@/components/admin/DeleteButton";
 import { LightboxImage } from "@/components/LightboxImage";
 import type { Scene, VideoWithScenes, VisualReference } from "@/lib/guides";
@@ -217,20 +218,17 @@ function VideoCard({
   const nextSceneNumber = video.scenes.length + 1;
 
   return (
-    <details
-      open={isLast}
-      className="group rounded-md border border-neutral-300"
-    >
-      <summary className="flex cursor-pointer select-none list-none items-center justify-between p-3 marker:hidden [&::-webkit-details-marker]:hidden">
+    <Accordion
+      defaultOpen={isLast}
+      className="rounded-md border border-neutral-300"
+      buttonClassName="p-3"
+      summary={
         <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
           Vídeo {index + 1}
           {video.title ? ` — ${video.title}` : ""}
         </span>
-        <span className="text-neutral-400 transition-transform group-open:rotate-180">
-          ▾
-        </span>
-      </summary>
-
+      }
+    >
       <div className="border-t border-neutral-200 p-3">
         <div className="mb-2 flex justify-end">
           <form action={deleteVideoAction}>
@@ -324,7 +322,7 @@ function VideoCard({
         </button>
       </form>
       </div>
-    </details>
+    </Accordion>
   );
 }
 

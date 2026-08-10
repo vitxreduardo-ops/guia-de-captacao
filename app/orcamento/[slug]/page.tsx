@@ -3,6 +3,7 @@ import { getBudgetBySlugWithSections } from "@/lib/budgets";
 import { PACKAGE_WHATSAPP_URL } from "@/lib/budgetCalc";
 import { isLikelyImageUrl } from "@/lib/references";
 import { TatuLogo } from "@/components/TatuLogo";
+import { Accordion } from "@/components/Accordion";
 
 export const dynamic = "force-dynamic";
 
@@ -330,17 +331,18 @@ export default async function PublicBudgetPage({
             </h2>
             <div>
               {faq.map((item) => (
-                <details
+                <Accordion
                   key={item.id}
-                  className={`border-b py-4 ${faqTone.divider}`}
+                  className={`border-b ${faqTone.divider}`}
+                  buttonClassName="py-4"
+                  summary={
+                    <span className="text-sm font-semibold">{item.question}</span>
+                  }
                 >
-                  <summary className="cursor-pointer list-none text-sm font-semibold marker:hidden [&::-webkit-details-marker]:hidden">
-                    {item.question}
-                  </summary>
-                  <p className={`mt-2 text-sm leading-relaxed ${faqTone.textMuted}`}>
+                  <p className={`pb-4 text-sm leading-relaxed ${faqTone.textMuted}`}>
                     {item.answer}
                   </p>
-                </details>
+                </Accordion>
               ))}
             </div>
           </div>
