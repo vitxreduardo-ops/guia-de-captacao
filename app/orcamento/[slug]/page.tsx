@@ -4,6 +4,9 @@ import { PACKAGE_WHATSAPP_URL } from "@/lib/budgetCalc";
 import { isLikelyImageUrl } from "@/lib/references";
 import { TatuLogo } from "@/components/TatuLogo";
 import { Accordion } from "@/components/Accordion";
+import { LightboxImage } from "@/components/LightboxImage";
+import { Reveal, RevealStagger, RevealItem } from "@/components/Reveal";
+import { ScrollHint } from "@/components/ScrollHint";
 
 export const dynamic = "force-dynamic";
 
@@ -102,7 +105,9 @@ export default async function PublicBudgetPage({
   const references = budget.references;
   const packages = budget.packages;
   const faq = budget.faq;
-  const hasAbout = Boolean(budget.about_title || budget.about_text);
+  const hasHeroStatement = Boolean(budget.hero_title1 || budget.hero_title2);
+  const hasAbout =
+    Boolean(budget.about_title || budget.about_text) || hasHeroStatement;
   const hasVideo = Boolean(budget.hero_bg_video_url.trim());
 
   // Bloco 0 é sempre o hero (sempre escuro/olive). Os próximos índices só
@@ -123,12 +128,14 @@ export default async function PublicBudgetPage({
   return (
     <div className="min-h-screen">
       <section
-        className={`relative overflow-hidden px-4 py-20 sm:px-8 ${heroTone.bg} ${heroTone.text}`}
+        className={`relative flex min-h-[100dvh] flex-col overflow-hidden px-4 py-8 sm:px-8 sm:py-10 ${heroTone.bg} ${heroTone.text}`}
       >
         <HeroBackground url={budget.hero_bg_video_url} />
         {hasVideo ? <div className="absolute inset-0 bg-black/50" /> : null}
-        <div className="relative mx-auto max-w-3xl">
-          <TatuLogo className="mb-10 block h-8 w-auto" />
+        <div className="relative mx-auto w-full max-w-3xl">
+          <TatuLogo className="mx-auto block h-8 w-auto" />
+        </div>
+        <div className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center">
           {budget.hero_eyebrow ? (
             <p className="mb-4 text-xs font-bold uppercase tracking-widest">
               {budget.hero_eyebrow}
@@ -136,11 +143,9 @@ export default async function PublicBudgetPage({
           ) : null}
           <h1
             style={{ fontFamily: "Bootzy, sans-serif" }}
-            className="mb-6 text-4xl leading-tight sm:text-6xl"
+            className="mb-6 text-4xl leading-tight tracking-wide sm:text-6xl"
           >
-            {budget.hero_title1}
-            <br />
-            <span className="font-bold">{budget.hero_title2}</span>
+            {budget.client_name || budget.hero_title1}
           </h1>
           {budget.hero_subtitle ? (
             <p className={`mb-8 max-w-lg text-base ${heroTone.textMuted}`}>
@@ -150,17 +155,28 @@ export default async function PublicBudgetPage({
           {packages.length > 0 ? (
             <a
               href="#pacotes"
-              className="inline-block rounded-md bg-[var(--tatu-ink)] px-6 py-3 text-sm font-bold text-[var(--tatu-cream)]"
+              className="inline-block w-fit rounded-md bg-[var(--tatu-ink)] px-6 py-3 text-sm font-bold text-[var(--tatu-cream)]"
             >
               {budget.hero_cta || "Conhecer a proposta"}
             </a>
           ) : null}
         </div>
+        <ScrollHint className={heroTone.text} />
       </section>
 
       {hasAbout && aboutTone ? (
         <section className={`px-4 py-16 sm:px-8 ${aboutTone.bg} ${aboutTone.text}`}>
-          <div className="mx-auto max-w-3xl">
+          <Reveal className="mx-auto max-w-3xl">
+            {hasHeroStatement ? (
+              <p
+                style={{ fontFamily: "Bootzy, sans-serif" }}
+                className="mb-10 text-3xl leading-snug tracking-[0.03em] sm:text-5xl"
+              >
+                {budget.hero_title1}
+                <br />
+                {budget.hero_title2}
+              </p>
+            ) : null}
             {budget.about_title ? (
               <h2 className="mb-4 text-2xl font-bold sm:text-3xl">
                 {budget.about_title}
@@ -173,7 +189,7 @@ export default async function PublicBudgetPage({
                 {budget.about_text}
               </p>
             ) : null}
-          </div>
+          </Reveal>
         </section>
       ) : null}
 
@@ -183,13 +199,15 @@ export default async function PublicBudgetPage({
         >
           <div className="mx-auto max-w-3xl">
             {budget.highlights_title ? (
-              <h2 className="mb-10 text-2xl font-bold sm:text-3xl">
-                {budget.highlights_title}
-              </h2>
+              <Reveal>
+                <h2 className="mb-10 text-2xl font-bold sm:text-3xl">
+                  {budget.highlights_title}
+                </h2>
+              </Reveal>
             ) : null}
-            <div className="grid gap-8 sm:grid-cols-2">
+            <RevealStagger className="grid gap-8 sm:grid-cols-2">
               {highlights.map((item, index) => (
-                <div key={item.id}>
+                <RevealItem key={item.id}>
                   <div className="mb-3 flex items-center gap-2">
                     <div
                       className={`flex h-8 w-8 items-center justify-center rounded-md border text-sm ${highlightsTone.iconBorder} ${highlightsTone.iconColor}`}
@@ -203,9 +221,9 @@ export default async function PublicBudgetPage({
                   <p className="max-w-sm text-lg font-bold leading-snug">
                     {item.title}
                   </p>
-                </div>
+                </RevealItem>
               ))}
-            </div>
+            </RevealStagger>
           </div>
         </section>
       ) : null}
@@ -215,44 +233,61 @@ export default async function PublicBudgetPage({
           className={`px-4 py-16 sm:px-8 ${referencesTone.bg} ${referencesTone.text}`}
         >
           <div className="mx-auto max-w-5xl">
-            <h2 className="mb-10 text-2xl font-bold sm:text-3xl">
-              Referências
-            </h2>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {references.map((item) => {
-                const showAsImage =
-                  Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
-                const href = item.source_url ?? item.image_url;
-
-                return (
-                  <a
-                    key={item.id}
-                    href={href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block overflow-hidden rounded-xl"
-                  >
-                    {showAsImage ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.image_url}
-                        alt={item.caption || "Referência"}
-                        className="h-40 w-full object-cover sm:h-48"
-                      />
-                    ) : (
-                      <div className="flex h-40 w-full items-center justify-center bg-[var(--tatu-cream)] px-2 text-center text-xs font-medium text-[var(--tatu-ink)] underline sm:h-48">
-                        Abrir link ↗
-                      </div>
-                    )}
-                    {item.caption ? (
-                      <p className={`mt-2 text-xs ${referencesTone.textMuted}`}>
-                        {item.caption}
-                      </p>
-                    ) : null}
-                  </a>
+            <Reveal>
+              <h2 className="mb-10 text-2xl font-bold sm:text-3xl">
+                Referências
+              </h2>
+            </Reveal>
+            <RevealStagger className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {(() => {
+                const imageReferences = references.filter(
+                  (item) =>
+                    Boolean(item.source_url) || isLikelyImageUrl(item.image_url)
                 );
-              })}
-            </div>
+                const gallery = imageReferences.map((item) => ({
+                  id: item.id,
+                  src: item.image_url,
+                  alt: item.caption || "Referência",
+                  sourceUrl: item.source_url,
+                }));
+
+                return references.map((item) => {
+                  const showAsImage =
+                    Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
+                  const href = item.source_url ?? item.image_url;
+
+                  return (
+                    <RevealItem key={item.id} className="overflow-hidden rounded-xl">
+                      {showAsImage ? (
+                        <LightboxImage
+                          id={item.id}
+                          src={item.image_url}
+                          alt={item.caption || "Referência"}
+                          sourceUrl={item.source_url}
+                          className="h-40 w-full object-cover sm:h-48"
+                          gallery={gallery}
+                          index={imageReferences.findIndex((r) => r.id === item.id)}
+                        />
+                      ) : (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex h-40 w-full items-center justify-center bg-[var(--tatu-cream)] px-2 text-center text-xs font-medium text-[var(--tatu-ink)] underline sm:h-48"
+                        >
+                          Abrir link ↗
+                        </a>
+                      )}
+                      {item.caption ? (
+                        <p className={`mt-2 text-xs ${referencesTone.textMuted}`}>
+                          {item.caption}
+                        </p>
+                      ) : null}
+                    </RevealItem>
+                  );
+                });
+              })()}
+            </RevealStagger>
           </div>
         </section>
       ) : null}
@@ -262,10 +297,12 @@ export default async function PublicBudgetPage({
           id="pacotes"
           className={`px-4 py-16 sm:px-8 ${packagesTone.bg} ${packagesTone.text}`}
         >
-          <h2 className="mb-10 text-center text-2xl font-bold sm:text-3xl">
-            Três formatos. Uma decisão de posicionamento.
-          </h2>
-          <div className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-3">
+          <Reveal>
+            <h2 className="mb-10 text-center text-2xl font-bold sm:text-3xl">
+              Três formatos. Uma decisão de posicionamento.
+            </h2>
+          </Reveal>
+          <RevealStagger className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-3">
             {packages.map((pkg) => {
               const isHighlighted = Boolean(pkg.tag);
               const features = pkg.features
@@ -274,7 +311,7 @@ export default async function PublicBudgetPage({
                 .filter(Boolean);
 
               return (
-                <div
+                <RevealItem
                   key={pkg.id}
                   className={`relative flex flex-col rounded-2xl bg-[var(--tatu-cream)] p-7 text-[var(--tatu-ink)] ${
                     isHighlighted
@@ -316,16 +353,16 @@ export default async function PublicBudgetPage({
                   >
                     Escolher {pkg.name}
                   </a>
-                </div>
+                </RevealItem>
               );
             })}
-          </div>
+          </RevealStagger>
         </section>
       ) : null}
 
       {faq.length > 0 && faqTone ? (
         <section className={`px-4 py-16 sm:px-8 ${faqTone.bg} ${faqTone.text}`}>
-          <div className="mx-auto max-w-3xl">
+          <Reveal className="mx-auto max-w-3xl">
             <h2 className="mb-8 text-center text-2xl font-bold sm:text-3xl">
               Perguntas frequentes
             </h2>
@@ -345,7 +382,7 @@ export default async function PublicBudgetPage({
                 </Accordion>
               ))}
             </div>
-          </div>
+          </Reveal>
         </section>
       ) : null}
 
