@@ -8,6 +8,23 @@
   font-display: swap;
 }
 
+/*
+  Paleta de marca da Tatú, usada na página pública do Orçamento
+  (/orcamento/[slug]). --tatu-ink não é uma das cores fornecidas pela
+  marca — é um verde oliva bem escuro (não preto puro), pra garantir
+  contraste AA em texto corrido sem perder o tom quente da marca, já que
+  nenhuma das cores originais é escura o suficiente por si só. As outras
+  variáveis reproduzem exatamente os hex passados. Fundos de bloco
+  (seções full-width) usam só --tatu-olive ou --tatu-beige, nunca cinza.
+*/
+:root {
+  --tatu-olive: #838059;
+  --tatu-cream: #fff6e3;
+  --tatu-taupe: #cdc7b8;
+  --tatu-beige: #dbd5ca;
+  --tatu-ink: #2f3b1e;
+}
+
 :root {
   --background: #fafafa;
   --foreground: #171717;

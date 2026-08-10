@@ -184,17 +184,45 @@ export async function getBudgetBySlugWithSections(
   return attachSections(data);
 }
 
+const DEFAULT_ABOUT_TITLE =
+  "Sua empresa não precisa só aparecer. Precisa ser reconhecida.";
+const DEFAULT_ABOUT_TEXT =
+  "Unimos estratégia, direção criativa e produção audiovisual para construir uma presença coerente.";
+const DEFAULT_HIGHLIGHTS = [
+  "Direção criativa acompanhando toda a operação",
+  "Conteúdo para orgânico e tráfego",
+  "Banco de imagens para desdobrar em vários conteúdos",
+  "Alinhamento mensal de performance para guiar a próxima pauta",
+];
+
 export async function createBudget(title: string): Promise<Budget> {
   const supabase = getSupabaseServerClient();
   const slug = await generateUniqueBudgetSlug(title || "novo-orcamento");
 
   const { data, error } = await supabase
     .from("budgets")
-    .insert({ title: title || "Novo orçamento", slug })
+    .insert({
+      title: title || "Novo orçamento",
+      slug,
+      about_title: DEFAULT_ABOUT_TITLE,
+      about_text: DEFAULT_ABOUT_TEXT,
+    })
     .select("*")
     .single();
 
   if (error) throw error;
+
+  const { error: highlightsError } = await supabase
+    .from("budget_highlights")
+    .insert(
+      DEFAULT_HIGHLIGHTS.map((title, position) => ({
+        budget_id: data.id,
+        position,
+        title,
+      }))
+    );
+  if (highlightsError) throw highlightsError;
+
   return data;
 }
 
