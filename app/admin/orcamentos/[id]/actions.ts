@@ -5,9 +5,11 @@ import {
   addBudgetFaq,
   addBudgetHighlight,
   addBudgetPackage,
+  addBudgetReference,
   deleteBudgetFaq,
   deleteBudgetHighlight,
   deleteBudgetPackage,
+  deleteBudgetReference,
   getBudgetWithSections,
   replaceBudgetPackages,
   setBudgetStatus,
@@ -25,6 +27,8 @@ import {
   type MeuNivel,
   type NivelCliente,
 } from "@/lib/budgetCalc";
+import { fetchOgImage, isLikelyImageUrl } from "@/lib/references";
+import { uploadBudgetReferenceImage } from "@/lib/storage";
 
 function revalidateBudget(id: string, slug?: string | null) {
   revalidatePath(`/admin/orcamentos/${id}`);
@@ -236,5 +240,56 @@ export async function deleteBudgetFaqAction(formData: FormData) {
   const id = String(formData.get("id"));
   const budgetId = String(formData.get("budget_id"));
   await deleteBudgetFaq(id);
+  revalidateBudget(budgetId);
+}
+
+// Referências
+
+async function resolveReferenceImage(
+  urlInput: string
+): Promise<{ image_url: string; source_url: string | null }> {
+  if (isLikelyImageUrl(urlInput)) {
+    return { image_url: urlInput, source_url: null };
+  }
+
+  const ogImage = await fetchOgImage(urlInput);
+  if (ogImage) {
+    return { image_url: ogImage, source_url: urlInput };
+  }
+
+  return { image_url: urlInput, source_url: null };
+}
+
+export async function addBudgetReferenceAction(formData: FormData) {
+  const budgetId = String(formData.get("budget_id"));
+  const caption = String(formData.get("caption") ?? "").trim();
+  const urlInput = String(formData.get("image_url") ?? "").trim();
+  const file = formData.get("file");
+
+  let imageUrl = "";
+  let sourceUrl: string | null = null;
+
+  if (file instanceof File && file.size > 0) {
+    imageUrl = await uploadBudgetReferenceImage(budgetId, file);
+  } else if (urlInput) {
+    const resolved = await resolveReferenceImage(urlInput);
+    imageUrl = resolved.image_url;
+    sourceUrl = resolved.source_url;
+  }
+
+  if (!imageUrl) return;
+
+  await addBudgetReference(budgetId, {
+    image_url: imageUrl,
+    source_url: sourceUrl,
+    caption,
+  });
+  revalidateBudget(budgetId);
+}
+
+export async function deleteBudgetReferenceAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const budgetId = String(formData.get("budget_id"));
+  await deleteBudgetReference(id);
   revalidateBudget(budgetId);
 }

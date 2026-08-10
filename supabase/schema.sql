@@ -166,11 +166,22 @@ create table if not exists budget_faq (
   answer text not null default ''
 );
 
+create table if not exists budget_references (
+  id uuid primary key default gen_random_uuid(),
+  budget_id uuid not null references budgets(id) on delete cascade,
+  position integer not null default 0,
+  image_url text not null,
+  source_url text,
+  caption text not null default ''
+);
+
 create index if not exists budget_highlights_budget_id_idx on budget_highlights(budget_id);
 create index if not exists budget_packages_budget_id_idx on budget_packages(budget_id);
 create index if not exists budget_faq_budget_id_idx on budget_faq(budget_id);
+create index if not exists budget_references_budget_id_idx on budget_references(budget_id);
 
 alter table budgets enable row level security;
 alter table budget_highlights enable row level security;
 alter table budget_packages enable row level security;
 alter table budget_faq enable row level security;
+alter table budget_references enable row level security;

@@ -4,6 +4,7 @@ import {
   Page,
   Text,
   View,
+  Image,
   Link,
   StyleSheet,
   Font,
@@ -11,6 +12,7 @@ import {
 } from "@react-pdf/renderer";
 import type { BudgetWithSections } from "@/lib/budgets";
 import { PACKAGE_WHATSAPP_URL } from "@/lib/budgetCalc";
+import { isLikelyImageUrl } from "@/lib/references";
 
 Font.register({
   family: "Bootzy",
@@ -36,6 +38,25 @@ const styles = StyleSheet.create({
   highlightItem: { width: "50%", marginBottom: 14, paddingRight: 12 },
   highlightNum: { fontSize: 8, color: "#a3a3a3", marginBottom: 3 },
   highlightTitle: { fontSize: 11, fontWeight: 700 },
+  referencesGrid: { flexDirection: "row", flexWrap: "wrap", marginTop: 6 },
+  referenceItem: { width: 110, marginRight: 10, marginBottom: 10 },
+  referenceImage: { width: 110, height: 82, objectFit: "cover", borderRadius: 4 },
+  referenceLinkBox: {
+    width: 110,
+    height: 82,
+    borderRadius: 4,
+    backgroundColor: "#f5f5f5",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 4,
+  },
+  referenceLinkText: {
+    fontSize: 8,
+    color: "#2563eb",
+    textDecoration: "underline",
+    textAlign: "center",
+  },
+  referenceCaption: { fontSize: 8, color: "#666666", marginTop: 2 },
   packagesGrid: { flexDirection: "row", marginTop: 4 },
   packageCard: {
     flex: 1,
@@ -87,6 +108,7 @@ function money(n: number) {
 
 function BudgetPdfDocument({ budget }: { budget: BudgetWithSections }) {
   const highlights = budget.highlights;
+  const references = budget.references;
   const packages = budget.packages;
   const faq = budget.faq;
   const hasAbout = Boolean(budget.about_title || budget.about_text);
@@ -128,6 +150,44 @@ function BudgetPdfDocument({ budget }: { budget: BudgetWithSections }) {
                   <Text style={styles.highlightTitle}>{item.title}</Text>
                 </View>
               ))}
+            </View>
+          </View>
+        ) : null}
+
+        {references.length > 0 ? (
+          <View>
+            <Text style={styles.sectionTitle}>Referências</Text>
+            <View style={styles.referencesGrid}>
+              {references.map((item) => {
+                const showAsImage =
+                  Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
+                const href = item.source_url ?? item.image_url;
+
+                return (
+                  <View key={item.id} style={styles.referenceItem}>
+                    {showAsImage ? (
+                      <Link src={href}>
+                        {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image is not an HTML img and has no alt prop */}
+                        <Image
+                          src={item.image_url}
+                          style={styles.referenceImage}
+                        />
+                      </Link>
+                    ) : (
+                      <Link src={href} style={styles.referenceLinkBox}>
+                        <Text style={styles.referenceLinkText}>
+                          Abrir link
+                        </Text>
+                      </Link>
+                    )}
+                    {item.caption ? (
+                      <Text style={styles.referenceCaption}>
+                        {item.caption}
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              })}
             </View>
           </View>
         ) : null}

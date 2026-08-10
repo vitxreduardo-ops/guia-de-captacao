@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getBudgetBySlugWithSections } from "@/lib/budgets";
 import { PACKAGE_WHATSAPP_URL } from "@/lib/budgetCalc";
+import { isLikelyImageUrl } from "@/lib/references";
 import { TatuLogo } from "@/components/TatuLogo";
 
 export const dynamic = "force-dynamic";
@@ -97,6 +98,7 @@ export default async function PublicBudgetPage({
   }
 
   const highlights = budget.highlights;
+  const references = budget.references;
   const packages = budget.packages;
   const faq = budget.faq;
   const hasAbout = Boolean(budget.about_title || budget.about_text);
@@ -110,6 +112,8 @@ export default async function PublicBudgetPage({
   const aboutTone = hasAbout ? blockTone((blockIndex += 1)) : null;
   const highlightsTone =
     highlights.length > 0 ? blockTone((blockIndex += 1)) : null;
+  const referencesTone =
+    references.length > 0 ? blockTone((blockIndex += 1)) : null;
   const packagesTone =
     packages.length > 0 ? blockTone((blockIndex += 1)) : null;
   const faqTone = faq.length > 0 ? blockTone((blockIndex += 1)) : null;
@@ -200,6 +204,53 @@ export default async function PublicBudgetPage({
                   </p>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {references.length > 0 && referencesTone ? (
+        <section
+          className={`px-4 py-16 sm:px-8 ${referencesTone.bg} ${referencesTone.text}`}
+        >
+          <div className="mx-auto max-w-5xl">
+            <h2 className="mb-10 text-2xl font-bold sm:text-3xl">
+              Referências
+            </h2>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {references.map((item) => {
+                const showAsImage =
+                  Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
+                const href = item.source_url ?? item.image_url;
+
+                return (
+                  <a
+                    key={item.id}
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block overflow-hidden rounded-xl"
+                  >
+                    {showAsImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.image_url}
+                        alt={item.caption || "Referência"}
+                        className="h-40 w-full object-cover sm:h-48"
+                      />
+                    ) : (
+                      <div className="flex h-40 w-full items-center justify-center bg-[var(--tatu-cream)] px-2 text-center text-xs font-medium text-[var(--tatu-ink)] underline sm:h-48">
+                        Abrir link ↗
+                      </div>
+                    )}
+                    {item.caption ? (
+                      <p className={`mt-2 text-xs ${referencesTone.textMuted}`}>
+                        {item.caption}
+                      </p>
+                    ) : null}
+                  </a>
+                );
+              })}
             </div>
           </div>
         </section>

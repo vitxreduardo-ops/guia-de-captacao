@@ -57,10 +57,20 @@ export interface BudgetFaq {
   answer: string;
 }
 
+export interface BudgetReference {
+  id: string;
+  budget_id: string;
+  position: number;
+  image_url: string;
+  source_url: string | null;
+  caption: string;
+}
+
 export interface BudgetWithSections extends Budget {
   highlights: BudgetHighlight[];
   packages: BudgetPackage[];
   faq: BudgetFaq[];
+  references: BudgetReference[];
 }
 
 function slugify(input: string) {
@@ -124,7 +134,7 @@ export async function listBudgets(): Promise<Budget[]> {
 async function attachSections(budget: Budget): Promise<BudgetWithSections> {
   const supabase = getSupabaseServerClient();
 
-  const [highlights, packages, faq] = await Promise.all([
+  const [highlights, packages, faq, references] = await Promise.all([
     supabase
       .from("budget_highlights")
       .select("*")
@@ -140,17 +150,24 @@ async function attachSections(budget: Budget): Promise<BudgetWithSections> {
       .select("*")
       .eq("budget_id", budget.id)
       .order("position", { ascending: true }),
+    supabase
+      .from("budget_references")
+      .select("*")
+      .eq("budget_id", budget.id)
+      .order("position", { ascending: true }),
   ]);
 
   if (highlights.error) throw highlights.error;
   if (packages.error) throw packages.error;
   if (faq.error) throw faq.error;
+  if (references.error) throw references.error;
 
   return {
     ...budget,
     highlights: highlights.data ?? [],
     packages: packages.data ?? [],
     faq: faq.data ?? [],
+    references: references.data ?? [],
   };
 }
 
@@ -421,5 +438,36 @@ export async function updateBudgetFaq(
 export async function deleteBudgetFaq(id: string) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase.from("budget_faq").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// Referências
+
+export async function addBudgetReference(
+  budgetId: string,
+  fields: { image_url: string; source_url?: string | null; caption: string }
+) {
+  const supabase = getSupabaseServerClient();
+  const position = await nextPosition(
+    "budget_references",
+    "budget_id",
+    budgetId
+  );
+  const { error } = await supabase.from("budget_references").insert({
+    budget_id: budgetId,
+    position,
+    image_url: fields.image_url,
+    source_url: fields.source_url ?? null,
+    caption: fields.caption,
+  });
+  if (error) throw error;
+}
+
+export async function deleteBudgetReference(id: string) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("budget_references")
+    .delete()
+    .eq("id", id);
   if (error) throw error;
 }

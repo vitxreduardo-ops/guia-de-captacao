@@ -3,6 +3,7 @@ import { getBudgetWithSections } from "@/lib/budgets";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { BudgetGeneralInfoForm } from "@/components/admin/BudgetGeneralInfoForm";
 import { BudgetHighlightsSection } from "@/components/admin/BudgetHighlightsSection";
+import { BudgetReferencesSection } from "@/components/admin/BudgetReferencesSection";
 import { BudgetPackagesSection } from "@/components/admin/BudgetPackagesSection";
 import { BudgetRecurringCalculator } from "@/components/admin/BudgetRecurringCalculator";
 import { BudgetFreelaCalculator } from "@/components/admin/BudgetFreelaCalculator";
@@ -29,6 +30,10 @@ export default async function BudgetEditPage({ params }: { params: Params }) {
         <BudgetHighlightsSection
           budgetId={budget.id}
           items={budget.highlights}
+        />
+        <BudgetReferencesSection
+          budgetId={budget.id}
+          items={budget.references}
         />
         <BudgetPackagesSection budgetId={budget.id} items={budget.packages} />
         <BudgetRecurringCalculator

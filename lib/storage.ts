@@ -25,3 +25,28 @@ export async function uploadReferenceImage(
 
   return data.publicUrl;
 }
+
+export async function uploadBudgetReferenceImage(
+  budgetId: string,
+  file: File
+): Promise<string> {
+  const supabase = getSupabaseServerClient();
+  const extension = file.name.split(".").pop() || "jpg";
+  const path = `budgets/${budgetId}/${crypto.randomUUID()}.${extension}`;
+  const arrayBuffer = await file.arrayBuffer();
+
+  const { error } = await supabase.storage
+    .from(REFERENCES_BUCKET)
+    .upload(path, arrayBuffer, {
+      contentType: file.type || "image/jpeg",
+      upsert: false,
+    });
+
+  if (error) throw error;
+
+  const { data } = supabase.storage
+    .from(REFERENCES_BUCKET)
+    .getPublicUrl(path);
+
+  return data.publicUrl;
+}
