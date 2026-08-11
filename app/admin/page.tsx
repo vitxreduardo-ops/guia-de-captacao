@@ -29,6 +29,17 @@ export default function AdminHub() {
             Proposta comercial em landing page por cliente
           </p>
         </Link>
+        <Link
+          href="/admin/biblioteca"
+          className="rounded-lg border border-neutral-200 bg-white p-6 text-center hover:border-neutral-400"
+        >
+          <p className="text-base font-semibold text-neutral-900">
+            Biblioteca
+          </p>
+          <p className="mt-1 text-sm text-neutral-500">
+            Links e ferramentas úteis
+          </p>
+        </Link>
       </div>
     </div>
   );
