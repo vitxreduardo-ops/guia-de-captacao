@@ -14,9 +14,12 @@ create table if not exists guides (
   shoot_date date,
   location text default '',
   status text not null default 'draft' check (status in ('draft', 'published')),
+  tags text[] not null default '{}'::text[],
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+create index if not exists guides_tags_idx on guides using gin (tags);
 
 create table if not exists videos (
   id uuid primary key default gen_random_uuid(),

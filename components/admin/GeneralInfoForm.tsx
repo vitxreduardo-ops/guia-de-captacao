@@ -53,6 +53,17 @@ export function GeneralInfoForm({ guide }: { guide: GuideWithSections }) {
             className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
           />
         </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-neutral-600">
+            Tags (separadas por vírgula)
+          </label>
+          <input
+            name="tags"
+            placeholder="ex: institucional, urgente, redes sociais"
+            defaultValue={guide.tags.join(", ")}
+            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+          />
+        </div>
         <button
           type="submit"
           className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
