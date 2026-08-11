@@ -185,3 +185,16 @@ alter table budget_highlights enable row level security;
 alter table budget_packages enable row level security;
 alter table budget_faq enable row level security;
 alter table budget_references enable row level security;
+
+-- Biblioteca — lista simples de links e ferramentas úteis (ver
+-- supabase/migrations/0010_add_library_links.sql).
+
+create table if not exists library_links (
+  id uuid primary key default gen_random_uuid(),
+  title text not null default '',
+  url text not null default '',
+  description text not null default '',
+  created_at timestamptz not null default now()
+);
+
+alter table library_links enable row level security;
