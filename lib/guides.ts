@@ -12,6 +12,7 @@ export interface Guide {
   shoot_date: string | null;
   location: string;
   status: GuideStatus;
+  tags: string[];
   created_at: string;
   updated_at: string;
 }
@@ -269,7 +270,7 @@ export async function createGuide(title: string): Promise<Guide> {
 export async function updateGuideInfo(
   id: string,
   fields: Partial<
-    Pick<Guide, "title" | "client_name" | "shoot_date" | "location">
+    Pick<Guide, "title" | "client_name" | "shoot_date" | "location" | "tags">
   >
 ) {
   const supabase = getSupabaseServerClient();

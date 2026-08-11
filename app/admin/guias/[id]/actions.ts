@@ -63,12 +63,17 @@ export async function updateGuideInfoAction(formData: FormData) {
   const clientName = String(formData.get("client_name") ?? "").trim();
   const shootDateRaw = String(formData.get("shoot_date") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();
+  const tags = String(formData.get("tags") ?? "")
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
 
   await updateGuideInfo(id, {
     title,
     client_name: clientName,
     shoot_date: shootDateRaw || null,
     location,
+    tags,
   });
 
   revalidateGuide(id);
