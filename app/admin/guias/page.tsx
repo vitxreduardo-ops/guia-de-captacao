@@ -78,7 +78,7 @@ export default async function AdminDashboard({
   const filteredGuides = guides.filter((guide) => matchesFilters(guide, filters));
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       <AdminHeader title="Guias de gravação" backHref="/admin" />
 
       <form

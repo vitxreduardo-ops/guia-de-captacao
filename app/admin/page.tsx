@@ -3,7 +3,7 @@ import { AdminHeader } from "@/components/admin/AdminHeader";
 
 export default function AdminHub() {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       <AdminHeader title="Ferramentas" />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

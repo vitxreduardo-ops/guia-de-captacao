@@ -31,7 +31,7 @@ export default async function GuideEditPage({
   if (!guide) notFound();
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       <AdminHeader title={guide.title} backHref="/admin/guias" />
 
       <div className="space-y-8">

@@ -21,7 +21,7 @@ export default async function BudgetEditPage({ params }: { params: Params }) {
   if (!budget) notFound();
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       <AdminHeader title={budget.title} backHref="/admin/orcamentos" />
 
       <div className="space-y-8">
