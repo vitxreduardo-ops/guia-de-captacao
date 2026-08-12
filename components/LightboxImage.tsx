@@ -11,6 +11,13 @@ import {
 export interface GalleryItem {
   id: string;
   src: string;
+  /** Imagem em qualidade completa aberta no lightbox — usa `src` (a
+   * miniatura) se omitida. Deixa o grid leve (miniatura) sem abrir mão de
+   * qualidade completa ao ampliar. */
+  fullSrc?: string;
+  /** Link de download do arquivo original. Quando presente, o botão do
+   * rodapé do lightbox baixa o arquivo em vez de abrir o link original. */
+  downloadSrc?: string;
   alt: string;
   sourceUrl?: string | null;
   selected?: boolean;
@@ -23,6 +30,8 @@ const DISMISS_DISTANCE_THRESHOLD = 120;
 export function LightboxImage({
   id,
   src,
+  fullSrc,
+  downloadSrc,
   alt,
   className,
   sourceUrl,
@@ -33,6 +42,8 @@ export function LightboxImage({
 }: {
   id: string;
   src: string;
+  fullSrc?: string;
+  downloadSrc?: string;
   alt: string;
   className?: string;
   sourceUrl?: string | null;
@@ -43,10 +54,13 @@ export function LightboxImage({
 }) {
   const [open, setOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(index ?? 0);
+  const [loadedIds, setLoadedIds] = useState<Record<string, boolean>>({});
   const prefersReducedMotion = useReducedMotion();
 
   const items =
-    gallery && gallery.length > 0 ? gallery : [{ id, src, alt, sourceUrl, selected }];
+    gallery && gallery.length > 0
+      ? gallery
+      : [{ id, src, fullSrc, downloadSrc, alt, sourceUrl, selected }];
   const canNavigate = items.length > 1;
   const current = items[currentIndex] ?? items[0];
 
@@ -167,15 +181,42 @@ export function LightboxImage({
               </button>
             ) : null}
 
+            {!loadedIds[current.id] ? (
+              // Centralizado na tela, independente do tamanho da imagem —
+              // antes dela carregar o navegador não sabe as dimensões, então
+              // um indicador preso ao contêiner da imagem ficaria escondido
+              // (o contêiner some/encolhe até ter conteúdo).
+              <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+                <div className="h-1 w-32 overflow-hidden rounded-full bg-white/20">
+                  <motion.div
+                    className="h-full w-1/3 rounded-full bg-white"
+                    animate={
+                      prefersReducedMotion
+                        ? { opacity: [1, 0.4, 1] }
+                        : { x: ["-100%", "220%"] }
+                    }
+                    transition={{
+                      duration: prefersReducedMotion ? 1 : 0.9,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  />
+                </div>
+              </div>
+            ) : null}
+
             <div className="flex max-h-full max-w-full flex-col items-center gap-3">
               <div className="relative max-h-[85vh] max-w-full overflow-hidden rounded-md">
                 <AnimatePresence mode="popLayout" initial={false}>
                   <motion.img
                     key={current.id}
-                    src={current.src}
+                    src={current.fullSrc ?? current.src}
                     alt={current.alt}
                     className="max-h-[85vh] max-w-full touch-none rounded-md object-contain"
                     onClick={(event) => event.stopPropagation()}
+                    onLoad={() =>
+                      setLoadedIds((loaded) => ({ ...loaded, [current.id]: true }))
+                    }
                     drag={canNavigate || !prefersReducedMotion ? true : false}
                     dragElastic={0.6}
                     dragConstraints={{ top: 0, bottom: 0, left: 0, right: 0 }}
@@ -199,7 +240,7 @@ export function LightboxImage({
                   />
                 </AnimatePresence>
               </div>
-              {onToggleSelected ? (
+              {loadedIds[current.id] && onToggleSelected ? (
                 <label
                   onClick={(event) => event.stopPropagation()}
                   className="flex cursor-pointer items-center gap-2 rounded-md bg-white/90 px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-white"
@@ -215,7 +256,16 @@ export function LightboxImage({
                   Selecionada
                 </label>
               ) : null}
-              {current.sourceUrl ? (
+              {loadedIds[current.id] && current.downloadSrc ? (
+                <a
+                  href={current.downloadSrc}
+                  download
+                  onClick={(event) => event.stopPropagation()}
+                  className="rounded-md bg-white/90 px-3 py-1.5 text-sm font-medium text-neutral-900 transition-transform hover:bg-white active:scale-95"
+                >
+                  Baixar ↓
+                </a>
+              ) : loadedIds[current.id] && current.sourceUrl ? (
                 <a
                   href={current.sourceUrl}
                   target="_blank"
