@@ -1,6 +1,11 @@
+import type { UserRole } from "@/lib/users";
+
 export const COOKIE_NAME = "admin_session";
 
-const SESSION_VALUE = "ok";
+export interface Session {
+  userId: string;
+  role: UserRole;
+}
 
 function bufferToHex(buffer: ArrayBuffer) {
   return Array.from(new Uint8Array(buffer))
@@ -24,18 +29,32 @@ async function sign(value: string, secret: string) {
   return bufferToHex(signature);
 }
 
-export async function createSessionCookieValue(secret: string) {
-  const signature = await sign(SESSION_VALUE, secret);
-  return `${SESSION_VALUE}.${signature}`;
-}
-
-export async function isValidSession(
-  cookieValue: string | undefined,
+export async function createSessionCookieValue(
+  session: Session,
   secret: string
 ) {
-  if (!cookieValue) return false;
-  const [value, signature] = cookieValue.split(".");
-  if (!value || !signature || value !== SESSION_VALUE) return false;
-  const expected = await sign(value, secret);
-  return expected === signature;
+  const value = `${session.userId}.${session.role}`;
+  const signature = await sign(value, secret);
+  return `${value}.${signature}`;
+}
+
+/**
+ * Decodifica e valida a assinatura do cookie de sessão. Retorna a sessão
+ * (userId + role) se válida, ou null caso contrário — trocar a role de um
+ * usuário só tem efeito no próximo login, já que a role vem embutida no
+ * cookie (evita consulta ao banco a cada request).
+ */
+export async function getSession(
+  cookieValue: string | undefined,
+  secret: string
+): Promise<Session | null> {
+  if (!cookieValue) return null;
+  const [userId, role, signature] = cookieValue.split(".");
+  if (!userId || !role || !signature) return null;
+  if (role !== "admin" && role !== "member") return null;
+
+  const expected = await sign(`${userId}.${role}`, secret);
+  if (expected !== signature) return null;
+
+  return { userId, role };
 }
