@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createUser, deleteUser, updateUser } from "@/lib/users";
+import { createUser, deleteUser, updateUser, type UserRole } from "@/lib/users";
+import { createInvite, deleteInvite } from "@/lib/invites";
 import { requireAdmin } from "@/lib/session";
 
 export async function createUserAction(formData: FormData) {
@@ -40,5 +41,25 @@ export async function deleteUserAction(formData: FormData) {
   if (!id || id === session.userId) return;
 
   await deleteUser(id);
+  revalidatePath("/admin/usuarios");
+}
+
+export async function createInviteAction(formData: FormData) {
+  const session = await requireAdmin();
+
+  const role: UserRole =
+    String(formData.get("role") ?? "member") === "admin" ? "admin" : "member";
+
+  await createInvite({ role, createdBy: session.userId });
+  revalidatePath("/admin/usuarios");
+}
+
+export async function deleteInviteAction(formData: FormData) {
+  await requireAdmin();
+
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+
+  await deleteInvite(id);
   revalidatePath("/admin/usuarios");
 }

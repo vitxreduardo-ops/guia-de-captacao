@@ -217,3 +217,19 @@ create table if not exists users (
 );
 
 alter table users enable row level security;
+
+-- Convites de cadastro — link com token único que deixa a pessoa convidada
+-- escolher seus próprios usuário/e-mail/senha (ver
+-- supabase/migrations/0015_add_invites.sql).
+
+create table if not exists invites (
+  id uuid primary key default gen_random_uuid(),
+  token text unique not null,
+  role text not null default 'member' check (role in ('admin', 'member')),
+  created_by uuid references users(id) on delete set null,
+  used_by uuid references users(id) on delete set null,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table invites enable row level security;
