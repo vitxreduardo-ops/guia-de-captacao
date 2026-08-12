@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { LightboxImage } from "@/components/LightboxImage";
+import { VideoLightbox } from "@/components/VideoLightbox";
 import type { GalleryDisplayItem, GalleryFolderNode } from "@/lib/galleries";
 
 type SortKey = "name" | "date" | "recent";
@@ -12,6 +13,77 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "date", label: "Mês" },
   { value: "recent", label: "Última adição" },
 ];
+
+function SortMenu({
+  value,
+  onChange,
+}: {
+  value: SortKey;
+  onChange: (value: SortKey) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const current = SORT_OPTIONS.find((option) => option.value === value)!;
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs text-neutral-700 hover:border-neutral-400"
+      >
+        Ordenar: {current.label}
+        <span
+          aria-hidden
+          className={`text-neutral-400 transition-transform ${open ? "rotate-180" : ""}`}
+        >
+          ▾
+        </span>
+      </button>
+
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute right-0 z-20 mt-1 w-40 overflow-hidden rounded-md border border-neutral-200 bg-white py-1 shadow-lg"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                className={`block w-full px-3 py-2 text-left text-xs hover:bg-neutral-50 ${
+                  option.value === value
+                    ? "font-medium text-neutral-900"
+                    : "text-neutral-600"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 function findNode(
   root: GalleryFolderNode,
@@ -79,12 +151,12 @@ function GalleryTile({
 }) {
   if (item.kind === "video") {
     return (
-      <video
-        controls
-        preload="metadata"
+      <VideoLightbox
         poster={item.thumbSrc}
         src={item.previewSrc}
-        className={`${className} block bg-black`}
+        downloadSrc={item.downloadSrc}
+        alt={item.caption || "Vídeo"}
+        className={`${className} bg-black`}
       />
     );
   }
@@ -122,20 +194,36 @@ function GalleryTile({
   );
 }
 
-export function GalleryFolderBrowser({ root }: { root: GalleryFolderNode }) {
+export function GalleryFolderBrowser({
+  root,
+  clientName,
+}: {
+  root: GalleryFolderNode;
+  clientName: string;
+}) {
   const [path, setPath] = useState<string[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>("name");
+  const [search, setSearch] = useState("");
   const prefersReducedMotion = useReducedMotion();
 
   const current = useMemo(() => findNode(root, path) ?? root, [root, path]);
-  const sortedFolders = useMemo(
-    () => sortFolders(current.folders, sortKey),
-    [current, sortKey]
-  );
-  const sortedItems = useMemo(
-    () => sortItems(current.items, sortKey),
-    [current, sortKey]
-  );
+  const query = search.trim().toLowerCase();
+  const sortedFolders = useMemo(() => {
+    const folders = query
+      ? current.folders.filter((folder) =>
+          folder.name.toLowerCase().includes(query)
+        )
+      : current.folders;
+    return sortFolders(folders, sortKey);
+  }, [current, sortKey, query]);
+  const sortedItems = useMemo(() => {
+    const items = query
+      ? current.items.filter((item) =>
+          (item.caption || "").toLowerCase().includes(query)
+        )
+      : current.items;
+    return sortItems(items, sortKey);
+  }, [current, sortKey, query]);
   const gallery = useMemo(
     () =>
       imageItemsOf(sortedItems).map((item) => ({
@@ -156,50 +244,44 @@ export function GalleryFolderBrowser({ root }: { root: GalleryFolderNode }) {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        {path.length > 0 ? (
-          <nav className="flex flex-wrap items-center gap-1 text-sm text-neutral-500">
-            <button
-              type="button"
-              onClick={() => setPath([])}
-              className="rounded px-1.5 py-0.5 hover:bg-neutral-100 hover:text-neutral-900"
-            >
-              Galeria
-            </button>
-            {path.map((segment, index) => (
-              <span key={segment} className="flex items-center gap-1">
-                <span className="text-neutral-300">/</span>
-                <button
-                  type="button"
-                  onClick={() => setPath(path.slice(0, index + 1))}
-                  className={`rounded px-1.5 py-0.5 hover:bg-neutral-100 hover:text-neutral-900 ${
-                    index === path.length - 1
-                      ? "font-medium text-neutral-900"
-                      : ""
-                  }`}
-                >
-                  {segment}
-                </button>
-              </span>
-            ))}
-          </nav>
-        ) : (
-          <div />
-        )}
-
-        <label className="flex items-center gap-2 text-xs text-neutral-500">
-          Ordenar por
-          <select
-            value={sortKey}
-            onChange={(event) => setSortKey(event.target.value as SortKey)}
-            className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700 focus:border-neutral-500 focus:outline-none"
+        <nav className="flex flex-wrap items-center gap-1 text-sm text-neutral-500">
+          <button
+            type="button"
+            onClick={() => setPath([])}
+            className={`rounded px-1.5 py-0.5 hover:bg-neutral-100 hover:text-neutral-900 ${
+              path.length === 0 ? "font-medium text-neutral-900" : ""
+            }`}
           >
-            {SORT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+            {clientName}
+          </button>
+          {path.map((segment, index) => (
+            <span key={segment} className="flex items-center gap-1">
+              <span className="text-neutral-300">/</span>
+              <button
+                type="button"
+                onClick={() => setPath(path.slice(0, index + 1))}
+                className={`rounded px-1.5 py-0.5 hover:bg-neutral-100 hover:text-neutral-900 ${
+                  index === path.length - 1
+                    ? "font-medium text-neutral-900"
+                    : ""
+                }`}
+              >
+                {segment}
+              </button>
+            </span>
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar..."
+            className="w-32 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-500 focus:outline-none sm:w-48"
+          />
+          <SortMenu value={sortKey} onChange={setSortKey} />
+        </div>
       </div>
 
       <AnimatePresence mode="wait" initial={false}>
@@ -211,18 +293,23 @@ export function GalleryFolderBrowser({ root }: { root: GalleryFolderNode }) {
           transition={spring}
         >
           {sortedFolders.length > 0 ? (
-            <div className="mb-8 flex flex-wrap gap-2">
-              {sortedFolders.map((folder) => (
+            <div className="mb-8 overflow-hidden rounded-lg border border-neutral-200 bg-white">
+              {sortedFolders.map((folder, folderIndex) => (
                 <button
                   key={folder.path}
                   type="button"
                   onClick={() => setPath([...path, folder.name])}
-                  className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-3 text-sm font-medium text-neutral-800 shadow-sm transition-transform hover:border-neutral-400 active:scale-[0.98]"
+                  className={`flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-neutral-800 transition-colors hover:bg-neutral-50 active:bg-neutral-100 ${
+                    folderIndex > 0 ? "border-t border-neutral-200" : ""
+                  }`}
                 >
                   <span aria-hidden className="text-neutral-400">
                     📁
                   </span>
-                  {folder.name}
+                  <span className="flex-1">{folder.name}</span>
+                  <span aria-hidden className="text-neutral-300">
+                    ›
+                  </span>
                 </button>
               ))}
             </div>
@@ -253,7 +340,7 @@ export function GalleryFolderBrowser({ root }: { root: GalleryFolderNode }) {
             </div>
           ) : sortedFolders.length === 0 ? (
             <p className="text-center text-sm text-neutral-500">
-              Nenhuma foto nessa pasta.
+              {query ? "Nada encontrado." : "Nenhuma foto nessa pasta."}
             </p>
           ) : null}
         </motion.div>

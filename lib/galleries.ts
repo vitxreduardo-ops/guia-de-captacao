@@ -107,9 +107,13 @@ function toDisplayItem(image: GalleryImage): GalleryDisplayItem {
     id: image.id,
     kind: !renderable ? "file" : video ? "video" : "image",
     thumbSrc: galleryThumbnailUrl(image, GRID_THUMBNAIL_SIZE),
-    previewSrc: image.drive_file_id
-      ? galleryThumbnailUrl(image, LIGHTBOX_PREVIEW_SIZE)
-      : image.image_url,
+    // Vídeo precisa do arquivo de mídia de verdade pra tocar — a miniatura
+    // do Drive é só um JPEG, nunca serve de <source> de vídeo. Só imagem se
+    // beneficia do preview grande (mais leve que o arquivo original).
+    previewSrc:
+      image.drive_file_id && !video
+        ? galleryThumbnailUrl(image, LIGHTBOX_PREVIEW_SIZE)
+        : image.image_url,
     downloadSrc: galleryDownloadUrl(image),
     sourceUrl: image.source_url,
     caption: image.caption,
