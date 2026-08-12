@@ -14,7 +14,7 @@ export default async function LoginPage({
     params.error === "config"
       ? "ADMIN_PASSWORD não está configurado no servidor."
       : params.error
-      ? "Senha incorreta."
+      ? "Usuário ou senha incorretos."
       : null;
 
   return (
@@ -31,6 +31,22 @@ export default async function LoginPage({
           <input type="hidden" name="next" value={next} />
           <div>
             <label
+              htmlFor="username"
+              className="mb-1 block text-sm font-medium text-neutral-700"
+            >
+              Usuário
+            </label>
+            <input
+              id="username"
+              name="username"
+              type="text"
+              required
+              autoFocus
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label
               htmlFor="password"
               className="mb-1 block text-sm font-medium text-neutral-700"
             >
@@ -41,7 +57,6 @@ export default async function LoginPage({
               name="password"
               type="password"
               required
-              autoFocus
               className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
             />
           </div>

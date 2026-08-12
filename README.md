@@ -31,20 +31,47 @@ Copie o arquivo de exemplo e preencha:
 cp .env.local.example .env.local
 ```
 
-- `ADMIN_PASSWORD`: senha única para acessar a área `/admin` (não há contas de usuário separadas).
+- `ADMIN_PASSWORD`: segredo do servidor usado só pra assinar o cookie de sessão (não é mais "a senha" de ninguém — o acesso agora é por conta individual, ver abaixo). Qualquer valor longo e aleatório serve.
 - `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`: do passo anterior. A service role key só é usada em código server-side (nunca é exposta ao navegador) — por isso as tabelas têm Row Level Security habilitado sem policies (a service role ignora RLS).
 
-### 4. Rodar localmente
+### 4. Criar o primeiro usuário admin
+
+A tabela `users` guarda contas com usuário + senha (hash PBKDF2, ver [`lib/users.ts`](lib/users.ts)) e uma `role` (`admin` ou `member`). Como não existe tela de cadastro pública, o primeiro admin precisa ser inserido direto no banco. Gere o hash localmente:
+
+```bash
+node -e "
+const c = require('crypto').webcrypto;
+const hex = b => Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');
+(async () => {
+  const salt = c.getRandomValues(new Uint8Array(16));
+  const key = await c.subtle.importKey('raw', new TextEncoder().encode('SUA_SENHA_AQUI'), 'PBKDF2', false, ['deriveBits']);
+  const bits = await c.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, key, 256);
+  console.log('100000:' + hex(salt.buffer) + ':' + hex(bits));
+})();
+"
+```
+
+E rode no SQL Editor do Supabase:
+
+```sql
+insert into users (username, password_hash, role)
+values ('seu_usuario', 'COLE_O_HASH_AQUI', 'admin');
+```
+
+Admins podem criar outros usuários (admin ou membro) pela própria interface, em `/admin/usuarios`. Membros têm acesso igual ao admin em guias, orçamentos e biblioteca — só não gerenciam usuários.
+
+### 5. Rodar localmente
 
 ```bash
 npm run dev
 ```
 
-Abra [http://localhost:3000/admin](http://localhost:3000/admin) e entre com a senha configurada.
+Abra [http://localhost:3000/admin](http://localhost:3000/admin) e entre com o usuário/senha criados no passo anterior.
 
 ## Como funciona
 
-- **`/admin`** — lista de guias, criação de novos guias.
+- **`/admin`** — hub com acesso a Guias, Orçamentos, Biblioteca e (só para admins) Usuários.
+- **`/admin/usuarios`** — admin cria/remove contas e define a role (`admin` ou `member`).
 - **`/admin/guias/[id]`** — formulário de edição: dados gerais, vídeos (cada vídeo pode ter várias cenas, cada cena com roteiro e referências visuais próprias — upload de arquivo ou link de imagem), painéis **Fotos** e **Cards** (listas de imagens embedadas no nível do guia, ex: links do Pinterest ou cosmos.so), shot list/decupagem e checklist de equipamento/locação. Um botão publica o guia.
   - Se o link colado numa referência visual (de cena, Fotos ou Cards) não for uma imagem direta (ex: post do Instagram/Pinterest), o sistema tenta extrair a imagem de capa (`og:image`) automaticamente e mostra ela como referência, guardando o link original para abrir a publicação de origem. Se não conseguir extrair, mostra como um link clicável simples.
   - Os painéis Fotos e Cards só aparecem na página pública e no PDF quando têm pelo menos um item adicionado.

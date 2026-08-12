@@ -201,3 +201,19 @@ create table if not exists library_links (
 );
 
 alter table library_links enable row level security;
+
+-- Usuários — cadastro real (username + senha) substituindo a senha única
+-- compartilhada (ver supabase/migrations/0012_add_users.sql,
+-- 0013_rename_users_email_to_username.sql e 0014_add_users_email.sql).
+-- `email` é só dado de contato — o login é sempre por `username`.
+
+create table if not exists users (
+  id uuid primary key default gen_random_uuid(),
+  username text unique not null,
+  email text not null default '',
+  password_hash text not null,
+  role text not null default 'member' check (role in ('admin', 'member')),
+  created_at timestamptz not null default now()
+);
+
+alter table users enable row level security;
