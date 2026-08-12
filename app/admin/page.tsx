@@ -46,6 +46,17 @@ export default async function AdminHub() {
             Links e ferramentas úteis
           </p>
         </Link>
+        <Link
+          href="/admin/galerias"
+          className="rounded-lg border border-neutral-200 bg-white p-6 text-center hover:border-neutral-400"
+        >
+          <p className="text-base font-semibold text-neutral-900">
+            Galeria do cliente
+          </p>
+          <p className="mt-1 text-sm text-neutral-500">
+            Fotos por cliente, com link público próprio
+          </p>
+        </Link>
         {session?.role === "admin" ? (
           <Link
             href="/admin/usuarios"
