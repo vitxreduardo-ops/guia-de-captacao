@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listGuides, type Guide } from "@/lib/guides";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { DeleteButton } from "@/components/admin/DeleteButton";
+import { getCurrentUsername } from "@/lib/session";
 import { createGuideAction, deleteGuideAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -66,7 +67,10 @@ export default async function AdminDashboard({
     tag: String(params.tag ?? ""),
   };
 
-  const guides = await listGuides();
+  const [guides, username] = await Promise.all([
+    listGuides(),
+    getCurrentUsername(),
+  ]);
 
   const clientOptions = uniqueSorted(guides.map((g) => g.client_name));
   const monthOptions = Array.from(
@@ -79,7 +83,11 @@ export default async function AdminDashboard({
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <AdminHeader title="Guias de gravação" backHref="/admin" />
+      <AdminHeader
+        title="Guias de gravação"
+        backHref="/admin"
+        username={username}
+      />
 
       <form
         action={createGuideAction}

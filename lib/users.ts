@@ -85,6 +85,18 @@ export async function listUsers(): Promise<PublicUser[]> {
   return (data ?? []).map(toPublicUser);
 }
 
+export async function getUserById(id: string): Promise<PublicUser | null> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ? toPublicUser(data) : null;
+}
+
 export async function getUserByUsername(username: string): Promise<User | null> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase

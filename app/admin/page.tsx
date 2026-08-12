@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
-import { getCurrentSession } from "@/lib/session";
+import { getCurrentSession, getCurrentUsername } from "@/lib/session";
 
 export default async function AdminHub() {
-  const session = await getCurrentSession();
+  const [session, username] = await Promise.all([
+    getCurrentSession(),
+    getCurrentUsername(),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <AdminHeader title="Ferramentas" />
+      <AdminHeader title="Ferramentas" username={username} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Link

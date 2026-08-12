@@ -1,16 +1,20 @@
 import { listLibraryLinks } from "@/lib/library";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { DeleteButton } from "@/components/admin/DeleteButton";
+import { getCurrentUsername } from "@/lib/session";
 import { createLibraryLinkAction, deleteLibraryLinkAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function LibraryPage() {
-  const links = await listLibraryLinks();
+  const [links, username] = await Promise.all([
+    listLibraryLinks(),
+    getCurrentUsername(),
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <AdminHeader title="Biblioteca" backHref="/admin" />
+      <AdminHeader title="Biblioteca" backHref="/admin" username={username} />
 
       <form
         action={createLibraryLinkAction}

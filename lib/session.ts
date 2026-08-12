@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { COOKIE_NAME, getSession, type Session } from "@/lib/auth";
+import { getUserById } from "@/lib/users";
 
 /**
  * Lê a sessão atual (userId + role) a partir do cookie, pra uso em Server
@@ -13,6 +14,17 @@ export async function getCurrentSession(): Promise<Session | null> {
   if (!secret) return null;
   const cookieStore = await cookies();
   return getSession(cookieStore.get(COOKIE_NAME)?.value, secret);
+}
+
+/**
+ * Nome de usuário de quem está logado, pra exibir no header — retorna null
+ * se não houver sessão válida.
+ */
+export async function getCurrentUsername(): Promise<string | null> {
+  const session = await getCurrentSession();
+  if (!session) return null;
+  const user = await getUserById(session.userId);
+  return user?.username ?? null;
 }
 
 /**

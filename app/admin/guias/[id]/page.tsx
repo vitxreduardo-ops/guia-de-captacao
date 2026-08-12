@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getGuideWithSections } from "@/lib/guides";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { getCurrentUsername } from "@/lib/session";
 import { GeneralInfoForm } from "@/components/admin/GeneralInfoForm";
 import { PublishBox } from "@/components/admin/PublishBox";
 import { VideosSection } from "@/components/admin/VideosSection";
@@ -26,13 +27,20 @@ export default async function GuideEditPage({
   params: Params;
 }) {
   const { id } = await params;
-  const guide = await getGuideWithSections(id);
+  const [guide, username] = await Promise.all([
+    getGuideWithSections(id),
+    getCurrentUsername(),
+  ]);
 
   if (!guide) notFound();
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <AdminHeader title={guide.title} backHref="/admin/guias" />
+      <AdminHeader
+        title={guide.title}
+        backHref="/admin/guias"
+        username={username}
+      />
 
       <div className="space-y-8">
         <PublishBox guide={guide} />

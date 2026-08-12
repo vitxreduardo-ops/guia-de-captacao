@@ -33,9 +33,15 @@ export default async function UsersPage() {
     getSiteOrigin(),
   ]);
 
+  const currentUsername = users.find((user) => user.id === session.userId)?.username;
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <AdminHeader title="Usuários" backHref="/admin" />
+      <AdminHeader
+        title="Usuários"
+        backHref="/admin"
+        username={currentUsername}
+      />
 
       <section className="mb-8 rounded-lg border border-neutral-200 bg-white p-4">
         <h2 className="mb-3 text-sm font-semibold text-neutral-900">
