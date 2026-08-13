@@ -418,14 +418,28 @@ export async function replaceGalleryImagesFromDrive(
  */
 export async function getKnownDriveFileByFileId(
   fileId: string
-): Promise<{ caption: string } | null> {
+): Promise<{ caption: string; published: boolean } | null> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("gallery_images")
-    .select("caption")
-    .eq("drive_file_id", fileId)
-    .limit(1)
-    .maybeSingle();
+    .select("caption, gallery_clients(status)")
+    .eq("drive_file_id", fileId);
   if (error) throw error;
-  return data ? { caption: data.caption } : null;
+  if (!data || data.length === 0) return null;
+
+  // O mesmo arquivo do Drive pode estar em mais de uma galeria. Só libera
+  // cache compartilhado se alguma delas já está publicada — enquanto for só
+  // rascunho, a resposta não pode ficar guardada no CDN.
+  const published = data.some((row) => {
+    const client = row.gallery_clients as unknown as
+      | { status: string }
+      | { status: string }[]
+      | null;
+    if (!client) return false;
+    return Array.isArray(client)
+      ? client.some((entry) => entry.status === "published")
+      : client.status === "published";
+  });
+
+  return { caption: data[0].caption, published };
 }

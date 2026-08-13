@@ -21,10 +21,17 @@ export async function GET(
     return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
   }
 
+  // Resposta parcial (206, quando o player pede um trecho do vídeo) fica
+  // fora do cache compartilhado: é um pedaço do arquivo atrelado ao Range
+  // que aquele cliente pediu, não a resposta inteira.
+  const cacheable = known.published && file.status === 200;
+
   const headers = new Headers({
     "Content-Type": file.contentType,
     "Accept-Ranges": "bytes",
-    "Cache-Control": "private, max-age=3600",
+    "Cache-Control": cacheable
+      ? "public, max-age=3600, s-maxage=3600"
+      : "private, max-age=3600",
   });
   if (file.contentRange) headers.set("Content-Range", file.contentRange);
   if (file.contentLength) headers.set("Content-Length", file.contentLength);

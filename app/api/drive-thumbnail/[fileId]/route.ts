@@ -29,7 +29,15 @@ export async function GET(
   return new NextResponse(thumbnail.body, {
     headers: {
       "Content-Type": thumbnail.contentType,
-      "Cache-Control": "private, max-age=86400",
+      // Galeria publicada pode ficar no CDN (`public`), o que evita repetir
+      // a busca no Drive pra cada visitante. O `s-maxage` curto é de
+      // propósito: despublicar uma galeria só tira as cópias do CDN quando
+      // elas vencem, então uma hora limita por quanto tempo uma foto
+      // removida segue alcançável. O cache do navegador, que é por pessoa,
+      // continua longo.
+      "Cache-Control": known.published
+        ? "public, max-age=86400, s-maxage=3600"
+        : "private, max-age=86400",
     },
   });
 }
