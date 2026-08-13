@@ -275,8 +275,8 @@ export function GalleryFolderBrowser({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    if (masonryRef.current) {
-      masonryRef.current.destroy();
+    if (masonryRef.current && "destroy" in masonryRef.current) {
+      (masonryRef.current as Masonry).destroy();
     }
 
     setTimeout(() => {
@@ -291,8 +291,8 @@ export function GalleryFolderBrowser({
     }, 100);
 
     return () => {
-      if (masonryRef.current) {
-        masonryRef.current.destroy();
+      if (masonryRef.current && "destroy" in masonryRef.current) {
+        (masonryRef.current as Masonry).destroy();
         masonryRef.current = null;
       }
     };
