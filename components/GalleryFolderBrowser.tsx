@@ -181,7 +181,7 @@ function GalleryTile({
         <img
           src={item.thumbSrc}
           alt={item.caption || "Vídeo"}
-          className={`${className} bg-black cursor-pointer transition-opacity group-hover:opacity-75`}
+          className={`${className} bg-black cursor-pointer transition-opacity group-hover:opacity-75 rounded-lg`}
         />
         <div className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-sm font-semibold text-neutral-900 transition-transform group-hover:scale-110">
           ↓
@@ -199,7 +199,7 @@ function GalleryTile({
         downloadSrc={item.downloadSrc}
         alt={item.caption || "Foto"}
         sourceUrl={item.sourceUrl}
-        className={`${className} block`}
+        className={`${className} block rounded-lg`}
         gallery={gallery}
         index={gallery.findIndex((g) => g.id === item.id)}
       />
@@ -389,8 +389,8 @@ export function GalleryFolderBrowser({
                           delay: Math.min(itemIndex * 0.04, 0.6),
                         }
                   }
-                  className="gallery-item w-1/2 sm:w-1/3 float-left overflow-hidden rounded-md border border-neutral-200 bg-white"
-                  style={{ paddingBottom: "12px" }}
+                  className="gallery-item w-1/2 sm:w-1/3 float-left px-2 pb-4"
+                  style={{ boxSizing: "border-box" }}
                 >
                   <GalleryTile item={item} className="w-full" gallery={gallery} />
                 </motion.div>
