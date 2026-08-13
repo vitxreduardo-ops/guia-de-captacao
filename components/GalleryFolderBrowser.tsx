@@ -153,14 +153,38 @@ function GalleryTile({
       <a
         href={item.downloadSrc}
         download
-        className="block"
+        title="Clique para baixar o vídeo"
+        className="group relative block"
+        onClick={() => {
+          const backdrop = document.createElement("div");
+          backdrop.className = "fixed inset-0 z-40 backdrop-blur-sm";
+          document.body.appendChild(backdrop);
+
+          const notification = document.createElement("div");
+          notification.textContent = "📥 Download iniciado...";
+          notification.className =
+            "fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white px-4 py-3 text-sm font-medium text-neutral-900 shadow-lg animate-in fade-in duration-200";
+          document.body.appendChild(notification);
+
+          setTimeout(() => {
+            backdrop.classList.add("animate-out", "fade-out");
+            notification.classList.add("animate-out", "fade-out");
+            setTimeout(() => {
+              backdrop.remove();
+              notification.remove();
+            }, 200);
+          }, 2000);
+        }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={item.thumbSrc}
           alt={item.caption || "Vídeo"}
-          className={`${className} bg-black cursor-pointer transition-opacity hover:opacity-75`}
+          className={`${className} bg-black cursor-pointer transition-opacity group-hover:opacity-75`}
         />
+        <div className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-sm font-semibold text-neutral-900 transition-transform group-hover:scale-110">
+          ↓
+        </div>
       </a>
     );
   }
