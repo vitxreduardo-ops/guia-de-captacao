@@ -180,6 +180,8 @@ function GalleryTile({
         <img
           src={item.thumbSrc}
           alt={item.caption || "Vídeo"}
+          loading="lazy"
+          decoding="async"
           className={`${className} bg-black cursor-pointer transition-opacity group-hover:opacity-75 rounded-lg`}
         />
         <div className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-sm font-semibold text-neutral-900 transition-transform group-hover:scale-110">

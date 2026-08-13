@@ -90,6 +90,7 @@ export async function connectGoogleAccount(code: string): Promise<void> {
     updated_at: new Date().toISOString(),
   });
   if (error) throw error;
+  clearCachedAccessToken();
 }
 
 export async function getConnectedGoogleAccount(): Promise<{
@@ -112,6 +113,7 @@ export async function disconnectGoogleAccount(): Promise<void> {
     .delete()
     .eq("id", TOKEN_ROW_ID);
   if (error) throw error;
+  clearCachedAccessToken();
 }
 
 /**
@@ -119,7 +121,17 @@ export async function disconnectGoogleAccount(): Promise<void> {
  * ~1h). Chamado a cada operação que fala com a Drive API — sem cache, já
  * que essas operações são pouco frequentes (sync manual, carregar imagem).
  */
-async function getFreshAccessToken(): Promise<string> {
+// O access token do Google vale cerca de uma hora, então renovar a cada
+// chamada é desperdício puro: abrir uma galeria dispara uma requisição por
+// miniatura, e cada uma pagava uma leitura no Supabase mais um refresh no
+// Google antes de chegar no arquivo. Guarda o token em memória até perto de
+// expirar e faz as chamadas simultâneas dividirem um único refresh (senão as
+// dezenas de miniaturas que carregam juntas renovariam todas de uma vez).
+let cachedAccessToken: { token: string; expiresAt: number } | null = null;
+let accessTokenInFlight: Promise<string> | null = null;
+const TOKEN_EXPIRY_MARGIN_MS = 60_000;
+
+async function requestAccessToken(): Promise<string> {
   const { clientId, clientSecret } = getEnv();
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
@@ -146,7 +158,30 @@ async function getFreshAccessToken(): Promise<string> {
   }
 
   const tokens: GoogleTokenResponse = await response.json();
+  cachedAccessToken = {
+    token: tokens.access_token,
+    expiresAt: Date.now() + tokens.expires_in * 1000 - TOKEN_EXPIRY_MARGIN_MS,
+  };
   return tokens.access_token;
+}
+
+async function getFreshAccessToken(): Promise<string> {
+  if (cachedAccessToken && Date.now() < cachedAccessToken.expiresAt) {
+    return cachedAccessToken.token;
+  }
+  if (accessTokenInFlight) return accessTokenInFlight;
+
+  accessTokenInFlight = requestAccessToken().finally(() => {
+    accessTokenInFlight = null;
+  });
+  return accessTokenInFlight;
+}
+
+/** Descarta o token em cache — chamado ao conectar ou desconectar a conta,
+ * pra não seguir usando um acesso que não vale mais. */
+function clearCachedAccessToken() {
+  cachedAccessToken = null;
+  accessTokenInFlight = null;
 }
 
 const FOLDER_ID_PATTERNS = [

@@ -137,6 +137,8 @@ export function LightboxImage({
         <img
           src={src}
           alt={alt}
+          loading="lazy"
+          decoding="async"
           className={`${className ?? ""} ${
             selected ? "opacity-40 grayscale" : ""
           }`}
