@@ -82,7 +82,7 @@ export function VideoLightbox({
             <div className="flex max-h-full max-w-full flex-col items-center gap-3">
               <motion.video
                 controls
-                preload="metadata"
+                preload="auto"
                 poster={poster}
                 src={src}
                 onClick={(event) => event.stopPropagation()}

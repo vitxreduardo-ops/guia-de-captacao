@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { LightboxImage } from "@/components/LightboxImage";
-import { VideoLightbox } from "@/components/VideoLightbox";
 import type { GalleryDisplayItem, GalleryFolderNode } from "@/lib/galleries";
 
 type SortKey = "name" | "date" | "recent";
@@ -151,13 +150,18 @@ function GalleryTile({
 }) {
   if (item.kind === "video") {
     return (
-      <VideoLightbox
-        poster={item.thumbSrc}
-        src={item.previewSrc}
-        downloadSrc={item.downloadSrc}
-        alt={item.caption || "Vídeo"}
-        className={`${className} bg-black`}
-      />
+      <a
+        href={item.downloadSrc}
+        download
+        className="block"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={item.thumbSrc}
+          alt={item.caption || "Vídeo"}
+          className={`${className} bg-black cursor-pointer transition-opacity hover:opacity-75`}
+        />
+      </a>
     );
   }
 
