@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import Masonry from "masonry-layout";
 import { LightboxImage } from "@/components/LightboxImage";
 import type { GalleryDisplayItem, GalleryFolderNode } from "@/lib/galleries";
 
@@ -234,8 +233,20 @@ export function GalleryFolderBrowser({
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [search, setSearch] = useState("");
   const prefersReducedMotion = useReducedMotion();
-  const masonryRef = useRef<Masonry | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Começa em 3 (o mesmo que o servidor renderiza) e ajusta depois de montar,
+  // pra não dar diferença entre o HTML do servidor e a primeira renderização
+  // no cliente.
+  const [columnCount, setColumnCount] = useState(3);
+
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 640px)");
+    function sync() {
+      setColumnCount(query.matches ? 3 : 2);
+    }
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
 
   const current = useMemo(() => findNode(root, path) ?? root, [root, path]);
   const query = search.trim().toLowerCase();
@@ -272,31 +283,19 @@ export function GalleryFolderBrowser({
     ? { duration: 0.15 }
     : { type: "spring" as const, bounce: 0, duration: 0.3 };
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    if (masonryRef.current && "destroy" in masonryRef.current) {
-      (masonryRef.current as Masonry).destroy();
-    }
-
-    setTimeout(() => {
-      if (containerRef.current) {
-        masonryRef.current = new Masonry(containerRef.current, {
-          itemSelector: ".gallery-item",
-          columnWidth: ".gallery-item",
-          percentPosition: true,
-          transitionDuration: "0.3s",
-        });
-      }
-    }, 100);
-
-    return () => {
-      if (masonryRef.current && "destroy" in masonryRef.current) {
-        (masonryRef.current as Masonry).destroy();
-        masonryRef.current = null;
-      }
-    };
-  }, [path, sortedItems]);
+  // Distribui os itens nas colunas em rodízio (item 0 → coluna 0, item 1 →
+  // coluna 1, ...), o que dá a ordem de leitura da esquerda pra direita
+  // (1-2-3 / 4-5-6) que `columns` do CSS não dá — lá a ordem é de cima pra
+  // baixo. Cada coluna empilha os itens colados, sem os buracos que o
+  // alinhamento por linha deixava embaixo das fotos mais baixas.
+  const columns = useMemo(() => {
+    const buckets: { item: GalleryDisplayItem; index: number }[][] =
+      Array.from({ length: columnCount }, () => []);
+    sortedItems.forEach((item, index) => {
+      buckets[index % columnCount].push({ item, index });
+    });
+    return buckets;
+  }, [sortedItems, columnCount]);
 
   return (
     <div>
@@ -373,27 +372,36 @@ export function GalleryFolderBrowser({
           ) : null}
 
           {sortedItems.length > 0 ? (
-            <div ref={containerRef} className="w-full">
-              {sortedItems.map((item, itemIndex) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={
-                    prefersReducedMotion
-                      ? { duration: 0.15 }
-                      : {
-                          type: "spring",
-                          bounce: 0,
-                          duration: 0.4,
-                          delay: Math.min(itemIndex * 0.04, 0.6),
-                        }
-                  }
-                  className="gallery-item w-1/2 sm:w-1/3 float-left px-2 pb-4"
-                  style={{ boxSizing: "border-box" }}
+            <div className="flex items-start gap-3">
+              {columns.map((column, columnIndex) => (
+                <div
+                  key={columnIndex}
+                  className="flex min-w-0 flex-1 flex-col gap-3"
                 >
-                  <GalleryTile item={item} className="w-full" gallery={gallery} />
-                </motion.div>
+                  {column.map(({ item, index }) => (
+                    <motion.div
+                      key={item.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={
+                        prefersReducedMotion
+                          ? { duration: 0.15 }
+                          : {
+                              type: "spring",
+                              bounce: 0,
+                              duration: 0.4,
+                              delay: Math.min(index * 0.04, 0.6),
+                            }
+                      }
+                    >
+                      <GalleryTile
+                        item={item}
+                        className="w-full"
+                        gallery={gallery}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
               ))}
             </div>
           ) : sortedFolders.length === 0 ? (
