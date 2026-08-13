@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import Masonry from "masonry-layout";
 import { LightboxImage } from "@/components/LightboxImage";
 import type { GalleryDisplayItem, GalleryFolderNode } from "@/lib/galleries";
 
@@ -233,6 +234,8 @@ export function GalleryFolderBrowser({
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [search, setSearch] = useState("");
   const prefersReducedMotion = useReducedMotion();
+  const masonryRef = useRef<Masonry | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const current = useMemo(() => findNode(root, path) ?? root, [root, path]);
   const query = search.trim().toLowerCase();
@@ -268,6 +271,32 @@ export function GalleryFolderBrowser({
   const spring = prefersReducedMotion
     ? { duration: 0.15 }
     : { type: "spring" as const, bounce: 0, duration: 0.3 };
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    if (masonryRef.current) {
+      masonryRef.current.destroy();
+    }
+
+    setTimeout(() => {
+      if (containerRef.current) {
+        masonryRef.current = new Masonry(containerRef.current, {
+          itemSelector: ".gallery-item",
+          columnWidth: ".gallery-item",
+          percentPosition: true,
+          transitionDuration: "0.3s",
+        });
+      }
+    }, 100);
+
+    return () => {
+      if (masonryRef.current) {
+        masonryRef.current.destroy();
+        masonryRef.current = null;
+      }
+    };
+  }, [path, sortedItems]);
 
   return (
     <div>
@@ -344,7 +373,7 @@ export function GalleryFolderBrowser({
           ) : null}
 
           {sortedItems.length > 0 ? (
-            <div className="columns-2 gap-3 sm:columns-3">
+            <div ref={containerRef} className="w-full">
               {sortedItems.map((item, itemIndex) => (
                 <motion.div
                   key={item.id}
@@ -360,7 +389,8 @@ export function GalleryFolderBrowser({
                           delay: Math.min(itemIndex * 0.04, 0.6),
                         }
                   }
-                  className="mb-3 break-inside-avoid overflow-hidden rounded-md border border-neutral-200 bg-white"
+                  className="gallery-item w-1/2 sm:w-1/3 float-left overflow-hidden rounded-md border border-neutral-200 bg-white"
+                  style={{ paddingBottom: "12px" }}
                 >
                   <GalleryTile item={item} className="w-full" gallery={gallery} />
                 </motion.div>
