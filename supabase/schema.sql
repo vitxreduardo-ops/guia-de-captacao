@@ -262,3 +262,62 @@ create index if not exists gallery_images_client_id_idx on gallery_images(client
 
 alter table gallery_clients enable row level security;
 alter table gallery_images enable row level security;
+
+-- Backlog do Instagram — kanban de materiais da agência, com calendário de
+-- postagem (ver supabase/migrations/0022_add_backlog.sql). As colunas do
+-- quadro são editáveis pelo admin e a mídia do card é link (Drive), não
+-- upload.
+
+create table if not exists backlog_columns (
+  id uuid primary key default gen_random_uuid(),
+  name text not null default 'Nova coluna',
+  color text not null default '#6b7280',
+  position integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists backlog_cards (
+  id uuid primary key default gen_random_uuid(),
+  column_id uuid not null references backlog_columns(id) on delete cascade,
+  client_id uuid references gallery_clients(id) on delete set null,
+  guide_id uuid references guides(id) on delete set null,
+  position integer not null default 0,
+  title text not null default '',
+  description text not null default '',
+  format text not null default 'reel'
+    check (format in ('reel', 'carrossel', 'foto', 'story')),
+  drive_url text,
+  cover_url text,
+  caption text not null default '',
+  post_date date,
+  sent_whatsapp boolean not null default false,
+  sent_whatsapp_at timestamptz,
+  tags text[] not null default '{}'::text[],
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists backlog_cards_column_id_idx on backlog_cards(column_id);
+create index if not exists backlog_cards_client_id_idx on backlog_cards(client_id);
+create index if not exists backlog_cards_post_date_idx on backlog_cards(post_date);
+create index if not exists backlog_cards_tags_idx on backlog_cards using gin (tags);
+
+alter table backlog_columns enable row level security;
+alter table backlog_cards enable row level security;
+
+-- Checklist por material do backlog (ver
+-- supabase/migrations/0023_add_backlog_checklist.sql).
+
+create table if not exists backlog_checklist_items (
+  id uuid primary key default gen_random_uuid(),
+  card_id uuid not null references backlog_cards(id) on delete cascade,
+  position integer not null default 0,
+  label text not null default '',
+  done boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists backlog_checklist_items_card_id_idx
+  on backlog_checklist_items(card_id);
+
+alter table backlog_checklist_items enable row level security;

@@ -57,6 +57,17 @@ export default async function AdminHub() {
             Fotos por cliente, com link público próprio
           </p>
         </Link>
+        <Link
+          href="/admin/backlog"
+          className="rounded-lg border border-neutral-200 bg-white p-6 text-center hover:border-neutral-400"
+        >
+          <p className="text-base font-semibold text-neutral-900">
+            Backlog do Instagram
+          </p>
+          <p className="mt-1 text-sm text-neutral-500">
+            Kanban e calendário dos materiais que vão pro feed
+          </p>
+        </Link>
         {session?.role === "admin" ? (
           <Link
             href="/admin/usuarios"
