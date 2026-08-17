@@ -33,7 +33,11 @@ export default async function GalleryClientsPage({
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-      <AdminHeader title="Galeria do cliente" backHref="/admin" username={username} />
+      <AdminHeader
+        title="Galeria do cliente"
+        trail={[{ label: "Admin", href: "/admin" }, { label: "Galerias" }]}
+        username={username}
+      />
 
       {driveError ? (
         <p className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">

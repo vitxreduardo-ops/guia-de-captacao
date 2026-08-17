@@ -85,7 +85,7 @@ export default async function AdminDashboard({
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       <AdminHeader
         title="Guias de gravação"
-        backHref="/admin"
+        trail={[{ label: "Admin", href: "/admin" }, { label: "Guias" }]}
         username={username}
       />
 
