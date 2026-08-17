@@ -20,21 +20,25 @@ export default async function BacklogPage() {
         username={username}
       />
 
-      <div className="mb-4 flex items-center gap-2 text-sm">
-        <span className="rounded-md bg-neutral-900 px-3 py-1.5 font-medium text-white">
-          Kanban
-        </span>
-        <Link
-          href="/admin/backlog/calendario"
-          className="rounded-md border border-neutral-300 px-3 py-1.5 text-neutral-700 hover:bg-neutral-50"
-        >
-          Calendário
-        </Link>
-      </div>
-
-      {/* flex-1 pra o slider do Board encostar no fim da tela. */}
-      <div className="flex flex-1 flex-col">
-        <Board board={board} />
+      {/* flex-1 pra as colunas ocuparem a altura da tela e o slider encostar
+          no fim da página. */}
+      <div className="flex min-h-0 flex-1 flex-col">
+        <Board
+          board={board}
+          tabs={
+            <div className="flex items-center gap-2 text-sm">
+              <span className="rounded-md bg-neutral-900 px-3 py-1.5 font-medium text-white">
+                Kanban
+              </span>
+              <Link
+                href="/admin/backlog/calendario"
+                className="rounded-md border border-neutral-300 px-3 py-1.5 text-neutral-700 hover:bg-neutral-50"
+              >
+                Calendário
+              </Link>
+            </div>
+          }
+        />
       </div>
     </div>
   );

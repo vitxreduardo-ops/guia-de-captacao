@@ -1,7 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getCurrentSession } from "@/lib/session";
+import { BACKUP_QUESTION } from "@/lib/backlogTypes";
 import {
+  createBacklogActivity,
   createBacklogCard,
   createBacklogChecklistItem,
   createBacklogColumn,
@@ -13,6 +16,7 @@ import {
   moveBacklogCard,
   readBacklogCardInput,
   reorderBacklogColumns,
+  setBacklogCardApproved,
   setBacklogCardPostDate,
   updateBacklogCard,
   updateBacklogColumn,
@@ -71,8 +75,64 @@ export async function moveBacklogCardAction(params: {
   cardId: string;
   toColumnId: string;
   orderedIdsByColumn: Record<string, string[]>;
-}) {
-  await moveBacklogCard(params);
+}): Promise<{ question: string | null }> {
+  const session = await getCurrentSession();
+  const result = await moveBacklogCard({
+    ...params,
+    authorId: session?.userId ?? null,
+  });
+  revalidateBacklog();
+  return result;
+}
+
+export async function setBacklogCardApprovedAction(
+  cardId: string,
+  approved: boolean
+) {
+  const session = await getCurrentSession();
+  await setBacklogCardApproved({
+    cardId,
+    approved,
+    userId: session?.userId ?? null,
+  });
+  await createBacklogActivity({
+    cardId,
+    authorId: session?.userId ?? null,
+    kind: "note",
+    message: approved ? "Marcou como aprovado" : "Desmarcou a aprovação",
+  });
+  revalidateBacklog();
+}
+
+// ------------------------------------------------------------- atividade
+
+/** Resposta da automação — vira uma linha na atividade do material. */
+export async function answerBackupQuestionAction(
+  cardId: string,
+  answer: string
+) {
+  const value = answer.trim();
+  if (!value) return;
+  const session = await getCurrentSession();
+  await createBacklogActivity({
+    cardId,
+    authorId: session?.userId ?? null,
+    kind: "answer",
+    message: `${BACKUP_QUESTION} ${value}`,
+  });
+  revalidateBacklog();
+}
+
+export async function createBacklogNoteAction(cardId: string, message: string) {
+  const value = message.trim();
+  if (!value) return;
+  const session = await getCurrentSession();
+  await createBacklogActivity({
+    cardId,
+    authorId: session?.userId ?? null,
+    kind: "note",
+    message: value,
+  });
   revalidateBacklog();
 }
 

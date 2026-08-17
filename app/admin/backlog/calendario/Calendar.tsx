@@ -21,10 +21,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { BacklogCardDrawer } from "@/components/admin/BacklogCardDrawer";
+import { BacklogFilters } from "@/components/admin/BacklogFilters";
 import {
   BACKLOG_FORMAT_LABELS,
+  EMPTY_BACKLOG_FILTER,
+  filterBacklogCards,
   type BacklogBoard,
   type BacklogCard,
+  type BacklogFilter,
 } from "@/lib/backlogTypes";
 import {
   deleteBacklogCardAction,
@@ -88,11 +92,13 @@ function CardChip({
   color,
   columnName,
   clientName,
+  assigneeName,
 }: {
   card: BacklogCard;
   color: string;
   columnName: string;
   clientName: string | null;
+  assigneeName: string | null;
 }) {
   return (
     <span
@@ -114,6 +120,7 @@ function CardChip({
       <span className="block truncate text-[10px] text-neutral-500">
         {BACKLOG_FORMAT_LABELS[card.format]}
         {clientName ? ` · ${clientName}` : ""}
+        {assigneeName ? ` · @${assigneeName}` : ""}
       </span>
     </span>
   );
@@ -124,12 +131,14 @@ function DraggableCard({
   color,
   columnName,
   clientName,
+  assigneeName,
   onOpen,
 }: {
   card: BacklogCard;
   color: string;
   columnName: string;
   clientName: string | null;
+  assigneeName: string | null;
   onOpen: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
@@ -152,6 +161,7 @@ function DraggableCard({
         color={color}
         columnName={columnName}
         clientName={clientName}
+        assigneeName={assigneeName}
       />
     </button>
   );
@@ -241,7 +251,7 @@ export function Calendar({ board }: { board: BacklogBoard }) {
   const [cards, setCards] = useState(board.cards);
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
-  const [clientFilter, setClientFilter] = useState("all");
+  const [filter, setFilter] = useState<BacklogFilter>(EMPTY_BACKLOG_FILTER);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [openCardId, setOpenCardId] = useState<string | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
@@ -259,17 +269,19 @@ export function Calendar({ board }: { board: BacklogBoard }) {
     [board.clients]
   );
 
+  const assigneeNameById = useMemo(
+    () => new Map(board.users.map((user) => [user.id, user.username])),
+    [board.users]
+  );
+
   const columnById = useMemo(
     () => new Map(board.columns.map((column) => [column.id, column])),
     [board.columns]
   );
 
   const filtered = useMemo(
-    () =>
-      cards.filter(
-        (card) => clientFilter === "all" || card.client_id === clientFilter
-      ),
-    [cards, clientFilter]
+    () => filterBacklogCards(cards, filter, board.checklist),
+    [cards, filter, board.checklist]
   );
 
   const cardsByDate = useMemo(() => {
@@ -349,6 +361,12 @@ export function Calendar({ board }: { board: BacklogBoard }) {
     return card.client_id ? clientNameById.get(card.client_id) ?? null : null;
   }
 
+  function assigneeOf(card: BacklogCard) {
+    return card.assignee_id
+      ? assigneeNameById.get(card.assignee_id) ?? null
+      : null;
+  }
+
   function columnNameOf(card: BacklogCard) {
     return columnById.get(card.column_id)?.name ?? "Sem etapa";
   }
@@ -426,6 +444,7 @@ export function Calendar({ board }: { board: BacklogBoard }) {
                       color={colorOf(card)}
                       columnName={columnNameOf(card)}
                       clientName={clientOf(card)}
+                      assigneeName={assigneeOf(card)}
                       onOpen={() => setOpenCardId(card.id)}
                     />
                   </li>
@@ -435,18 +454,13 @@ export function Calendar({ board }: { board: BacklogBoard }) {
           </UndatedMenu>
         </div>
 
-        <select
-          value={clientFilter}
-          onChange={(event) => setClientFilter(event.target.value)}
-          className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
-        >
-          <option value="all">Todos os clientes</option>
-          {board.clients.map((client) => (
-            <option key={client.id} value={client.id}>
-              {client.name}
-            </option>
-          ))}
-        </select>
+        <BacklogFilters
+          filter={filter}
+          onChange={setFilter}
+          clients={board.clients}
+          users={board.users}
+          align="end"
+        />
       </div>
 
       <p className="text-sm text-neutral-500">
@@ -499,6 +513,7 @@ export function Calendar({ board }: { board: BacklogBoard }) {
                       color={colorOf(card)}
                       columnName={columnNameOf(card)}
                       clientName={clientOf(card)}
+                      assigneeName={assigneeOf(card)}
                       onOpen={() => setOpenCardId(card.id)}
                     />
                   </li>
@@ -517,6 +532,7 @@ export function Calendar({ board }: { board: BacklogBoard }) {
               color={colorOf(activeCard)}
               columnName={columnNameOf(activeCard)}
               clientName={clientOf(activeCard)}
+              assigneeName={assigneeOf(activeCard)}
             />
           </div>
         ) : null}
@@ -526,8 +542,11 @@ export function Calendar({ board }: { board: BacklogBoard }) {
         <BacklogCardDrawer
           card={openCard}
           checklist={board.checklist}
+          activity={board.activity}
+          isFirstColumn={board.columns[0]?.id === openCard.column_id}
           clients={board.clients}
           guides={board.guides}
+          users={board.users}
           onClose={() => setOpenCardId(null)}
           onSave={updateBacklogCardAction}
           onDelete={async (id) => {

@@ -1,8 +1,11 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import {
+  BACKUP_QUESTION,
   normalizeBacklogFormat,
   parseBacklogTags,
+  shouldAskBackupQuestion,
+  type BacklogActivity,
   type BacklogBoard,
   type BacklogCard,
   type BacklogChecklistItem,
@@ -10,9 +13,11 @@ import {
   type BacklogColumn,
   type BacklogFormat,
   type BacklogGuideOption,
+  type BacklogUserOption,
 } from "@/lib/backlogTypes";
 
 export type {
+  BacklogActivity,
   BacklogBoard,
   BacklogCard,
   BacklogChecklistItem,
@@ -20,6 +25,7 @@ export type {
   BacklogColumn,
   BacklogFormat,
   BacklogGuideOption,
+  BacklogUserOption,
 };
 
 function normalizeUrl(value: unknown): string | null {
@@ -49,8 +55,10 @@ export async function getBacklogBoard(): Promise<BacklogBoard> {
     columnsResult,
     cardsResult,
     checklistResult,
+    activityResult,
     clientsResult,
     guidesResult,
+    usersResult,
   ] = await Promise.all([
     supabase.from("backlog_columns").select("*").order("position"),
     supabase
@@ -63,22 +71,31 @@ export async function getBacklogBoard(): Promise<BacklogBoard> {
       .select("*")
       .order("card_id")
       .order("position"),
+    supabase
+      .from("backlog_card_activity")
+      .select("*")
+      .order("created_at", { ascending: false }),
     supabase.from("gallery_clients").select("id, name").order("name"),
     supabase.from("guides").select("id, title").order("title"),
+    supabase.from("users").select("id, username").order("username"),
   ]);
 
   if (columnsResult.error) throw columnsResult.error;
   if (cardsResult.error) throw cardsResult.error;
   if (checklistResult.error) throw checklistResult.error;
+  if (activityResult.error) throw activityResult.error;
   if (clientsResult.error) throw clientsResult.error;
   if (guidesResult.error) throw guidesResult.error;
+  if (usersResult.error) throw usersResult.error;
 
   return {
     columns: (columnsResult.data ?? []) as BacklogColumn[],
     cards: (cardsResult.data ?? []) as BacklogCard[],
     checklist: (checklistResult.data ?? []) as BacklogChecklistItem[],
+    activity: (activityResult.data ?? []) as BacklogActivity[],
     clients: (clientsResult.data ?? []) as BacklogClientOption[],
     guides: (guidesResult.data ?? []) as BacklogGuideOption[],
+    users: (usersResult.data ?? []) as BacklogUserOption[],
   };
 }
 
@@ -157,6 +174,7 @@ export interface BacklogCardInput {
   format: BacklogFormat;
   client_id: string | null;
   guide_id: string | null;
+  assignee_id: string | null;
   drive_url: string | null;
   cover_url: string | null;
   caption: string;
@@ -172,6 +190,7 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
     format: normalizeBacklogFormat(formData.get("format")),
     client_id: normalizeUuid(formData.get("client_id")),
     guide_id: normalizeUuid(formData.get("guide_id")),
+    assignee_id: normalizeUuid(formData.get("assignee_id")),
     drive_url: normalizeUrl(formData.get("drive_url")),
     cover_url: normalizeUrl(formData.get("cover_url")),
     caption: String(formData.get("caption") ?? "").trim(),
@@ -206,6 +225,7 @@ export async function createBacklogCard(
       format: fields.format ?? "reel",
       client_id: fields.client_id ?? null,
       guide_id: fields.guide_id ?? null,
+      assignee_id: fields.assignee_id ?? null,
       drive_url: fields.drive_url ?? null,
       cover_url: fields.cover_url ?? null,
       caption: fields.caption ?? "",
@@ -247,6 +267,7 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
       format: fields.format,
       client_id: fields.client_id,
       guide_id: fields.guide_id,
+      assignee_id: fields.assignee_id,
       drive_url: fields.drive_url,
       cover_url: fields.cover_url,
       caption: fields.caption,
@@ -276,17 +297,53 @@ export async function setBacklogCardPostDate(
   if (error) throw error;
 }
 
+// -------------------------------------------------------------- atividade
+
+export async function createBacklogActivity(params: {
+  cardId: string;
+  authorId: string | null;
+  kind: BacklogActivity["kind"];
+  message: string;
+}) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase.from("backlog_card_activity").insert({
+    card_id: params.cardId,
+    author_id: params.authorId,
+    kind: params.kind,
+    message: params.message,
+  });
+  if (error) throw error;
+}
+
 /**
  * Persiste o resultado de um arraste: o card muda de coluna e as colunas
  * afetadas são renumeradas na ordem final que o dnd-kit já calculou no
- * cliente.
+ * cliente. Registra a movimentação na atividade e devolve a pergunta da
+ * automação quando a transição casa com a regra.
  */
 export async function moveBacklogCard(params: {
   cardId: string;
   toColumnId: string;
   orderedIdsByColumn: Record<string, string[]>;
-}) {
+  authorId: string | null;
+}): Promise<{ question: string | null }> {
   const supabase = getSupabaseServerClient();
+
+  const [{ data: card }, { data: columns }] = await Promise.all([
+    supabase
+      .from("backlog_cards")
+      .select("column_id, title")
+      .eq("id", params.cardId)
+      .single(),
+    supabase.from("backlog_columns").select("id, name"),
+  ]);
+
+  const nameById = new Map(
+    (columns ?? []).map((column) => [column.id as string, column.name as string])
+  );
+  const fromName = card ? nameById.get(card.column_id) ?? "" : "";
+  const toName = nameById.get(params.toColumnId) ?? "";
+  const changedColumn = Boolean(card) && card!.column_id !== params.toColumnId;
 
   const { error } = await supabase
     .from("backlog_cards")
@@ -307,6 +364,19 @@ export async function moveBacklogCard(params: {
       )
     )
   );
+
+  if (!changedColumn) return { question: null };
+
+  await createBacklogActivity({
+    cardId: params.cardId,
+    authorId: params.authorId,
+    kind: "move",
+    message: `Moveu de "${fromName}" para "${toName}"`,
+  });
+
+  return {
+    question: shouldAskBackupQuestion(fromName, toName) ? BACKUP_QUESTION : null,
+  };
 }
 
 // -------------------------------------------------------------- checklist
@@ -364,6 +434,24 @@ export async function deleteBacklogChecklistItem(id: string) {
     .from("backlog_checklist_items")
     .delete()
     .eq("id", id);
+  if (error) throw error;
+}
+
+/** Marca/desmarca a aprovação. Só registra — não move o card de coluna. */
+export async function setBacklogCardApproved(params: {
+  cardId: string;
+  approved: boolean;
+  userId: string | null;
+}) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("backlog_cards")
+    .update({
+      approved_at: params.approved ? new Date().toISOString() : null,
+      approved_by: params.approved ? params.userId : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", params.cardId);
   if (error) throw error;
 }
 

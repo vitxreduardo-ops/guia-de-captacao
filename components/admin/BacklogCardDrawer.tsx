@@ -5,12 +5,15 @@ import {
   BACKLOG_FORMATS,
   BACKLOG_FORMAT_LABELS,
   type BacklogCard,
+  type BacklogActivity,
   type BacklogChecklistItem,
   type BacklogClientOption,
   type BacklogGuideOption,
+  type BacklogUserOption,
 } from "@/lib/backlogTypes";
 import {
   createBacklogChecklistItemAction,
+  createBacklogNoteAction,
   deleteBacklogChecklistItemAction,
   setBacklogChecklistItemDoneAction,
 } from "@/app/admin/backlog/actions";
@@ -137,19 +140,125 @@ function ChecklistSection({
   );
 }
 
+function formatActivityDate(iso: string) {
+  return new Date(iso).toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/**
+ * Histórico do material: movimentações, respostas de automação e comentários.
+ * Fica fora do `form` principal pelo mesmo motivo do checklist.
+ */
+function ActivitySection({
+  cardId,
+  items,
+  authorNameById,
+  canComment,
+}: {
+  cardId: string;
+  items: BacklogActivity[];
+  authorNameById: Map<string, string>;
+  canComment: boolean;
+}) {
+  const [draft, setDraft] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  function addNote() {
+    const message = draft.trim();
+    if (!message) return;
+    startTransition(async () => {
+      await createBacklogNoteAction(cardId, message);
+      setDraft("");
+    });
+  }
+
+  return (
+    <div>
+      <p className={labelClass}>Atividade</p>
+
+      {canComment ? (
+        <div className="mb-2 flex gap-1">
+          <input
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                addNote();
+              }
+            }}
+            placeholder="Escrever um comentário"
+            disabled={pending}
+            className={inputClass}
+          />
+          <button
+            type="button"
+            onClick={addNote}
+            disabled={pending}
+            aria-label="Adicionar comentário"
+            className="shrink-0 rounded-md border border-neutral-300 px-2.5 py-2 text-sm text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+          >
+            +
+          </button>
+        </div>
+      ) : (
+        <p className="mb-2 text-xs text-neutral-500">
+          Comentário fica liberado a partir de Captado.
+        </p>
+      )}
+
+      {items.length === 0 ? (
+        <p className="text-xs text-neutral-500">Nada registrado ainda.</p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {items.map((item) => (
+            <li key={item.id} className="text-xs text-neutral-700">
+              <span
+                className={
+                  item.kind === "note" ? "text-neutral-900" : "text-neutral-600"
+                }
+              >
+                {item.kind === "answer" ? "🗄 " : item.kind === "move" ? "↪ " : "💬 "}
+                {item.message}
+              </span>
+              <span className="ml-1 text-neutral-400">
+                {item.author_id
+                  ? `${authorNameById.get(item.author_id) ?? "alguém"} · `
+                  : ""}
+                {formatActivityDate(item.created_at)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function BacklogCardDrawer({
   card,
   checklist,
+  activity,
+  isFirstColumn,
   clients,
   guides,
+  users,
   onClose,
   onSave,
   onDelete,
 }: {
   card: BacklogCard;
   checklist: BacklogChecklistItem[];
+  activity: BacklogActivity[];
+  /** Na primeira coluna o material ainda é ideia — comentário só depois. */
+  isFirstColumn: boolean;
   clients: BacklogClientOption[];
   guides: BacklogGuideOption[];
+  users: BacklogUserOption[];
   onClose: () => void;
   onSave: (formData: FormData) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -250,6 +359,25 @@ export function BacklogCardDrawer({
                 className={inputClass}
               />
             </div>
+          </div>
+
+          <div>
+            <label className={labelClass} htmlFor="backlog-assignee">
+              Responsável
+            </label>
+            <select
+              id="backlog-assignee"
+              name="assignee_id"
+              defaultValue={card.assignee_id ?? "none"}
+              className={inputClass}
+            >
+              <option value="none">Sem responsável</option>
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.username}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -369,6 +497,15 @@ export function BacklogCardDrawer({
               className={inputClass}
             />
           </div>
+
+          <ActivitySection
+            cardId={card.id}
+            items={activity.filter((item) => item.card_id === card.id)}
+            authorNameById={
+              new Map(users.map((user) => [user.id, user.username]))
+            }
+            canComment={!isFirstColumn}
+          />
 
           <div className="mt-auto flex items-center justify-between gap-3 border-t border-neutral-200 pt-4">
             <button

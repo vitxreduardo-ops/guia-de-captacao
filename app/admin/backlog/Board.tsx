@@ -20,18 +20,32 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { BacklogCardDrawer } from "@/components/admin/BacklogCardDrawer";
+import { BacklogFilters } from "@/components/admin/BacklogFilters";
+import {
+  BacklogToaster,
+  askBacklogQuestion,
+} from "@/components/admin/BacklogToaster";
 import {
   BACKLOG_COLUMN_COLORS,
-  BACKLOG_FORMATS,
   BACKLOG_FORMAT_LABELS,
+  EMPTY_BACKLOG_FILTER,
   checklistProgress,
+  countBacklogFilters,
+  isApprovalColumn,
+  filterBacklogCards,
   formatBacklogDateShort,
   type BacklogBoard,
   type BacklogCard,
   type BacklogChecklistItem,
   type BacklogColumn,
+  type BacklogFilter,
 } from "@/lib/backlogTypes";
 import {
   createBacklogCardAction,
@@ -40,6 +54,7 @@ import {
   deleteBacklogColumnAction,
   moveBacklogCardAction,
   reorderBacklogColumnsAction,
+  setBacklogCardApprovedAction,
   updateBacklogCardAction,
   updateBacklogColumnAction,
 } from "./actions";
@@ -49,25 +64,32 @@ const DROPZONE_PREFIX = "dropzone-";
 const inputClass =
   "w-full rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-neutral-500 focus:outline-none";
 
-function monthOf(postDate: string) {
-  return postDate.slice(0, 7);
-}
-
 // ------------------------------------------------------------------ card
 
 function CardBody({
   card,
   clientName,
+  assigneeName,
   checklist,
+  showApproval = false,
   onOpen,
 }: {
   card: BacklogCard;
   clientName: string | null;
+  assigneeName: string | null;
   checklist: { done: number; total: number } | null;
+  /** Só na coluna de aprovação o material pode ser marcado como aprovado. */
+  showApproval?: boolean;
   onOpen?: () => void;
 }) {
+  const approved = Boolean(card.approved_at);
+
   return (
-    <div className="rounded-md border border-neutral-200 bg-white shadow-sm">
+    <div
+      className={`rounded-md border bg-white shadow-sm ${
+        approved ? "border-emerald-300" : "border-neutral-200"
+      }`}
+    >
       {card.cover_url ? (
         // Capa é um link colado pelo usuário (host imprevisível), então
         // <img> em vez de next/image pra não precisar liberar domínio.
@@ -79,13 +101,37 @@ function CardBody({
         />
       ) : null}
       <div className="p-2.5">
-        <button
-          type="button"
-          onClick={onOpen}
-          className="block w-full text-left text-sm font-medium text-neutral-900 hover:underline"
-        >
-          {card.title}
-        </button>
+        <div className="flex items-start gap-2">
+          {showApproval ? (
+            <button
+              type="button"
+              // `stopPropagation` porque o card inteiro é a alça de arraste.
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation();
+                void setBacklogCardApprovedAction(card.id, !approved);
+              }}
+              aria-pressed={approved}
+              aria-label={approved ? "Desmarcar aprovação" : "Marcar como aprovado"}
+              className={`mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border text-[10px] ${
+                approved
+                  ? "border-emerald-500 bg-emerald-500 text-white"
+                  : "border-neutral-300 text-transparent hover:border-neutral-500"
+              }`}
+            >
+              ✓
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={onOpen}
+            className={`block flex-1 text-left text-sm font-medium hover:underline ${
+              approved ? "text-neutral-500 line-through" : "text-neutral-900"
+            }`}
+          >
+            {card.title}
+          </button>
+        </div>
 
         <div className="mt-1.5 flex flex-wrap items-center gap-1">
           <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] text-neutral-600">
@@ -94,6 +140,11 @@ function CardBody({
           {clientName ? (
             <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[11px] text-sky-700">
               {clientName}
+            </span>
+          ) : null}
+          {assigneeName ? (
+            <span className="rounded bg-violet-50 px-1.5 py-0.5 text-[11px] text-violet-700">
+              @{assigneeName}
             </span>
           ) : null}
           {card.post_date ? (
@@ -143,13 +194,17 @@ function CardBody({
 function SortableCard({
   card,
   clientName,
+  assigneeName,
   checklist,
+  showApproval,
   draggable,
   onOpen,
 }: {
   card: BacklogCard;
   clientName: string | null;
+  assigneeName: string | null;
   checklist: { done: number; total: number } | null;
+  showApproval: boolean;
   draggable: boolean;
   onOpen: () => void;
 }) {
@@ -171,10 +226,59 @@ function SortableCard({
       <CardBody
         card={card}
         clientName={clientName}
+        assigneeName={assigneeName}
         checklist={checklist}
+        showApproval={showApproval}
         onOpen={onOpen}
       />
     </li>
+  );
+}
+
+/** Ações do quadro que não são do dia a dia — hoje, criar coluna. */
+function BoardSettingsMenu() {
+  return (
+    <Popover>
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            aria-label="Configurações do quadro"
+            className="flex size-9 items-center justify-center rounded-md border border-neutral-300 text-neutral-600 hover:bg-neutral-50"
+          >
+            ⚙
+          </button>
+        }
+      />
+      <PopoverContent align="end" className="w-64">
+        <p className="text-sm font-semibold text-neutral-900">Nova coluna</p>
+        <form action={createBacklogColumnAction} className="flex flex-col gap-2">
+          <input
+            name="name"
+            placeholder="Nome da coluna"
+            required
+            className={inputClass}
+          />
+          <select
+            name="color"
+            defaultValue={BACKLOG_COLUMN_COLORS[0]}
+            className={inputClass}
+          >
+            {BACKLOG_COLUMN_COLORS.map((color) => (
+              <option key={color} value={color}>
+                {color}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+          >
+            Adicionar
+          </button>
+        </form>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -295,7 +399,7 @@ function ColumnHeader({
   }
 
   return (
-    <div className="mb-2 flex items-center gap-2">
+    <div className="group/header mb-2 flex items-center gap-2">
       {dragHandle}
       <span
         aria-hidden
@@ -309,7 +413,7 @@ function ColumnHeader({
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="ml-auto text-xs text-neutral-400 hover:text-neutral-800"
+        className="ml-auto text-xs text-neutral-400 opacity-0 transition-opacity hover:text-neutral-800 focus-visible:opacity-100 group-hover/header:opacity-100"
       >
         Editar
       </button>
@@ -321,6 +425,7 @@ function SortableColumn({
   column,
   cards,
   clientNameById,
+  assigneeNameById,
   checklistItems,
   draggable,
   onOpenCard,
@@ -328,6 +433,7 @@ function SortableColumn({
   column: BacklogColumn;
   cards: BacklogCard[];
   clientNameById: Map<string, string>;
+  assigneeNameById: Map<string, string>;
   checklistItems: BacklogChecklistItem[];
   draggable: boolean;
   onOpenCard: (id: string) => void;
@@ -377,6 +483,12 @@ function SortableColumn({
           items={cards.map((card) => card.id)}
           strategy={verticalListSortingStrategy}
         >
+          {cards.length === 0 ? (
+            <p className="rounded-md border border-dashed border-neutral-300 px-3 py-6 text-center text-xs text-neutral-400">
+              Nenhum material
+            </p>
+          ) : null}
+
           <ul className="flex flex-col gap-2">
             {cards.map((card) => (
               <SortableCard
@@ -387,7 +499,13 @@ function SortableColumn({
                     ? clientNameById.get(card.client_id) ?? null
                     : null
                 }
+                assigneeName={
+                  card.assignee_id
+                    ? assigneeNameById.get(card.assignee_id) ?? null
+                    : null
+                }
                 checklist={checklistProgress(card.id, checklistItems)}
+                showApproval={isApprovalColumn(column.name)}
                 draggable={draggable}
                 onOpen={() => onOpenCard(card.id)}
               />
@@ -403,7 +521,14 @@ function SortableColumn({
 
 // ----------------------------------------------------------------- board
 
-export function Board({ board }: { board: BacklogBoard }) {
+export function Board({
+  board,
+  tabs,
+}: {
+  board: BacklogBoard;
+  /** Abas Kanban/Calendário, renderizadas pela página. */
+  tabs?: React.ReactNode;
+}) {
   const [columns, setColumns] = useState(board.columns);
   const [cards, setCards] = useState(board.cards);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
@@ -413,9 +538,7 @@ export function Board({ board }: { board: BacklogBoard }) {
   const [scrollLeft, setScrollLeft] = useState(0);
   const [maxScroll, setMaxScroll] = useState(0);
 
-  const [clientFilter, setClientFilter] = useState("all");
-  const [formatFilter, setFormatFilter] = useState("all");
-  const [monthFilter, setMonthFilter] = useState("all");
+  const [filter, setFilter] = useState<BacklogFilter>(EMPTY_BACKLOG_FILTER);
 
   // O servidor é a fonte da verdade: cada revalidação sobrescreve o estado
   // otimista deixado pelo arraste. Ajuste durante o render (e não num efeito)
@@ -430,6 +553,11 @@ export function Board({ board }: { board: BacklogBoard }) {
   const clientNameById = useMemo(
     () => new Map(board.clients.map((client) => [client.id, client.name])),
     [board.clients]
+  );
+
+  const assigneeNameById = useMemo(
+    () => new Map(board.users.map((user) => [user.id, user.username])),
+    [board.users]
   );
 
   // O slider substitui a barra de rolagem nativa do quadro. `maxScroll` fica
@@ -452,29 +580,11 @@ export function Board({ board }: { board: BacklogBoard }) {
     return () => observer.disconnect();
   }, [syncScroll, columns.length]);
 
-  const months = useMemo(() => {
-    const set = new Set<string>();
-    for (const card of cards) if (card.post_date) set.add(monthOf(card.post_date));
-    return [...set].sort();
-  }, [cards]);
-
-  const filtering =
-    clientFilter !== "all" || formatFilter !== "all" || monthFilter !== "all";
+  const filtering = countBacklogFilters(filter) > 0;
 
   const visibleCards = useMemo(
-    () =>
-      cards.filter((card) => {
-        if (clientFilter !== "all" && card.client_id !== clientFilter) return false;
-        if (formatFilter !== "all" && card.format !== formatFilter) return false;
-        if (
-          monthFilter !== "all" &&
-          (!card.post_date || monthOf(card.post_date) !== monthFilter)
-        ) {
-          return false;
-        }
-        return true;
-      }),
-    [cards, clientFilter, formatFilter, monthFilter]
+    () => filterBacklogCards(cards, filter, board.checklist),
+    [cards, filter, board.checklist]
   );
 
   function columnCards(columnId: string, source: BacklogCard[]) {
@@ -564,6 +674,14 @@ export function Board({ board }: { board: BacklogBoard }) {
       cardId: activeId,
       toColumnId: targetColumnId,
       orderedIdsByColumn,
+    }).then((result) => {
+      // Automação: a transição casou com a regra, então pergunta na hora.
+      if (result?.question) {
+        askBacklogQuestion(result.question, {
+          cardId: card.id,
+          cardTitle: card.title,
+        });
+      }
     });
   }
 
@@ -576,88 +694,22 @@ export function Board({ board }: { board: BacklogBoard }) {
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white p-3">
-        <select
-          value={clientFilter}
-          onChange={(event) => setClientFilter(event.target.value)}
-          className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
-        >
-          <option value="all">Todos os clientes</option>
-          {board.clients.map((client) => (
-            <option key={client.id} value={client.id}>
-              {client.name}
-            </option>
-          ))}
-        </select>
+      <BacklogToaster />
 
-        <select
-          value={formatFilter}
-          onChange={(event) => setFormatFilter(event.target.value)}
-          className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
-        >
-          <option value="all">Todos os formatos</option>
-          {BACKLOG_FORMATS.map((format) => (
-            <option key={format} value={format}>
-              {BACKLOG_FORMAT_LABELS[format]}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={monthFilter}
-          onChange={(event) => setMonthFilter(event.target.value)}
-          className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
-        >
-          <option value="all">Todos os meses</option>
-          {months.map((month) => (
-            <option key={month} value={month}>
-              {month}
-            </option>
-          ))}
-        </select>
-
-        {filtering ? (
-          <button
-            type="button"
-            onClick={() => {
-              setClientFilter("all");
-              setFormatFilter("all");
-              setMonthFilter("all");
-            }}
-            className="text-sm text-neutral-500 hover:text-neutral-900"
-          >
-            Limpar filtros
-          </button>
-        ) : null}
-
-        <form
-          action={createBacklogColumnAction}
-          className="ml-auto flex items-center gap-2"
-        >
-          <input
-            name="name"
-            placeholder="Nova coluna"
-            required
-            className="w-36 rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
+      {/* Abas, filtro e configurações do quadro na mesma linha — a barra
+          branca separada só criava um vão vazio no meio. */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div>{tabs}</div>
+        <div className="ml-auto flex items-center gap-2">
+          <BacklogFilters
+            filter={filter}
+            onChange={setFilter}
+            clients={board.clients}
+            users={board.users}
+            align="end"
           />
-          <select
-            name="color"
-            defaultValue={BACKLOG_COLUMN_COLORS[0]}
-            className="rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
-          >
-            {BACKLOG_COLUMN_COLORS.map((color) => (
-              <option key={color} value={color}>
-                {color}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
-          >
-            Adicionar
-          </button>
-        </form>
+          <BoardSettingsMenu />
+        </div>
       </div>
 
       {filtering ? (
@@ -682,7 +734,7 @@ export function Board({ board }: { board: BacklogBoard }) {
           items={columns.map((column) => column.id)}
           strategy={horizontalListSortingStrategy}
         >
-          <div className="relative">
+          <div className="relative flex min-h-0 flex-1 flex-col">
             {/* Fades nas bordas: só aparecem do lado que ainda tem coluna
                 escondida, pra sinalizar que dá pra rolar. */}
             {scrollLeft > 1 ? (
@@ -695,8 +747,15 @@ export function Board({ board }: { board: BacklogBoard }) {
             <div
               ref={scrollerRef}
               onScroll={syncScroll}
+              onWheel={(event) => {
+                // Mouse comum só manda deltaY: sem isto, a roda não rolaria
+                // o quadro em lugar nenhum. Trackpad (deltaX) segue nativo.
+                const element = scrollerRef.current;
+                if (!element || event.deltaX !== 0 || event.deltaY === 0) return;
+                element.scrollLeft += event.deltaY;
+              }}
               // Barra nativa escondida: quem rola é o slider no fim da página.
-              className="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              className="flex min-h-0 flex-1 items-start gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
             >
               {columns.map((column) => (
                 <SortableColumn
@@ -704,6 +763,7 @@ export function Board({ board }: { board: BacklogBoard }) {
                   column={column}
                   cards={columnCards(column.id, visibleCards)}
                   clientNameById={clientNameById}
+                  assigneeNameById={assigneeNameById}
                   checklistItems={board.checklist}
                   draggable={!filtering}
                   onOpenCard={setOpenCardId}
@@ -722,7 +782,13 @@ export function Board({ board }: { board: BacklogBoard }) {
                   ? clientNameById.get(activeCard.client_id) ?? null
                   : null
               }
+              assigneeName={
+                activeCard.assignee_id
+                  ? assigneeNameById.get(activeCard.assignee_id) ?? null
+                  : null
+              }
               checklist={checklistProgress(activeCard.id, board.checklist)}
+              showApproval={false}
             />
           ) : null}
         </DragOverlay>
@@ -756,8 +822,11 @@ export function Board({ board }: { board: BacklogBoard }) {
         <BacklogCardDrawer
           card={openCard}
           checklist={board.checklist}
+          activity={board.activity}
+          isFirstColumn={columns[0]?.id === openCard.column_id}
           clients={board.clients}
           guides={board.guides}
+          users={board.users}
           onClose={() => setOpenCardId(null)}
           onSave={updateBacklogCardAction}
           onDelete={async (id) => {
