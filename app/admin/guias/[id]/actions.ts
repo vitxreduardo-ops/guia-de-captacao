@@ -112,11 +112,11 @@ export async function deleteVideoAction(formData: FormData) {
 export async function addSceneAction(formData: FormData) {
   const guideId = String(formData.get("guide_id"));
   const videoId = String(formData.get("video_id"));
-  const title = String(formData.get("title") ?? "").trim();
   const script = String(formData.get("script") ?? "").trim();
-  if (!title && !script) return;
+  const description = String(formData.get("description") ?? "").trim();
+  if (!script && !description) return;
 
-  const scene = await addScene(videoId, { title, script });
+  const scene = await addScene(videoId, { script, description });
 
   const urlInput = String(formData.get("image_url") ?? "").trim();
   const caption = String(formData.get("caption") ?? "").trim();
@@ -148,9 +148,9 @@ export async function addSceneAction(formData: FormData) {
 export async function updateSceneAction(formData: FormData) {
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
-  const title = String(formData.get("title") ?? "").trim();
   const script = String(formData.get("script") ?? "").trim();
-  await updateScene(id, { title, script });
+  const description = String(formData.get("description") ?? "").trim();
+  await updateScene(id, { script, description });
   revalidateGuide(guideId);
 }
 

@@ -28,8 +28,8 @@ export interface Scene {
   id: string;
   video_id: string;
   position: number;
-  title: string;
   script: string;
+  description: string;
   recorded: boolean;
 }
 
@@ -342,7 +342,7 @@ export async function deleteVideo(id: string) {
 
 export async function addScene(
   videoId: string,
-  fields: { title: string; script: string }
+  fields: { script: string; description: string }
 ): Promise<Scene> {
   const supabase = getSupabaseServerClient();
   const position = await nextPosition("scenes", "video_id", videoId);
@@ -351,8 +351,8 @@ export async function addScene(
     .insert({
       video_id: videoId,
       position,
-      title: fields.title,
       script: fields.script,
+      description: fields.description,
     })
     .select("*")
     .single();
@@ -362,7 +362,7 @@ export async function addScene(
 
 export async function updateScene(
   id: string,
-  fields: { title: string; script: string }
+  fields: { script: string; description: string }
 ) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase.from("scenes").update(fields).eq("id", id);

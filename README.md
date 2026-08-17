@@ -23,6 +23,8 @@ npm install
    - Se seu banco ainda não tem as tabelas `gallery_clients`/`gallery_images`, rode [`supabase/migrations/0016_add_gallery_clients.sql`](supabase/migrations/0016_add_gallery_clients.sql) — usadas pela "Galeria do cliente".
    - Se seu banco já tem `gallery_clients`/`gallery_images` mas ainda não tem `google_oauth_tokens`/`drive_folder_id`/`drive_file_id`, rode [`supabase/migrations/0017_add_google_drive_oauth.sql`](supabase/migrations/0017_add_google_drive_oauth.sql) — usada pela sincronização com pasta do Google Drive.
    - Se seu banco ainda não tem `gallery_images.mime_type`/`drive_relative_path`, rode [`supabase/migrations/0018_add_gallery_image_mime_type.sql`](supabase/migrations/0018_add_gallery_image_mime_type.sql) — a sincronização com o Drive passou a trazer vídeos além de fotos, e a agrupar por subpasta.
+   - Se seu banco ainda não tem `scenes.description`, rode [`supabase/migrations/0020_add_scene_description.sql`](supabase/migrations/0020_add_scene_description.sql) — usada pelo campo "Descrição de cena".
+   - Se seu banco ainda tem `scenes.title`, rode [`supabase/migrations/0021_drop_scene_title.sql`](supabase/migrations/0021_drop_scene_title.sql) — o título da cena foi substituído pela descrição. Copie os títulos antigos para `description` antes, porque o drop é irreversível.
 3. Em **Storage**, crie um bucket público chamado `guide-references` (usado para as imagens de referência visual enviadas por upload).
 4. Em **Project Settings > API**, copie a **Project URL** e a **service_role key**.
 

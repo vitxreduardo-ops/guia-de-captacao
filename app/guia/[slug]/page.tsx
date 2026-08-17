@@ -125,7 +125,6 @@ export default async function PublicGuidePage({
                           <div className="mb-1 flex items-start justify-between gap-2">
                             <p className="text-sm font-medium text-neutral-900">
                               Cena {sceneIndex + 1}
-                              {scene.title ? ` — ${scene.title}` : ""}
                             </p>
                             <form action={toggleSceneRecordedAction}>
                               <input type="hidden" name="id" value={scene.id} />
@@ -159,6 +158,17 @@ export default async function PublicGuidePage({
                           <p className="whitespace-pre-wrap text-sm text-neutral-600">
                             {scene.script || "—"}
                           </p>
+
+                          {scene.description ? (
+                            <div className="mt-2">
+                              <p className="text-xs font-medium text-neutral-500">
+                                Descrição de cena
+                              </p>
+                              <p className="whitespace-pre-wrap text-sm text-neutral-600">
+                                {scene.description}
+                              </p>
+                            </div>
+                          ) : null}
 
                           {sceneReferences.length > 0 ? (
                             <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">

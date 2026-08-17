@@ -41,6 +41,7 @@ const styles = StyleSheet.create({
   },
   sceneTitle: { fontSize: 11, marginBottom: 4, fontWeight: 700 },
   sceneScript: { fontSize: 10, color: "#333333" },
+  sceneLabel: { fontSize: 9, color: "#666666", marginTop: 4, marginBottom: 2 },
   referencesGrid: { flexDirection: "row", flexWrap: "wrap", marginTop: 6 },
   referenceItem: { width: 90, marginRight: 8, marginBottom: 8 },
   referenceImage: { width: 90, height: 68, objectFit: "cover", borderRadius: 4 },
@@ -126,11 +127,20 @@ function GuidePdfDocument({ guide }: { guide: GuideWithSections }) {
                     <View key={scene.id} style={styles.sceneBox} wrap={false}>
                       <Text style={styles.sceneTitle}>
                         Cena {sceneIndex + 1}
-                        {scene.title ? ` — ${scene.title}` : ""}
                       </Text>
                       <Text style={styles.sceneScript}>
                         {scene.script || "-"}
                       </Text>
+                      {scene.description ? (
+                        <>
+                          <Text style={styles.sceneLabel}>
+                            Descrição de cena
+                          </Text>
+                          <Text style={styles.sceneScript}>
+                            {scene.description}
+                          </Text>
+                        </>
+                      ) : null}
 
                       {sceneReferences.length > 0 ? (
                         <View style={styles.referencesGrid}>

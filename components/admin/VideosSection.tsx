@@ -172,18 +172,19 @@ function SceneCard({
       <form action={updateSceneAction}>
         <input type="hidden" name="id" value={scene.id} />
         <input type="hidden" name="guide_id" value={guideId} />
-        <input
-          name="title"
-          defaultValue={scene.title}
-          placeholder="Título da cena"
-          className="mb-2 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-        />
         <textarea
           name="script"
           defaultValue={scene.script}
           placeholder="Roteiro / fala / direção..."
           rows={3}
           className="w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+        />
+        <textarea
+          name="description"
+          defaultValue={scene.description}
+          placeholder="Descrição de cena"
+          rows={2}
+          className="mt-2 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
         />
         <button
           type="submit"
@@ -287,15 +288,16 @@ function VideoCard({
         <p className="mb-2 text-xs font-medium text-neutral-600">
           Cena {nextSceneNumber}
         </p>
-        <input
-          name="title"
-          placeholder="Título da cena"
-          className="mb-2 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-        />
         <textarea
           name="script"
           placeholder="Roteiro / fala / direção..."
           rows={3}
+          className="mb-2 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+        />
+        <textarea
+          name="description"
+          placeholder="Descrição de cena"
+          rows={2}
           className="mb-2 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
         />
         <p className="mb-1 text-xs font-medium text-neutral-600">
