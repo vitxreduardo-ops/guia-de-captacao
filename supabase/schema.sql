@@ -281,6 +281,7 @@ create table if not exists backlog_cards (
   column_id uuid not null references backlog_columns(id) on delete cascade,
   client_id uuid references gallery_clients(id) on delete set null,
   guide_id uuid references guides(id) on delete set null,
+  assignee_id uuid references users(id) on delete set null,
   position integer not null default 0,
   title text not null default '',
   description text not null default '',
@@ -292,6 +293,8 @@ create table if not exists backlog_cards (
   post_date date,
   sent_whatsapp boolean not null default false,
   sent_whatsapp_at timestamptz,
+  approved_at timestamptz,
+  approved_by uuid references users(id) on delete set null,
   tags text[] not null default '{}'::text[],
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -299,6 +302,7 @@ create table if not exists backlog_cards (
 
 create index if not exists backlog_cards_column_id_idx on backlog_cards(column_id);
 create index if not exists backlog_cards_client_id_idx on backlog_cards(client_id);
+create index if not exists backlog_cards_assignee_id_idx on backlog_cards(assignee_id);
 create index if not exists backlog_cards_post_date_idx on backlog_cards(post_date);
 create index if not exists backlog_cards_tags_idx on backlog_cards using gin (tags);
 
@@ -321,3 +325,20 @@ create index if not exists backlog_checklist_items_card_id_idx
   on backlog_checklist_items(card_id);
 
 alter table backlog_checklist_items enable row level security;
+
+-- Atividade do material do backlog: movimentações, respostas de automação e
+-- comentários (ver supabase/migrations/0025_add_backlog_activity.sql).
+
+create table if not exists backlog_card_activity (
+  id uuid primary key default gen_random_uuid(),
+  card_id uuid not null references backlog_cards(id) on delete cascade,
+  author_id uuid references users(id) on delete set null,
+  kind text not null default 'note' check (kind in ('move', 'answer', 'note')),
+  message text not null default '',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists backlog_card_activity_card_id_idx
+  on backlog_card_activity(card_id, created_at desc);
+
+alter table backlog_card_activity enable row level security;
