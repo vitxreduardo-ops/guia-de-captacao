@@ -16,7 +16,10 @@ export default async function BacklogPage() {
     <div className="mx-auto flex min-h-svh w-full max-w-[100rem] flex-col px-4 py-10 sm:px-6 lg:px-8">
       <AdminHeader
         title="Backlog do Instagram"
-        backHref="/admin"
+        trail={[
+          { label: "Admin", href: "/admin" },
+          { label: "Backlog" },
+        ]}
         username={username}
       />
 
