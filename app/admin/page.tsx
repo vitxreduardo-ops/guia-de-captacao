@@ -24,7 +24,10 @@ export default async function AdminHub() {
           em cima, e em duas colunas no desktop dá Atalhos à esquerda.
           items-start: sem isso o grid estica os dois cards pra mesma altura e
           o menu recolhido vira uma caixa vazia comprida. */}
-      <div className="grid items-start gap-6 lg:grid-cols-2">
+      {/* Assimétrico e não meio a meio: o maior rótulo do menu tem 135px, então
+          532px de coluna deixavam ~365px mortos por linha. As tarefas usam a
+          largura que sobra. */}
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(200px,1fr)_2fr]">
         {/* Duas instâncias em vez de um defaultOpen dependente da viewport: o
             servidor não sabe a largura da tela, então decidir isso em estado
             daria divergência de hidratação ou o painel abrindo sozinho a cada
