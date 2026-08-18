@@ -1,74 +1,66 @@
 "use client";
 
+import {
+  Clapperboard,
+  Images,
+  Kanban,
+  Library,
+  Receipt,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { Accordion } from "@/components/Accordion";
 
-const ACTIONS = [
-  {
-    href: "/admin/guias",
-    title: "Guia de Captação",
-    description: "Roteiro, referências e checklist de gravação",
-  },
-  {
-    href: "/admin/orcamentos",
-    title: "Orçamento",
-    description: "Proposta comercial em landing page por cliente",
-  },
-  {
-    href: "/admin/biblioteca",
-    title: "Biblioteca",
-    description: "Links e ferramentas úteis",
-  },
-  {
-    href: "/admin/galerias",
-    title: "Galeria do cliente",
-    description: "Fotos por cliente, com link público próprio",
-  },
-  {
-    href: "/admin/backlog",
-    title: "Backlog do Instagram",
-    description: "Kanban e calendário dos materiais que vão pro feed",
-  },
+const ACTIONS: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: "/admin/guias", label: "Guia de Captação", icon: Clapperboard },
+  { href: "/admin/orcamentos", label: "Orçamento", icon: Receipt },
+  { href: "/admin/biblioteca", label: "Biblioteca", icon: Library },
+  { href: "/admin/galerias", label: "Galeria do cliente", icon: Images },
+  { href: "/admin/backlog", label: "Backlog do Instagram", icon: Kanban },
 ];
 
-const ADMIN_ONLY_ACTIONS = [
-  {
-    href: "/admin/usuarios",
-    title: "Usuários",
-    description: "Gerenciar quem tem acesso",
-  },
+const ADMIN_ONLY_ACTIONS: typeof ACTIONS = [
+  { href: "/admin/usuarios", label: "Usuários", icon: Users },
 ];
 
-export function AdminActionsMenu({ isAdmin = false }: { isAdmin?: boolean }) {
+export function AdminActionsMenu({
+  isAdmin = false,
+  defaultOpen = false,
+}: {
+  isAdmin?: boolean;
+  /** Aberto no desktop, recolhido no mobile pra não empurrar as tarefas. */
+  defaultOpen?: boolean;
+}) {
   const actions = isAdmin ? [...ACTIONS, ...ADMIN_ONLY_ACTIONS] : ACTIONS;
 
   return (
     <Accordion
       summary={
-        <span className="text-sm font-semibold text-neutral-900">
-          Atalhos
-        </span>
+        <span className="text-sm font-semibold text-neutral-900">Atalhos</span>
       }
-      defaultOpen
+      defaultOpen={defaultOpen}
       className="rounded-lg border border-neutral-200 bg-white"
       buttonClassName="p-4"
     >
-      <div className="space-y-2 border-t border-neutral-100 p-4">
-        {actions.map((action) => (
-          <Link
-            key={action.href}
-            href={action.href}
-            className="block rounded-lg border border-neutral-200 bg-white p-4 text-center hover:border-neutral-400"
-          >
-            <p className="text-base font-semibold text-neutral-900">
-              {action.title}
-            </p>
-            <p className="mt-1 text-sm text-neutral-500">
-              {action.description}
-            </p>
-          </Link>
-        ))}
-      </div>
+      <nav aria-label="Atalhos" className="border-t border-neutral-100 p-2">
+        <ul className="space-y-0.5">
+          {actions.map((action) => (
+            <li key={action.href}>
+              <Link
+                href={action.href}
+                className="flex items-center gap-3 rounded-md px-2 py-2 text-sm text-neutral-700 transition-transform hover:bg-neutral-100 hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.99] pointer-coarse:min-h-11"
+              >
+                <action.icon
+                  aria-hidden="true"
+                  className="size-4 shrink-0 text-neutral-400"
+                />
+                {action.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </Accordion>
   );
 }

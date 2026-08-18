@@ -70,6 +70,14 @@ export function TodoText({
   return (
     <span
       onDoubleClick={() => onEditingChange(true)}
+      onClick={() => {
+        // Em toque não existe duplo clique nem o lápis (que só aparece no
+        // hover), então lá o toque no texto é o que abre a edição. No mouse
+        // isso não vale: um clique simples abrindo editor seria acidental.
+        if (window.matchMedia("(pointer: coarse)").matches) {
+          onEditingChange(true);
+        }
+      }}
       className={`block cursor-text break-words ${
         done ? "text-neutral-400 line-through" : "text-neutral-800"
       }`}

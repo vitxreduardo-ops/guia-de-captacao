@@ -130,6 +130,20 @@ export function DailyTodoList({
 
   return (
     <div className="space-y-3">
+      {/* O contador vive no título, não no rodapé: é a informação mais útil do
+          bloco e estava renderizada como a menos importante. Fica aqui dentro
+          pra acompanhar o estado otimista. */}
+      <h2 id="tarefas-titulo" className="text-sm font-semibold text-neutral-900">
+        Tarefas
+        {optimisticTodos.length > 0 ? (
+          <span className="font-normal text-neutral-500">
+            {remaining === 0
+              ? " · tudo feito"
+              : ` · ${remaining} pendente${remaining > 1 ? "s" : ""}`}
+          </span>
+        ) : null}
+      </h2>
+
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -158,44 +172,35 @@ export function DailyTodoList({
           Nenhuma tarefa por aqui.
         </p>
       ) : (
-        <>
-          <ul className="space-y-1">
-            {optimisticTodos.map((todo) => (
-              <TodoRow
-                key={todo.id}
-                todo={todo}
-                users={users}
-                onToggle={() =>
-                  mutate({ type: "toggle", id: todo.id, done: !todo.done }, () =>
-                    setDailyTodoDoneAction(todo.id, !todo.done)
-                  )
-                }
-                onRename={(text) =>
-                  mutate({ type: "rename", id: todo.id, text }, () =>
-                    renameDailyTodoAction(todo.id, text)
-                  )
-                }
-                onAssign={(assignee) =>
-                  mutate({ type: "assign", id: todo.id, assignee }, () =>
-                    setDailyTodoAssigneeAction(todo.id, assignee?.id ?? null)
-                  )
-                }
-                onDelete={() =>
-                  mutate({ type: "delete", id: todo.id }, () =>
-                    deleteDailyTodoAction(todo.id)
-                  )
-                }
-              />
-            ))}
-          </ul>
-          <p className="text-xs text-neutral-500">
-            {remaining === 0
-              ? "Tudo feito."
-              : `${remaining} de ${optimisticTodos.length} pendente${
-                  remaining > 1 ? "s" : ""
-                }`}
-          </p>
-        </>
+        <ul className="space-y-1">
+          {optimisticTodos.map((todo) => (
+            <TodoRow
+              key={todo.id}
+              todo={todo}
+              users={users}
+              onToggle={() =>
+                mutate({ type: "toggle", id: todo.id, done: !todo.done }, () =>
+                  setDailyTodoDoneAction(todo.id, !todo.done)
+                )
+              }
+              onRename={(text) =>
+                mutate({ type: "rename", id: todo.id, text }, () =>
+                  renameDailyTodoAction(todo.id, text)
+                )
+              }
+              onAssign={(assignee) =>
+                mutate({ type: "assign", id: todo.id, assignee }, () =>
+                  setDailyTodoAssigneeAction(todo.id, assignee?.id ?? null)
+                )
+              }
+              onDelete={() =>
+                mutate({ type: "delete", id: todo.id }, () =>
+                  deleteDailyTodoAction(todo.id)
+                )
+              }
+            />
+          ))}
+        </ul>
       )}
     </div>
   );
@@ -262,46 +267,48 @@ function TodoRow({
         ) : null}
       </div>
 
-      {/* No mouse o lápis só aparece no hover/foco da linha, pra não poluir.
-          Em toque fica sempre visível: lá não existe hover nem duplo clique,
-          então sem ele o renomear seria impossível de descobrir. */}
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        aria-label={`Renomear ${todo.text}`}
-        className={`${HIT_TARGET} size-6 text-neutral-400 opacity-0 hover:bg-neutral-100 hover:text-neutral-700 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100`}
-      >
-        <svg
-          viewBox="0 0 16 16"
-          aria-hidden="true"
-          className="size-3.5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      <div className="flex items-center gap-1 sm:contents">
+        {/* Só no mouse: aparece no hover/foco da linha, pra não poluir. No
+            mobile ele sai — quatro alvos de 44px comiam 228px dos 375px da tela
+            e sobravam 99px pro texto. Lá o renomear é toque no próprio texto. */}
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          aria-label={`Renomear ${todo.text}`}
+          className={`${HIT_TARGET} size-6 text-neutral-400 opacity-0 hover:bg-neutral-100 hover:text-neutral-700 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 max-sm:hidden`}
         >
-          <path d="M11.5 2.5a1.7 1.7 0 0 1 2.4 2.4L5.6 13.2 2.5 14l.8-3.1z" />
-        </svg>
-      </button>
+          <svg
+            viewBox="0 0 16 16"
+            aria-hidden="true"
+            className="size-3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M11.5 2.5a1.7 1.7 0 0 1 2.4 2.4L5.6 13.2 2.5 14l.8-3.1z" />
+          </svg>
+        </button>
 
-      <TodoAssigneeMenu
-        assigneeId={todo.assignee_id}
-        assigneeUsername={todo.assignee_username}
-        users={users}
-        onAssign={onAssign}
-      />
+        <TodoAssigneeMenu
+          assigneeId={todo.assignee_id}
+          assigneeUsername={todo.assignee_username}
+          users={users}
+          onAssign={onAssign}
+        />
 
-      <button
-        type="button"
-        onClick={() => {
-          if (window.confirm("Excluir esta tarefa?")) onDelete();
-        }}
-        aria-label={`Excluir ${todo.text}`}
-        className={`${HIT_TARGET} size-6 text-neutral-400 hover:bg-neutral-100 hover:text-red-600`}
-      >
-        ✕
-      </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm("Excluir esta tarefa?")) onDelete();
+          }}
+          aria-label={`Excluir ${todo.text}`}
+          className={`${HIT_TARGET} size-6 text-neutral-400 hover:bg-neutral-100 hover:text-red-600`}
+        >
+          ✕
+        </button>
+      </div>
     </li>
   );
 }
