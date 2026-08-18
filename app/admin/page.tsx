@@ -29,12 +29,6 @@ export default async function AdminHub() {
           aria-labelledby="tarefas-titulo"
           className="rounded-lg border border-neutral-200 bg-white p-4 lg:order-2"
         >
-          <h2
-            id="tarefas-titulo"
-            className="mb-3 text-sm font-semibold text-neutral-900"
-          >
-            Tarefas
-          </h2>
           <DailyTodoList
             todos={todos}
             users={users}

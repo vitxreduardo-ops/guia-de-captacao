@@ -130,6 +130,20 @@ export function DailyTodoList({
 
   return (
     <div className="space-y-3">
+      {/* O contador vive no título, não no rodapé: é a informação mais útil do
+          bloco e estava renderizada como a menos importante. Fica aqui dentro
+          pra acompanhar o estado otimista. */}
+      <h2 id="tarefas-titulo" className="text-sm font-semibold text-neutral-900">
+        Tarefas
+        {optimisticTodos.length > 0 ? (
+          <span className="font-normal text-neutral-500">
+            {remaining === 0
+              ? " · tudo feito"
+              : ` · ${remaining} pendente${remaining > 1 ? "s" : ""}`}
+          </span>
+        ) : null}
+      </h2>
+
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -158,44 +172,35 @@ export function DailyTodoList({
           Nenhuma tarefa por aqui.
         </p>
       ) : (
-        <>
-          <ul className="space-y-1">
-            {optimisticTodos.map((todo) => (
-              <TodoRow
-                key={todo.id}
-                todo={todo}
-                users={users}
-                onToggle={() =>
-                  mutate({ type: "toggle", id: todo.id, done: !todo.done }, () =>
-                    setDailyTodoDoneAction(todo.id, !todo.done)
-                  )
-                }
-                onRename={(text) =>
-                  mutate({ type: "rename", id: todo.id, text }, () =>
-                    renameDailyTodoAction(todo.id, text)
-                  )
-                }
-                onAssign={(assignee) =>
-                  mutate({ type: "assign", id: todo.id, assignee }, () =>
-                    setDailyTodoAssigneeAction(todo.id, assignee?.id ?? null)
-                  )
-                }
-                onDelete={() =>
-                  mutate({ type: "delete", id: todo.id }, () =>
-                    deleteDailyTodoAction(todo.id)
-                  )
-                }
-              />
-            ))}
-          </ul>
-          <p className="text-xs text-neutral-500">
-            {remaining === 0
-              ? "Tudo feito."
-              : `${remaining} de ${optimisticTodos.length} pendente${
-                  remaining > 1 ? "s" : ""
-                }`}
-          </p>
-        </>
+        <ul className="space-y-1">
+          {optimisticTodos.map((todo) => (
+            <TodoRow
+              key={todo.id}
+              todo={todo}
+              users={users}
+              onToggle={() =>
+                mutate({ type: "toggle", id: todo.id, done: !todo.done }, () =>
+                  setDailyTodoDoneAction(todo.id, !todo.done)
+                )
+              }
+              onRename={(text) =>
+                mutate({ type: "rename", id: todo.id, text }, () =>
+                  renameDailyTodoAction(todo.id, text)
+                )
+              }
+              onAssign={(assignee) =>
+                mutate({ type: "assign", id: todo.id, assignee }, () =>
+                  setDailyTodoAssigneeAction(todo.id, assignee?.id ?? null)
+                )
+              }
+              onDelete={() =>
+                mutate({ type: "delete", id: todo.id }, () =>
+                  deleteDailyTodoAction(todo.id)
+                )
+              }
+            />
+          ))}
+        </ul>
       )}
     </div>
   );
