@@ -361,6 +361,21 @@ export function BacklogCardDrawer({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass} htmlFor="backlog-post-time">
+                Horário
+              </label>
+              <input
+                id="backlog-post-time"
+                type="time"
+                name="post_time"
+                defaultValue={card.post_time?.slice(0, 5) ?? ""}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
           <div>
             <label className={labelClass} htmlFor="backlog-assignee">
               Responsável

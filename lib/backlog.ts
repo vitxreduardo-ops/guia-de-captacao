@@ -41,6 +41,12 @@ function normalizeDate(value: unknown): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null;
 }
 
+/** "18:30" do input type=time; qualquer outra coisa vira null. */
+function normalizeTime(value: unknown): string | null {
+  const trimmed = String(value ?? "").trim();
+  return /^\d{2}:\d{2}$/.test(trimmed) ? trimmed : null;
+}
+
 function normalizeUuid(value: unknown): string | null {
   const trimmed = String(value ?? "").trim();
   return trimmed && trimmed !== "none" ? trimmed : null;
@@ -179,6 +185,7 @@ export interface BacklogCardInput {
   cover_url: string | null;
   caption: string;
   post_date: string | null;
+  post_time: string | null;
   sent_whatsapp: boolean;
   tags: string[];
 }
@@ -195,6 +202,7 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
     cover_url: normalizeUrl(formData.get("cover_url")),
     caption: String(formData.get("caption") ?? "").trim(),
     post_date: normalizeDate(formData.get("post_date")),
+    post_time: normalizeTime(formData.get("post_time")),
     sent_whatsapp: formData.get("sent_whatsapp") === "on",
     tags: parseBacklogTags(formData.get("tags")),
   };
@@ -230,6 +238,7 @@ export async function createBacklogCard(
       cover_url: fields.cover_url ?? null,
       caption: fields.caption ?? "",
       post_date: fields.post_date ?? null,
+      post_time: fields.post_time ?? null,
       sent_whatsapp: fields.sent_whatsapp ?? false,
       sent_whatsapp_at: fields.sent_whatsapp ? new Date().toISOString() : null,
       tags: fields.tags ?? [],
@@ -272,6 +281,7 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
       cover_url: fields.cover_url,
       caption: fields.caption,
       post_date: fields.post_date,
+      post_time: fields.post_time,
       sent_whatsapp: fields.sent_whatsapp,
       sent_whatsapp_at: sentAt,
       tags: fields.tags,
@@ -279,6 +289,26 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
     })
     .eq("id", id);
 
+  if (error) throw error;
+}
+
+/** Agenda do calendário: data, hora e duração num toque só. */
+export async function setBacklogCardSchedule(params: {
+  id: string;
+  postDate: string | null;
+  postTime: string | null;
+  durationMinutes: number | null;
+}) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("backlog_cards")
+    .update({
+      post_date: normalizeDate(params.postDate),
+      post_time: normalizeTime(params.postTime),
+      duration_minutes: params.durationMinutes,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", params.id);
   if (error) throw error;
 }
 
