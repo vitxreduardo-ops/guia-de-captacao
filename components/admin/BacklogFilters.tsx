@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { UserInitials } from "@/components/admin/UserInitials";
 import {
   Popover,
   PopoverContent,
@@ -170,11 +171,7 @@ export function BacklogFilters({
               key={user.id}
               checked={filter.assignees.includes(user.id)}
               label={user.username}
-              hint={
-                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[10px] font-semibold uppercase text-violet-700">
-                  {user.username.slice(0, 2)}
-                </span>
-              }
+              hint={<UserInitials username={user.username} />}
               onChange={() =>
                 onChange({
                   ...filter,
