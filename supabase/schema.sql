@@ -344,3 +344,24 @@ create index if not exists backlog_card_activity_card_id_idx
   on backlog_card_activity(card_id, created_at desc);
 
 alter table backlog_card_activity enable row level security;
+
+-- Tarefas do hub do admin: lista única, compartilhada pelo time. Concluída
+-- some 15 dias depois de ser marcada (limpeza roda na leitura, em
+-- lib/dailyTodos.ts). Ver supabase/migrations/0029_add_daily_todos.sql.
+
+create table if not exists daily_todos (
+  id uuid primary key default gen_random_uuid(),
+  text text not null,
+  done boolean not null default false,
+  completed_at timestamptz,
+  created_by uuid references users(id) on delete set null,
+  completed_by uuid references users(id) on delete set null,
+  assignee_id uuid references users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists daily_todos_completed_at_idx
+  on daily_todos(completed_at)
+  where completed_at is not null;
+
+alter table daily_todos enable row level security;
