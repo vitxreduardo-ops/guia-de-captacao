@@ -45,6 +45,8 @@ export interface BacklogCard {
   cover_url: string | null;
   caption: string;
   post_date: string | null;
+  post_time: string | null;
+  duration_minutes: number | null;
   sent_whatsapp: boolean;
   sent_whatsapp_at: string | null;
   approved_at: string | null;
@@ -91,6 +93,9 @@ function normalizeName(value: string): string {
     .toLowerCase()
     .trim();
 }
+
+/** Duração padrão de um material agendado, quando não foi esticado. */
+export const DEFAULT_DURATION_MINUTES = 60;
 
 /** Coluna onde o card pode ser marcado como aprovado. */
 export function isApprovalColumn(columnName: string): boolean {

@@ -291,6 +291,8 @@ create table if not exists backlog_cards (
   cover_url text,
   caption text not null default '',
   post_date date,
+  post_time time,
+  duration_minutes integer,
   sent_whatsapp boolean not null default false,
   sent_whatsapp_at timestamptz,
   approved_at timestamptz,

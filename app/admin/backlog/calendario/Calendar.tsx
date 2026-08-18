@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -24,6 +24,7 @@ import { BacklogCardDrawer } from "@/components/admin/BacklogCardDrawer";
 import { BacklogFilters } from "@/components/admin/BacklogFilters";
 import {
   BACKLOG_FORMAT_LABELS,
+  DEFAULT_DURATION_MINUTES,
   EMPTY_BACKLOG_FILTER,
   filterBacklogCards,
   type BacklogBoard,
@@ -32,11 +33,14 @@ import {
 } from "@/lib/backlogTypes";
 import {
   deleteBacklogCardAction,
-  setBacklogCardPostDateAction,
+  setBacklogCardScheduleAction,
   updateBacklogCardAction,
 } from "../actions";
 
 const DAY_PREFIX = "day-";
+const SLOT_PREFIX = "slot-";
+/** Altura de uma faixa de hora, em px. Espelhada no `h-12` da célula. */
+const HOUR_HEIGHT = 48;
 const UNDATED_ID = "undated";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -55,6 +59,13 @@ const MONTH_NAMES = [
   "Novembro",
   "Dezembro",
 ];
+
+/** "2026-08-20" -> "Qui 20/08", sem passar por fuso. */
+function formatDayLabel(iso: string): string {
+  const [year, month, day] = iso.split("-").map(Number);
+  const weekday = WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+  return `${weekday} ${pad(day)}/${pad(month)}`;
+}
 
 function pad(value: number) {
   return String(value).padStart(2, "0");
@@ -85,6 +96,45 @@ function buildMonthGrid(year: number, month: number) {
     if (i >= 27 && date.getUTCDay() === 6 && date.getUTCMonth() !== month) break;
   }
   return days;
+}
+
+type CalendarView = "month" | "7d" | "today";
+
+const VIEW_LABELS: Record<CalendarView, string> = {
+  month: "Mês",
+  "7d": "7 dias",
+  today: "Hoje",
+};
+
+const VIEW_LENGTHS: Record<Exclude<CalendarView, "month">, number> = {
+  "7d": 7,
+  today: 1,
+};
+
+/** Régua da vista "Hoje" — fora desse intervalo raramente se publica. */
+const DAY_HOURS = Array.from({ length: 17 }, (_, index) => index + 6);
+
+function hourOf(card: { post_time: string | null }): number | null {
+  if (!card.post_time) return null;
+  const hour = Number(card.post_time.slice(0, 2));
+  return Number.isFinite(hour) ? hour : null;
+}
+
+/** Dias corridos a partir de hoje, para as vistas que não são de mês. */
+function buildRangeDays(startIso: string, count: number) {
+  const [year, month, day] = startIso.split("-").map(Number);
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(Date.UTC(year, month - 1, day + index));
+    return {
+      iso: `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(
+        date.getUTCDate()
+      )}`,
+      day: date.getUTCDate(),
+      weekday: WEEKDAYS[date.getUTCDay()],
+      month: date.getUTCMonth(),
+      inMonth: true,
+    };
+  });
 }
 
 function CardChip({
@@ -169,15 +219,19 @@ function DraggableCard({
 
 function DayCell({
   iso,
-  day,
-  inMonth,
+  label,
+  muted,
   isToday,
+  className,
   children,
 }: {
   iso: string;
-  day: number;
-  inMonth: boolean;
+  /** "20" no mês, "Qui 20/08" nas vistas de intervalo. */
+  label: string;
+  /** Dia de fora do mês exibido. */
+  muted: boolean;
   isToday: boolean;
+  className?: string;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `${DAY_PREFIX}${iso}` });
@@ -185,7 +239,9 @@ function DayCell({
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-28 p-1.5 ${inMonth ? "bg-white" : "bg-neutral-50"} ${
+      className={`min-h-28 p-1.5 ${className ?? ""} ${
+        muted ? "bg-neutral-50" : "bg-white"
+      } ${
         isOver ? "outline outline-2 -outline-offset-2 outline-neutral-400" : ""
       }`}
     >
@@ -193,14 +249,207 @@ function DayCell({
         className={`mb-1 text-xs ${
           isToday
             ? "font-semibold text-neutral-900"
-            : inMonth
-              ? "text-neutral-500"
-              : "text-neutral-300"
+            : muted
+              ? "text-neutral-300"
+              : "text-neutral-500"
         }`}
       >
-        {day}
+        {label}
       </p>
       <ul className="flex flex-col gap-1">{children}</ul>
+    </div>
+  );
+}
+
+/**
+ * Card dentro da régua: a altura reflete a duração, e a alça de baixo estica
+ * em passos de uma hora. O resize usa pointer events próprios porque o
+ * dnd-kit já governa o arraste do card inteiro.
+ */
+function ScheduledCard({
+  card,
+  color,
+  columnName,
+  clientName,
+  assigneeName,
+  onOpen,
+}: {
+  card: BacklogCard;
+  color: string;
+  columnName: string;
+  clientName: string | null;
+  assigneeName: string | null;
+  onOpen: () => void;
+}) {
+  const [previewHours, setPreviewHours] = useState<number | null>(null);
+
+  const savedHours = Math.max(
+    1,
+    Math.round((card.duration_minutes ?? DEFAULT_DURATION_MINUTES) / 60)
+  );
+  const hours = previewHours ?? savedHours;
+
+  function startResize(event: React.PointerEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    const startY = event.clientY;
+    const handle = event.currentTarget as HTMLElement;
+    // `setPointerCapture` lança se o ponteiro não estiver ativo (acontece com
+    // eventos sintéticos); sem captura o resize ainda funciona.
+    try {
+      handle.setPointerCapture(event.pointerId);
+    } catch {}
+
+    function onMove(moveEvent: PointerEvent) {
+      const delta = Math.round((moveEvent.clientY - startY) / HOUR_HEIGHT);
+      setPreviewHours(Math.max(1, savedHours + delta));
+    }
+
+    function onUp(upEvent: PointerEvent) {
+      try {
+        handle.releasePointerCapture(upEvent.pointerId);
+      } catch {}
+      handle.removeEventListener("pointermove", onMove as EventListener);
+      handle.removeEventListener("pointerup", onUp as EventListener);
+      const delta = Math.round((upEvent.clientY - startY) / HOUR_HEIGHT);
+      const nextHours = Math.max(1, savedHours + delta);
+      setPreviewHours(null);
+      if (nextHours !== savedHours) {
+        void setBacklogCardScheduleAction({
+          id: card.id,
+          postDate: card.post_date,
+          postTime: card.post_time?.slice(0, 5) ?? null,
+          durationMinutes: nextHours * 60,
+        });
+      }
+    }
+
+    handle.addEventListener("pointermove", onMove as EventListener);
+    handle.addEventListener("pointerup", onUp as EventListener);
+  }
+
+  return (
+    <div
+      className="absolute inset-x-1 top-0.5 z-10"
+      style={{ height: hours * HOUR_HEIGHT - 4 }}
+    >
+      <div className="relative h-full overflow-hidden rounded border border-neutral-200 bg-white shadow-sm">
+        <DraggableCard
+          card={card}
+          color={color}
+          columnName={columnName}
+          clientName={clientName}
+          assigneeName={assigneeName}
+          onOpen={onOpen}
+        />
+      </div>
+      <span
+        onPointerDown={startResize}
+        role="separator"
+        aria-label={`Duração: ${hours}h. Arraste para mudar.`}
+        className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize rounded-b bg-transparent hover:bg-neutral-300/60"
+      />
+    </div>
+  );
+}
+
+/** Célula de um dia numa linha de hora. Soltar aqui define data e horário. */
+function WeekHourCell({
+  iso,
+  hour,
+  cards,
+  colorOf,
+  columnNameOf,
+  clientOf,
+  assigneeOf,
+  onOpenCard,
+}: {
+  iso: string;
+  /** null na faixa "sem horário": soltar ali limpa o horário. */
+  hour: number | null;
+  cards: BacklogCard[];
+  colorOf: (card: BacklogCard) => string;
+  columnNameOf: (card: BacklogCard) => string;
+  clientOf: (card: BacklogCard) => string | null;
+  assigneeOf: (card: BacklogCard) => string | null;
+  onOpenCard: (id: string) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: hour === null ? `${DAY_PREFIX}${iso}` : `${SLOT_PREFIX}${iso}-${hour}`,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ height: HOUR_HEIGHT }}
+      className={`relative ${isOver ? "bg-neutral-100" : "bg-white"}`}
+    >
+      {cards.map((card) => (
+        <ScheduledCard
+          key={card.id}
+          card={card}
+          color={colorOf(card)}
+          columnName={columnNameOf(card)}
+          clientName={clientOf(card)}
+          assigneeName={assigneeOf(card)}
+          onOpen={() => onOpenCard(card.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Uma faixa de hora da vista "Hoje". Recebe drop como qualquer dia: soltar
+ * aqui mantém a data de hoje (o horário em si é definido no drawer).
+ */
+function TodayHourRow({
+  iso,
+  hour,
+  label,
+  cards,
+  colorOf,
+  columnNameOf,
+  clientOf,
+  assigneeOf,
+  onOpenCard,
+}: {
+  iso: string;
+  hour: number | null;
+  label: string;
+  cards: BacklogCard[];
+  colorOf: (card: BacklogCard) => string;
+  columnNameOf: (card: BacklogCard) => string;
+  clientOf: (card: BacklogCard) => string | null;
+  assigneeOf: (card: BacklogCard) => string | null;
+  onOpenCard: (id: string) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: hour === null ? `${DAY_PREFIX}${iso}` : `${SLOT_PREFIX}${iso}-${hour}`,
+  });
+
+  return (
+    <div className="flex border-b border-neutral-200 last:border-b-0">
+      <span className="w-20 shrink-0 px-2 pt-1 text-right text-xs text-neutral-400">
+        {label}
+      </span>
+      <div
+        ref={setNodeRef}
+        style={{ height: HOUR_HEIGHT }}
+        className={`relative flex-1 ${isOver ? "bg-neutral-100" : "bg-white"}`}
+      >
+        {cards.map((card) => (
+          <ScheduledCard
+            key={card.id}
+            card={card}
+            color={colorOf(card)}
+            columnName={columnNameOf(card)}
+            clientName={clientOf(card)}
+            assigneeName={assigneeOf(card)}
+            onOpen={() => onOpenCard(card.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -253,6 +502,7 @@ export function Calendar({ board }: { board: BacklogBoard }) {
   const [month, setMonth] = useState(today.getMonth());
   const [filter, setFilter] = useState<BacklogFilter>(EMPTY_BACKLOG_FILTER);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [view, setView] = useState<CalendarView>("month");
   const [openCardId, setOpenCardId] = useState<string | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
 
@@ -300,7 +550,7 @@ export function Calendar({ board }: { board: BacklogBoard }) {
     [filtered]
   );
 
-  const days = useMemo(() => buildMonthGrid(year, month), [year, month]);
+  const monthDays = useMemo(() => buildMonthGrid(year, month), [year, month]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -323,6 +573,34 @@ export function Calendar({ board }: { board: BacklogBoard }) {
 
     const cardId = String(active.id);
     const overId = String(over.id);
+    const card = cards.find((item) => item.id === cardId);
+    if (!card) return;
+
+    // Slot de hora: grava data e horário. Dia inteiro ou menu "sem data":
+    // grava só a data (limpando o horário) ou tira tudo.
+    if (overId.startsWith(SLOT_PREFIX)) {
+      const rest = overId.slice(SLOT_PREFIX.length);
+      const separator = rest.lastIndexOf("-");
+      const iso = rest.slice(0, separator);
+      const hour = Number(rest.slice(separator + 1));
+      const time = `${pad(hour)}:00`;
+      if (card.post_date === iso && card.post_time?.slice(0, 5) === time) return;
+
+      setCards((current) =>
+        current.map((item) =>
+          item.id === cardId
+            ? { ...item, post_date: iso, post_time: time }
+            : item
+        )
+      );
+      void setBacklogCardScheduleAction({
+        id: cardId,
+        postDate: iso,
+        postTime: time,
+        durationMinutes: card.duration_minutes,
+      });
+      return;
+    }
 
     const nextDate = overId.startsWith(DAY_PREFIX)
       ? overId.slice(DAY_PREFIX.length)
@@ -330,16 +608,21 @@ export function Calendar({ board }: { board: BacklogBoard }) {
         ? null
         : undefined;
     if (nextDate === undefined) return;
-
-    const card = cards.find((item) => item.id === cardId);
-    if (!card || card.post_date === nextDate) return;
+    if (card.post_date === nextDate && !card.post_time) return;
 
     setCards((current) =>
       current.map((item) =>
-        item.id === cardId ? { ...item, post_date: nextDate } : item
+        item.id === cardId
+          ? { ...item, post_date: nextDate, post_time: null }
+          : item
       )
     );
-    void setBacklogCardPostDateAction(cardId, nextDate);
+    void setBacklogCardScheduleAction({
+      id: cardId,
+      postDate: nextDate,
+      postTime: null,
+      durationMinutes: card.duration_minutes,
+    });
   }
 
   const openCard = openCardId
@@ -352,6 +635,11 @@ export function Calendar({ board }: { board: BacklogBoard }) {
   const todayIso = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(
     today.getDate()
   )}`;
+
+  // Nas vistas de intervalo a contagem começa hoje, então navegar por mês não
+  // se aplica — o cabeçalho vira só o rótulo do período.
+  const rangeDays =
+    view === "month" ? [] : buildRangeDays(todayIso, VIEW_LENGTHS[view]);
 
   function colorOf(card: BacklogCard) {
     return columnById.get(card.column_id)?.color ?? "#6b7280";
@@ -383,51 +671,94 @@ export function Calendar({ board }: { board: BacklogBoard }) {
       onDragCancel={() => setActiveCardId(null)}
     >
       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white p-3">
-        <button
-          type="button"
-          onClick={() => shiftMonth(-1)}
-          className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
-        >
-          ←
-        </button>
-        <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+        {view === "month" ? (
+          <>
+            <button
+              type="button"
+              onClick={() => shiftMonth(-1)}
+              className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+            >
+              ←
+            </button>
+            <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+              <PopoverTrigger
+                render={
+                  <button
+                    type="button"
+                    className="min-w-44 rounded-md px-2 py-1.5 text-center text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
+                  >
+                    {MONTH_NAMES[month]} {year} ▾
+                  </button>
+                }
+              />
+              <PopoverContent align="start" className="w-auto p-0">
+                <DatePicker
+                  mode="single"
+                  captionLayout="dropdown"
+                  month={new Date(year, month, 1)}
+                  onMonthChange={(date) => {
+                    setYear(date.getFullYear());
+                    setMonth(date.getMonth());
+                  }}
+                  selected={new Date(year, month, 1)}
+                  onSelect={(date) => {
+                    if (!date) return;
+                    setYear(date.getFullYear());
+                    setMonth(date.getMonth());
+                    setPickerOpen(false);
+                  }}
+                  className="rounded-lg border"
+                />
+              </PopoverContent>
+            </Popover>
+            <button
+              type="button"
+              onClick={() => shiftMonth(1)}
+              className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+            >
+              →
+            </button>
+          </>
+        ) : (
+          <p className="min-w-44 px-2 py-1.5 text-sm font-semibold text-neutral-900">
+            {view === "today"
+              ? `Hoje, ${formatDayLabel(todayIso)}`
+              : `${formatDayLabel(rangeDays[0].iso)} — ${formatDayLabel(
+                  rangeDays[rangeDays.length - 1].iso
+                )}`}
+          </p>
+        )}
+
+        <Popover>
           <PopoverTrigger
             render={
               <button
                 type="button"
-                className="min-w-44 rounded-md px-2 py-1.5 text-center text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
+                className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
               >
-                {MONTH_NAMES[month]} {year} ▾
+                {VIEW_LABELS[view]} ▾
               </button>
             }
           />
-          <PopoverContent align="start" className="w-auto p-0">
-            <DatePicker
-              mode="single"
-              captionLayout="dropdown"
-              month={new Date(year, month, 1)}
-              onMonthChange={(date) => {
-                setYear(date.getFullYear());
-                setMonth(date.getMonth());
-              }}
-              selected={new Date(year, month, 1)}
-              onSelect={(date) => {
-                if (!date) return;
-                setYear(date.getFullYear());
-                setMonth(date.getMonth());
-                setPickerOpen(false);
-              }}
-              className="rounded-lg border"
-            />
+          <PopoverContent align="start" className="w-40">
+            {(Object.keys(VIEW_LABELS) as CalendarView[]).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setView(option)}
+                aria-pressed={view === option}
+                className={`w-full rounded-md px-2 py-1.5 text-left text-sm ${
+                  view === option
+                    ? "bg-neutral-900 font-medium text-white"
+                    : "text-neutral-700 hover:bg-neutral-100"
+                }`}
+              >
+                {VIEW_LABELS[option]}
+              </button>
+            ))}
           </PopoverContent>
         </Popover>
-        <button
-          type="button"
-          onClick={() => shiftMonth(1)}
-          className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
-        >
-          →
-        </button>
+
         <div className="min-w-40 flex-1">
           <UndatedMenu count={undated.length}>
             {undated.length === 0 ? (
@@ -485,42 +816,141 @@ export function Calendar({ board }: { board: BacklogBoard }) {
       </ul>
 
       <div className="overflow-x-auto">
-        <div className="min-w-[52rem]">
-          <div className="grid grid-cols-7 gap-px rounded-t-lg border border-neutral-200 bg-neutral-200">
-            {WEEKDAYS.map((weekday) => (
-              <div
-                key={weekday}
-                className="bg-neutral-50 py-2 text-center text-xs font-medium text-neutral-500"
-              >
-                {weekday}
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-7 gap-px border-x border-b border-neutral-200 bg-neutral-200">
-            {days.map((day) => (
-              <DayCell
-                key={day.iso}
-                iso={day.iso}
-                day={day.day}
-                inMonth={day.inMonth}
-                isToday={day.iso === todayIso}
-              >
-                {(cardsByDate.get(day.iso) ?? []).map((card) => (
-                  <li key={card.id}>
-                    <DraggableCard
-                      card={card}
-                      color={colorOf(card)}
-                      columnName={columnNameOf(card)}
-                      clientName={clientOf(card)}
-                      assigneeName={assigneeOf(card)}
-                      onOpen={() => setOpenCardId(card.id)}
-                    />
-                  </li>
+        <div className={view === "today" ? "" : "min-w-[52rem]"}>
+          {view === "month" ? (
+            <>
+              <div className="grid grid-cols-7 gap-px rounded-t-lg border border-neutral-200 bg-neutral-200">
+                {WEEKDAYS.map((weekday) => (
+                  <div
+                    key={weekday}
+                    className="bg-neutral-50 py-2 text-center text-xs font-medium text-neutral-500"
+                  >
+                    {weekday}
+                  </div>
                 ))}
-              </DayCell>
-            ))}
-          </div>
+              </div>
+
+              <div className="grid grid-cols-7 gap-px border-x border-b border-neutral-200 bg-neutral-200">
+                {monthDays.map((day) => (
+                  <DayCell
+                    key={day.iso}
+                    iso={day.iso}
+                    label={String(day.day)}
+                    muted={!day.inMonth}
+                    isToday={day.iso === todayIso}
+                  >
+                    {(cardsByDate.get(day.iso) ?? []).map((card) => (
+                      <li key={card.id}>
+                        <DraggableCard
+                          card={card}
+                          color={colorOf(card)}
+                          columnName={columnNameOf(card)}
+                          clientName={clientOf(card)}
+                          assigneeName={assigneeOf(card)}
+                          onOpen={() => setOpenCardId(card.id)}
+                        />
+                      </li>
+                    ))}
+                  </DayCell>
+                ))}
+              </div>
+            </>
+          ) : view === "7d" ? (
+            <div className="overflow-hidden rounded-lg border border-neutral-200">
+              <div className="grid grid-cols-[5rem_repeat(7,1fr)] gap-px bg-neutral-200">
+                <div className="bg-neutral-50 py-2" />
+                {rangeDays.map((day) => (
+                  <div
+                    key={day.iso}
+                    className={`bg-neutral-50 py-2 text-center text-xs ${
+                      day.iso === todayIso
+                        ? "font-semibold text-neutral-900"
+                        : "text-neutral-500"
+                    }`}
+                  >
+                    {day.weekday} {pad(day.day)}/{pad(day.month + 1)}
+                  </div>
+                ))}
+
+                {/* Sem horário definido: linha própria antes da régua. */}
+                <div className="bg-neutral-50 px-2 py-1 text-right text-xs text-neutral-400">
+                  Sem horário
+                </div>
+                {rangeDays.map((day) => (
+                  <WeekHourCell
+                    key={`none-${day.iso}`}
+                    iso={day.iso}
+                    hour={null}
+                    cards={(cardsByDate.get(day.iso) ?? []).filter(
+                      (card) => hourOf(card) === null
+                    )}
+                    colorOf={colorOf}
+                    columnNameOf={columnNameOf}
+                    clientOf={clientOf}
+                    assigneeOf={assigneeOf}
+                    onOpenCard={setOpenCardId}
+                  />
+                ))}
+
+                {DAY_HOURS.map((hour) => (
+                  <Fragment key={hour}>
+                    <div className="bg-neutral-50 px-2 py-1 text-right text-xs text-neutral-400">
+                      {pad(hour)}:00
+                    </div>
+                    {rangeDays.map((day) => (
+                      <WeekHourCell
+                        key={`${hour}-${day.iso}`}
+                        iso={day.iso}
+                        hour={hour}
+                        cards={(cardsByDate.get(day.iso) ?? []).filter(
+                          (card) => hourOf(card) === hour
+                        )}
+                        colorOf={colorOf}
+                        columnNameOf={columnNameOf}
+                        clientOf={clientOf}
+                        assigneeOf={assigneeOf}
+                        onOpenCard={setOpenCardId}
+                      />
+                    ))}
+                  </Fragment>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-lg border border-neutral-200">
+              {/* Materiais do dia sem horário definido ficam no topo. */}
+              <TodayHourRow
+                iso={todayIso}
+                hour={null}
+                label="Sem horário"
+                cards={(cardsByDate.get(todayIso) ?? []).filter(
+                  (card) => hourOf(card) === null
+                )}
+                colorOf={colorOf}
+                columnNameOf={columnNameOf}
+                clientOf={clientOf}
+                assigneeOf={assigneeOf}
+                onOpenCard={setOpenCardId}
+              />
+
+              {DAY_HOURS.map((hour) => (
+                <TodayHourRow
+                  key={hour}
+                  iso={todayIso}
+                  hour={hour}
+                  label={`${pad(hour)}:00`}
+                  cards={(cardsByDate.get(todayIso) ?? []).filter(
+                    (card) => hourOf(card) === hour
+                  )}
+                  colorOf={colorOf}
+                  columnNameOf={columnNameOf}
+                  clientOf={clientOf}
+                  assigneeOf={assigneeOf}
+                  onOpenCard={setOpenCardId}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

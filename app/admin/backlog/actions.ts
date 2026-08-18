@@ -18,6 +18,7 @@ import {
   reorderBacklogColumns,
   setBacklogCardApproved,
   setBacklogCardPostDate,
+  setBacklogCardSchedule,
   updateBacklogCard,
   updateBacklogColumn,
 } from "@/lib/backlog";
@@ -141,6 +142,17 @@ export async function setBacklogCardPostDateAction(
   postDate: string | null
 ) {
   await setBacklogCardPostDate(id, postDate);
+  revalidateBacklog();
+}
+
+/** Usada pelo arraste e pelo resize nas vistas de hora do calendário. */
+export async function setBacklogCardScheduleAction(params: {
+  id: string;
+  postDate: string | null;
+  postTime: string | null;
+  durationMinutes: number | null;
+}) {
+  await setBacklogCardSchedule(params);
   revalidateBacklog();
 }
 
