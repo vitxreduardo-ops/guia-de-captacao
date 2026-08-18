@@ -27,23 +27,28 @@ function paletteFor(username: string) {
 }
 
 /**
- * Bolinha com as duas primeiras letras do usuário. O `label` é o que aparece
- * no tooltip do hover (ex.: "Criada por vitor.tatu") — sem ele, o tooltip é só
- * o nome.
+ * Bolinha com as duas primeiras letras do usuário.
+ *
+ * `label` é o texto do tooltip (ex.: "Criada por vitor.tatu"); sem ele, o
+ * tooltip é o próprio nome. Dentro de um botão que já tem `aria-label`, passe
+ * `decorative` — senão o leitor de tela anuncia o nome duas vezes.
  */
 export function UserInitials({
   username,
   label,
+  decorative = false,
 }: {
   username: string;
   label?: string;
+  decorative?: boolean;
 }) {
   const text = label ?? username;
 
   return (
     <span
-      title={text}
-      aria-label={text}
+      title={decorative ? undefined : text}
+      aria-label={decorative ? undefined : text}
+      aria-hidden={decorative || undefined}
       className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold uppercase ${paletteFor(
         username
       )}`}

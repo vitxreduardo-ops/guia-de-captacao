@@ -46,7 +46,7 @@ export function AdminActionsMenu({ isAdmin = false }: { isAdmin?: boolean }) {
     <Accordion
       summary={
         <span className="text-sm font-semibold text-neutral-900">
-          Ferramentas
+          Atalhos
         </span>
       }
       defaultOpen

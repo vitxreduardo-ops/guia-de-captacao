@@ -10,31 +10,26 @@ import {
 } from "@/lib/dailyTodos";
 import { getCurrentSession } from "@/lib/session";
 
-export async function createDailyTodoAction(formData: FormData) {
+// Argumentos simples em vez de FormData: é o que permite chamar a action de
+// dentro do mesmo startTransition que aplica o estado otimista da lista.
+
+export async function createDailyTodoAction(text: string) {
   const session = await getCurrentSession();
-  await createDailyTodo(
-    String(formData.get("text") ?? ""),
-    session?.userId ?? null
-  );
+  await createDailyTodo(text, session?.userId ?? null);
   revalidatePath("/admin");
 }
 
-export async function setDailyTodoDoneAction(formData: FormData) {
+export async function setDailyTodoDoneAction(id: string, done: boolean) {
   const session = await getCurrentSession();
-  await setDailyTodoDone(
-    String(formData.get("id")),
-    formData.get("done") === "true",
-    session?.userId ?? null
-  );
+  await setDailyTodoDone(id, done, session?.userId ?? null);
   revalidatePath("/admin");
 }
 
-export async function setDailyTodoAssigneeAction(formData: FormData) {
-  const assigneeId = String(formData.get("assignee_id") ?? "");
-  await setDailyTodoAssignee(
-    String(formData.get("id")),
-    assigneeId === "none" ? null : assigneeId
-  );
+export async function setDailyTodoAssigneeAction(
+  id: string,
+  assigneeId: string | null
+) {
+  await setDailyTodoAssignee(id, assigneeId);
   revalidatePath("/admin");
 }
 
@@ -43,7 +38,7 @@ export async function renameDailyTodoAction(id: string, text: string) {
   revalidatePath("/admin");
 }
 
-export async function deleteDailyTodoAction(formData: FormData) {
-  await deleteDailyTodo(String(formData.get("id")));
+export async function deleteDailyTodoAction(id: string) {
+  await deleteDailyTodo(id);
   revalidatePath("/admin");
 }

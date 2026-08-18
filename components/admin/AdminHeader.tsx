@@ -69,7 +69,7 @@ export function AdminHeader({
           </form>
         </div>
       </div>
-      <h1 className="mt-5 text-xl leading-tight font-semibold text-neutral-900">
+      <h1 className="mt-5 text-xl leading-tight font-semibold tracking-tight text-neutral-900">
         {title}
       </h1>
     </header>

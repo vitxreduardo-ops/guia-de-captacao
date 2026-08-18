@@ -1,30 +1,18 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import type {
+  DailyTodo,
+  DailyTodoView,
+  TodoUser,
+} from "@/lib/dailyTodoTypes";
+import { TODO_RETENTION_DAYS } from "@/lib/dailyTodoTypes";
 
-/** Dias que uma tarefa concluída fica na lista antes de sumir sozinha. */
-export const TODO_RETENTION_DAYS = 15;
-
-export interface DailyTodo {
-  id: string;
-  text: string;
-  done: boolean;
-  completed_at: string | null;
-  created_by: string | null;
-  completed_by: string | null;
-  assignee_id: string | null;
-  created_at: string;
-}
-
-export interface TodoUser {
-  id: string;
-  username: string;
-}
-
-/** Tarefa já com os nomes resolvidos, do jeito que a tela usa. */
-export interface DailyTodoView extends DailyTodo {
-  created_by_username: string | null;
-  assignee_username: string | null;
-}
+export {
+  TODO_RETENTION_DAYS,
+  type DailyTodo,
+  type DailyTodoView,
+  type TodoUser,
+} from "@/lib/dailyTodoTypes";
 
 /**
  * Apaga o que já passou da retenção. Não tem cron no projeto, então a limpeza
