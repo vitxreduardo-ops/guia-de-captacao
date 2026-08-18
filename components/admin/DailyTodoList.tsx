@@ -267,46 +267,48 @@ function TodoRow({
         ) : null}
       </div>
 
-      {/* No mouse o lápis só aparece no hover/foco da linha, pra não poluir.
-          Em toque fica sempre visível: lá não existe hover nem duplo clique,
-          então sem ele o renomear seria impossível de descobrir. */}
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        aria-label={`Renomear ${todo.text}`}
-        className={`${HIT_TARGET} size-6 text-neutral-400 opacity-0 hover:bg-neutral-100 hover:text-neutral-700 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100`}
-      >
-        <svg
-          viewBox="0 0 16 16"
-          aria-hidden="true"
-          className="size-3.5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      <div className="flex items-center gap-1 sm:contents">
+        {/* Só no mouse: aparece no hover/foco da linha, pra não poluir. No
+            mobile ele sai — quatro alvos de 44px comiam 228px dos 375px da tela
+            e sobravam 99px pro texto. Lá o renomear é toque no próprio texto. */}
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          aria-label={`Renomear ${todo.text}`}
+          className={`${HIT_TARGET} size-6 text-neutral-400 opacity-0 hover:bg-neutral-100 hover:text-neutral-700 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 max-sm:hidden`}
         >
-          <path d="M11.5 2.5a1.7 1.7 0 0 1 2.4 2.4L5.6 13.2 2.5 14l.8-3.1z" />
-        </svg>
-      </button>
+          <svg
+            viewBox="0 0 16 16"
+            aria-hidden="true"
+            className="size-3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M11.5 2.5a1.7 1.7 0 0 1 2.4 2.4L5.6 13.2 2.5 14l.8-3.1z" />
+          </svg>
+        </button>
 
-      <TodoAssigneeMenu
-        assigneeId={todo.assignee_id}
-        assigneeUsername={todo.assignee_username}
-        users={users}
-        onAssign={onAssign}
-      />
+        <TodoAssigneeMenu
+          assigneeId={todo.assignee_id}
+          assigneeUsername={todo.assignee_username}
+          users={users}
+          onAssign={onAssign}
+        />
 
-      <button
-        type="button"
-        onClick={() => {
-          if (window.confirm("Excluir esta tarefa?")) onDelete();
-        }}
-        aria-label={`Excluir ${todo.text}`}
-        className={`${HIT_TARGET} size-6 text-neutral-400 hover:bg-neutral-100 hover:text-red-600`}
-      >
-        ✕
-      </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm("Excluir esta tarefa?")) onDelete();
+          }}
+          aria-label={`Excluir ${todo.text}`}
+          className={`${HIT_TARGET} size-6 text-neutral-400 hover:bg-neutral-100 hover:text-red-600`}
+        >
+          ✕
+        </button>
+      </div>
     </li>
   );
 }

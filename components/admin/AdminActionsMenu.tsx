@@ -24,7 +24,14 @@ const ADMIN_ONLY_ACTIONS: typeof ACTIONS = [
   { href: "/admin/usuarios", label: "Usuários", icon: Users },
 ];
 
-export function AdminActionsMenu({ isAdmin = false }: { isAdmin?: boolean }) {
+export function AdminActionsMenu({
+  isAdmin = false,
+  defaultOpen = false,
+}: {
+  isAdmin?: boolean;
+  /** Aberto no desktop, recolhido no mobile pra não empurrar as tarefas. */
+  defaultOpen?: boolean;
+}) {
   const actions = isAdmin ? [...ACTIONS, ...ADMIN_ONLY_ACTIONS] : ACTIONS;
 
   return (
@@ -32,7 +39,7 @@ export function AdminActionsMenu({ isAdmin = false }: { isAdmin?: boolean }) {
       summary={
         <span className="text-sm font-semibold text-neutral-900">Atalhos</span>
       }
-      defaultOpen
+      defaultOpen={defaultOpen}
       className="rounded-lg border border-neutral-200 bg-white"
       buttonClassName="p-4"
     >
