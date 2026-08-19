@@ -12,7 +12,7 @@
 set -euo pipefail
 
 PROJETO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DESTINO="${BACKUP_DIR:-$HOME/Backups/guia-de-captacao}"
+DESTINO="$HOME/Backups/guia-de-captacao"
 MANTER_DIAS=7
 
 # libpq é keg-only no Homebrew, então não está no PATH por padrão. Caminho
@@ -30,13 +30,23 @@ if [ ! -f "$PROJETO/.env.backup" ]; then
   exit 1
 fi
 
-# shellcheck disable=SC1091
-set -a
-. "$PROJETO/.env.backup"
-set +a
+# Lê sem executar. Usar `.` aqui interpretaria o arquivo como shell, e senha
+# com & ; $ ou espaço quebraria a linha — ou pior, rodaria como comando.
+ler_config() {
+  local chave="$1" valor
+  valor="$(grep -m1 "^${chave}=" "$PROJETO/.env.backup" | cut -d= -f2-)"
+  # Tira aspas se a pessoa envolveu o valor.
+  valor="${valor%\"}"; valor="${valor#\"}"
+  valor="${valor%\'}"; valor="${valor#\'}"
+  printf '%s' "$valor"
+}
 
-if [ -z "${SUPABASE_DB_URL:-}" ]; then
-  echo "SUPABASE_DB_URL vazia em .env.backup." >&2
+SUPABASE_DB_URL="$(ler_config SUPABASE_DB_URL)"
+BACKUP_DIR_CONFIG="$(ler_config BACKUP_DIR)"
+[ -n "$BACKUP_DIR_CONFIG" ] && DESTINO="$BACKUP_DIR_CONFIG"
+
+if [ -z "$SUPABASE_DB_URL" ]; then
+  echo "SUPABASE_DB_URL vazia ou ausente em .env.backup." >&2
   exit 1
 fi
 
