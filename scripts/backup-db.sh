@@ -41,12 +41,32 @@ ler_config() {
   printf '%s' "$valor"
 }
 
-SUPABASE_DB_URL="$(ler_config SUPABASE_DB_URL)"
 BACKUP_DIR_CONFIG="$(ler_config BACKUP_DIR)"
 [ -n "$BACKUP_DIR_CONFIG" ] && DESTINO="$BACKUP_DIR_CONFIG"
 
-if [ -z "$SUPABASE_DB_URL" ]; then
-  echo "SUPABASE_DB_URL vazia ou ausente em .env.backup." >&2
+# Dois jeitos de configurar. Campos separados são o preferido: a senha vai por
+# PGPASSWORD e não precisa de percent-encoding. Numa URI, senha com @ faz o
+# libpq cortar no lugar errado e ler o host errado; com & , ; ou espaço, idem.
+SENHA="$(ler_config SUPABASE_DB_PASSWORD)"
+URL="$(ler_config SUPABASE_DB_URL)"
+
+if [ -n "$SENHA" ]; then
+  HOST="$(ler_config SUPABASE_DB_HOST)"
+  PORTA="$(ler_config SUPABASE_DB_PORT)"
+  USUARIO="$(ler_config SUPABASE_DB_USER)"
+  BANCO="$(ler_config SUPABASE_DB_NAME)"
+
+  if [ -z "$HOST" ]; then
+    echo "SUPABASE_DB_PASSWORD definida, mas falta SUPABASE_DB_HOST." >&2
+    exit 1
+  fi
+
+  export PGPASSWORD="$SENHA"
+  CONEXAO=(-h "$HOST" -p "${PORTA:-5432}" -U "${USUARIO:-postgres}" -d "${BANCO:-postgres}")
+elif [ -n "$URL" ]; then
+  CONEXAO=("$URL")
+else
+  echo "Falta configuração em .env.backup: defina SUPABASE_DB_PASSWORD (com HOST) ou SUPABASE_DB_URL." >&2
   exit 1
 fi
 
@@ -58,7 +78,7 @@ PARCIAL="$ARQUIVO.parcial"
 
 # Escreve num arquivo temporário e só renomeia no fim: dump interrompido no
 # meio não vira um backup corrompido com nome de backup bom.
-if ! "$PG_DUMP" "$SUPABASE_DB_URL" --no-owner --no-privileges | gzip > "$PARCIAL"; then
+if ! "$PG_DUMP" "${CONEXAO[@]}" --no-owner --no-privileges | gzip > "$PARCIAL"; then
   rm -f "$PARCIAL"
   echo "pg_dump falhou. Backup de $DATA não foi gerado." >&2
   exit 1
