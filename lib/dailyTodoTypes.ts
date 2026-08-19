@@ -11,7 +11,6 @@ export interface DailyTodo {
   completed_at: string | null;
   created_by: string | null;
   completed_by: string | null;
-  assignee_id: string | null;
   created_at: string;
 }
 
@@ -23,5 +22,6 @@ export interface TodoUser {
 /** Tarefa já com os nomes resolvidos, do jeito que a tela usa. */
 export interface DailyTodoView extends DailyTodo {
   created_by_username: string | null;
-  assignee_username: string | null;
+  /** Uma tarefa aceita mais de um responsável. Vazio = sem responsável. */
+  assignees: TodoUser[];
 }

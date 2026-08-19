@@ -5,7 +5,7 @@ import {
   createDailyTodo,
   deleteDailyTodo,
   renameDailyTodo,
-  setDailyTodoAssignee,
+  setDailyTodoAssignees,
   setDailyTodoDone,
 } from "@/lib/dailyTodos";
 import { notifyUser } from "@/lib/notifications";
@@ -26,26 +26,29 @@ export async function setDailyTodoDoneAction(id: string, done: boolean) {
   revalidatePath("/admin");
 }
 
-export async function setDailyTodoAssigneeAction(
+export async function setDailyTodoAssigneesAction(
   id: string,
-  assigneeId: string | null
+  userIds: string[]
 ) {
-  const { text, previousAssigneeId } = await setDailyTodoAssignee(
-    id,
-    assigneeId
+  const { text, added } = await setDailyTodoAssignees(id, userIds);
+  const session = await getCurrentSession();
+  // Só quem entrou agora recebe aviso — quem já era responsável não é
+  // notificado de novo a cada mexida na lista — e nunca quem fez a ação, que
+  // seria avisar a pessoa do que ela mesma acabou de clicar.
+  const toNotify = added.filter((userId) => userId !== session?.userId);
+  await Promise.all(
+    toNotify.map((userId) =>
+      notifyUser({
+        userId,
+        actorId: session?.userId ?? null,
+        kind: "todo_assigned",
+        title: "Tarefa atribuída a você",
+        body: text,
+        link: "/admin",
+        entityId: id,
+      })
+    )
   );
-  if (assigneeId !== previousAssigneeId) {
-    const session = await getCurrentSession();
-    await notifyUser({
-      userId: assigneeId,
-      actorId: session?.userId ?? null,
-      kind: "todo_assigned",
-      title: "Tarefa atribuída a você",
-      body: text,
-      link: "/admin",
-      entityId: id,
-    });
-  }
   revalidatePath("/admin");
 }
 

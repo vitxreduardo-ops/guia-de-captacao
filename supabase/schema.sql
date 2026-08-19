@@ -356,9 +356,23 @@ create table if not exists daily_todos (
   completed_at timestamptz,
   created_by uuid references users(id) on delete set null,
   completed_by uuid references users(id) on delete set null,
-  assignee_id uuid references users(id) on delete set null,
   created_at timestamptz not null default now()
 );
+
+-- Responsáveis da tarefa: junção, porque uma tarefa aceita mais de um (ver
+-- supabase/migrations/0032_daily_todo_multiple_assignees.sql).
+
+create table if not exists daily_todo_assignees (
+  todo_id uuid not null references daily_todos(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (todo_id, user_id)
+);
+
+create index if not exists daily_todo_assignees_user_id_idx
+  on daily_todo_assignees(user_id);
+
+alter table daily_todo_assignees enable row level security;
 
 create index if not exists daily_todos_completed_at_idx
   on daily_todos(completed_at)

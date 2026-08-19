@@ -40,7 +40,7 @@ export async function listDailyTodos(): Promise<{
   await purgeExpired();
 
   const supabase = getSupabaseServerClient();
-  const [todosResult, usersResult] = await Promise.all([
+  const [todosResult, usersResult, assigneesResult] = await Promise.all([
     supabase
       .from("daily_todos")
       // Pendente primeiro; dentro de cada grupo, mais antiga em cima.
@@ -48,22 +48,41 @@ export async function listDailyTodos(): Promise<{
       .order("done")
       .order("created_at"),
     supabase.from("users").select("id, username").order("username"),
+    supabase.from("daily_todo_assignees").select("todo_id, user_id"),
   ]);
 
   if (todosResult.error) throw todosResult.error;
   if (usersResult.error) throw usersResult.error;
+  if (assigneesResult.error) throw assigneesResult.error;
 
   const users = (usersResult.data ?? []) as TodoUser[];
-  const usernameById = new Map(users.map((user) => [user.id, user.username]));
+  const userById = new Map(users.map((user) => [user.id, user]));
+
+  // Percorre `users` (já ordenado por username) por fora, então cada tarefa
+  // recebe os responsáveis nessa mesma ordem. A tela monta a lista igual, e a
+  // bolinha não pula de lugar quando o dado do servidor chega.
+  const assigneeIdsByTodo = new Map<string, Set<string>>();
+  for (const row of assigneesResult.data ?? []) {
+    const todoId = row.todo_id as string;
+    const set = assigneeIdsByTodo.get(todoId);
+    if (set) set.add(row.user_id as string);
+    else assigneeIdsByTodo.set(todoId, new Set([row.user_id as string]));
+  }
+
+  const assigneesByTodo = new Map<string, TodoUser[]>();
+  for (const [todoId, ids] of assigneeIdsByTodo) {
+    assigneesByTodo.set(
+      todoId,
+      users.filter((user) => ids.has(user.id))
+    );
+  }
 
   const todos = ((todosResult.data ?? []) as DailyTodo[]).map((todo) => ({
     ...todo,
     created_by_username: todo.created_by
-      ? usernameById.get(todo.created_by) ?? null
+      ? userById.get(todo.created_by)?.username ?? null
       : null,
-    assignee_username: todo.assignee_id
-      ? usernameById.get(todo.assignee_id) ?? null
-      : null,
+    assignees: assigneesByTodo.get(todo.id) ?? [],
   }));
 
   return { todos, users };
@@ -74,13 +93,20 @@ export async function createDailyTodo(text: string, userId: string | null) {
   if (!trimmed) return;
 
   const supabase = getSupabaseServerClient();
-  const { error } = await supabase.from("daily_todos").insert({
-    text: trimmed,
-    created_by: userId,
-    // Quem cria fica responsável até alguém trocar na bolinha.
-    assignee_id: userId,
-  });
+  const { data, error } = await supabase
+    .from("daily_todos")
+    .insert({ text: trimmed, created_by: userId })
+    .select("id")
+    .single();
   if (error) throw error;
+
+  // Quem cria fica responsável até alguém mexer na bolinha.
+  if (userId) {
+    const { error: assigneeError } = await supabase
+      .from("daily_todo_assignees")
+      .insert({ todo_id: data.id as string, user_id: userId });
+    if (assigneeError) throw assigneeError;
+  }
 }
 
 /**
@@ -118,29 +144,47 @@ export async function renameDailyTodo(id: string, text: string) {
   if (error) throw error;
 }
 
-/** `assigneeId` nulo deixa a tarefa sem responsável. */
-export async function setDailyTodoAssignee(
+/**
+ * Substitui a lista de responsáveis. Devolve quem entrou agora, que é o que a
+ * action usa pra avisar só as pessoas novas em vez de todas de novo.
+ */
+export async function setDailyTodoAssignees(
   id: string,
-  assigneeId: string | null
-): Promise<{ text: string; previousAssigneeId: string | null }> {
+  userIds: string[]
+): Promise<{ text: string; added: string[] }> {
   const supabase = getSupabaseServerClient();
-  const { data: current, error: currentError } = await supabase
-    .from("daily_todos")
-    .select("text, assignee_id")
-    .eq("id", id)
-    .single();
-  if (currentError) throw currentError;
 
-  const { error } = await supabase
-    .from("daily_todos")
-    .update({ assignee_id: assigneeId })
-    .eq("id", id);
-  if (error) throw error;
+  const [todoResult, currentResult] = await Promise.all([
+    supabase.from("daily_todos").select("text").eq("id", id).single(),
+    supabase.from("daily_todo_assignees").select("user_id").eq("todo_id", id),
+  ]);
+  if (todoResult.error) throw todoResult.error;
+  if (currentResult.error) throw currentResult.error;
 
-  return {
-    text: current.text as string,
-    previousAssigneeId: (current.assignee_id as string | null) ?? null,
-  };
+  const current = new Set(
+    (currentResult.data ?? []).map((row) => row.user_id as string)
+  );
+  const next = new Set(userIds);
+  const added = userIds.filter((userId) => !current.has(userId));
+  const removed = [...current].filter((userId) => !next.has(userId));
+
+  if (removed.length > 0) {
+    const { error } = await supabase
+      .from("daily_todo_assignees")
+      .delete()
+      .eq("todo_id", id)
+      .in("user_id", removed);
+    if (error) throw error;
+  }
+
+  if (added.length > 0) {
+    const { error } = await supabase
+      .from("daily_todo_assignees")
+      .insert(added.map((userId) => ({ todo_id: id, user_id: userId })));
+    if (error) throw error;
+  }
+
+  return { text: todoResult.data.text as string, added };
 }
 
 export async function deleteDailyTodo(id: string) {
