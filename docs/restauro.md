@@ -91,20 +91,22 @@ O sistema sobe funcional e vazio.
 
 ## Backup dos dados
 
-Não existe hoje. Se for fazer, o mecanismo no plano free é `pg_dump` contra a
-connection string do Postgres — que fica no painel, em Database Settings, e é
-credencial **diferente** da service role key do `.env.local`.
+Existe: `scripts/backup-db.sh` roda `pg_dump` e guarda em
+`~/Backups/guia-de-captacao/`, um arquivo por dia, mantendo sete.
 
-Duas coisas a decidir antes:
+Agendamento diário pelo `launchd` — instalação em
+[scripts/launchd/README.md](../scripts/launchd/README.md).
 
-**Onde o arquivo mora.** O dump tem dado real de cliente. Não vai pro git: além
-do dado sensível, engorda o repositório pra sempre.
+A connection string fica em `.env.backup`, fora do git. É credencial diferente
+da service role key do `.env.local`: esta tem a senha do banco.
 
-**Quantas cópias.** Sobrescrever sempre o mesmo arquivo deixa você com **uma**
-versão. Se algo corromper e ninguém notar por dois dias, a única cópia já é a
-versão corrompida. Rotacionar sete dias custa quase nada num banco deste
-tamanho.
+### O que ainda fica de fora
 
-Agendamento: hook do Claude Code roda quando alguém abre uma sessão, o que não
-é o mesmo que diário. Pra rodar independente disso, no macOS é `launchd`.
-`pg_dump` não vem instalado por padrão.
+**Os arquivos do Storage.** O bucket `guide-references` e as imagens de galeria
+não entram no `pg_dump`.
+
+**A própria máquina.** O backup é local. Se o Mac se perder, os dumps vão
+junto. Proteger contra isso exige o arquivo sair daqui.
+
+**Mais de sete dias.** Corrupção que passe uma semana despercebida já terá
+substituído todas as cópias.
