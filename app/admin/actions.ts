@@ -8,6 +8,7 @@ import {
   setDailyTodoAssignee,
   setDailyTodoDone,
 } from "@/lib/dailyTodos";
+import { notifyUser } from "@/lib/notifications";
 import { getCurrentSession } from "@/lib/session";
 
 // Argumentos simples em vez de FormData: é o que permite chamar a action de
@@ -29,7 +30,22 @@ export async function setDailyTodoAssigneeAction(
   id: string,
   assigneeId: string | null
 ) {
-  await setDailyTodoAssignee(id, assigneeId);
+  const { text, previousAssigneeId } = await setDailyTodoAssignee(
+    id,
+    assigneeId
+  );
+  if (assigneeId !== previousAssigneeId) {
+    const session = await getCurrentSession();
+    await notifyUser({
+      userId: assigneeId,
+      actorId: session?.userId ?? null,
+      kind: "todo_assigned",
+      title: "Tarefa atribuída a você",
+      body: text,
+      link: "/admin",
+      entityId: id,
+    });
+  }
   revalidatePath("/admin");
 }
 

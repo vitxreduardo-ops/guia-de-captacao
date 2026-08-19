@@ -122,13 +122,25 @@ export async function renameDailyTodo(id: string, text: string) {
 export async function setDailyTodoAssignee(
   id: string,
   assigneeId: string | null
-) {
+): Promise<{ text: string; previousAssigneeId: string | null }> {
   const supabase = getSupabaseServerClient();
+  const { data: current, error: currentError } = await supabase
+    .from("daily_todos")
+    .select("text, assignee_id")
+    .eq("id", id)
+    .single();
+  if (currentError) throw currentError;
+
   const { error } = await supabase
     .from("daily_todos")
     .update({ assignee_id: assigneeId })
     .eq("id", id);
   if (error) throw error;
+
+  return {
+    text: current.text as string,
+    previousAssigneeId: (current.assignee_id as string | null) ?? null,
+  };
 }
 
 export async function deleteDailyTodo(id: string) {
