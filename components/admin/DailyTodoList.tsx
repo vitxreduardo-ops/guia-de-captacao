@@ -5,7 +5,7 @@ import {
   createDailyTodoAction,
   deleteDailyTodoAction,
   renameDailyTodoAction,
-  setDailyTodoAssigneeAction,
+  setDailyTodoAssigneesAction,
   setDailyTodoDoneAction,
 } from "@/app/admin/actions";
 import { TodoAssigneeMenu } from "@/components/admin/TodoAssigneeMenu";
@@ -27,7 +27,7 @@ type OptimisticAction =
   | { type: "create"; text: string; user: TodoUser | null }
   | { type: "toggle"; id: string; done: boolean }
   | { type: "rename"; id: string; text: string }
-  | { type: "assign"; id: string; assignee: TodoUser | null }
+  | { type: "assign"; id: string; assignees: TodoUser[] }
   | { type: "delete"; id: string };
 
 /**
@@ -57,10 +57,9 @@ function reduce(
           completed_at: null,
           created_by: action.user?.id ?? null,
           completed_by: null,
-          assignee_id: action.user?.id ?? null,
           created_at: new Date().toISOString(),
           created_by_username: action.user?.username ?? null,
-          assignee_username: action.user?.username ?? null,
+          assignees: action.user ? [action.user] : [],
         },
       ]);
     case "toggle":
@@ -82,11 +81,7 @@ function reduce(
     case "assign":
       return todos.map((todo) =>
         todo.id === action.id
-          ? {
-              ...todo,
-              assignee_id: action.assignee?.id ?? null,
-              assignee_username: action.assignee?.username ?? null,
-            }
+          ? { ...todo, assignees: action.assignees }
           : todo
       );
     case "delete":
@@ -188,9 +183,12 @@ export function DailyTodoList({
                   renameDailyTodoAction(todo.id, text)
                 )
               }
-              onAssign={(assignee) =>
-                mutate({ type: "assign", id: todo.id, assignee }, () =>
-                  setDailyTodoAssigneeAction(todo.id, assignee?.id ?? null)
+              onAssign={(assignees) =>
+                mutate({ type: "assign", id: todo.id, assignees }, () =>
+                  setDailyTodoAssigneesAction(
+                    todo.id,
+                    assignees.map((user) => user.id)
+                  )
                 )
               }
               onDelete={() =>
@@ -225,7 +223,7 @@ function TodoRow({
   users: TodoUser[];
   onToggle: () => void;
   onRename: (text: string) => void;
-  onAssign: (assignee: TodoUser | null) => void;
+  onAssign: (assignees: TodoUser[]) => void;
   onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -292,8 +290,7 @@ function TodoRow({
         </button>
 
         <TodoAssigneeMenu
-          assigneeId={todo.assignee_id}
-          assigneeUsername={todo.assignee_username}
+          assignees={todo.assignees}
           users={users}
           onAssign={onAssign}
         />

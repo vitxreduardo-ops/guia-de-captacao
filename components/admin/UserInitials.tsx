@@ -37,10 +37,13 @@ export function UserInitials({
   username,
   label,
   decorative = false,
+  className = "",
 }: {
   username: string;
   label?: string;
   decorative?: boolean;
+  /** Usado pra empilhar bolinhas sobrepostas com anel de recorte. */
+  className?: string;
 }) {
   const text = label ?? username;
 
@@ -51,7 +54,7 @@ export function UserInitials({
       aria-hidden={decorative || undefined}
       className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold uppercase ${paletteFor(
         username
-      )}`}
+      )} ${className}`}
     >
       {username.slice(0, 2)}
     </span>
