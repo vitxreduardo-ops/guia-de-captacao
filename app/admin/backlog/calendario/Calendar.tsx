@@ -21,6 +21,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { BacklogCardDrawer } from "@/components/admin/BacklogCardDrawer";
+import { BacklogCardView } from "@/components/admin/BacklogCardView";
 import { BacklogFilters } from "@/components/admin/BacklogFilters";
 import {
   BACKLOG_FORMAT_LABELS,
@@ -152,7 +153,7 @@ function CardChip({
 }) {
   return (
     <span
-      className="block rounded bg-neutral-50 px-1.5 py-1 text-left"
+      className="block rounded bg-neutral-50 px-1 py-0.5 text-left sm:px-1.5 sm:py-1"
       title={columnName}
     >
       <span className="flex items-center gap-1">
@@ -162,12 +163,15 @@ function CardChip({
           className="h-2 w-2 shrink-0 rounded-full"
           style={{ backgroundColor: color }}
         />
-        <span className="truncate text-[11px] font-medium text-neutral-800">
+        {/* Em célula estreita o título quebra em duas linhas em vez de virar
+            duas letras e reticências. */}
+        <span className="line-clamp-2 text-[10px] font-medium leading-tight text-neutral-800 sm:truncate sm:text-[11px]">
           {card.title}
         </span>
         <span className="sr-only">({columnName})</span>
       </span>
-      <span className="block truncate text-[10px] text-neutral-500">
+      {/* No celular a célula é estreita: só o título cabe. */}
+      <span className="hidden truncate text-[10px] text-neutral-500 sm:block">
         {BACKLOG_FORMAT_LABELS[card.format]}
         {clientName ? ` · ${clientName}` : ""}
         {assigneeName ? ` · @${assigneeName}` : ""}
@@ -239,7 +243,7 @@ function DayCell({
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-28 p-1.5 ${className ?? ""} ${
+      className={`min-h-16 p-1 sm:min-h-28 sm:p-1.5 ${className ?? ""} ${
         muted ? "bg-neutral-50" : "bg-white"
       } ${
         isOver ? "outline outline-2 -outline-offset-2 outline-neutral-400" : ""
@@ -503,7 +507,9 @@ export function Calendar({ board }: { board: BacklogBoard }) {
   const [filter, setFilter] = useState<BacklogFilter>(EMPTY_BACKLOG_FILTER);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [view, setView] = useState<CalendarView>("month");
+  // Clicar no card abre a visualização; o botão "Editar" dela abre o form.
   const [openCardId, setOpenCardId] = useState<string | null>(null);
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
 
   // Igual ao kanban: o servidor manda, e cada revalidação sobrescreve o
@@ -625,6 +631,9 @@ export function Calendar({ board }: { board: BacklogBoard }) {
     });
   }
 
+  const editingCard = editingCardId
+    ? cards.find((card) => card.id === editingCardId) ?? null
+    : null;
   const openCard = openCardId
     ? cards.find((card) => card.id === openCardId) ?? null
     : null;
@@ -794,7 +803,7 @@ export function Calendar({ board }: { board: BacklogBoard }) {
         />
       </div>
 
-      <p className="text-sm text-neutral-500">
+      <p className="hidden text-sm text-neutral-500 sm:block">
         Arraste um material pra outro dia pra mudar a data de post, ou solte no
         menu &quot;Sem data&quot; pra tirar a data.
       </p>
@@ -815,8 +824,15 @@ export function Calendar({ board }: { board: BacklogBoard }) {
         ))}
       </ul>
 
-      <div className="overflow-x-auto">
-        <div className={view === "today" ? "" : "min-w-[52rem]"}>
+      <div className="w-full min-w-0 max-w-full overflow-x-auto">
+        {/* No celular o mês cabe inteiro (células menores); as vistas de hora
+            não cabem em 375px, então mantêm largura mínima e rolam dentro
+            deste container, sem empurrar a página. */}
+        <div
+          className={
+            view === "today" ? "" : view === "month" ? "sm:min-w-[52rem]" : "min-w-[44rem]"
+          }
+        >
           {view === "month" ? (
             <>
               <div className="grid grid-cols-7 gap-px rounded-t-lg border border-neutral-200 bg-neutral-200">
@@ -857,7 +873,7 @@ export function Calendar({ board }: { board: BacklogBoard }) {
             </>
           ) : view === "7d" ? (
             <div className="overflow-hidden rounded-lg border border-neutral-200">
-              <div className="grid grid-cols-[5rem_repeat(7,1fr)] gap-px bg-neutral-200">
+              <div className="grid grid-cols-[3rem_repeat(7,1fr)] gap-px bg-neutral-200 sm:grid-cols-[5rem_repeat(7,1fr)]">
                 <div className="bg-neutral-50 py-2" />
                 {rangeDays.map((day) => (
                   <div
@@ -968,16 +984,39 @@ export function Calendar({ board }: { board: BacklogBoard }) {
         ) : null}
       </DragOverlay>
 
-      {openCard ? (
-        <BacklogCardDrawer
+      {openCard && !editingCard ? (
+        <BacklogCardView
           card={openCard}
           checklist={board.checklist}
           activity={board.activity}
-          isFirstColumn={board.columns[0]?.id === openCard.column_id}
+          columnName={columnNameOf(openCard)}
+          columnColor={colorOf(openCard)}
+          clientName={clientOf(openCard)}
+          assigneeName={assigneeOf(openCard)}
+          guideTitle={
+            board.guides.find((guide) => guide.id === openCard.guide_id)
+              ?.title ?? null
+          }
+          authorNameById={assigneeNameById}
+          canComment={board.columns[0]?.id !== openCard.column_id}
+          onClose={() => setOpenCardId(null)}
+          onEdit={() => setEditingCardId(openCard.id)}
+        />
+      ) : null}
+
+      {editingCard ? (
+        <BacklogCardDrawer
+          card={editingCard}
+          checklist={board.checklist}
+          activity={board.activity}
+          isFirstColumn={board.columns[0]?.id === editingCard.column_id}
           clients={board.clients}
           guides={board.guides}
           users={board.users}
-          onClose={() => setOpenCardId(null)}
+          onClose={() => {
+            setEditingCardId(null);
+            setOpenCardId(null);
+          }}
           onSave={updateBacklogCardAction}
           onDelete={async (id) => {
             const formData = new FormData();
