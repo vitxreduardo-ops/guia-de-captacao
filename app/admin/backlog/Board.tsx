@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { BacklogCardDrawer } from "@/components/admin/BacklogCardDrawer";
+import { BacklogCardView } from "@/components/admin/BacklogCardView";
 import { BacklogFilters } from "@/components/admin/BacklogFilters";
 import {
   BacklogToaster,
@@ -532,7 +533,9 @@ export function Board({
   const [columns, setColumns] = useState(board.columns);
   const [cards, setCards] = useState(board.cards);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
+  // Clicar no card abre a visualização; o botão "Editar" dela abre o form.
   const [openCardId, setOpenCardId] = useState<string | null>(null);
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -685,6 +688,9 @@ export function Board({
     });
   }
 
+  const editingCard = editingCardId
+    ? cards.find((card) => card.id === editingCardId) ?? null
+    : null;
   const openCard = openCardId
     ? cards.find((card) => card.id === openCardId) ?? null
     : null;
@@ -818,16 +824,53 @@ export function Board({
         </p>
       ) : null}
 
-      {openCard ? (
-        <BacklogCardDrawer
+      {openCard && !editingCard ? (
+        <BacklogCardView
           card={openCard}
           checklist={board.checklist}
           activity={board.activity}
-          isFirstColumn={columns[0]?.id === openCard.column_id}
+          columnName={
+            columns.find((column) => column.id === openCard.column_id)?.name ??
+            ""
+          }
+          columnColor={
+            columns.find((column) => column.id === openCard.column_id)?.color ??
+            "#6b7280"
+          }
+          clientName={
+            openCard.client_id
+              ? clientNameById.get(openCard.client_id) ?? null
+              : null
+          }
+          assigneeName={
+            openCard.assignee_id
+              ? assigneeNameById.get(openCard.assignee_id) ?? null
+              : null
+          }
+          guideTitle={
+            board.guides.find((guide) => guide.id === openCard.guide_id)
+              ?.title ?? null
+          }
+          authorNameById={assigneeNameById}
+          canComment={columns[0]?.id !== openCard.column_id}
+          onClose={() => setOpenCardId(null)}
+          onEdit={() => setEditingCardId(openCard.id)}
+        />
+      ) : null}
+
+      {editingCard ? (
+        <BacklogCardDrawer
+          card={editingCard}
+          checklist={board.checklist}
+          activity={board.activity}
+          isFirstColumn={columns[0]?.id === editingCard.column_id}
           clients={board.clients}
           guides={board.guides}
           users={board.users}
-          onClose={() => setOpenCardId(null)}
+          onClose={() => {
+            setEditingCardId(null);
+            setOpenCardId(null);
+          }}
           onSave={updateBacklogCardAction}
           onDelete={async (id) => {
             const formData = new FormData();
