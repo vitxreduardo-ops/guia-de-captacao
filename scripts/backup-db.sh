@@ -25,8 +25,24 @@ if [ ! -x "$PG_DUMP" ]; then
   exit 1
 fi
 
-if [ ! -f "$PROJETO/.env.backup" ]; then
-  echo "Falta $PROJETO/.env.backup. Copie de .env.backup.example e preencha." >&2
+# Ordem de busca da credencial. ~/.config vem primeiro porque o launchd não
+# consegue ler nada dentro de ~/Documents: o TCC do macOS bloqueia agentes ali,
+# e o erro sai como "Operation not permitted", que não parece permissão de
+# pasta. Rodando pelo terminal os dois caminhos funcionam.
+for candidato in \
+  "${BACKUP_CONFIG:-}" \
+  "$HOME/.config/guia-captacao/env" \
+  "$PROJETO/.env.backup"
+do
+  if [ -n "$candidato" ] && [ -f "$candidato" ]; then
+    CONFIG="$candidato"
+    break
+  fi
+done
+
+if [ -z "${CONFIG:-}" ]; then
+  echo "Nenhuma credencial encontrada. Procurei em:" >&2
+  echo "  \$BACKUP_CONFIG, ~/.config/guia-captacao/env, $PROJETO/.env.backup" >&2
   exit 1
 fi
 
@@ -34,7 +50,7 @@ fi
 # com & ; $ ou espaço quebraria a linha — ou pior, rodaria como comando.
 ler_config() {
   local chave="$1" valor
-  valor="$(grep -m1 "^${chave}=" "$PROJETO/.env.backup" | cut -d= -f2-)"
+  valor="$(grep -m1 "^${chave}=" "$CONFIG" | cut -d= -f2-)"
   # Tira aspas se a pessoa envolveu o valor.
   valor="${valor%\"}"; valor="${valor#\"}"
   valor="${valor%\'}"; valor="${valor#\'}"
