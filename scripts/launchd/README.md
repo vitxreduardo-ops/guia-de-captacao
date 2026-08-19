@@ -6,18 +6,18 @@ que ela acordar em vez de pular o dia.
 
 ## Instalar
 
-**1. Pegar a connection string.**
+**1. Pegar as credenciais.**
 
-No painel do Supabase: **Project Settings > Database > Connection string >
-URI**. É credencial diferente da service role key do `.env.local` — esta tem a
-senha do banco.
+No painel do Supabase: **Project Settings > Database**. É credencial diferente
+da service role key do `.env.local` — esta é a senha do banco.
 
 ```bash
 cp .env.backup.example .env.backup
 ```
 
-Abra `.env.backup` e cole a URI em `SUPABASE_DB_URL`. O arquivo é ignorado pelo
-git.
+Preencha os campos separados (`SUPABASE_DB_HOST`, `SUPABASE_DB_PASSWORD` e
+companhia). A senha vai crua, sem codificar: numa URI, senha com `@` faz o
+libpq ler o host errado.
 
 **2. Testar na mão antes de agendar.**
 
@@ -25,23 +25,37 @@ git.
 ./scripts/backup-db.sh
 ```
 
-Deve imprimir o caminho do arquivo e o tamanho. Se falhar, resolve aqui — não
-adianta agendar algo que não roda.
+Deve imprimir o caminho e o tamanho. Se falhar, resolve aqui.
 
-**3. Agendar.**
+**3. Instalar.**
 
 ```bash
-cp scripts/launchd/com.tatu.guia-captacao.backup.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.tatu.guia-captacao.backup.plist
+./scripts/instalar-backup.sh
 ```
 
-**4. Conferir que entrou.**
+O instalador copia o script pra `~/Library/Application Support/guia-captacao/`,
+**move** a credencial pra `~/.config/guia-captacao/env` com permissão 600, e
+carrega o agente.
+
+Sair de `~/Documents` não é preferência: o TCC do macOS bloqueia agentes do
+launchd dentro dessa pasta. Um agente apontando pra lá falha com `Operation not
+permitted` e código 126, mesmo o script rodando normalmente quando você o chama
+no terminal — o Terminal tem permissão, o launchd não.
+
+Mover a credencial em vez de copiar também tira a senha de dentro do
+repositório, que era o pior dos dois lugares pra ela morar.
+
+**4. Confirmar.**
+
+```bash
+launchctl kickstart -p gui/$(id -u)/com.tatu.guia-captacao.backup
+```
 
 ```bash
 launchctl list | grep guia-captacao
 ```
 
-A primeira coluna é o PID (vazio quando não está rodando agora), a segunda é o
-código de saída da última execução. Segunda coluna `0` é sucesso.
+Segunda coluna é o código de saída da última execução. `0` é sucesso.
 
 ## Verificar depois
 
@@ -75,8 +89,9 @@ gunzip -c ~/Backups/guia-de-captacao/guia-de-captacao-AAAA-MM-DD.sql.gz | /opt/h
 
 ## Limitações
 
-**O plist tem o caminho do projeto escrito dentro.** Se a pasta mudar de lugar,
-edite o plist e recarregue.
+**O agente aponta pra cópia instalada, não pro repositório.** Depois de mudar
+`scripts/backup-db.sh`, rode `./scripts/instalar-backup.sh` de novo pra a cópia
+acompanhar.
 
 **Só cobre o banco.** Os arquivos do Storage (bucket `guide-references` e as
 imagens de galeria) não entram no `pg_dump` — ficam sem backup.
