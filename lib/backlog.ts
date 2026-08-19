@@ -250,6 +250,26 @@ export async function createBacklogCard(
   return data as BacklogCard;
 }
 
+/**
+ * Título e responsável do card — usados pelas notificações, e pra saber se a
+ * atribuição mudou antes de avisar alguém.
+ */
+export async function getBacklogCardBrief(
+  id: string
+): Promise<{ title: string; assigneeId: string | null }> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("backlog_cards")
+    .select("title, assignee_id")
+    .eq("id", id)
+    .single();
+  if (error) throw error;
+  return {
+    title: (data?.title as string) ?? "",
+    assigneeId: (data?.assignee_id as string | null) ?? null,
+  };
+}
+
 export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
   const supabase = getSupabaseServerClient();
 
@@ -345,6 +365,12 @@ export async function createBacklogActivity(params: {
   if (error) throw error;
 }
 
+export interface MoveBacklogCardResult {
+  question: string | null;
+  /** Nulo quando o card só mudou de posição dentro da mesma coluna. */
+  moved: { title: string; assigneeId: string | null; toName: string } | null;
+}
+
 /**
  * Persiste o resultado de um arraste: o card muda de coluna e as colunas
  * afetadas são renumeradas na ordem final que o dnd-kit já calculou no
@@ -356,13 +382,13 @@ export async function moveBacklogCard(params: {
   toColumnId: string;
   orderedIdsByColumn: Record<string, string[]>;
   authorId: string | null;
-}): Promise<{ question: string | null }> {
+}): Promise<MoveBacklogCardResult> {
   const supabase = getSupabaseServerClient();
 
   const [{ data: card }, { data: columns }] = await Promise.all([
     supabase
       .from("backlog_cards")
-      .select("column_id, title")
+      .select("column_id, title, assignee_id")
       .eq("id", params.cardId)
       .single(),
     supabase.from("backlog_columns").select("id, name"),
@@ -395,7 +421,7 @@ export async function moveBacklogCard(params: {
     )
   );
 
-  if (!changedColumn) return { question: null };
+  if (!changedColumn) return { question: null, moved: null };
 
   await createBacklogActivity({
     cardId: params.cardId,
@@ -406,6 +432,11 @@ export async function moveBacklogCard(params: {
 
   return {
     question: shouldAskBackupQuestion(fromName, toName) ? BACKUP_QUESTION : null,
+    moved: {
+      title: (card!.title as string) ?? "",
+      assigneeId: (card!.assignee_id as string | null) ?? null,
+      toName,
+    },
   };
 }
 

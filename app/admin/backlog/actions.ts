@@ -11,6 +11,7 @@ import {
   deleteBacklogCard,
   deleteBacklogChecklistItem,
   deleteBacklogColumn,
+  getBacklogCardBrief,
   renameBacklogChecklistItem,
   setBacklogChecklistItemDone,
   moveBacklogCard,
@@ -22,6 +23,7 @@ import {
   updateBacklogCard,
   updateBacklogColumn,
 } from "@/lib/backlog";
+import { notifyUser } from "@/lib/notifications";
 
 const BACKLOG_PATHS = ["/admin/backlog", "/admin/backlog/calendario"];
 
@@ -62,13 +64,39 @@ export async function deleteBacklogColumnAction(formData: FormData) {
 export async function createBacklogCardAction(formData: FormData) {
   const columnId = String(formData.get("column_id"));
   const input = readBacklogCardInput(formData);
-  await createBacklogCard(columnId, input);
+  const session = await getCurrentSession();
+  const card = await createBacklogCard(columnId, input);
+  await notifyUser({
+    userId: input.assignee_id,
+    actorId: session?.userId ?? null,
+    kind: "card_assigned",
+    title: "Novo material atribuído a você",
+    body: card.title,
+    link: "/admin/backlog",
+    entityId: card.id,
+  });
   revalidateBacklog();
 }
 
 export async function updateBacklogCardAction(formData: FormData) {
   const id = String(formData.get("id"));
-  await updateBacklogCard(id, readBacklogCardInput(formData));
+  const input = readBacklogCardInput(formData);
+  // Só avisa quando o responsável muda — salvar o card de novo com a mesma
+  // pessoa não deve reaparecer como novidade na campainha.
+  const { assigneeId: previousAssigneeId } = await getBacklogCardBrief(id);
+  await updateBacklogCard(id, input);
+  if (input.assignee_id !== previousAssigneeId) {
+    const session = await getCurrentSession();
+    await notifyUser({
+      userId: input.assignee_id,
+      actorId: session?.userId ?? null,
+      kind: "card_assigned",
+      title: "Material atribuído a você",
+      body: input.title || "Novo material",
+      link: "/admin/backlog",
+      entityId: id,
+    });
+  }
   revalidateBacklog();
 }
 
@@ -82,8 +110,19 @@ export async function moveBacklogCardAction(params: {
     ...params,
     authorId: session?.userId ?? null,
   });
+  if (result.moved) {
+    await notifyUser({
+      userId: result.moved.assigneeId,
+      actorId: session?.userId ?? null,
+      kind: "card_moved",
+      title: `Material movido para "${result.moved.toName}"`,
+      body: result.moved.title,
+      link: "/admin/backlog",
+      entityId: params.cardId,
+    });
+  }
   revalidateBacklog();
-  return result;
+  return { question: result.question };
 }
 
 export async function setBacklogCardApprovedAction(
@@ -101,6 +140,16 @@ export async function setBacklogCardApprovedAction(
     authorId: session?.userId ?? null,
     kind: "note",
     message: approved ? "Marcou como aprovado" : "Desmarcou a aprovação",
+  });
+  const brief = await getBacklogCardBrief(cardId);
+  await notifyUser({
+    userId: brief.assigneeId,
+    actorId: session?.userId ?? null,
+    kind: "card_approved",
+    title: approved ? "Material aprovado" : "Aprovação removida",
+    body: brief.title,
+    link: "/admin/backlog",
+    entityId: cardId,
   });
   revalidateBacklog();
 }

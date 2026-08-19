@@ -1,7 +1,13 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { logout } from "@/app/admin/login/actions";
+import { NotificationBell } from "@/components/admin/NotificationBell";
 import { TatuLogo } from "@/components/TatuLogo";
+import {
+  countUnreadNotifications,
+  listNotifications,
+} from "@/lib/notifications";
+import { getCurrentSession } from "@/lib/session";
 
 export type BreadcrumbItem = {
   label: string;
@@ -12,7 +18,7 @@ export type BreadcrumbItem = {
 const FOCUS_RING =
   "focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none";
 
-export function AdminHeader({
+export async function AdminHeader({
   title,
   trail,
   username,
@@ -21,6 +27,16 @@ export function AdminHeader({
   trail?: BreadcrumbItem[];
   username?: string | null;
 }) {
+  // A campainha é buscada aqui, e não em cada página, pra aparecer igual em
+  // todo o admin sem repetir a consulta em dez lugares.
+  const session = await getCurrentSession();
+  const [notifications, unreadCount] = session
+    ? await Promise.all([
+        listNotifications(session.userId),
+        countUnreadNotifications(session.userId),
+      ])
+    : [[], 0];
+
   return (
     <header className="mb-8">
       {/* O logo é a volta pro Painel de qualquer página — é onde todo mundo
@@ -73,6 +89,12 @@ export function AdminHeader({
         <div className="flex shrink-0 items-center gap-3">
           {username ? (
             <span className="text-sm text-neutral-500">{username}</span>
+          ) : null}
+          {session ? (
+            <NotificationBell
+              notifications={notifications}
+              unreadCount={unreadCount}
+            />
           ) : null}
           {/* Borda pra separar do nome ao lado: sem ela os dois eram o mesmo
               cinza e nada dizia qual era clicável. Sem confirmação de
