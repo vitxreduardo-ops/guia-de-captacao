@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Connection string do banco, usada pelo scripts/backup-db.sh
+.env.backup

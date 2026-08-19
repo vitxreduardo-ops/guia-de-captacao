@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.tatu.guia-captacao.backup</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/creativehome/Documents/Claude Code/Guia de captação/scripts/backup-db.sh</string>
+  </array>
+
+  <!-- Meio-dia. Se a máquina estiver dormindo na hora, o launchd roda assim
+       que ela acordar, em vez de pular o dia. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>12</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/creativehome/Backups/guia-de-captacao/backup.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/creativehome/Backups/guia-de-captacao/backup.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>
