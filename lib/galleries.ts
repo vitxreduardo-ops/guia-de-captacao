@@ -314,6 +314,7 @@ export async function setGalleryClientStatus(
     .eq("id", id);
 
   if (error) throw error;
+  clearKnownDriveFileCache();
 }
 
 export async function deleteGalleryClient(id: string) {
@@ -353,6 +354,7 @@ export async function deleteGalleryImage(id: string) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase.from("gallery_images").delete().eq("id", id);
   if (error) throw error;
+  clearKnownDriveFileCache();
 }
 
 
@@ -408,6 +410,7 @@ export async function replaceGalleryImagesFromDrive(
     })
     .eq("id", clientId);
   if (updateError) throw updateError;
+  clearKnownDriveFileCache();
 }
 
 /**
@@ -416,9 +419,56 @@ export async function replaceGalleryImagesFromDrive(
  * conectada por ID adivinhado) e devolve o nome original, usado como nome
  * de arquivo no download.
  */
+// Assistir um vídeo dispara uma sequência de requisições com Range (o player
+// busca o cabeçalho, depois pula pro índice, depois pro trecho que vai tocar),
+// e cada uma pagava uma consulta ao Supabase só pra reconfirmar o mesmo
+// fileId. São ~0,3s por requisição em cima de um custo fixo que o cliente
+// sente como travada. O resultado muda pouco (só quando a galeria é publicada
+// ou o arquivo sai da sincronização), então vale guardar por alguns minutos.
+type KnownDriveFile = { caption: string; published: boolean } | null;
+const knownDriveFileCache = new Map<
+  string,
+  { value: KnownDriveFile; expiresAt: number }
+>();
+const KNOWN_DRIVE_FILE_TTL_MS = 5 * 60_000;
+// Requisições simultâneas pro mesmo arquivo (o player abre várias de uma vez)
+// dividem uma única consulta em vez de dispararem uma cada.
+const knownDriveFileInFlight = new Map<string, Promise<KnownDriveFile>>();
+
 export async function getKnownDriveFileByFileId(
   fileId: string
-): Promise<{ caption: string; published: boolean } | null> {
+): Promise<KnownDriveFile> {
+  const cached = knownDriveFileCache.get(fileId);
+  if (cached && Date.now() < cached.expiresAt) return cached.value;
+
+  const inFlight = knownDriveFileInFlight.get(fileId);
+  if (inFlight) return inFlight;
+
+  const request = loadKnownDriveFileByFileId(fileId)
+    .then((value) => {
+      knownDriveFileCache.set(fileId, {
+        value,
+        expiresAt: Date.now() + KNOWN_DRIVE_FILE_TTL_MS,
+      });
+      return value;
+    })
+    .finally(() => {
+      knownDriveFileInFlight.delete(fileId);
+    });
+
+  knownDriveFileInFlight.set(fileId, request);
+  return request;
+}
+
+/** Descarta o cache — chamado depois de sincronizar ou publicar/despublicar,
+ * pra mudança de status valer na hora. */
+export function clearKnownDriveFileCache() {
+  knownDriveFileCache.clear();
+}
+
+async function loadKnownDriveFileByFileId(
+  fileId: string
+): Promise<KnownDriveFile> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("gallery_images")

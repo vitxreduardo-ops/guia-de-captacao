@@ -7,6 +7,7 @@ import {
   useReducedMotion,
   type PanInfo,
 } from "motion/react";
+import { GalleryThumb } from "@/components/GalleryThumb";
 
 export interface GalleryItem {
   id: string;
@@ -55,6 +56,7 @@ export function LightboxImage({
   const [open, setOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(index ?? 0);
   const [loadedIds, setLoadedIds] = useState<Record<string, boolean>>({});
+  const [failedIds, setFailedIds] = useState<Record<string, boolean>>({});
   const prefersReducedMotion = useReducedMotion();
 
   const items =
@@ -133,12 +135,10 @@ export function LightboxImage({
         }}
         className="relative block w-full cursor-zoom-in transition-transform active:scale-[0.98]"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <GalleryThumb
           src={src}
           alt={alt}
-          loading="lazy"
-          decoding="async"
+          caption={alt}
           className={`${className ?? ""} ${
             selected ? "opacity-40 grayscale" : ""
           }`}
@@ -183,7 +183,7 @@ export function LightboxImage({
               </button>
             ) : null}
 
-            {!loadedIds[current.id] ? (
+            {!loadedIds[current.id] && !failedIds[current.id] ? (
               // Centralizado na tela, independente do tamanho da imagem —
               // antes dela carregar o navegador não sabe as dimensões, então
               // um indicador preso ao contêiner da imagem ficaria escondido
@@ -207,7 +207,26 @@ export function LightboxImage({
               </div>
             ) : null}
 
-            <div className="flex max-h-full max-w-full flex-col items-center gap-3">
+            {failedIds[current.id] ? (
+              <div
+                onClick={(event) => event.stopPropagation()}
+                className="flex flex-col items-center gap-2 rounded-md bg-white/90 px-6 py-5 text-center"
+              >
+                <span aria-hidden className="text-xl text-neutral-400">
+                  ⚠
+                </span>
+                <p className="text-sm font-medium text-neutral-800">
+                  Não foi possível carregar esta foto.
+                </p>
+                <p className="max-w-xs text-xs text-neutral-500">{current.alt}</p>
+              </div>
+            ) : null}
+
+            <div
+              className={`flex max-h-full max-w-full flex-col items-center gap-3 ${
+                failedIds[current.id] ? "hidden" : ""
+              }`}
+            >
               <div className="relative max-h-[85vh] max-w-full overflow-hidden rounded-md">
                 <AnimatePresence mode="popLayout" initial={false}>
                   <motion.img
@@ -218,6 +237,9 @@ export function LightboxImage({
                     onClick={(event) => event.stopPropagation()}
                     onLoad={() =>
                       setLoadedIds((loaded) => ({ ...loaded, [current.id]: true }))
+                    }
+                    onError={() =>
+                      setFailedIds((failed) => ({ ...failed, [current.id]: true }))
                     }
                     drag={canNavigate || !prefersReducedMotion ? true : false}
                     dragElastic={0.6}
