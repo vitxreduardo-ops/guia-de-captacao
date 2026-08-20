@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { GalleryThumb } from "@/components/GalleryThumb";
 import { LightboxImage } from "@/components/LightboxImage";
+import { VideoLightbox } from "@/components/VideoLightbox";
 import type { GalleryDisplayItem, GalleryFolderNode } from "@/lib/galleries";
 
 type SortKey = "name" | "date" | "recent";
@@ -150,44 +152,13 @@ function GalleryTile({
 }) {
   if (item.kind === "video") {
     return (
-      <a
-        href={item.downloadSrc}
-        download
-        title="Clique para baixar o vídeo"
-        className="group relative block"
-        onClick={() => {
-          const backdrop = document.createElement("div");
-          backdrop.className = "fixed inset-0 z-40 backdrop-blur-sm";
-          document.body.appendChild(backdrop);
-
-          const notification = document.createElement("div");
-          notification.textContent = "📥 Download iniciado...";
-          notification.className =
-            "fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white px-4 py-3 text-sm font-medium text-neutral-900 shadow-lg animate-in fade-in duration-200";
-          document.body.appendChild(notification);
-
-          setTimeout(() => {
-            backdrop.classList.add("animate-out", "fade-out");
-            notification.classList.add("animate-out", "fade-out");
-            setTimeout(() => {
-              backdrop.remove();
-              notification.remove();
-            }, 200);
-          }, 2000);
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={item.thumbSrc}
-          alt={item.caption || "Vídeo"}
-          loading="lazy"
-          decoding="async"
-          className={`${className} bg-black cursor-pointer transition-opacity group-hover:opacity-75 rounded-lg`}
-        />
-        <div className="absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-sm font-semibold text-neutral-900 transition-transform group-hover:scale-110">
-          ↓
-        </div>
-      </a>
+      <VideoLightbox
+        src={item.previewSrc}
+        poster={item.thumbSrc}
+        downloadSrc={item.downloadSrc}
+        caption={item.caption}
+        className={className}
+      />
     );
   }
 
@@ -214,10 +185,10 @@ function GalleryTile({
       rel="noreferrer"
       className="block"
     >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <GalleryThumb
         src={item.thumbSrc}
         alt={item.caption || "Arquivo"}
+        caption={item.caption}
         className={className}
       />
     </a>
@@ -401,6 +372,14 @@ export function GalleryFolderBrowser({
                         className="w-full"
                         gallery={gallery}
                       />
+                      {item.caption ? (
+                        <p
+                          title={item.caption}
+                          className="mt-1.5 line-clamp-2 px-0.5 text-[11px] leading-tight text-neutral-500"
+                        >
+                          {item.caption}
+                        </p>
+                      ) : null}
                     </motion.div>
                   ))}
                 </div>

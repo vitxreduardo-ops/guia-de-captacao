@@ -331,7 +331,13 @@ export async function listDriveFolderMediaRecursive(
  */
 export async function fetchDriveFileBytes(
   fileId: string,
-  range?: string | null
+  range?: string | null,
+  /** Cancelamento vindo do cliente. O player abandona requisições o tempo
+   * todo (abre o vídeo, pula pra outro trecho, fecha o modal) e sem repassar
+   * isso o download seguia rodando aqui, segurando uma conexão com o Google
+   * que ninguém ia consumir. Poucas aberturas bastavam pra esgotar o pool e
+   * as requisições seguintes começarem a estourar por timeout de conexão. */
+  signal?: AbortSignal
 ): Promise<{
   body: ReadableStream<Uint8Array>;
   status: number;
@@ -347,7 +353,7 @@ export async function fetchDriveFileBytes(
 
   const response = await fetch(
     `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-    { headers }
+    { headers, signal }
   );
 
   if (!response.body || (!response.ok && response.status !== 206)) return null;
