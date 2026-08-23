@@ -24,11 +24,29 @@ import {
   updateBacklogColumn,
 } from "@/lib/backlog";
 import { notifyUser } from "@/lib/notifications";
+import {
+  removeBacklogCardFromCalendar,
+  syncBacklogCardToCalendar,
+} from "@/lib/googleCalendar";
 
 const BACKLOG_PATHS = ["/admin/backlog", "/admin/backlog/calendario"];
 
 function revalidateBacklog() {
   for (const path of BACKLOG_PATHS) revalidatePath(path);
+}
+
+/**
+ * Espelha o card no Google Agenda sem deixar a integração derrubar a ação:
+ * o Google fora do ar (ou nenhuma conta conectada) não pode impedir alguém
+ * de arrastar um card. O card no banco continua sendo a fonte da verdade, e
+ * o "Sincronizar tudo" da tela do calendário conserta o que ficou pra trás.
+ */
+async function syncCalendar(cardId: string) {
+  try {
+    await syncBacklogCardToCalendar(cardId);
+  } catch (error) {
+    console.error("Erro ao sincronizar card com o Google Agenda", error);
+  }
 }
 
 // ---------------------------------------------------------------- colunas
@@ -75,6 +93,7 @@ export async function createBacklogCardAction(formData: FormData) {
     link: "/admin/backlog",
     entityId: card.id,
   });
+  await syncCalendar(card.id);
   revalidateBacklog();
 }
 
@@ -97,6 +116,7 @@ export async function updateBacklogCardAction(formData: FormData) {
       entityId: id,
     });
   }
+  await syncCalendar(id);
   revalidateBacklog();
 }
 
@@ -191,6 +211,7 @@ export async function setBacklogCardPostDateAction(
   postDate: string | null
 ) {
   await setBacklogCardPostDate(id, postDate);
+  await syncCalendar(id);
   revalidateBacklog();
 }
 
@@ -202,11 +223,20 @@ export async function setBacklogCardScheduleAction(params: {
   durationMinutes: number | null;
 }) {
   await setBacklogCardSchedule(params);
+  await syncCalendar(params.id);
   revalidateBacklog();
 }
 
 export async function deleteBacklogCardAction(formData: FormData) {
-  await deleteBacklogCard(String(formData.get("id")));
+  const id = String(formData.get("id"));
+  // Antes de apagar a linha: depois dela o id do evento some e o evento
+  // ficaria pra sempre no Google.
+  try {
+    await removeBacklogCardFromCalendar(id);
+  } catch (error) {
+    console.error("Erro ao apagar evento do Google Agenda", error);
+  }
+  await deleteBacklogCard(id);
   revalidateBacklog();
 }
 

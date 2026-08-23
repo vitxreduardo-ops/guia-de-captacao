@@ -2,15 +2,25 @@ import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { getBacklogBoard } from "@/lib/backlog";
 import { getCurrentUsername } from "@/lib/session";
+import { getCurrentSession } from "@/lib/session";
+import { getUserCalendarAccount } from "@/lib/userCalendars";
+import { BacklogCalendarSync } from "@/components/admin/BacklogCalendarSync";
 import { Calendar } from "./Calendar";
 
 export const dynamic = "force-dynamic";
 
 export default async function BacklogCalendarPage() {
-  const [board, username] = await Promise.all([
+  const [board, username, session] = await Promise.all([
     getBacklogBoard(),
     getCurrentUsername(),
+    getCurrentSession(),
   ]);
+
+  // A agenda agora é de cada pessoa, então o que importa aqui é se QUEM está
+  // olhando conectou a dele — não existe mais estado global de conexão.
+  const account = session
+    ? await getUserCalendarAccount(session.userId)
+    : null;
 
   return (
     <div className="mx-auto w-full max-w-[100rem] px-4 py-10 sm:px-6 lg:px-8">
@@ -35,6 +45,11 @@ export default async function BacklogCalendarPage() {
           Calendário
         </span>
       </div>
+
+      <BacklogCalendarSync
+        connected={account !== null}
+        accountEmail={account?.email || null}
+      />
 
       <Calendar board={board} />
     </div>
