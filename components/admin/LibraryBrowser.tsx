@@ -41,18 +41,33 @@ function normalize(value: string) {
 }
 
 /**
- * Logo do link. Sem `icon_url` cadastrado, cai no favicon do próprio domínio,
- * buscado por `/api/favicon` — evita ter que subir uma imagem por link. Quando
- * nem isso carrega, sobra a inicial do título.
+ * Logo do link, em três degraus: o `icon_url` cadastrado, o favicon do próprio
+ * domínio (por `/api/favicon`, que evita ter que subir uma imagem por link) e,
+ * se nenhum carregar, a inicial do título. O primeiro degrau falha com certa
+ * frequência — endereço de imagem colado de outro site costuma expirar ou
+ * recusar uso fora da origem dele —, e é justamente por isso que ele cai no
+ * favicon antes de desistir.
  */
 function LibraryIcon({ link }: { link: LibraryLink }) {
   const host = linkHost(link.url);
-  const src =
-    link.icon_url ||
-    (host ? `/api/favicon?domain=${encodeURIComponent(host)}` : "");
-  const [broken, setBroken] = useState(false);
+  const sources = [
+    link.icon_url,
+    host ? `/api/favicon?domain=${encodeURIComponent(host)}` : "",
+  ].filter(Boolean);
 
-  if (!src || broken) {
+  // Guardar quais endereços falharam, em vez de contar falhas: em
+  // desenvolvimento o React monta duas vezes, e um contador pularia o degrau
+  // do meio ao ouvir a mesma falha duas vezes.
+  const [failed, setFailed] = useState<string[]>([]);
+  const src = sources.find((candidate) => !failed.includes(candidate));
+
+  function markFailed(candidate: string) {
+    setFailed((current) =>
+      current.includes(candidate) ? current : [...current, candidate]
+    );
+  }
+
+  if (!src) {
     return (
       <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-neutral-100 text-sm font-medium text-neutral-500">
         {link.title.trim().charAt(0).toUpperCase() || "?"}
@@ -65,16 +80,17 @@ function LibraryIcon({ link }: { link: LibraryLink }) {
     // host em `images.remotePatterns`, então aqui é `img` mesmo.
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      key={src}
       src={src}
       alt=""
       width={36}
       height={36}
       loading="lazy"
-      onError={() => setBroken(true)}
+      onError={() => markFailed(src)}
       ref={(node) => {
         // `onError` não pega a imagem que já chegou quebrada: ela vem no HTML
         // do servidor e falha antes da hidratação pendurar o handler.
-        if (node?.complete && node.naturalWidth === 0) setBroken(true);
+        if (node?.complete && node.naturalWidth === 0) markFailed(src);
       }}
       className="size-9 shrink-0 rounded-md border border-neutral-200 bg-white object-contain p-1"
     />
@@ -176,21 +192,29 @@ function LinkForm({
         <p className="mt-1 text-xs text-neutral-500">Separe por vírgula.</p>
 
         {/* Clicar numa tag já em uso é mais rápido que redigitar, e é o que
-            impede o acervo de encher de variação da mesma palavra. */}
-        {suggestedTags.some((tag) => !used.has(tagKey(tag))) ? (
+            impede o acervo de encher de variação da mesma palavra. As já
+            escolhidas ficam apagadas em vez de sumir: retirá-las encolheria o
+            diálogo no meio da digitação e o "Salvar" fugiria do cursor. */}
+        {suggestedTags.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1">
-            {suggestedTags
-              .filter((tag) => !used.has(tagKey(tag)))
-              .map((tag) => (
+            {suggestedTags.map((tag) => {
+              const chosen = used.has(tagKey(tag));
+              return (
                 <button
                   key={tag}
                   type="button"
+                  disabled={chosen}
                   onClick={() => addTag(tag)}
-                  className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600 hover:bg-neutral-200"
+                  className={`rounded-full px-2 py-0.5 text-xs ${
+                    chosen
+                      ? "bg-neutral-50 text-neutral-300"
+                      : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                  }`}
                 >
-                  + {tag}
+                  {chosen ? tag : `+ ${tag}`}
                 </button>
-              ))}
+              );
+            })}
           </div>
         ) : null}
       </div>
@@ -376,7 +400,9 @@ export function LibraryBrowser({ links }: { links: LibraryLink[] }) {
                 }`}
               >
                 <div className="flex items-start gap-3 pr-14">
-                  <LibraryIcon link={link} />
+                  {/* A chave carrega o `icon_url` pra que trocar o logo
+                      recomece a cadeia em vez de manter o degrau que falhou. */}
+                  <LibraryIcon key={link.icon_url} link={link} />
                   <div className="min-w-0 flex-1">
                     <a
                       href={link.url}
