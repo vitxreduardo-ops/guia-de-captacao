@@ -41,6 +41,19 @@ function normalize(value: string) {
 }
 
 /**
+ * Sites onde o favicon é da plataforma e não da página: dois perfis do
+ * Instagram devolvem o mesmo ícone, que lado a lado não diz qual card é qual.
+ * Nesses, a inicial do título identifica melhor que o logo certo.
+ */
+const PLATFORM_FAVICON_HOSTS = ["instagram.com"];
+
+function hasPlatformFavicon(host: string) {
+  return PLATFORM_FAVICON_HOSTS.some(
+    (platform) => host === platform || host.endsWith(`.${platform}`)
+  );
+}
+
+/**
  * Logo do link, em três degraus: o `icon_url` cadastrado, o favicon do próprio
  * domínio (por `/api/favicon`, que evita ter que subir uma imagem por link) e,
  * se nenhum carregar, a inicial do título. O primeiro degrau falha com certa
@@ -52,7 +65,9 @@ function LibraryIcon({ link }: { link: LibraryLink }) {
   const host = linkHost(link.url);
   const sources = [
     link.icon_url,
-    host ? `/api/favicon?domain=${encodeURIComponent(host)}` : "",
+    host && !hasPlatformFavicon(host)
+      ? `/api/favicon?domain=${encodeURIComponent(host)}`
+      : "",
   ].filter(Boolean);
 
   // Guardar quais endereços falharam, em vez de contar falhas: em
