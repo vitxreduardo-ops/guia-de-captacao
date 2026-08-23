@@ -14,6 +14,7 @@ import {
   deleteLibraryLinkAction,
   updateLibraryLinkAction,
 } from "@/app/admin/biblioteca/actions";
+import { buildTagSpellingMap, tagKey } from "@/lib/tags";
 import type { LibraryLink } from "@/lib/library";
 
 const inputClass =
@@ -40,17 +41,15 @@ function normalize(value: string) {
 }
 
 /**
- * Logo do link. Sem `icon_url` cadastrado, cai no favicon que o Google serve a
- * partir do domínio — evita ter que subir uma imagem por link. Quando nem isso
- * carrega, sobra a inicial do título.
+ * Logo do link. Sem `icon_url` cadastrado, cai no favicon do próprio domínio,
+ * buscado por `/api/favicon` — evita ter que subir uma imagem por link. Quando
+ * nem isso carrega, sobra a inicial do título.
  */
 function LibraryIcon({ link }: { link: LibraryLink }) {
   const host = linkHost(link.url);
   const src =
     link.icon_url ||
-    (host
-      ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`
-      : "");
+    (host ? `/api/favicon?domain=${encodeURIComponent(host)}` : "");
   const [broken, setBroken] = useState(false);
 
   if (!src || broken) {
@@ -72,6 +71,11 @@ function LibraryIcon({ link }: { link: LibraryLink }) {
       height={36}
       loading="lazy"
       onError={() => setBroken(true)}
+      ref={(node) => {
+        // `onError` não pega a imagem que já chegou quebrada: ela vem no HTML
+        // do servidor e falha antes da hidratação pendurar o handler.
+        if (node?.complete && node.naturalWidth === 0) setBroken(true);
+      }}
       className="size-9 shrink-0 rounded-md border border-neutral-200 bg-white object-contain p-1"
     />
   );
@@ -80,12 +84,26 @@ function LibraryIcon({ link }: { link: LibraryLink }) {
 /** Campos compartilhados por "novo link" e "editar link". */
 function LinkForm({
   link,
+  suggestedTags,
   onDone,
 }: {
   link: LibraryLink | null;
+  suggestedTags: string[];
   onDone: () => void;
 }) {
   const [pending, startTransition] = useTransition();
+  const [tags, setTags] = useState(link?.tags.join(", ") ?? "");
+
+  const used = new Set(
+    tags
+      .split(",")
+      .map((tag) => tagKey(tag))
+      .filter(Boolean)
+  );
+
+  function addTag(tag: string) {
+    setTags((current) => (current.trim() ? `${current.trim()}, ${tag}` : tag));
+  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -150,11 +168,31 @@ function LinkForm({
         <input
           id="library-tags"
           name="tags"
-          defaultValue={link?.tags.join(", ") ?? ""}
+          value={tags}
+          onChange={(event) => setTags(event.target.value)}
           placeholder="referência, imagem, gratuito"
           className={inputClass}
         />
         <p className="mt-1 text-xs text-neutral-500">Separe por vírgula.</p>
+
+        {/* Clicar numa tag já em uso é mais rápido que redigitar, e é o que
+            impede o acervo de encher de variação da mesma palavra. */}
+        {suggestedTags.some((tag) => !used.has(tagKey(tag))) ? (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {suggestedTags
+              .filter((tag) => !used.has(tagKey(tag)))
+              .map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => addTag(tag)}
+                  className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600 hover:bg-neutral-200"
+                >
+                  + {tag}
+                </button>
+              ))}
+          </div>
+        ) : null}
       </div>
 
       <div>
@@ -180,18 +218,23 @@ function LinkForm({
 
 export function LibraryBrowser({ links }: { links: LibraryLink[] }) {
   const [query, setQuery] = useState("");
+  /** Guardadas por chave normalizada, não pela grafia — ver `lib/tags.ts`. */
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [sort, setSort] = useState<SortOrder>("recent");
   /** `null` = fechado, `"new"` = criando, objeto = editando aquele link. */
   const [editing, setEditing] = useState<LibraryLink | "new" | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const allTags = useMemo(
-    () =>
-      Array.from(new Set(links.flatMap((link) => link.tags)))
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b, "pt-BR")),
+  // Grafias divergentes da mesma tag viram uma só na interface, mesmo que o
+  // banco ainda guarde as duas de antes da canonicalização entrar.
+  const spelling = useMemo(
+    () => buildTagSpellingMap(links.flatMap((link) => link.tags)),
     [links]
+  );
+
+  const allTags = useMemo(
+    () => [...spelling.values()].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [spelling]
   );
 
   const visible = useMemo(() => {
@@ -202,7 +245,7 @@ export function LibraryBrowser({ links }: { links: LibraryLink[] }) {
       // "e" quase sempre daria lista vazia.
       if (
         activeTags.length > 0 &&
-        !link.tags.some((tag) => activeTags.includes(tag))
+        !link.tags.some((tag) => activeTags.includes(tagKey(tag)))
       ) {
         return false;
       }
@@ -220,10 +263,11 @@ export function LibraryBrowser({ links }: { links: LibraryLink[] }) {
   }, [links, query, activeTags, sort]);
 
   function toggleTag(tag: string) {
+    const key = tagKey(tag);
     setActiveTags((current) =>
-      current.includes(tag)
-        ? current.filter((item) => item !== tag)
-        : [...current, tag]
+      current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key]
     );
   }
 
@@ -285,7 +329,7 @@ export function LibraryBrowser({ links }: { links: LibraryLink[] }) {
       {allTags.length > 0 ? (
         <div className="mb-6 flex flex-wrap items-center gap-1.5">
           {allTags.map((tag) => {
-            const active = activeTags.includes(tag);
+            const active = activeTags.includes(tagKey(tag));
             return (
               <button
                 key={tag}
@@ -356,20 +400,23 @@ export function LibraryBrowser({ links }: { links: LibraryLink[] }) {
 
                 {link.tags.length > 0 ? (
                   <div className="mt-3 flex flex-wrap gap-1">
-                    {link.tags.map((tag) => (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => toggleTag(tag)}
-                        className={`rounded-full px-2 py-0.5 text-xs transition-colors ${
-                          activeTags.includes(tag)
-                            ? "bg-neutral-900 text-white"
-                            : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
-                        }`}
-                      >
-                        {tag}
-                      </button>
-                    ))}
+                    {link.tags.map((tag) => {
+                      const key = tagKey(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => toggleTag(tag)}
+                          className={`rounded-full px-2 py-0.5 text-xs transition-colors ${
+                            activeTags.includes(key)
+                              ? "bg-neutral-900 text-white"
+                              : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                          }`}
+                        >
+                          {spelling.get(key) ?? tag}
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : null}
 
@@ -421,6 +468,7 @@ export function LibraryBrowser({ links }: { links: LibraryLink[] }) {
 
             <LinkForm
               link={editing === "new" ? null : editing}
+              suggestedTags={allTags}
               onDone={() => setEditing(null)}
             />
 

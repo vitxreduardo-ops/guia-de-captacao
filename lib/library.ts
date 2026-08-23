@@ -51,6 +51,17 @@ export async function listLibraryLinks(): Promise<LibraryLink[]> {
   return (data ?? []).map(toLibraryLink);
 }
 
+/** Todas as tags em uso, com repetição — quem chama decide como agrupar. */
+export async function listLibraryTags(): Promise<string[]> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase.from("library_links").select("tags");
+
+  if (error) throw error;
+  return (data ?? []).flatMap((row) =>
+    Array.isArray(row.tags) ? (row.tags as string[]) : []
+  );
+}
+
 export async function createLibraryLink(
   fields: LibraryLinkFields
 ): Promise<LibraryLink> {
