@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   BACKLOG_FORMATS,
   BACKLOG_FORMAT_LABELS,
@@ -265,14 +272,6 @@ export function BacklogCardDrawer({
 }) {
   const [pending, startTransition] = useTransition();
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
-
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
@@ -293,28 +292,27 @@ export function BacklogCardDrawer({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <button
-        type="button"
-        aria-label="Fechar"
-        onClick={onClose}
-        className="absolute inset-0 bg-neutral-900/40"
-      />
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      {/* Mesmo formato do painel de visualização: centrado, com folga nas
+          bordas e miolo rolando por dentro. */}
+      <DialogContent className="grid max-h-[calc(100dvh-6rem)] w-[calc(100%-3rem)] max-w-4xl grid-rows-[auto_minmax(0,1fr)_auto] gap-3 p-5 sm:max-w-4xl">
+        <DialogHeader>
+          <DialogTitle className="text-base">Editar material</DialogTitle>
+        </DialogHeader>
 
-      <div className="relative flex h-full w-full max-w-md flex-col overflow-y-auto border-l border-neutral-200 bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3">
-          <p className="text-sm font-semibold text-neutral-900">Editar material</p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-sm text-neutral-500 hover:text-neutral-900"
-          >
-            Fechar
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-4 p-4">
+        <form
+          id="backlog-card-form"
+          onSubmit={handleSubmit}
+          className="grid min-h-0 content-start gap-5 overflow-y-auto sm:grid-cols-[1fr_20rem] sm:content-stretch sm:overflow-hidden"
+        >
           <input type="hidden" name="id" value={card.id} />
+
+          <div className="flex flex-col gap-4 sm:min-h-0 sm:overflow-y-auto sm:pr-2">
 
           <div>
             <label className={labelClass} htmlFor="backlog-title">
@@ -459,11 +457,6 @@ export function BacklogCardDrawer({
             />
           </div>
 
-          <ChecklistSection
-            cardId={card.id}
-            items={checklist.filter((item) => item.card_id === card.id)}
-          />
-
           <label className="flex items-center gap-2 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
             <input
               type="checkbox"
@@ -513,34 +506,55 @@ export function BacklogCardDrawer({
             />
           </div>
 
-          <ActivitySection
-            cardId={card.id}
-            items={activity.filter((item) => item.card_id === card.id)}
-            authorNameById={
-              new Map(users.map((user) => [user.id, user.username]))
-            }
-            canComment={!isFirstColumn}
-          />
+          </div>
 
-          <div className="mt-auto flex items-center justify-between gap-3 border-t border-neutral-200 pt-4">
+          {/* Coluna da direita: checklist, atividade e comentários. */}
+          <div className="flex flex-col gap-4 border-neutral-200 sm:min-h-0 sm:overflow-y-auto sm:border-l sm:pl-5">
+            <ChecklistSection
+              cardId={card.id}
+              items={checklist.filter((item) => item.card_id === card.id)}
+            />
+
+            <ActivitySection
+              cardId={card.id}
+              items={activity.filter((item) => item.card_id === card.id)}
+              authorNameById={
+                new Map(users.map((user) => [user.id, user.username]))
+              }
+              canComment={!isFirstColumn}
+            />
+          </div>
+        </form>
+
+        <DialogFooter className="flex-row items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={pending}
+            className="text-sm text-red-500 hover:text-red-700 disabled:opacity-50"
+          >
+            Excluir
+          </button>
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={handleDelete}
+              onClick={onClose}
               disabled={pending}
-              className="text-sm text-red-500 hover:text-red-700 disabled:opacity-50"
+              className="text-sm text-neutral-500 hover:text-neutral-900 disabled:opacity-50"
             >
-              Excluir
+              Fechar
             </button>
             <button
               type="submit"
+              form="backlog-card-form"
               disabled={pending}
               className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
             >
               {pending ? "Salvando..." : "Salvar"}
             </button>
           </div>
-        </form>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
