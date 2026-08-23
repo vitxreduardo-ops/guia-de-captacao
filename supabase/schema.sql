@@ -297,6 +297,8 @@ create table if not exists backlog_cards (
   sent_whatsapp_at timestamptz,
   approved_at timestamptz,
   approved_by uuid references users(id) on delete set null,
+  -- Evento espelhado no Google Agenda, quando a sincronização está ligada.
+  google_event_id text,
   tags text[] not null default '{}'::text[],
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

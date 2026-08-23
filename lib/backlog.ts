@@ -521,3 +521,14 @@ export async function deleteBacklogCard(id: string) {
   const { error } = await supabase.from("backlog_cards").delete().eq("id", id);
   if (error) throw error;
 }
+
+/** Quantos materiais têm data — o tanto que vai pra agenda de quem conecta. */
+export async function countBacklogCardsWithDate(): Promise<number> {
+  const supabase = getSupabaseServerClient();
+  const { count, error } = await supabase
+    .from("backlog_cards")
+    .select("id", { count: "exact", head: true })
+    .not("post_date", "is", null);
+  if (error) throw error;
+  return count ?? 0;
+}

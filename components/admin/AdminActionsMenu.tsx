@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CalendarClock,
   Clapperboard,
   Images,
   Kanban,
@@ -18,6 +19,7 @@ const ACTIONS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/admin/biblioteca", label: "Biblioteca", icon: Library },
   { href: "/admin/galerias", label: "Galeria do cliente", icon: Images },
   { href: "/admin/backlog", label: "Backlog do Instagram", icon: Kanban },
+  { href: "/admin/agenda", label: "Minha Agenda", icon: CalendarClock },
 ];
 
 const ADMIN_ONLY_ACTIONS: typeof ACTIONS = [

@@ -1,7 +1,14 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
-const OAUTH_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
+// A mesma conta Google serve o Drive (galerias) e o Google Agenda (backlog),
+// então o consentimento pede os dois escopos de uma vez. Quem já conectou
+// antes do calendário existir precisa conectar de novo pra liberar o escopo
+// novo — o refresh_token antigo não ganha permissões retroativamente.
+const OAUTH_SCOPES = [
+  "https://www.googleapis.com/auth/drive.readonly",
+  "https://www.googleapis.com/auth/calendar",
+];
 const TOKEN_ROW_ID = "default";
 
 function getEnv() {
@@ -24,7 +31,7 @@ export function buildGoogleAuthUrl(): string {
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: OAUTH_SCOPE,
+    scope: OAUTH_SCOPES.join(" "),
     access_type: "offline",
     prompt: "consent",
   });
@@ -165,7 +172,10 @@ async function requestAccessToken(): Promise<string> {
   return tokens.access_token;
 }
 
-async function getFreshAccessToken(): Promise<string> {
+/** Access token válido da conta Google conectada. Exportado porque o
+ * módulo do Google Agenda (`lib/googleCalendar.ts`) usa a mesma conta e o
+ * mesmo cache de token. */
+export async function getFreshAccessToken(): Promise<string> {
   if (cachedAccessToken && Date.now() < cachedAccessToken.expiresAt) {
     return cachedAccessToken.token;
   }
