@@ -475,17 +475,13 @@ function TodoRow({
         </span>
 
         <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs">
-          {/* Média é o padrão de toda tarefa nova: mostrar a etiqueta em todas
-              as linhas encheria a lista de um dado que não distingue nada. */}
-          {todo.priority !== 2 ? (
-            <span
-              className={`rounded border px-1.5 py-px ${
-                TODO_PRIORITY_CLASSES[todo.priority]
-              }`}
-            >
-              P{todo.priority} · {TODO_PRIORITY_LABELS[todo.priority]}
-            </span>
-          ) : null}
+          <span
+            className={`rounded border px-1.5 py-px ${
+              TODO_PRIORITY_CLASSES[todo.priority]
+            }`}
+          >
+            P{todo.priority} · {TODO_PRIORITY_LABELS[todo.priority]}
+          </span>
 
           {todo.due_date ? (
             <span
