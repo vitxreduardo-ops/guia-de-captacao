@@ -53,7 +53,7 @@ export function TodoAssigneeMenu({
         className="flex h-6 shrink-0 cursor-pointer items-center justify-center rounded-full transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-90 pointer-coarse:min-h-11"
       >
         {assignees.length === 0 ? (
-          <span className="flex size-5 items-center justify-center rounded-full border border-dashed border-neutral-300 text-[10px] text-neutral-400">
+          <span className="flex size-5 items-center justify-center rounded-full border border-dashed border-neutral-400 text-[10px] text-neutral-500">
             +
           </span>
         ) : (

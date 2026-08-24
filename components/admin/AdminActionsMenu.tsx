@@ -55,7 +55,7 @@ export function AdminActionsMenu({
               >
                 <action.icon
                   aria-hidden="true"
-                  className="size-4 shrink-0 text-neutral-400"
+                  className="size-4 shrink-0 text-neutral-500"
                 />
                 {action.label}
               </Link>

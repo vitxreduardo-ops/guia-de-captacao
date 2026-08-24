@@ -172,3 +172,32 @@ body {
   visual de todas as páginas que já existiam, então ficou de fora: os
   componentes do shadcn usados aqui trazem as próprias cores por classe.
 */
+/*
+  Quem pede menos movimento continua recebendo o feedback — só não recebe o
+  deslocamento. Cor, opacidade e foco seguem animando (curtos), enquanto
+  transform, escala e deslize saem de cena: é o que causa desconforto
+  vestibular, não a mudança de estado em si.
+
+  O Accordion e o resto do Motion já respeitam a preferência pelo
+  useReducedMotion; isto cobre o que é feito em CSS puro — os `active:scale`,
+  os `transition-transform` e as transições que o dnd-kit escreve inline
+  durante o arraste.
+*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* O toque continua com resposta imediata, sem o recuo de escala. */
+  .active\:scale-90:active,
+  .active\:scale-\[0\.97\]:active,
+  .active\:scale-\[0\.98\]:active,
+  .active\:scale-\[0\.99\]:active {
+    transform: none;
+  }
+}

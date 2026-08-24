@@ -61,7 +61,7 @@ export async function AdminHeader({
                     {index > 0 ? (
                       <ChevronRight
                         aria-hidden="true"
-                        className="size-3.5 text-neutral-400"
+                        className="size-3.5 text-neutral-500"
                       />
                     ) : null}
                     {item.href ? (

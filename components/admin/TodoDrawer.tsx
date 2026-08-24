@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
 import {
   Dialog,
   DialogContent,
@@ -103,7 +103,7 @@ function ChecklistSection({
                   )
                 }
                 aria-label={`Excluir "${item.label}"`}
-                className="shrink-0 text-xs text-neutral-400 hover:text-red-600 disabled:opacity-50"
+                className="shrink-0 text-xs text-neutral-500 hover:text-red-600 disabled:opacity-50"
               >
                 ✕
               </button>
@@ -149,12 +149,16 @@ function ChecklistSection({
 
 /**
  * Painel de detalhes da tarefa, no mesmo formato do card do kanban: campos à
- * esquerda, checklist à direita. Os campos de texto só vão pro banco no
- * Salvar; responsável e checklist gravam na hora, como já era na lista.
+ * esquerda, checklist à direita.
+ *
+ * Tudo grava sozinho — o texto ao sair do campo, prioridade e prazo na hora da
+ * escolha. Antes metade dos campos esperava um botão Salvar enquanto a outra
+ * metade já gravava, e fechar no X descartava o que estava digitado sem avisar.
  */
 export function TodoDrawer({
   todo,
   users,
+  origin,
   onClose,
   onSave,
   onAssign,
@@ -162,6 +166,8 @@ export function TodoDrawer({
 }: {
   todo: DailyTodoView;
   users: TodoUser[];
+  /** Ponto da tela onde a pessoa clicou, pro painel crescer de lá. */
+  origin: { x: number; y: number } | null;
   onClose: () => void;
   onSave: (fields: {
     text: string;
@@ -172,20 +178,57 @@ export function TodoDrawer({
   onAssign: (assignees: TodoUser[]) => void;
   onDelete: () => void;
 }) {
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const text = String(formData.get("text") ?? "").trim();
-    // Título vazio apagaria a tarefa da vista sem apagar do banco.
+  const [fields, setFields] = useState({
+    text: todo.text,
+    notes: todo.notes,
+    dueDate: todo.due_date ?? "",
+    priority: todo.priority,
+  });
+  // O painel cresce do ponto tocado, não do centro da tela: a relação entre a
+  // linha clicada e o painel que abriu fica visível. É um ref de callback
+  // porque a origem precisa estar no elemento antes do primeiro quadro da
+  // animação de entrada — um efeito chegaria com ela já em curso.
+  const setContentRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (!node || !origin) return;
+      const apply = () => {
+        const rect = node.getBoundingClientRect();
+        node.style.transformOrigin = `${origin.x - rect.left}px ${
+          origin.y - rect.top
+        }px`;
+      };
+      apply();
+      // O Base UI escreve o próprio `style` ao posicionar o popup; reaplicar no
+      // quadro seguinte garante que a origem sobreviva a isso.
+      requestAnimationFrame(apply);
+    },
+    [origin]
+  );
+
+  /** Grava o que já está em `fields`, com a alteração recém-feita por cima. */
+  function commit(patch: Partial<typeof fields>) {
+    const next = { ...fields, ...patch };
+    setFields(next);
+
+    const text = next.text.trim();
+    // Título vazio apagaria a tarefa da vista sem apagar do banco: o campo
+    // continua editável, mas não é isso que vai pro servidor.
     if (!text) return;
+    if (
+      text === todo.text &&
+      next.notes === todo.notes &&
+      (next.dueDate || null) === todo.due_date &&
+      next.priority === todo.priority
+    ) {
+      return;
+    }
 
     onSave({
       text,
-      notes: String(formData.get("notes") ?? ""),
-      dueDate: String(formData.get("due_date") ?? "") || null,
-      priority: toTodoPriority(formData.get("priority")),
+      notes: next.notes,
+      dueDate: next.dueDate || null,
+      priority: next.priority,
     });
-    onClose();
   }
 
   return (
@@ -195,16 +238,17 @@ export function TodoDrawer({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="grid max-h-[calc(100dvh-6rem)] w-[calc(100%-3rem)] max-w-3xl grid-rows-[auto_minmax(0,1fr)_auto] gap-3 p-5 sm:max-w-3xl">
+      <DialogContent
+        ref={setContentRef}
+        className="grid max-h-[calc(100dvh-6rem)] w-[calc(100%-3rem)] max-w-3xl grid-rows-[auto_minmax(0,1fr)_auto] gap-3 p-5 sm:max-w-3xl"
+      >
         <DialogHeader>
-          <DialogTitle className="text-base">Editar tarefa</DialogTitle>
+          <DialogTitle className="text-base tracking-tight">
+            Editar tarefa
+          </DialogTitle>
         </DialogHeader>
 
-        <form
-          id="daily-todo-form"
-          onSubmit={handleSubmit}
-          className="grid min-h-0 content-start gap-5 overflow-y-auto sm:grid-cols-[1fr_18rem] sm:content-stretch sm:overflow-hidden"
-        >
+        <div className="grid min-h-0 content-start gap-5 overflow-y-auto sm:grid-cols-[1fr_18rem] sm:content-stretch sm:overflow-hidden">
           <div className="flex flex-col gap-4 sm:min-h-0 sm:overflow-y-auto sm:pr-2">
             <div>
               <label className={labelClass} htmlFor="todo-text">
@@ -212,9 +256,17 @@ export function TodoDrawer({
               </label>
               <input
                 id="todo-text"
-                name="text"
-                defaultValue={todo.text}
-                required
+                value={fields.text}
+                onChange={(event) =>
+                  setFields((current) => ({
+                    ...current,
+                    text: event.target.value,
+                  }))
+                }
+                onBlur={(event) => commit({ text: event.target.value })}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.currentTarget.blur();
+                }}
                 className={inputClass}
               />
             </div>
@@ -226,8 +278,10 @@ export function TodoDrawer({
                 </label>
                 <select
                   id="todo-priority"
-                  name="priority"
-                  defaultValue={String(todo.priority)}
+                  value={String(fields.priority)}
+                  onChange={(event) =>
+                    commit({ priority: toTodoPriority(event.target.value) })
+                  }
                   className={inputClass}
                 >
                   {TODO_PRIORITIES.map((priority) => (
@@ -244,8 +298,8 @@ export function TodoDrawer({
                 <input
                   id="todo-due-date"
                   type="date"
-                  name="due_date"
-                  defaultValue={todo.due_date ?? ""}
+                  value={fields.dueDate}
+                  onChange={(event) => commit({ dueDate: event.target.value })}
                   className={inputClass}
                 />
               </div>
@@ -253,7 +307,6 @@ export function TodoDrawer({
 
             <div>
               <p className={labelClass}>Responsáveis</p>
-              {/* Grava na hora, igual à bolinha da linha: é a mesma ação. */}
               <div className="flex items-center gap-2 rounded-md border border-neutral-200 px-3 py-1.5">
                 <TodoAssigneeMenu
                   assignees={todo.assignees}
@@ -274,14 +327,20 @@ export function TodoDrawer({
               </label>
               <textarea
                 id="todo-notes"
-                name="notes"
-                defaultValue={todo.notes}
+                value={fields.notes}
+                onChange={(event) =>
+                  setFields((current) => ({
+                    ...current,
+                    notes: event.target.value,
+                  }))
+                }
+                onBlur={(event) => commit({ notes: event.target.value })}
                 rows={5}
-                className={inputClass}
+                className={`${inputClass} leading-relaxed`}
               />
             </div>
 
-            <p className="text-xs text-neutral-400">
+            <p className="text-xs text-neutral-500">
               Criada por {todo.created_by_username ?? "alguém"} em{" "}
               {new Date(todo.created_at).toLocaleDateString("pt-BR")}
             </p>
@@ -290,36 +349,24 @@ export function TodoDrawer({
           <div className="flex flex-col gap-4 border-neutral-200 sm:min-h-0 sm:overflow-y-auto sm:border-l sm:pl-5">
             <ChecklistSection todoId={todo.id} items={todo.checklist} />
           </div>
-        </form>
+        </div>
 
         <DialogFooter className="flex-row items-center justify-between gap-3">
           <button
             type="button"
-            onClick={() => {
-              if (!window.confirm("Excluir esta tarefa?")) return;
-              onDelete();
-              onClose();
-            }}
-            className="text-sm text-red-500 hover:text-red-700"
+            onClick={onDelete}
+            className="text-sm text-red-500 transition-transform hover:text-red-700 active:scale-[0.97]"
           >
             Excluir
           </button>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-sm text-neutral-500 hover:text-neutral-900"
-            >
-              Fechar
-            </button>
-            <button
-              type="submit"
-              form="daily-todo-form"
-              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
-            >
-              Salvar
-            </button>
-          </div>
+          {/* Sem botão Salvar: cada campo já gravou. O rodapé só encerra. */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-transform hover:bg-neutral-800 active:scale-[0.97]"
+          >
+            Fechar
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -32,7 +32,7 @@ export function Accordion({
         {summary}
         {showChevron ? (
           <motion.span
-            className="shrink-0 text-neutral-400"
+            className="shrink-0 text-neutral-500"
             animate={{ rotate: open ? 180 : 0 }}
             transition={
               prefersReducedMotion
