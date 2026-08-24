@@ -360,12 +360,37 @@ alter table backlog_card_activity enable row level security;
 create table if not exists daily_todos (
   id uuid primary key default gen_random_uuid(),
   text text not null,
+  notes text not null default '',
   done boolean not null default false,
+  due_date date,
+  -- 1 = mais urgente; a tela ordena crescente. Ver
+  -- supabase/migrations/0037_add_daily_todo_details.sql.
+  priority smallint not null default 2 check (priority between 1 and 3),
+  -- Ordem manual, arrastável na lista.
+  position integer not null default 0,
   completed_at timestamptz,
   created_by uuid references users(id) on delete set null,
   completed_by uuid references users(id) on delete set null,
   created_at timestamptz not null default now()
 );
+
+create index if not exists daily_todos_position_idx on daily_todos(position);
+
+-- Checklist da tarefa, mesma forma da checklist do backlog.
+
+create table if not exists daily_todo_checklist_items (
+  id uuid primary key default gen_random_uuid(),
+  todo_id uuid not null references daily_todos(id) on delete cascade,
+  position integer not null default 0,
+  label text not null default '',
+  done boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists daily_todo_checklist_items_todo_id_idx
+  on daily_todo_checklist_items(todo_id);
+
+alter table daily_todo_checklist_items enable row level security;
 
 -- Responsáveis da tarefa: junção, porque uma tarefa aceita mais de um (ver
 -- supabase/migrations/0032_daily_todo_multiple_assignees.sql).

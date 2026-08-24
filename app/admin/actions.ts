@@ -3,11 +3,16 @@
 import { revalidatePath } from "next/cache";
 import {
   createDailyTodo,
+  createDailyTodoChecklistItem,
   deleteDailyTodo,
-  renameDailyTodo,
+  deleteDailyTodoChecklistItem,
+  reorderDailyTodos,
   setDailyTodoAssignees,
+  setDailyTodoChecklistItemDone,
   setDailyTodoDone,
+  updateDailyTodoDetails,
 } from "@/lib/dailyTodos";
+import type { TodoPriority } from "@/lib/dailyTodoTypes";
 import { notifyUser } from "@/lib/notifications";
 import { getCurrentSession } from "@/lib/session";
 
@@ -52,12 +57,46 @@ export async function setDailyTodoAssigneesAction(
   revalidatePath("/admin");
 }
 
-export async function renameDailyTodoAction(id: string, text: string) {
-  await renameDailyTodo(id, text);
+export async function deleteDailyTodoAction(id: string) {
+  await deleteDailyTodo(id);
   revalidatePath("/admin");
 }
 
-export async function deleteDailyTodoAction(id: string) {
-  await deleteDailyTodo(id);
+export async function updateDailyTodoDetailsAction(
+  id: string,
+  fields: {
+    text: string;
+    notes: string;
+    dueDate: string | null;
+    priority: TodoPriority;
+  }
+) {
+  await updateDailyTodoDetails(id, fields);
+  revalidatePath("/admin");
+}
+
+export async function reorderDailyTodosAction(orderedIds: string[]) {
+  await reorderDailyTodos(orderedIds);
+  revalidatePath("/admin");
+}
+
+export async function createDailyTodoChecklistItemAction(
+  todoId: string,
+  label: string
+) {
+  await createDailyTodoChecklistItem(todoId, label);
+  revalidatePath("/admin");
+}
+
+export async function setDailyTodoChecklistItemDoneAction(
+  id: string,
+  done: boolean
+) {
+  await setDailyTodoChecklistItemDone(id, done);
+  revalidatePath("/admin");
+}
+
+export async function deleteDailyTodoChecklistItemAction(id: string) {
+  await deleteDailyTodoChecklistItem(id);
   revalidatePath("/admin");
 }
