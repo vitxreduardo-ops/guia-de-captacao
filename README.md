@@ -26,6 +26,7 @@ npm install
    - Se seu banco ainda não tem `scenes.description`, rode [`supabase/migrations/0020_add_scene_description.sql`](supabase/migrations/0020_add_scene_description.sql) — usada pelo campo "Descrição de cena".
    - Se seu banco ainda tem `scenes.title`, rode [`supabase/migrations/0021_drop_scene_title.sql`](supabase/migrations/0021_drop_scene_title.sql) — o título da cena foi substituído pela descrição. Copie os títulos antigos para `description` antes, porque o drop é irreversível.
    - Se seu banco ainda não tem a tabela `notifications`, rode [`supabase/migrations/0031_add_notifications.sql`](supabase/migrations/0031_add_notifications.sql) — usada pela campainha de notificações do admin (atribuição de material/tarefa, mudança de coluna e aprovação).
+   - Se seu banco ainda não tem `library_links.tags`/`icon_url`, rode [`supabase/migrations/0036_add_library_tags_and_icon.sql`](supabase/migrations/0036_add_library_tags_and_icon.sql) — usadas pelas tags e pelo logo dos links da Biblioteca.
 3. Em **Storage**, crie um bucket público chamado `guide-references` (usado para as imagens de referência visual enviadas por upload).
 4. Em **Project Settings > API**, copie a **Project URL** e a **service_role key**.
 

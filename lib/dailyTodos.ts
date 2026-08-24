@@ -2,15 +2,19 @@ import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   DailyTodo,
+  DailyTodoChecklistItem,
   DailyTodoView,
+  TodoPriority,
   TodoUser,
 } from "@/lib/dailyTodoTypes";
-import { TODO_RETENTION_DAYS } from "@/lib/dailyTodoTypes";
+import { TODO_RETENTION_DAYS, toTodoPriority } from "@/lib/dailyTodoTypes";
 
 export {
   TODO_RETENTION_DAYS,
   type DailyTodo,
+  type DailyTodoChecklistItem,
   type DailyTodoView,
+  type TodoPriority,
   type TodoUser,
 } from "@/lib/dailyTodoTypes";
 
@@ -40,20 +44,29 @@ export async function listDailyTodos(): Promise<{
   await purgeExpired();
 
   const supabase = getSupabaseServerClient();
-  const [todosResult, usersResult, assigneesResult] = await Promise.all([
-    supabase
-      .from("daily_todos")
-      // Pendente primeiro; dentro de cada grupo, mais antiga em cima.
-      .select("*")
-      .order("done")
-      .order("created_at"),
-    supabase.from("users").select("id, username").order("username"),
-    supabase.from("daily_todo_assignees").select("todo_id, user_id"),
-  ]);
+  const [todosResult, usersResult, assigneesResult, checklistResult] =
+    await Promise.all([
+      supabase
+        .from("daily_todos")
+        // Pendente primeiro; dentro do grupo vale a ordem manual do arraste, e
+        // created_at só desempata quem nunca foi arrastado.
+        .select("*")
+        .order("done")
+        .order("position")
+        .order("created_at"),
+      supabase.from("users").select("id, username").order("username"),
+      supabase.from("daily_todo_assignees").select("todo_id, user_id"),
+      supabase
+        .from("daily_todo_checklist_items")
+        .select("*")
+        .order("position")
+        .order("created_at"),
+    ]);
 
   if (todosResult.error) throw todosResult.error;
   if (usersResult.error) throw usersResult.error;
   if (assigneesResult.error) throw assigneesResult.error;
+  if (checklistResult.error) throw checklistResult.error;
 
   const users = (usersResult.data ?? []) as TodoUser[];
   const userById = new Map(users.map((user) => [user.id, user]));
@@ -77,12 +90,21 @@ export async function listDailyTodos(): Promise<{
     );
   }
 
+  const checklistByTodo = new Map<string, DailyTodoChecklistItem[]>();
+  for (const item of (checklistResult.data ?? []) as DailyTodoChecklistItem[]) {
+    const list = checklistByTodo.get(item.todo_id);
+    if (list) list.push(item);
+    else checklistByTodo.set(item.todo_id, [item]);
+  }
+
   const todos = ((todosResult.data ?? []) as DailyTodo[]).map((todo) => ({
     ...todo,
+    priority: toTodoPriority(todo.priority),
     created_by_username: todo.created_by
       ? userById.get(todo.created_by)?.username ?? null
       : null,
     assignees: assigneesByTodo.get(todo.id) ?? [],
+    checklist: checklistByTodo.get(todo.id) ?? [],
   }));
 
   return { todos, users };
@@ -93,9 +115,25 @@ export async function createDailyTodo(text: string, userId: string | null) {
   if (!trimmed) return;
 
   const supabase = getSupabaseServerClient();
+
+  // Tarefa nova entra no fim da lista pendente, então precisa de um position
+  // maior que todos. A lista é curta (concluída expira em 15 dias), e ler o
+  // máximo é mais barato que manter um contador à parte.
+  const { data: last, error: lastError } = await supabase
+    .from("daily_todos")
+    .select("position")
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (lastError) throw lastError;
+
   const { data, error } = await supabase
     .from("daily_todos")
-    .insert({ text: trimmed, created_by: userId })
+    .insert({
+      text: trimmed,
+      created_by: userId,
+      position: ((last?.position as number | undefined) ?? -1) + 1,
+    })
     .select("id")
     .single();
   if (error) throw error;
@@ -127,19 +165,6 @@ export async function setDailyTodoDone(
       completed_at: done ? new Date().toISOString() : null,
       completed_by: done ? userId : null,
     })
-    .eq("id", id);
-  if (error) throw error;
-}
-
-export async function renameDailyTodo(id: string, text: string) {
-  const trimmed = text.trim();
-  // Nome vazio apagaria a tarefa da vista sem apagar do banco.
-  if (!trimmed) return;
-
-  const supabase = getSupabaseServerClient();
-  const { error } = await supabase
-    .from("daily_todos")
-    .update({ text: trimmed })
     .eq("id", id);
   if (error) throw error;
 }
@@ -190,5 +215,97 @@ export async function setDailyTodoAssignees(
 export async function deleteDailyTodo(id: string) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase.from("daily_todos").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Campos do painel de detalhes. Só o texto é obrigatório: nome vazio apagaria
+ * a tarefa da vista sem apagar do banco.
+ */
+export async function updateDailyTodoDetails(
+  id: string,
+  fields: {
+    text: string;
+    notes: string;
+    dueDate: string | null;
+    priority: TodoPriority;
+  }
+) {
+  const text = fields.text.trim();
+  if (!text) return;
+
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("daily_todos")
+    .update({
+      text,
+      notes: fields.notes.trim(),
+      due_date: fields.dueDate || null,
+      priority: fields.priority,
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Grava a ordem manual da lista pendente. Recebe a lista inteira já ordenada e
+ * regrava o índice de cada uma — mais escrita que o necessário, mas é o que
+ * mantém os valores sem buraco e sem empate depois de qualquer arraste.
+ */
+export async function reorderDailyTodos(orderedIds: string[]) {
+  if (orderedIds.length === 0) return;
+
+  const supabase = getSupabaseServerClient();
+  await Promise.all(
+    orderedIds.map(async (id, index) => {
+      const { error } = await supabase
+        .from("daily_todos")
+        .update({ position: index })
+        .eq("id", id);
+      if (error) throw error;
+    })
+  );
+}
+
+export async function createDailyTodoChecklistItem(
+  todoId: string,
+  label: string
+) {
+  const trimmed = label.trim();
+  if (!trimmed) return;
+
+  const supabase = getSupabaseServerClient();
+  const { data: last, error: lastError } = await supabase
+    .from("daily_todo_checklist_items")
+    .select("position")
+    .eq("todo_id", todoId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (lastError) throw lastError;
+
+  const { error } = await supabase.from("daily_todo_checklist_items").insert({
+    todo_id: todoId,
+    label: trimmed,
+    position: ((last?.position as number | undefined) ?? -1) + 1,
+  });
+  if (error) throw error;
+}
+
+export async function setDailyTodoChecklistItemDone(id: string, done: boolean) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("daily_todo_checklist_items")
+    .update({ done })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteDailyTodoChecklistItem(id: string) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("daily_todo_checklist_items")
+    .delete()
+    .eq("id", id);
   if (error) throw error;
 }

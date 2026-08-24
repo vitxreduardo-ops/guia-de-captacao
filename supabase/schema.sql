@@ -189,16 +189,22 @@ alter table budget_packages enable row level security;
 alter table budget_faq enable row level security;
 alter table budget_references enable row level security;
 
--- Biblioteca — lista simples de links e ferramentas úteis (ver
--- supabase/migrations/0010_add_library_links.sql).
+-- Biblioteca — lista de links e ferramentas úteis (ver
+-- supabase/migrations/0010_add_library_links.sql e
+-- 0036_add_library_tags_and_icon.sql). `tags` categoriza e alimenta a busca;
+-- `icon_url` é override opcional do favicon derivado do domínio.
 
 create table if not exists library_links (
   id uuid primary key default gen_random_uuid(),
   title text not null default '',
   url text not null default '',
   description text not null default '',
+  tags text[] not null default '{}'::text[],
+  icon_url text not null default '',
   created_at timestamptz not null default now()
 );
+
+create index if not exists library_links_tags_idx on library_links using gin (tags);
 
 alter table library_links enable row level security;
 
@@ -354,12 +360,37 @@ alter table backlog_card_activity enable row level security;
 create table if not exists daily_todos (
   id uuid primary key default gen_random_uuid(),
   text text not null,
+  notes text not null default '',
   done boolean not null default false,
+  due_date date,
+  -- 1 = mais urgente; a tela ordena crescente. Ver
+  -- supabase/migrations/0037_add_daily_todo_details.sql.
+  priority smallint not null default 2 check (priority between 1 and 3),
+  -- Ordem manual, arrastável na lista.
+  position integer not null default 0,
   completed_at timestamptz,
   created_by uuid references users(id) on delete set null,
   completed_by uuid references users(id) on delete set null,
   created_at timestamptz not null default now()
 );
+
+create index if not exists daily_todos_position_idx on daily_todos(position);
+
+-- Checklist da tarefa, mesma forma da checklist do backlog.
+
+create table if not exists daily_todo_checklist_items (
+  id uuid primary key default gen_random_uuid(),
+  todo_id uuid not null references daily_todos(id) on delete cascade,
+  position integer not null default 0,
+  label text not null default '',
+  done boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists daily_todo_checklist_items_todo_id_idx
+  on daily_todo_checklist_items(todo_id);
+
+alter table daily_todo_checklist_items enable row level security;
 
 -- Responsáveis da tarefa: junção, porque uma tarefa aceita mais de um (ver
 -- supabase/migrations/0032_daily_todo_multiple_assignees.sql).
