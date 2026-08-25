@@ -484,6 +484,11 @@ export function WeekCalendar({
 
   return (
     <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+      {/* Sete colunas espremidas num celular ficam ilegíveis: a semana ganha
+          uma largura mínima e rola de lado. Cabeçalho, faixa de dia todo e
+          grade ficam dentro do mesmo rolamento, senão eles se desalinham. */}
+      <div className="overflow-x-auto">
+      <div className="min-w-[44rem]">
       {/* Cabeçalho dos dias: fora da área rolável, pra não sumir ao descer */}
       <div className="flex border-b border-neutral-200">
         <div className="w-14 shrink-0" />
@@ -665,6 +670,8 @@ export function WeekCalendar({
           })}
           </div>
         </div>
+      </div>
+      </div>
       </div>
 
       {askScope ? (

@@ -10,6 +10,7 @@ import {
   clearCalendarCache,
   createGoogleEvent,
   removeAllCardsFromAccount,
+  setCalendarSelected,
   syncAllCardsToAccount,
   updateGoogleEvent,
   type EventDraft,
@@ -52,6 +53,33 @@ export async function syncMyCalendarAction(): Promise<number> {
   return synced;
 }
 
+
+/** Liga/desliga uma agenda — a mesma caixinha que existe no Google. */
+export async function toggleCalendarAction(
+  calendarId: string,
+  selected: boolean
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const session = await getCurrentSession();
+  if (!session) return { ok: false, message: "Sessão expirada." };
+
+  const account = await getUserCalendarAccount(session.userId);
+  if (!account) return { ok: false, message: "Agenda não conectada." };
+
+  try {
+    await setCalendarSelected(account, calendarId, selected);
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Não foi possível mudar esta agenda.",
+    };
+  }
+
+  revalidate();
+  return { ok: true };
+}
 
 /** Cria um compromisso a partir de um horário vazio da grade. */
 export async function createEventAction(

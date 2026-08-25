@@ -607,6 +607,38 @@ async function requestUserCalendars(
   }));
 }
 
+/**
+ * Liga ou desliga uma agenda na conta da pessoa.
+ *
+ * Grava no próprio Google (o mesmo `selected` das caixinhas de lá) em vez de
+ * guardar a escolha só aqui: a tela é espelho da agenda, e uma preferência
+ * local sairia de sincronia com o que a pessoa vê no Google.
+ */
+export async function setCalendarSelected(
+  account: UserCalendarAccount,
+  calendarId: string,
+  selected: boolean
+): Promise<void> {
+  const accessToken = await getUserAccessToken(account.userId);
+  const response = await fetch(
+    `${CALENDAR_API}/users/me/calendarList/${encodeURIComponent(calendarId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ selected }),
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Falha ao mudar a agenda: ${await response.text()}`);
+  }
+  // A lista em memória ainda diz o contrário; sem limpar, a caixinha voltaria
+  // sozinha no próximo carregamento.
+  clearCalendarCache(account.userId);
+}
+
 const TIME_PARTS = new Intl.DateTimeFormat("pt-BR", {
   timeZone: TIME_ZONE,
   hour: "2-digit",

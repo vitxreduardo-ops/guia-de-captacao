@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { CalendarConnection } from "@/components/admin/CalendarConnection";
+import { CalendarSidebar } from "@/components/admin/CalendarSidebar";
 import { WeekCalendar } from "@/components/admin/WeekCalendar";
 import { getCurrentSession, getCurrentUsername } from "@/lib/session";
 import { getUserCalendarAccount } from "@/lib/userCalendars";
@@ -123,7 +124,14 @@ export default async function MinhaAgendaPage({
       )}
 
       {account ? (
-        <section className="mt-6">
+        <section className="mt-6 lg:flex lg:gap-6">
+          <CalendarSidebar
+            calendars={calendars}
+            weekStart={weekStart}
+            todayKey={todayKey}
+          />
+
+          <div className="min-w-0 flex-1">
           <div className="mb-3 flex flex-wrap items-center gap-3">
             <Link
               href="/admin/agenda"
@@ -152,12 +160,19 @@ export default async function MinhaAgendaPage({
             </h2>
 
             <div className="ml-auto flex flex-wrap items-center gap-3">
+              <span className="hidden text-xs text-neutral-400 lg:inline">
+                {calendars.filter((calendar) => calendar.selected).length} de{" "}
+                {calendars.length} agendas
+              </span>
+              {/* Nas telas largas a lateral já lista as agendas com as
+                  cores; aqui a legenda só existe pra quando ela está
+                  escondida. */}
               {calendars
                 .filter((calendar) => calendar.selected)
                 .map((calendar) => (
                   <span
                     key={calendar.id}
-                    className="flex items-center gap-1.5 text-xs text-neutral-500"
+                    className="flex items-center gap-1.5 text-xs text-neutral-500 lg:hidden"
                   >
                     <span
                       aria-hidden
@@ -192,7 +207,7 @@ export default async function MinhaAgendaPage({
               )}
             />
           )}
-
+          </div>
         </section>
       ) : null}
 
