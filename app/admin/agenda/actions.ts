@@ -7,9 +7,12 @@ import {
   getUserCalendarAccount,
 } from "@/lib/userCalendars";
 import {
+  clearCalendarCache,
+  createGoogleEvent,
   removeAllCardsFromAccount,
   syncAllCardsToAccount,
   updateGoogleEvent,
+  type EventDraft,
   type EventEdit,
 } from "@/lib/googleCalendar";
 
@@ -30,6 +33,7 @@ export async function disconnectCalendarAction() {
     // Google, e os eventos ficariam encalhados na agenda da pessoa.
     await removeAllCardsFromAccount(account);
     await disconnectUserCalendar(session.userId);
+    clearCalendarCache(session.userId);
   }
   revalidate();
 }
@@ -48,6 +52,32 @@ export async function syncMyCalendarAction(): Promise<number> {
   return synced;
 }
 
+
+/** Cria um compromisso a partir de um horário vazio da grade. */
+export async function createEventAction(
+  draft: EventDraft
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const session = await getCurrentSession();
+  if (!session) return { ok: false, message: "Sessão expirada." };
+
+  const account = await getUserCalendarAccount(session.userId);
+  if (!account) return { ok: false, message: "Agenda não conectada." };
+
+  try {
+    await createGoogleEvent(account, draft);
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Não foi possível criar o compromisso.",
+    };
+  }
+
+  revalidate();
+  return { ok: true };
+}
 
 /** Salva a edição de um compromisso feita dentro do app. */
 export async function updateEventAction(

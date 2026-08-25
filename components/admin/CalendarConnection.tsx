@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   disconnectCalendarAction,
   syncMyCalendarAction,
@@ -12,6 +12,10 @@ import {
  * Cada ação fala com o Google e leva alguns segundos; sem dizer nada na tela
  * o clique parece não ter feito efeito e a pessoa clica de novo. Por isso
  * todo botão aqui tem estado de "trabalhando" e deixa um resultado escrito.
+ *
+ * Depois de conectada não há mais nada a decidir no dia a dia: o bloco de
+ * conexão vira uma engrenagem ao lado dos controles da semana, e a grade
+ * ganha o espaço que ele ocupava.
  */
 export function CalendarConnection({
   connected,
@@ -28,6 +32,28 @@ export function CalendarConnection({
 }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  // Clicar fora ou apertar Esc fecha — é um painel de ajustes, não um passo
+  // do fluxo; prender a pessoa nele seria estranho.
+  useEffect(() => {
+    if (!open) return;
+    function handlePointerDown(pointerEvent: PointerEvent) {
+      if (!boxRef.current?.contains(pointerEvent.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function handleKeyDown(keyEvent: KeyboardEvent) {
+      if (keyEvent.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
 
   if (!connected) {
     return (
@@ -50,58 +76,91 @@ export function CalendarConnection({
   }
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white p-5">
-      <h2 className="text-sm font-medium text-neutral-900">Minha agenda</h2>
-      <p className="mt-1 text-sm text-neutral-500">
-        Conectada{email ? (
-          <>
-            {" "}em <span className="font-medium">{email}</span>
-          </>
-        ) : null}, na agenda principal. {cardCount} {cardCount === 1 ? "material" : "materiais"} com
-        data {cardCount === 1 ? "está" : "estão"} sendo sincronizado
-        {cardCount === 1 ? "" : "s"}.
-      </p>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              setMessage(null);
-              const synced = await syncMyCalendarAction();
-              setMessage(
-                `${synced} ${synced === 1 ? "material sincronizado" : "materiais sincronizados"}.`
-              );
-            })
-          }
-          className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+    <div ref={boxRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-label="Ajustes da agenda"
+        aria-expanded={open}
+        title="Ajustes da agenda"
+        className={`flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 ${
+          open ? "bg-neutral-100 text-neutral-700" : ""
+        }`.trim()}
+      >
+        <svg
+          aria-hidden
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          className={`h-4 w-4 ${pending ? "animate-spin" : ""}`.trim()}
         >
-          {pending ? "Sincronizando..." : "Sincronizar agora"}
-        </button>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2a2 2 0 1 1-4 0V21a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2A1.7 1.7 0 0 0 4.8 8.6a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9.3a1.7 1.7 0 0 0 1-1.5V2a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v.1a1.7 1.7 0 0 0 1.5 1h.2a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1z" />
+        </svg>
+      </button>
 
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() =>
-            startTransition(async () => {
-              setMessage(null);
-              await disconnectCalendarAction();
-            })
-          }
-          className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+      {open ? (
+        <div
+          role="dialog"
+          aria-label="Ajustes da agenda"
+          className="absolute right-0 top-10 z-40 w-72 rounded-lg border border-neutral-200 bg-white p-4 shadow-lg"
         >
-          Desconectar
-        </button>
+          <h2 className="text-sm font-medium text-neutral-900">Minha agenda</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Conectada{email ? (
+              <>
+                {" "}em <span className="font-medium">{email}</span>
+              </>
+            ) : null}, na agenda principal. {cardCount}{" "}
+            {cardCount === 1 ? "material" : "materiais"} com data{" "}
+            {cardCount === 1 ? "está" : "estão"} sendo sincronizado
+            {cardCount === 1 ? "" : "s"}.
+          </p>
 
-        {message ? (
-          <span className="text-sm text-neutral-500">{message}</span>
-        ) : null}
-      </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  setMessage(null);
+                  const synced = await syncMyCalendarAction();
+                  setMessage(
+                    `${synced} ${synced === 1 ? "material sincronizado" : "materiais sincronizados"}.`
+                  );
+                })
+              }
+              className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+            >
+              {pending ? "Sincronizando..." : "Sincronizar agora"}
+            </button>
 
-      <p className="mt-3 text-xs text-neutral-400">
-        Ao desconectar, os eventos criados por aqui são apagados da sua agenda.
-      </p>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  setMessage(null);
+                  await disconnectCalendarAction();
+                })
+              }
+              className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+            >
+              Desconectar
+            </button>
+          </div>
+
+          {message ? (
+            <p className="mt-2 text-sm text-neutral-500">{message}</p>
+          ) : null}
+
+          <p className="mt-3 text-xs text-neutral-400">
+            Ao desconectar, os eventos criados por aqui são apagados da sua
+            agenda.
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

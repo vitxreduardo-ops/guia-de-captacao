@@ -112,6 +112,18 @@ function buildEventBody(card: SyncableCard) {
 }
 
 
+/** Ids dos eventos que o backlog criou na agenda desta pessoa — usado só
+ * pra marcar quais blocos da grade vieram de um material. */
+async function fetchBacklogEventIds(userId: string): Promise<Set<string>> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("backlog_card_events")
+    .select("google_event_id")
+    .eq("user_id", userId);
+  if (error) throw error;
+  return new Set((data ?? []).map((row) => row.google_event_id as string));
+}
+
 /** Ids de evento já criados pra este card, por usuário. */
 async function fetchCardEvents(cardId: string): Promise<Map<string, string>> {
   const supabase = getSupabaseServerClient();
@@ -487,6 +499,30 @@ export interface CalendarSource {
 }
 
 /**
+ * Trocar de semana refazia, a cada clique, a lista de agendas e a paleta de
+ * cores — duas idas ao Google que respondem sempre a mesma coisa e somavam a
+ * maior parte dos ~3s de espera. As duas mudam raramente, então ficam em
+ * memória: a lista por pessoa e por poucos minutos (ela ainda reflete
+ * caixinhas ligadas e desligadas no Google), a paleta por um dia, já que é
+ * fixa e igual pra todo mundo.
+ */
+const CALENDAR_LIST_TTL_MS = 5 * 60_000;
+const PALETTE_TTL_MS = 24 * 60 * 60_000;
+
+const calendarListCache = new Map<
+  string,
+  { value: CalendarSource[]; expiresAt: number }
+>();
+let paletteCache: { value: Map<string, string>; expiresAt: number } | null =
+  null;
+
+/** Chamado quando a conta muda (conectar/desconectar), pra não servir a
+ * lista de agendas de uma conta que já não é aquela. */
+export function clearCalendarCache(userId: string) {
+  calendarListCache.delete(userId);
+}
+
+/**
  * Paleta de cores de evento do Google.
  *
  * No Google a cor de um bloco pode vir de dois lugares: a cor da agenda ou
@@ -495,6 +531,19 @@ export interface CalendarSource {
  * justamente a leitura rápida que as cores dão.
  */
 async function fetchEventPalette(
+  accessToken: string
+): Promise<Map<string, string>> {
+  const cached = paletteCache;
+  if (cached && Date.now() < cached.expiresAt) return cached.value;
+  const value = await requestEventPalette(accessToken);
+  // Resposta vazia é sinal de falha; não vale cravar isso por um dia.
+  if (value.size > 0) {
+    paletteCache = { value, expiresAt: Date.now() + PALETTE_TTL_MS };
+  }
+  return value;
+}
+
+async function requestEventPalette(
   accessToken: string
 ): Promise<Map<string, string>> {
   const response = await fetch(`${CALENDAR_API}/colors`, {
@@ -512,6 +561,20 @@ async function fetchEventPalette(
 
 /** Agendas que a pessoa tem, com a cor que o Google usa em cada uma. */
 export async function listUserCalendars(
+  account: UserCalendarAccount
+): Promise<CalendarSource[]> {
+  const cached = calendarListCache.get(account.userId);
+  if (cached && Date.now() < cached.expiresAt) return cached.value;
+
+  const calendars = await requestUserCalendars(account);
+  calendarListCache.set(account.userId, {
+    value: calendars,
+    expiresAt: Date.now() + CALENDAR_LIST_TTL_MS,
+  });
+  return calendars;
+}
+
+async function requestUserCalendars(
   account: UserCalendarAccount
 ): Promise<CalendarSource[]> {
   const accessToken = await getUserAccessToken(account.userId);
@@ -590,7 +653,6 @@ export async function listWeekEvents(
 ): Promise<WeekEvent[]> {
   const accessToken = await getUserAccessToken(account.userId);
   const visible = calendars.filter((calendar) => calendar.selected);
-  const palette = await fetchEventPalette(accessToken);
 
   // Janela com um dia de folga de cada lado e em UTC puro: assim o intervalo
   // não depende do fuso estar cravado aqui — o que decide em qual coluna o
@@ -598,15 +660,14 @@ export async function listWeekEvents(
   const timeMin = `${addDaysKey(weekStartKey, -1)}T00:00:00Z`;
   const timeMax = `${addDaysKey(weekStartKey, 8)}T00:00:00Z`;
 
-  const supabase = getSupabaseServerClient();
-  const { data: mine, error } = await supabase
-    .from("backlog_card_events")
-    .select("google_event_id")
-    .eq("user_id", account.userId);
-  if (error) throw error;
-  const backlogIds = new Set(
-    (mine ?? []).map((row) => row.google_event_id as string)
-  );
+  // Paleta e "quais eventos vieram do backlog" não dependem das agendas:
+  // pedir tudo junto tira duas esperas em série de abrir a semana.
+  const palettePromise = fetchEventPalette(accessToken);
+  const backlogIdsPromise = fetchBacklogEventIds(account.userId);
+  // Ninguém espera essas duas quando não há agenda visível; sem isso a falha
+  // viraria "unhandled rejection" e derrubaria o processo.
+  palettePromise.catch(() => {});
+  backlogIdsPromise.catch(() => {});
 
   interface RawEvent {
     id: string;
@@ -646,7 +707,11 @@ export async function listWeekEvents(
         );
         return [] as WeekEvent[];
       }
-      const data = await response.json();
+      const [data, palette, backlogIds] = await Promise.all([
+        response.json(),
+        palettePromise,
+        backlogIdsPromise,
+      ]);
 
       const events: WeekEvent[] = [];
       for (const item of (data.items ?? []) as RawEvent[]) {
@@ -760,6 +825,70 @@ function dayIndexOf(weekStartKey: string, key: string): number {
   const start = Date.UTC(ys, ms - 1, ds);
   const target = Date.UTC(y, m - 1, d);
   return Math.round((target - start) / (24 * 60 * 60 * 1000));
+}
+
+export interface EventDraft {
+  calendarId: string;
+  title: string;
+  location: string;
+  description: string;
+  /** YYYY-MM-DD e HH:MM, no fuso do backlog. */
+  date: string;
+  startTime: string;
+  endTime: string;
+}
+
+/**
+ * Cria um compromisso na agenda da pessoa, a partir de um horário vazio da
+ * grade. Não passa pelo backlog de propósito: "Minha Agenda" é espelho do
+ * Google, e material do Instagram continua nascendo só no backlog.
+ */
+export async function createGoogleEvent(
+  account: UserCalendarAccount,
+  draft: EventDraft
+): Promise<void> {
+  const accessToken = await getUserAccessToken(account.userId);
+
+  const body = {
+    summary: draft.title.trim() || "(sem título)",
+    location: draft.location.trim(),
+    description: draft.description.trim(),
+    start: {
+      dateTime: `${draft.date}T${draft.startTime}:00`,
+      timeZone: TIME_ZONE,
+    },
+    end: {
+      // Hora final menor ou igual à inicial = o compromisso passa da
+      // meia-noite; sem isso o Google recusa o intervalo.
+      dateTime:
+        draft.endTime <= draft.startTime
+          ? `${addDaysKey(draft.date, 1)}T${draft.endTime}:00`
+          : `${draft.date}T${draft.endTime}:00`,
+      timeZone: TIME_ZONE,
+    },
+  };
+
+  const response = await fetch(
+    `${CALENDAR_API}/calendars/${encodeURIComponent(
+      draft.calendarId
+    )}/events`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }
+  );
+
+  if (!response.ok) {
+    const detail = await response.text();
+    if (response.status === 403) {
+      throw new Error("Sua conta não pode criar eventos nesta agenda.");
+    }
+    throw new Error(`Falha ao criar o compromisso: ${detail}`);
+  }
 }
 
 export interface EventEdit {

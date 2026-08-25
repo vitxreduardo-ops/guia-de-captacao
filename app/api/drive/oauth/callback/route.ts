@@ -6,7 +6,10 @@ import {
   connectUserCalendar,
   getUserCalendarAccount,
 } from "@/lib/userCalendars";
-import { syncAllCardsToAccount } from "@/lib/googleCalendar";
+import {
+  clearCalendarCache,
+  syncAllCardsToAccount,
+} from "@/lib/googleCalendar";
 
 export async function GET(request: NextRequest) {
   const session = await getCurrentSession();
@@ -26,6 +29,9 @@ export async function GET(request: NextRequest) {
   if (isCalendar && code) {
     try {
       await connectUserCalendar(session.userId, code);
+      // Pode ser outra conta Google que acabou de entrar: a lista de agendas
+      // guardada em memória é da anterior.
+      clearCalendarCache(session.userId);
       const account = await getUserCalendarAccount(session.userId);
       // Agenda recém-conectada começa vazia; carrega de uma vez o que já
       // tem data pra pessoa não achar que não funcionou.

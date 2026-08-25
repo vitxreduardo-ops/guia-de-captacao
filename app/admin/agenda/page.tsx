@@ -114,11 +114,13 @@ export default async function MinhaAgendaPage({
         </p>
       ) : null}
 
-      <CalendarConnection
-        connected={account !== null}
-        email={account?.email || null}
-        cardCount={cardCount}
-      />
+      {account ? null : (
+        <CalendarConnection
+          connected={false}
+          email={null}
+          cardCount={cardCount}
+        />
+      )}
 
       {account ? (
         <section className="mt-6">
@@ -149,25 +151,31 @@ export default async function MinhaAgendaPage({
               {title}
             </h2>
 
-            {calendars.length > 0 ? (
-              <div className="ml-auto flex flex-wrap items-center gap-3">
-                {calendars
-                  .filter((calendar) => calendar.selected)
-                  .map((calendar) => (
+            <div className="ml-auto flex flex-wrap items-center gap-3">
+              {calendars
+                .filter((calendar) => calendar.selected)
+                .map((calendar) => (
+                  <span
+                    key={calendar.id}
+                    className="flex items-center gap-1.5 text-xs text-neutral-500"
+                  >
                     <span
-                      key={calendar.id}
-                      className="flex items-center gap-1.5 text-xs text-neutral-500"
-                    >
-                      <span
-                        aria-hidden
-                        className="h-2.5 w-2.5 rounded-sm"
-                        style={{ backgroundColor: calendar.color }}
-                      />
-                      {calendar.name}
-                    </span>
-                  ))}
-              </div>
-            ) : null}
+                      aria-hidden
+                      className="h-2.5 w-2.5 rounded-sm"
+                      style={{ backgroundColor: calendar.color }}
+                    />
+                    {calendar.name}
+                  </span>
+                ))}
+
+              {/* Conexão já resolvida: os ajustes ficam aqui, fora do
+                  caminho, e a grade fica com a tela inteira. */}
+              <CalendarConnection
+                connected
+                email={account.email || null}
+                cardCount={cardCount}
+              />
+            </div>
           </div>
 
           {eventsError ? (
@@ -175,7 +183,14 @@ export default async function MinhaAgendaPage({
               {eventsError}
             </p>
           ) : (
-            <WeekCalendar events={events} days={days} todayKey={todayKey} />
+            <WeekCalendar
+              events={events}
+              days={days}
+              todayKey={todayKey}
+              writableCalendars={calendars.filter(
+                (calendar) => calendar.canWrite
+              )}
+            />
           )}
 
         </section>

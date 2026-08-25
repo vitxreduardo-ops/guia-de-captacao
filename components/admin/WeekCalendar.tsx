@@ -3,8 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { EventDetails } from "@/components/admin/EventDetails";
+import {
+  EventCreate,
+  type NewEventSlot,
+} from "@/components/admin/EventCreate";
 import { updateEventAction } from "@/app/admin/agenda/actions";
-import type { WeekEvent } from "@/lib/googleCalendar";
+import type { CalendarSource, WeekEvent } from "@/lib/googleCalendar";
 
 /** Altura de uma hora na grade. Define toda a escala vertical. */
 const HOUR_HEIGHT = 48;
@@ -91,15 +95,27 @@ const CLOCK = new Intl.DateTimeFormat("pt-BR", {
   hour12: false,
 });
 
+/** Duração que um horário vazio ganha ao ser clicado. */
+const NEW_EVENT_MINUTES = 30;
+
+function timeText(minutes: number) {
+  return `${String(Math.floor(minutes / 60) % 24).padStart(2, "0")}:${String(
+    minutes % 60
+  ).padStart(2, "0")}`;
+}
+
 export function WeekCalendar({
   events,
   days,
   todayKey,
+  writableCalendars,
 }: {
   events: WeekEvent[];
   /** Chaves YYYY-MM-DD dos sete dias, já resolvidas no servidor. */
   days: { key: string; day: number }[];
   todayKey: string | null;
+  /** Agendas em que a conta pode criar compromissos. */
+  writableCalendars: CalendarSource[];
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [nowMinutes, setNowMinutes] = useState<number | null>(null);
@@ -107,6 +123,7 @@ export function WeekCalendar({
     event: WeekEvent;
     dayKey: string;
   } | null>(null);
+  const [newSlot, setNewSlot] = useState<NewEventSlot | null>(null);
 
   const router = useRouter();
   const columnsRef = useRef<HTMLDivElement>(null);
@@ -541,13 +558,37 @@ export function WeekCalendar({
                 key={day.key}
                 className="relative min-w-0 flex-1 border-l border-neutral-100"
               >
-                {Array.from({ length: 24 }, (_, hour) => (
-                  <div
-                    key={hour}
-                    style={{ height: HOUR_HEIGHT }}
-                    className="border-b border-neutral-100"
-                  />
-                ))}
+                {/* Fundo do dia. Clicar aqui cria; os blocos são irmãos
+                    posteriores, então o clique neles não chega até esta
+                    camada e continua abrindo os detalhes. */}
+                <div
+                  onClick={(clickEvent) => {
+                    if (writableCalendars.length === 0) return;
+                    const bounds =
+                      clickEvent.currentTarget.getBoundingClientRect();
+                    const raw =
+                      ((clickEvent.clientY - bounds.top) / HOUR_HEIGHT) * 60;
+                    const snapped =
+                      Math.round(raw / SNAP_MINUTES) * SNAP_MINUTES;
+                    const start = Math.max(
+                      0,
+                      Math.min(24 * 60 - NEW_EVENT_MINUTES, snapped)
+                    );
+                    setNewSlot({
+                      dayKey: day.key,
+                      startTime: timeText(start),
+                      endTime: timeText(start + NEW_EVENT_MINUTES),
+                    });
+                  }}
+                >
+                  {Array.from({ length: 24 }, (_, hour) => (
+                    <div
+                      key={hour}
+                      style={{ height: HOUR_HEIGHT }}
+                      className="border-b border-neutral-100"
+                    />
+                  ))}
+                </div>
 
                 {index === todayIndex && nowMinutes !== null ? (
                   <div
@@ -708,6 +749,12 @@ export function WeekCalendar({
         event={selected?.event ?? null}
         dayKey={selected?.dayKey ?? null}
         onClose={() => setSelected(null)}
+      />
+
+      <EventCreate
+        slot={newSlot}
+        calendars={writableCalendars}
+        onClose={() => setNewSlot(null)}
       />
     </div>
   );
