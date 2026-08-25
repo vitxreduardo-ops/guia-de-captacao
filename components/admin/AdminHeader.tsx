@@ -1,6 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { logout } from "@/app/admin/login/actions";
+import { LiveRefresh } from "@/components/admin/LiveRefresh";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { TatuLogo } from "@/components/TatuLogo";
 import {
@@ -39,6 +40,9 @@ export async function AdminHeader({
 
   return (
     <header className="mb-8">
+      {/* Todo o admin fica montado sob este header, então é daqui que sai a
+          sincronização com o que os outros usuários estão fazendo. */}
+      <LiveRefresh />
       {/* O logo é a volta pro Painel de qualquer página — é onde todo mundo
           clica esperando ir pra home. */}
       <Link

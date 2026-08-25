@@ -698,8 +698,14 @@ export function Board({
     ? cards.find((card) => card.id === activeCardId) ?? null
     : null;
 
+  // Enquanto o quadro está sendo mexido (arraste, card aberto ou em edição) a
+  // atualização automática espera: sobrescrever as colunas no meio da interação
+  // faria o card saltar de volta.
+  const interacting = Boolean(activeCardId || openCardId || editingCardId);
+
   return (
     <>
+      {interacting ? <span hidden data-live-pause /> : null}
       <BacklogToaster />
 
       {/* Abas, filtro e configurações do quadro na mesma linha — a barra
