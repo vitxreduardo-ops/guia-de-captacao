@@ -277,6 +277,39 @@ export async function getGalleryClientBySlugWithImages(
   return attachImages(data);
 }
 
+/**
+ * Itens de uma galeria publicada, filtrados pelos ids escolhidos — base do
+ * download em lote. Consulta pelo slug e por `client_id` de propósito: assim
+ * uma lista de ids vinda do navegador nunca consegue puxar arquivo de outro
+ * cliente, e galeria em rascunho não baixa nada.
+ */
+export async function getPublishedGalleryImagesByIds(
+  slug: string,
+  ids: string[]
+): Promise<{ client: GalleryClient; images: GalleryImage[] } | null> {
+  if (ids.length === 0) return null;
+
+  const supabase = getSupabaseServerClient();
+  const { data: client, error: clientError } = await supabase
+    .from("gallery_clients")
+    .select("*")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (clientError) throw clientError;
+  if (!client || client.status !== "published") return null;
+
+  const { data, error } = await supabase
+    .from("gallery_images")
+    .select("*")
+    .eq("client_id", client.id)
+    .in("id", ids)
+    .order("position", { ascending: true });
+
+  if (error) throw error;
+  return { client, images: data ?? [] };
+}
+
 export async function createGalleryClient(
   name: string
 ): Promise<GalleryClient> {

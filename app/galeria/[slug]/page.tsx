@@ -43,7 +43,11 @@ export default async function PublicGalleryPage({ params }: { params: Params }) 
             Nenhuma foto adicionada ainda.
           </p>
         ) : (
-          <GalleryFolderBrowser root={root} clientName={client.name} />
+          <GalleryFolderBrowser
+            root={root}
+            clientName={client.name}
+            slug={client.slug}
+          />
         )}
       </div>
     </div>
