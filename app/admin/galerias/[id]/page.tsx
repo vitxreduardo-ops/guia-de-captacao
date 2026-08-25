@@ -8,6 +8,7 @@ import { getConnectedGoogleAccount } from "@/lib/googleDrive";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { Accordion } from "@/components/Accordion";
 import { DeleteButton } from "@/components/admin/DeleteButton";
+import { DriveSyncForm } from "@/components/admin/DriveSyncForm";
 import { getCurrentUsername } from "@/lib/session";
 import {
   addGalleryImageAction,
@@ -219,28 +220,15 @@ export default async function GalleryClientPage({ params }: { params: Params }) 
               </p>
             )}
 
-            <form
+            <DriveSyncForm
               action={syncDriveFolderAction}
-              className="flex flex-wrap gap-2"
-            >
-              <input type="hidden" name="guide_id" value={client.id} />
-              <input
-                name="drive_folder_url"
-                placeholder="https://drive.google.com/drive/folders/..."
-                defaultValue={
-                  client.drive_folder_id
-                    ? `https://drive.google.com/drive/folders/${client.drive_folder_id}`
-                    : ""
-                }
-                className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-              />
-              <button
-                type="submit"
-                className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
-              >
-                Sincronizar fotos
-              </button>
-            </form>
+              clientId={client.id}
+              defaultFolderUrl={
+                client.drive_folder_id
+                  ? `https://drive.google.com/drive/folders/${client.drive_folder_id}`
+                  : ""
+              }
+            />
           </>
         )}
       </section>
