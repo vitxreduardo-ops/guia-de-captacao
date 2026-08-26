@@ -79,7 +79,33 @@ export interface UserCalendarAccount {
   calendarId: string;
 }
 
+/**
+ * A conta conectada é lida em toda visita à agenda e muda só quando alguém
+ * conecta ou desconecta — uma ida ao banco por navegação era o item mais
+ * caro do caminho. O cache curto vale por usuário e é limpo nos dois pontos
+ * em que a conta muda.
+ */
+const ACCOUNT_TTL_MS = 60_000;
+const accountCache = new Map<
+  string,
+  { value: UserCalendarAccount | null; expiresAt: number }
+>();
+
 export async function getUserCalendarAccount(
+  userId: string
+): Promise<UserCalendarAccount | null> {
+  const cached = accountCache.get(userId);
+  if (cached && Date.now() < cached.expiresAt) return cached.value;
+
+  const account = await requestUserCalendarAccount(userId);
+  accountCache.set(userId, {
+    value: account,
+    expiresAt: Date.now() + ACCOUNT_TTL_MS,
+  });
+  return account;
+}
+
+async function requestUserCalendarAccount(
   userId: string
 ): Promise<UserCalendarAccount | null> {
   const supabase = getSupabaseServerClient();
@@ -174,6 +200,7 @@ const TOKEN_EXPIRY_MARGIN_MS = 60_000;
 function clearCachedAccessToken(userId: string) {
   cachedTokens.delete(userId);
   inFlight.delete(userId);
+  accountCache.delete(userId);
 }
 
 async function requestAccessToken(userId: string): Promise<string> {

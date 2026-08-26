@@ -1,19 +1,17 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AgendaFrame } from "@/components/admin/AgendaFrame";
+import { AgendaGrid, AgendaGridSkeleton } from "./AgendaGrid";
 import { CalendarConnection } from "@/components/admin/CalendarConnection";
 import { CalendarSidebar } from "@/components/admin/CalendarSidebar";
-import { MonthCalendar } from "@/components/admin/MonthCalendar";
 import { ViewPicker, type AgendaView } from "@/components/admin/ViewPicker";
-import { WeekCalendar } from "@/components/admin/WeekCalendar";
 import { getCurrentSession, getCurrentUsername } from "@/lib/session";
 import { getUserCalendarAccount } from "@/lib/userCalendars";
 import { countBacklogCardsWithDate } from "@/lib/backlog";
 import {
-  listRangeEvents,
   listUserCalendars,
   type CalendarSource,
-  type WeekEvent,
 } from "@/lib/googleCalendar";
 
 export const dynamic = "force-dynamic";
@@ -130,20 +128,19 @@ export default async function MinhaAgendaPage({
     return { key, day: Number(key.slice(8, 10)) };
   });
 
-  // A agenda pode falhar por conta revogada ou instabilidade do Google; isso
-  // não pode derrubar a tela inteira, que também serve pra reconectar.
-  let events: WeekEvent[] = [];
+  // A lista de agendas fica em cache e é barata; os compromissos, não —
+  // eles chegam por streaming, dentro do <Suspense> lá embaixo. Uma conta
+  // revogada não pode derrubar a tela, que também serve pra reconectar.
   let calendars: CalendarSource[] = [];
-  let eventsError: string | null = null;
+  let calendarsError: string | null = null;
   if (account) {
     try {
       calendars = await listUserCalendars(account);
-      events = await listRangeEvents(account, start, count, calendars);
     } catch (error) {
-      eventsError =
+      calendarsError =
         error instanceof Error
           ? error.message
-          : "Não foi possível ler sua agenda.";
+          : "Não foi possível ler suas agendas.";
     }
   }
 
@@ -267,26 +264,35 @@ export default async function MinhaAgendaPage({
               </>
             }
           >
-            {eventsError ? (
+            {calendarsError ? (
               <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                {eventsError}
+                {calendarsError}
               </p>
-            ) : view === "mes" ? (
-              <MonthCalendar
-                events={events}
-                days={days}
-                todayKey={todayKey}
-                monthKey={anchor.slice(0, 7)}
-              />
             ) : (
-              <WeekCalendar
-                events={events}
-                days={days}
-                todayKey={todayKey}
-                writableCalendars={calendars.filter(
-                  (calendar) => calendar.canWrite
-                )}
-              />
+              // A chave force o fallback a reaparecer a cada período: sem
+              // ela o React reaproveita a grade antiga e a tela fica parada
+              // durante a espera.
+              <Suspense
+                key={`${view}:${start}`}
+                fallback={
+                  <AgendaGridSkeleton
+                    days={days}
+                    todayKey={todayKey}
+                    view={view}
+                    monthKey={anchor.slice(0, 7)}
+                  />
+                }
+              >
+                <AgendaGrid
+                  account={account}
+                  calendars={calendars}
+                  days={days}
+                  rangeStart={start}
+                  todayKey={todayKey}
+                  view={view}
+                  monthKey={anchor.slice(0, 7)}
+                />
+              </Suspense>
             )}
           </AgendaFrame>
         </section>

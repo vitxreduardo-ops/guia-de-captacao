@@ -8,6 +8,7 @@ import {
 } from "@/lib/userCalendars";
 import {
   clearCalendarCache,
+  clearEventsCache,
   createGoogleEvent,
   removeAllCardsFromAccount,
   setCalendarSelected,
@@ -49,6 +50,7 @@ export async function syncMyCalendarAction(): Promise<number> {
   if (!account) return 0;
 
   const synced = await syncAllCardsToAccount(account);
+  clearEventsCache(session.userId);
   revalidate();
   return synced;
 }
@@ -67,6 +69,7 @@ export async function toggleCalendarAction(
 
   try {
     await setCalendarSelected(account, calendarId, selected);
+    clearEventsCache(session.userId);
   } catch (error) {
     return {
       ok: false,
@@ -93,6 +96,7 @@ export async function createEventAction(
 
   try {
     await createGoogleEvent(account, draft);
+    clearEventsCache(session.userId);
   } catch (error) {
     return {
       ok: false,
@@ -119,6 +123,7 @@ export async function updateEventAction(
 
   try {
     await updateGoogleEvent(account, edit);
+    clearEventsCache(session.userId);
   } catch (error) {
     return {
       ok: false,

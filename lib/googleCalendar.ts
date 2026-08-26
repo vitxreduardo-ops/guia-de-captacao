@@ -113,8 +113,26 @@ function buildEventBody(card: SyncableCard) {
 
 
 /** Ids dos eventos que o backlog criou na agenda desta pessoa — usado só
- * pra marcar quais blocos da grade vieram de um material. */
+ * pra marcar quais blocos da grade vieram de um material. Mesma validade
+ * curta dos eventos: é consultado em toda navegação e muda junto com eles. */
+const backlogIdsCache = new Map<
+  string,
+  { value: Set<string>; expiresAt: number }
+>();
+
 async function fetchBacklogEventIds(userId: string): Promise<Set<string>> {
+  const cached = backlogIdsCache.get(userId);
+  if (cached && Date.now() < cached.expiresAt) return cached.value;
+
+  const ids = await requestBacklogEventIds(userId);
+  backlogIdsCache.set(userId, {
+    value: ids,
+    expiresAt: Date.now() + EVENTS_TTL_MS,
+  });
+  return ids;
+}
+
+async function requestBacklogEventIds(userId: string): Promise<Set<string>> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("backlog_card_events")
@@ -672,6 +690,78 @@ function addDaysKey(key: string, days: number): string {
 }
 
 /**
+ * Eventos crus de uma agenda numa janela de tempo, com cache curto.
+ *
+ * Ir e voltar entre semanas é o gesto mais comum da tela, e sem isso cada
+ * passo refaz uma ida ao Google por agenda. Meio minuto de validade deixa a
+ * navegação instantânea sem servir uma agenda visivelmente desatualizada; o
+ * que é editado por aqui limpa o cache na hora (`clearEventsCache`).
+ */
+const EVENTS_TTL_MS = 30_000;
+const eventsCache = new Map<
+  string,
+  { value: unknown[]; expiresAt: number }
+>();
+
+/** Chamado depois de criar, mover ou editar: o que está guardado ainda
+ * mostra o compromisso no lugar antigo. */
+export function clearEventsCache(userId: string) {
+  backlogIdsCache.delete(userId);
+  const prefix = `${userId}|`;
+  for (const key of eventsCache.keys()) {
+    if (key.startsWith(prefix)) eventsCache.delete(key);
+  }
+}
+
+async function fetchCalendarItems(
+  userId: string,
+  accessToken: string,
+  calendar: CalendarSource,
+  timeMin: string,
+  timeMax: string
+): Promise<unknown[]> {
+  const cacheKey = `${userId}|${calendar.id}|${timeMin}|${timeMax}`;
+  const cached = eventsCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAt) return cached.value;
+
+  const params = new URLSearchParams({
+    timeMin,
+    timeMax,
+    singleEvents: "true",
+    orderBy: "startTime",
+    maxResults: "250",
+    // Só o que a grade usa: a resposta cheia do Google traz dezenas de
+    // campos por evento que nada aqui lê.
+    fields:
+      "items(id,summary,htmlLink,start,end,colorId,recurringEventId,description,location,hangoutLink,attendees(email,displayName))",
+  });
+
+  const response = await fetch(
+    `${CALENDAR_API}/calendars/${encodeURIComponent(
+      calendar.id
+    )}/events?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  // Uma agenda inacessível (compartilhada e revogada, por exemplo) não pode
+  // derrubar a grade inteira — mas some da tela sem avisar, então pelo menos
+  // deixa rastro no log.
+  if (!response.ok) {
+    console.error(
+      `[calendario] não deu pra ler a agenda "${calendar.name}": ${response.status} ${await response.text()}`
+    );
+    return [];
+  }
+
+  const data = await response.json();
+  const items = (data.items ?? []) as unknown[];
+  eventsCache.set(cacheKey, {
+    value: items,
+    expiresAt: Date.now() + EVENTS_TTL_MS,
+  });
+  return items;
+}
+
+/**
  * Eventos de um intervalo de dias, de todas as agendas visíveis, já
  * posicionados para a grade.
  *
@@ -722,33 +812,18 @@ export async function listRangeEvents(
 
   const perCalendar = await Promise.all(
     visible.map(async (calendar) => {
-      const params = new URLSearchParams({
-        timeMin,
-        timeMax,
-        singleEvents: "true",
-        orderBy: "startTime",
-        maxResults: "250",
-      });
-      const response = await fetch(
-        `${CALENDAR_API}/calendars/${encodeURIComponent(
-          calendar.id
-        )}/events?${params.toString()}`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
-      );
-      // Uma agenda inacessível (compartilhada e revogada, por exemplo) não
-      // pode derrubar a semana inteira — mas some da tela sem avisar, então
-      // pelo menos deixa rastro no log.
-      if (!response.ok) {
-        console.error(
-          `[calendario] não deu pra ler a agenda "${calendar.name}": ${response.status} ${await response.text()}`
-        );
-        return [] as WeekEvent[];
-      }
-      const [data, palette, backlogIds] = await Promise.all([
-        response.json(),
+      const [items, palette, backlogIds] = await Promise.all([
+        fetchCalendarItems(
+          account.userId,
+          accessToken,
+          calendar,
+          timeMin,
+          timeMax
+        ),
         palettePromise,
         backlogIdsPromise,
       ]);
+      const data = { items };
 
       const events: WeekEvent[] = [];
       for (const item of (data.items ?? []) as RawEvent[]) {
