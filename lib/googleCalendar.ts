@@ -1006,6 +1006,45 @@ export async function createGoogleEvent(
   }
 }
 
+export interface EventRemoval {
+  calendarId: string;
+  eventId: string;
+  /** Ocorrência de evento repetido: apagar a série é apagar o mestre. */
+  recurringEventId: string | null;
+  scope: "single" | "series";
+}
+
+/**
+ * Apaga um compromisso da agenda da pessoa.
+ *
+ * Num evento repetido, apagar a ocorrência deixa o resto da série de pé — é
+ * o Google que registra a exceção. Apagar a série é apagar o evento mestre,
+ * e por isso a escolha é perguntada na tela antes de chegar aqui.
+ */
+export async function deleteGoogleEvent(
+  account: UserCalendarAccount,
+  removal: EventRemoval
+): Promise<void> {
+  const targetId =
+    removal.scope === "series" && removal.recurringEventId
+      ? removal.recurringEventId
+      : removal.eventId;
+
+  const response = await calendarFetch(
+    account.userId,
+    `${CALENDAR_API}/calendars/${encodeURIComponent(
+      removal.calendarId
+    )}/events/${encodeURIComponent(targetId)}`,
+    { method: "DELETE" }
+  );
+  // 404/410 significa que já não existe — o resultado desejado.
+  if (!response.ok && response.status !== 404 && response.status !== 410) {
+    throw new Error(
+      `Falha ao apagar o compromisso: ${await response.text()}`
+    );
+  }
+}
+
 export interface EventEdit {
   calendarId: string;
   eventId: string;

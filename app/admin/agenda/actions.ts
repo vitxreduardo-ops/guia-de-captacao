@@ -10,12 +10,14 @@ import {
   clearCalendarCache,
   clearEventsCache,
   createGoogleEvent,
+  deleteGoogleEvent,
   removeAllCardsFromAccount,
   setCalendarSelected,
   syncAllCardsToAccount,
   updateGoogleEvent,
   type EventDraft,
   type EventEdit,
+  type EventRemoval,
 } from "@/lib/googleCalendar";
 
 const PATHS = ["/admin/agenda", "/admin/backlog/calendario"];
@@ -104,6 +106,39 @@ export async function createEventAction(
         error instanceof Error
           ? error.message
           : "Não foi possível criar o compromisso.",
+    };
+  }
+
+  revalidate();
+  return { ok: true };
+}
+
+/**
+ * Apaga um compromisso.
+ *
+ * Material do backlog não passa por aqui: ele nasce de um card, e apagar só
+ * o evento deixaria o card apontando pra um compromisso que já não existe —
+ * o lugar de tirar isso da agenda é o próprio backlog.
+ */
+export async function deleteEventAction(
+  removal: EventRemoval
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const session = await getCurrentSession();
+  if (!session) return { ok: false, message: "Sessão expirada." };
+
+  const account = await getUserCalendarAccount(session.userId);
+  if (!account) return { ok: false, message: "Agenda não conectada." };
+
+  try {
+    await deleteGoogleEvent(account, removal);
+    clearEventsCache(session.userId);
+  } catch (error) {
+    return {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Não foi possível apagar o compromisso.",
     };
   }
 

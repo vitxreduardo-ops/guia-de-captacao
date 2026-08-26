@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { updateEventAction } from "@/app/admin/agenda/actions";
+import {
+  deleteEventAction,
+  updateEventAction,
+} from "@/app/admin/agenda/actions";
 import type { WeekEvent } from "@/lib/googleCalendar";
 
 const WHEN = new Intl.DateTimeFormat("pt-BR", {
@@ -63,6 +66,9 @@ export function EventDetails({
   // Evento repetido: o Google pergunta se a mudança vale pra um dia ou pra
   // série. Perguntar também evita mexer em semanas inteiras sem querer.
   const [scope, setScope] = useState<"single" | "series">("single");
+  // Apagar é o único movimento daqui sem volta, então acontece em dois
+  // tempos: o primeiro clique troca os botões pela pergunta.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const editing = event !== null && editingId === event.rawId;
 
@@ -71,11 +77,13 @@ export function EventDetails({
   const close = useCallback(() => {
     setEditingId(null);
     setError(null);
+    setConfirmingDelete(false);
     onClose();
   }, [onClose]);
 
   function startEditing(target: WeekEvent) {
     setError(null);
+    setConfirmingDelete(false);
     setScope("single");
     setForm({
       title: target.title,
@@ -371,6 +379,75 @@ export function EventDetails({
               </form>
             ) : (
             <div className="mt-5 flex flex-wrap items-center gap-2">
+              {confirmingDelete ? (
+                <>
+                  <p className="w-full text-sm text-neutral-700">
+                    {event.recurringEventId && scope === "series"
+                      ? "Apagar este compromisso e todas as repetições dele? Não dá pra desfazer por aqui."
+                      : "Apagar este compromisso? Não dá pra desfazer por aqui."}
+                  </p>
+
+                  {event.recurringEventId ? (
+                    <div className="mb-1 w-full space-y-1 text-sm text-neutral-700">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="apagar-escopo"
+                          checked={scope === "single"}
+                          onChange={() => setScope("single")}
+                        />
+                        Apagar só este dia
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="apagar-escopo"
+                          checked={scope === "series"}
+                          onChange={() => setScope("series")}
+                        />
+                        Apagar todos
+                      </label>
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      setError(null);
+                      startTransition(async () => {
+                        const result = await deleteEventAction({
+                          calendarId: event.calendarId,
+                          eventId: event.rawId,
+                          recurringEventId: event.recurringEventId,
+                          scope,
+                        });
+                        if (!result.ok) {
+                          setError(result.message);
+                          setConfirmingDelete(false);
+                          return;
+                        }
+                        // A grade vem do servidor: sem recarregar, o bloco
+                        // continuaria na tela depois de apagado.
+                        router.refresh();
+                        close();
+                      });
+                    }}
+                    className="rounded-md bg-red-700 px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-red-800 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
+                  >
+                    {pending ? "Apagando..." : "Apagar"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => setConfirmingDelete(false)}
+                    className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 transition-transform hover:bg-neutral-50 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+                  >
+                    Cancelar
+                  </button>
+                </>
+              ) : (
+                <>
               {event.canEdit ? (
                 <button
                   type="button"
@@ -400,11 +477,36 @@ export function EventDetails({
                   {event.canEdit ? "Abrir no Google ↗" : "Editar no Google ↗"}
                 </a>
               ) : null}
+              {/* Material do backlog não se apaga por aqui: ele nasce de um
+                  card, e sumir só com o evento deixaria o card apontando pro
+                  vazio. O lugar de tirar da agenda é o próprio backlog. */}
+              {event.canEdit && !event.fromBacklog ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setScope("single");
+                    setConfirmingDelete(true);
+                  }}
+                  className="rounded-md px-3 py-1.5 text-sm text-red-700 transition-transform hover:bg-red-50 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2 focus-visible:outline-none"
+                >
+                  Excluir
+                </button>
+              ) : null}
+
               {event.canEdit ? null : (
                 <span className="text-xs text-neutral-400">
                   Esta agenda é só de leitura pra sua conta.
                 </span>
               )}
+                </>
+              )}
+
+              {error ? (
+                <p className="w-full rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                  {error}
+                </p>
+              ) : null}
             </div>
             )}
           </motion.div>
