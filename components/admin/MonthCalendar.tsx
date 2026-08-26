@@ -65,7 +65,7 @@ export function MonthCalendar({
             {DAY_LABELS.map((label) => (
               <div
                 key={label}
-                className="flex-1 border-l border-neutral-100 py-2 text-center text-[10px] font-medium uppercase tracking-wide text-neutral-400"
+                className="flex-1 border-l border-neutral-100 py-2 text-center text-[0.625rem] font-medium uppercase tracking-[0.06em] text-neutral-400"
               >
                 {label}
               </div>
@@ -115,7 +115,7 @@ export function MonthCalendar({
                             });
                           }}
                           title={`${event.title} · ${event.calendarName}`}
-                          className="flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[11px] transition-transform hover:bg-neutral-100 active:scale-90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+                          className="flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[0.6875rem] transition-transform hover:bg-neutral-100 active:scale-90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                         >
                           {event.allDay ? (
                             <span

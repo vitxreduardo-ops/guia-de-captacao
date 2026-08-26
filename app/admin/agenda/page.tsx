@@ -201,7 +201,7 @@ export default async function MinhaAgendaPage({
                   </NavLink>
                 </div>
 
-                <h2 className="text-lg text-neutral-800 first-letter:uppercase">
+                <h2 className="text-lg tracking-[-0.01em] text-neutral-800 first-letter:uppercase">
                   {title}
                 </h2>
 

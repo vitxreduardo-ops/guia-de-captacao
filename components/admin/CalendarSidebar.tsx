@@ -157,7 +157,7 @@ export function CalendarSidebar({
           {WEEKDAYS.map((label, index) => (
             <span
               key={`${label}-${index}`}
-              className="text-[10px] font-medium text-neutral-400"
+              className="text-[0.625rem] font-medium text-neutral-400"
             >
               {label}
             </span>

@@ -84,7 +84,7 @@ export function ViewPicker({
                 : { opacity: 0, scale: 0.95, y: -4 }
             }
             transition={{ type: "spring", bounce: 0, duration: 0.18 }}
-            className="absolute left-0 top-10 z-40 w-40 overflow-hidden rounded-lg border border-neutral-200 bg-white py-1 shadow-lg"
+            className="absolute left-0 top-10 z-40 w-40 overflow-hidden rounded-lg border border-neutral-200 bg-white/90 py-1 shadow-lg backdrop-blur-md"
           >
           {(Object.keys(VIEW_LABELS) as AgendaView[]).map((view) => (
             <NavLink

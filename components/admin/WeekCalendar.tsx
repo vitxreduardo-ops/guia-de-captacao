@@ -18,9 +18,10 @@ const SNAP_MINUTES = 15;
 /** Pixels de folga antes de um clique virar arrasto — sem isso, abrir o
  * painel com a mão trêmula move o compromisso alguns minutos. */
 const DRAG_THRESHOLD_PX = 5;
-/** No toque, arrastar disputa com a rolagem da grade: só vira arrasto depois
- * de segurar parado. */
-const TOUCH_HOLD_MS = 400;
+/** No toque ainda vale segurar antes de arrastar — é o que separa "quero
+ * mover" de "quero abrir" —, mas com `touch-action: none` no bloco o gesto
+ * não disputa mais com a rolagem, e a espera pôde encurtar. */
+const TOUCH_HOLD_MS = 150;
 const DAY_LABELS = ["DOM.", "SEG.", "TER.", "QUA.", "QUI.", "SEX.", "SÁB."];
 
 /** Dia da semana de uma chave YYYY-MM-DD. As colunas deixaram de ser sempre
@@ -245,6 +246,9 @@ export function WeekCalendar({
     if (pointerEvent.button !== 0 && pointerEvent.pointerType === "mouse") {
       return;
     }
+    // Com a captura, o bloco continua recebendo o gesto mesmo quando o
+    // ponteiro sai dele — inclusive fora da janela.
+    pointerEvent.currentTarget.setPointerCapture(pointerEvent.pointerId);
 
     const grid = columnsRef.current;
     const scroller = scrollRef.current;
@@ -387,6 +391,7 @@ export function WeekCalendar({
     // Sem isso o gesto viraria "mover" também, já que a alça fica dentro do
     // bloco.
     pointerEvent.stopPropagation();
+    pointerEvent.currentTarget.setPointerCapture(pointerEvent.pointerId);
 
     const grid = columnsRef.current;
     if (!grid) return;
@@ -538,7 +543,7 @@ export function WeekCalendar({
         <div className="w-14 shrink-0" />
         {days.map((day, index) => (
           <div key={day.key} className="flex-1 border-l border-neutral-100 py-2 text-center">
-            <div className="text-[10px] font-medium uppercase tracking-wide text-neutral-400">
+            <div className="text-[0.625rem] font-medium uppercase tracking-[0.06em] text-neutral-400">
               {DAY_LABELS[weekdayOf(day.key)]}
             </div>
             <div
@@ -556,7 +561,7 @@ export function WeekCalendar({
 
       {allDay.length > 0 ? (
         <div className="flex border-b border-neutral-200 bg-neutral-50/60">
-          <div className="w-14 shrink-0 py-1 pr-2 text-right text-[10px] text-neutral-400">
+          <div className="w-14 shrink-0 py-1 pr-2 text-right text-[0.625rem] text-neutral-400">
             dia todo
           </div>
           {days.map((day, index) => (
@@ -575,7 +580,7 @@ export function WeekCalendar({
                       })
                     }
                     title={`${event.title} · ${event.calendarName}`}
-                    className="block w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] text-white transition-transform active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+                    className="block w-full truncate rounded px-1.5 py-0.5 text-left text-[0.6875rem] text-white transition-transform active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                     style={{ backgroundColor: event.color }}
                   >
                     {event.title}
@@ -596,7 +601,7 @@ export function WeekCalendar({
                 style={{ height: HOUR_HEIGHT }}
                 className="relative pr-2 text-right"
               >
-                <span className="absolute right-2 -top-1.5 text-[10px] text-neutral-400">
+                <span className="absolute right-2 -top-1.5 text-[0.625rem] text-neutral-400">
                   {hourLabel(hour)}
                 </span>
               </div>
@@ -618,7 +623,7 @@ export function WeekCalendar({
                   <button
                     type="button"
                     onClick={() => openNewSlot(day.key, 9 * 60)}
-                    className="sr-only z-30 focus:not-sr-only focus:absolute focus:left-1 focus:top-1 focus:rounded focus:bg-neutral-900 focus:px-2 focus:py-1 focus:text-[11px] focus:text-white"
+                    className="sr-only z-30 focus:not-sr-only focus:absolute focus:left-1 focus:top-1 focus:rounded focus:bg-neutral-900 focus:px-2 focus:py-1 focus:text-[0.6875rem] focus:text-white"
                   >
                     Novo compromisso em {DAY_LABELS[weekdayOf(day.key)]}{" "}
                     {day.day}
@@ -683,7 +688,22 @@ export function WeekCalendar({
                         });
                       }}
                       title={`${event.title} · ${event.calendarName}`}
-                      className={`absolute select-none overflow-hidden rounded px-1.5 py-0.5 text-left text-[11px] leading-tight text-white shadow-sm transition-transform active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none ${
+                      // `touch-action: none` entrega o gesto ao bloco em vez
+                      // de à rolagem. A transição de posição só existe fora
+                      // do arrasto: durante o gesto ela atrasaria o bloco em
+                      // relação ao dedo.
+                      style={{
+                        top,
+                        height,
+                        left: `${column * width}%`,
+                        width: `calc(${width}% - 2px)`,
+                        backgroundColor: event.color,
+                        touchAction: event.canEdit ? "none" : undefined,
+                        transition: drag
+                          ? undefined
+                          : "top 220ms cubic-bezier(0.22, 1, 0.36, 1), height 220ms cubic-bezier(0.22, 1, 0.36, 1), left 220ms cubic-bezier(0.22, 1, 0.36, 1)",
+                      }}
+                      className={`absolute select-none overflow-hidden rounded px-1.5 py-0.5 text-left text-[0.6875rem] leading-tight text-white shadow-sm transition-transform active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none ${
                         // Clicar abre os detalhes; arrastar é gesto extra.
                         // Mostrar "grab" fazia o card parecer que só arrasta.
                         "cursor-pointer"
@@ -692,13 +712,6 @@ export function WeekCalendar({
                           ? "cursor-grabbing opacity-80 ring-2 ring-white"
                           : ""
                       }`.trim()}
-                      style={{
-                        top,
-                        height,
-                        left: `${column * width}%`,
-                        width: `calc(${width}% - 2px)`,
-                        backgroundColor: event.color,
-                      }}
                     >
                       <span className="block truncate font-medium">
                         {event.title}
@@ -733,7 +746,7 @@ export function WeekCalendar({
       </div>
 
       {askScope ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-[3px] p-4">
           <div
             role="dialog"
             aria-label="Alterar compromisso que se repete"
@@ -838,8 +851,8 @@ export function WeekCalendar({
           role="status"
           className={`fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg px-4 py-2 text-sm shadow-lg ${
             notice.tone === "error"
-              ? "border border-amber-200 bg-amber-50 text-amber-900"
-              : "bg-neutral-900 text-white"
+              ? "border border-amber-200 bg-amber-50/95 text-amber-900 backdrop-blur-md"
+              : "bg-neutral-900/90 text-white backdrop-blur-md"
           }`}
         >
           <span>{notice.message}</span>

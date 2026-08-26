@@ -201,3 +201,44 @@ body {
     transform: none;
   }
 }
+
+/*
+  Superfícies translúcidas (painéis flutuantes da agenda, avisos, scrims dos
+  diálogos) existem pra dar profundidade sem tapar o que está atrás. Quem
+  pede menos transparência, ou mais contraste, precisa do contrário: fundo
+  cheio e borda definida, senão o texto compete com o conteúdo por baixo.
+*/
+@media (prefers-reduced-transparency: reduce) {
+  .backdrop-blur-\[3px\],
+  .backdrop-blur-md {
+    backdrop-filter: none !important;
+  }
+
+  .bg-white\/90 {
+    background-color: #fff !important;
+  }
+
+  .bg-amber-50\/95 {
+    background-color: #fffbeb !important;
+  }
+
+  .bg-neutral-900\/90 {
+    background-color: #171717 !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .backdrop-blur-\[3px\],
+  .backdrop-blur-md {
+    backdrop-filter: none !important;
+  }
+
+  .bg-white\/90 {
+    background-color: #fff !important;
+    border-color: #404040 !important;
+  }
+
+  .bg-neutral-900\/90 {
+    background-color: #000 !important;
+  }
+}

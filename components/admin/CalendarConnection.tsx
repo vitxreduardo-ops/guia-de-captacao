@@ -124,7 +124,7 @@ export function CalendarConnection({
                 : { opacity: 0, scale: 0.95, y: -4 }
             }
             transition={{ type: "spring", bounce: 0, duration: 0.18 }}
-            className="absolute right-0 top-10 z-40 w-72 rounded-lg border border-neutral-200 bg-white p-4 shadow-lg"
+            className="absolute right-0 top-10 z-40 w-72 rounded-lg border border-neutral-200 bg-white/90 p-4 shadow-lg backdrop-blur-md"
           >
           <h2 className="text-sm font-medium text-neutral-900">Minha agenda</h2>
           <p className="mt-1 text-sm text-neutral-500">
