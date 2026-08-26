@@ -57,26 +57,24 @@ export default async function AdminHub() {
             <AdminActionsMenu isAdmin={session?.role === "admin"} defaultOpen />
           </div>
 
+          {/* Entre os atalhos e as postagens: no desktop a coluna da
+              esquerda vira a coluna do "o que tenho pela frente", e no
+              celular a mesma ordem do DOM dá Atalhos, agenda, Tarefas.
+
+              Fora do Promise.all da página de propósito: são até cinco idas
+              ao Google, e o Painel não pode esperar por elas pra existir.
+              Chega por streaming, com o esqueleto no mesmo lugar. */}
+          {account ? (
+            <Suspense fallback={<TodayAgendaSkeleton />}>
+              <TodayAgenda account={account} />
+            </Suspense>
+          ) : null}
+
           {/* No mobile fecha a pilha, depois das tarefas. */}
           <div className="max-lg:order-last">
             <UpcomingPosts posts={upcoming} />
           </div>
         </div>
-
-        {/* Item do grid, não bloco solto acima dele: no celular a agenda
-            entra depois dos Atalhos e antes das Tarefas, e no desktop volta
-            pro topo, ocupando as duas colunas.
-
-            Fora do Promise.all da página de propósito: são até cinco idas
-            ao Google, e o Painel não pode esperar por elas pra existir.
-            Chega por streaming, com o esqueleto do mesmo tamanho no lugar. */}
-        {account ? (
-          <div className="lg:order-first lg:col-span-2">
-            <Suspense fallback={<TodayAgendaSkeleton />}>
-              <TodayAgenda account={account} />
-            </Suspense>
-          </div>
-        ) : null}
 
         <section
           aria-labelledby="tarefas-titulo"

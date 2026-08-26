@@ -93,12 +93,9 @@ export async function TodayAgenda({
           Nenhum compromisso hoje.
         </p>
       ) : (
-        // Colunas em vez de uma lista comprida: o card é uma faixa larga, e
-        // em uma coluna só um dia cheio empurraria o resto do Painel.
-        // Colunas de CSS, não grade: a grade preenche por linha, e o dia
-        // aparecia fora de ordem — 08:00 à esquerda, 09:00 do lado, 14:00
-        // de volta na linha de baixo. Aqui cada coluna desce no relógio.
-        <ul className="gap-x-6 sm:columns-2 xl:columns-3">
+        // Uma coluna só, no relógio: o card mora na coluna estreita do
+        // Painel, onde duas colunas deixariam três palavras por linha.
+        <ul>
           {ordered.map((event) => (
             <li key={event.id} className="break-inside-avoid">
               <EventRow
@@ -269,7 +266,7 @@ export function TodayAgendaSkeleton() {
       // chegavam.
       preview={<SkeletonRow />}
     >
-      <ul className="gap-x-6 sm:columns-2 xl:columns-3">
+      <ul>
         {[0, 1, 2].map((row) => (
           <li key={row} className="break-inside-avoid">
             <SkeletonRow />
