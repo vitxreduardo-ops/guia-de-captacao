@@ -35,10 +35,14 @@ function dayText(key: string) {
 export function EventDetails({
   event,
   dayKey,
+  origin,
   onClose,
 }: {
   event: WeekEvent | null;
   dayKey: string | null;
+  /** Centro do bloco clicado, em coordenadas da janela. O painel nasce dali
+   * e volta pra lá ao fechar: some pelo mesmo caminho por onde apareceu. */
+  origin?: { x: number; y: number } | null;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -96,6 +100,23 @@ export function EventDetails({
     ? { duration: 0.15 }
     : { type: "spring" as const, bounce: 0, duration: 0.25 };
 
+  // Deslocamento entre o centro da tela (onde o painel fica) e o bloco que
+  // foi clicado. Sem origem — teclado, por exemplo — cai no comportamento
+  // antigo, subindo do próprio lugar.
+  const fromBlock =
+    origin && typeof window !== "undefined"
+      ? {
+          x: origin.x - window.innerWidth / 2,
+          y: origin.y - window.innerHeight / 2,
+        }
+      : null;
+
+  const closedState = prefersReducedMotion
+    ? { opacity: 0 }
+    : fromBlock
+      ? { opacity: 0, scale: 0.85, x: fromBlock.x, y: fromBlock.y }
+      : { opacity: 0, y: 8 };
+
   return (
     <AnimatePresence>
       {event ? (
@@ -111,9 +132,9 @@ export function EventDetails({
             role="dialog"
             aria-label={event.title}
             onClick={(clickEvent) => clickEvent.stopPropagation()}
-            initial={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={prefersReducedMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+            initial={closedState}
+            animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+            exit={closedState}
             transition={spring}
             className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl"
           >

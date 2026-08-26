@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   disconnectCalendarAction,
   syncMyCalendarAction,
@@ -34,6 +35,7 @@ export function CalendarConnection({
   const [message, setMessage] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const prefersReducedMotion = useReducedMotion();
 
   // Clicar fora ou apertar Esc fecha — é um painel de ajustes, não um passo
   // do fluxo; prender a pessoa nele seria estranho.
@@ -103,12 +105,27 @@ export function CalendarConnection({
         </svg>
       </button>
 
-      {open ? (
-        <div
-          role="dialog"
-          aria-label="Ajustes da agenda"
-          className="absolute right-0 top-10 z-40 w-72 rounded-lg border border-neutral-200 bg-white p-4 shadow-lg"
-        >
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            role="dialog"
+            aria-label="Ajustes da agenda"
+            // A engrenagem fica no canto direito: o painel cresce de lá.
+            style={{ transformOrigin: "top right" }}
+            initial={
+              prefersReducedMotion
+                ? { opacity: 0 }
+                : { opacity: 0, scale: 0.95, y: -4 }
+            }
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={
+              prefersReducedMotion
+                ? { opacity: 0 }
+                : { opacity: 0, scale: 0.95, y: -4 }
+            }
+            transition={{ type: "spring", bounce: 0, duration: 0.18 }}
+            className="absolute right-0 top-10 z-40 w-72 rounded-lg border border-neutral-200 bg-white p-4 shadow-lg"
+          >
           <h2 className="text-sm font-medium text-neutral-900">Minha agenda</h2>
           <p className="mt-1 text-sm text-neutral-500">
             Conectada{email ? (
@@ -159,11 +176,12 @@ export function CalendarConnection({
           ) : null}
 
           <p className="mt-3 text-xs text-neutral-400">
-            Ao desconectar, os eventos criados por aqui são apagados da sua
-            agenda.
-          </p>
-        </div>
-      ) : null}
+              Ao desconectar, os eventos criados por aqui são apagados da sua
+              agenda.
+            </p>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

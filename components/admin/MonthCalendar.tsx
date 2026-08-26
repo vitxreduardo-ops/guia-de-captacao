@@ -40,6 +40,7 @@ export function MonthCalendar({
   const [selected, setSelected] = useState<{
     event: WeekEvent;
     dayKey: string;
+    origin: { x: number; y: number } | null;
   } | null>(null);
 
   const byDay = new Map<number, WeekEvent[]>();
@@ -101,7 +102,18 @@ export function MonthCalendar({
                         <button
                           key={event.id}
                           type="button"
-                          onClick={() => setSelected({ event, dayKey: day.key })}
+                          onClick={(clickEvent) => {
+                            const bounds =
+                              clickEvent.currentTarget.getBoundingClientRect();
+                            setSelected({
+                              event,
+                              dayKey: day.key,
+                              origin: {
+                                x: bounds.left + bounds.width / 2,
+                                y: bounds.top + bounds.height / 2,
+                              },
+                            });
+                          }}
                           title={`${event.title} · ${event.calendarName}`}
                           className="flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[11px] transition-transform hover:bg-neutral-100 active:scale-90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                         >
@@ -141,6 +153,7 @@ export function MonthCalendar({
       <EventDetails
         event={selected?.event ?? null}
         dayKey={selected?.dayKey ?? null}
+        origin={selected?.origin ?? null}
         onClose={() => setSelected(null)}
       />
     </div>

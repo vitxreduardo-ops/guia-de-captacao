@@ -64,6 +64,12 @@ const CLOCK = new Intl.DateTimeFormat("pt-BR", {
 /** Duração que um horário vazio ganha ao ser clicado. */
 const NEW_EVENT_MINUTES = 30;
 
+/** Centro de um elemento na janela — de onde o painel de detalhes cresce. */
+function centerOf(element: HTMLElement): { x: number; y: number } {
+  const bounds = element.getBoundingClientRect();
+  return { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height / 2 };
+}
+
 function timeText(minutes: number) {
   return `${String(Math.floor(minutes / 60) % 24).padStart(2, "0")}:${String(
     minutes % 60
@@ -89,6 +95,8 @@ export function WeekCalendar({
   const [selected, setSelected] = useState<{
     event: WeekEvent;
     dayKey: string;
+    /** Centro do bloco clicado: é de lá que o painel de detalhes cresce. */
+    origin: { x: number; y: number } | null;
   } | null>(null);
   const [newSlot, setNewSlot] = useState<NewEventSlot | null>(null);
   /** Aviso no rodapé: erro de gravação ou o "movido", com o desfazer junto.
@@ -559,7 +567,13 @@ export function WeekCalendar({
                   <button
                     key={event.id}
                     type="button"
-                    onClick={() => setSelected({ event, dayKey: day.key })}
+                    onClick={(clickEvent) =>
+                      setSelected({
+                        event,
+                        dayKey: day.key,
+                        origin: centerOf(clickEvent.currentTarget),
+                      })
+                    }
                     title={`${event.title} · ${event.calendarName}`}
                     className="block w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] text-white transition-transform active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                     style={{ backgroundColor: event.color }}
@@ -658,11 +672,15 @@ export function WeekCalendar({
                       onPointerDown={(pointerEvent) =>
                         armDrag(event, pointerEvent)
                       }
-                      onClick={() => {
+                      onClick={(clickEvent) => {
                         // Só ignora o clique que fecha um arrasto de verdade
                         // — o que acabou de mexer neste bloco.
                         if (drag) return;
-                        setSelected({ event, dayKey: day.key });
+                        setSelected({
+                          event,
+                          dayKey: day.key,
+                          origin: centerOf(clickEvent.currentTarget),
+                        });
                       }}
                       title={`${event.title} · ${event.calendarName}`}
                       className={`absolute select-none overflow-hidden rounded px-1.5 py-0.5 text-left text-[11px] leading-tight text-white shadow-sm transition-transform active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none ${
@@ -805,6 +823,7 @@ export function WeekCalendar({
       <EventDetails
         event={selected?.event ?? null}
         dayKey={selected?.dayKey ?? null}
+        origin={selected?.origin ?? null}
         onClose={() => setSelected(null)}
       />
 

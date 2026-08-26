@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { NavLink } from "@/components/admin/NavLink";
 
 import type { AgendaView } from "@/lib/agendaRange";
@@ -32,6 +33,7 @@ export function ViewPicker({
 }) {
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (!open) return;
@@ -65,8 +67,25 @@ export function ViewPicker({
         </span>
       </button>
 
-      {open ? (
-        <div className="absolute left-0 top-10 z-40 w-40 overflow-hidden rounded-lg border border-neutral-200 bg-white py-1 shadow-lg">
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            // Cresce a partir do próprio botão, não do nada.
+            style={{ transformOrigin: "top left" }}
+            initial={
+              prefersReducedMotion
+                ? { opacity: 0 }
+                : { opacity: 0, scale: 0.95, y: -4 }
+            }
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={
+              prefersReducedMotion
+                ? { opacity: 0 }
+                : { opacity: 0, scale: 0.95, y: -4 }
+            }
+            transition={{ type: "spring", bounce: 0, duration: 0.18 }}
+            className="absolute left-0 top-10 z-40 w-40 overflow-hidden rounded-lg border border-neutral-200 bg-white py-1 shadow-lg"
+          >
           {(Object.keys(VIEW_LABELS) as AgendaView[]).map((view) => (
             <NavLink
               key={view}
@@ -80,9 +99,10 @@ export function ViewPicker({
             >
               {VIEW_LABELS[view]}
             </NavLink>
-          ))}
-        </div>
-      ) : null}
+            ))}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

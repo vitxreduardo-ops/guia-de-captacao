@@ -4,6 +4,7 @@ import { NavLink } from "@/components/admin/NavLink";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AgendaFrame } from "@/components/admin/AgendaFrame";
 import { AgendaGrid, AgendaGridSkeleton } from "./AgendaGrid";
+import { GridFade } from "@/components/admin/GridFade";
 import { CalendarConnection } from "@/components/admin/CalendarConnection";
 import { CalendarSidebar } from "@/components/admin/CalendarSidebar";
 import { ViewPicker } from "@/components/admin/ViewPicker";
@@ -242,15 +243,17 @@ export default async function MinhaAgendaPage({
                   />
                 }
               >
-                <AgendaGrid
-                  account={account}
+                <GridFade>
+                  <AgendaGrid
+                    account={account}
                   calendars={calendars}
                   days={days}
                   rangeStart={start}
                   todayKey={todayKey}
-                  view={view}
-                  monthKey={anchor.slice(0, 7)}
-                />
+                    view={view}
+                    monthKey={anchor.slice(0, 7)}
+                  />
+                </GridFade>
               </Suspense>
             )}
           </AgendaFrame>

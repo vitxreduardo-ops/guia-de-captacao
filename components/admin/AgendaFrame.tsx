@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, type ReactNode } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 const STORAGE_KEY = "agenda:lateral";
 
@@ -33,6 +34,24 @@ function subscribe(onChange: () => void) {
   };
 }
 
+/** Largura da lateral aberta, em pixels — o mesmo `w-56` do conteúdo. */
+const SIDEBAR_WIDTH = 224;
+
+/**
+ * A lateral colapsa na largura no desktop e na altura no celular, onde ela
+ * fica acima da grade. Motion não enxerga breakpoint, então o layout é lido
+ * aqui.
+ */
+function subscribeToWide(onChange: () => void) {
+  const query = window.matchMedia("(min-width: 1024px)");
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+function isWide(): boolean {
+  return window.matchMedia("(min-width: 1024px)").matches;
+}
+
 function setHidden(next: boolean) {
   hidden = next;
   try {
@@ -61,10 +80,38 @@ export function AgendaFrame({
   children: ReactNode;
 }) {
   const open = !useSyncExternalStore(subscribe, isHidden, () => false);
+  const wide = useSyncExternalStore(subscribeToWide, isWide, () => true);
+  const prefersReducedMotion = useReducedMotion();
+
+  // Fechada e aberta descrevem o mesmo caminho, só que ao contrário: a
+  // lateral sai por onde entrou (§ caminho simétrico).
+  const closed = wide
+    ? { width: 0, opacity: 0 }
+    : { height: 0, opacity: 0, marginBottom: 0 };
+  const shown = wide
+    ? { width: SIDEBAR_WIDTH, opacity: 1 }
+    : { height: "auto" as const, opacity: 1, marginBottom: 20 };
+  const transition = prefersReducedMotion
+    ? { duration: 0.12 }
+    : { type: "spring" as const, bounce: 0, duration: 0.3 };
 
   return (
     <div className="lg:flex lg:gap-6">
-      {open ? sidebar : null}
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            key="lateral"
+            initial={closed}
+            animate={shown}
+            exit={closed}
+            transition={transition}
+            // Sem isto o conteúdo vaza enquanto a largura anima.
+            className="overflow-hidden lg:shrink-0"
+          >
+            {sidebar}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       <div className="min-w-0 flex-1">
         <div className="mb-3 flex flex-wrap items-center gap-3">
