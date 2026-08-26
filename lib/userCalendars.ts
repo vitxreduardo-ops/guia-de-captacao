@@ -238,6 +238,19 @@ async function requestAccessToken(userId: string): Promise<string> {
   return tokens.access_token;
 }
 
+/**
+ * Joga fora o token guardado, para a próxima chamada renovar.
+ *
+ * Um access token vale cerca de uma hora, mas pode morrer antes — a pessoa
+ * revoga o acesso na conta do Google, troca a senha, o Google invalida a
+ * sessão. Sem isto, o token morto ficava em memória até o fim da hora e
+ * toda leitura de agenda voltava 401.
+ */
+export function invalidateUserAccessToken(userId: string) {
+  cachedTokens.delete(userId);
+  inFlight.delete(userId);
+}
+
 export async function getUserAccessToken(userId: string): Promise<string> {
   const cached = cachedTokens.get(userId);
   if (cached && Date.now() < cached.expiresAt) return cached.token;

@@ -2,6 +2,7 @@ import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import {
   getUserAccessToken,
+  invalidateUserAccessToken,
   listConnectedCalendarAccounts,
   type UserCalendarAccount,
 } from "@/lib/userCalendars";
@@ -32,6 +33,33 @@ interface SyncableCard {
   post_time: string | null;
   duration_minutes: number | null;
   google_event_id: string | null;
+}
+
+/**
+ * Uma chamada ao Google Agenda em nome de uma pessoa.
+ *
+ * O token vai daqui: um 401 quase nunca é permissão, é o access token
+ * guardado em memória que morreu antes da hora prevista — a pessoa revogou
+ * o acesso e reconectou, o Google encerrou a sessão. Sem a segunda
+ * tentativa, o token morto valia até o fim da hora e toda leitura de agenda
+ * falhava nesse meio tempo.
+ */
+async function calendarFetch(
+  userId: string,
+  url: string,
+  init: RequestInit = {}
+): Promise<Response> {
+  const accessToken = await getUserAccessToken(userId);
+  const withToken = (token: string) => ({
+    ...init,
+    headers: { ...init.headers, Authorization: `Bearer ${token}` },
+  });
+
+  const response = await fetch(url, withToken(accessToken));
+  if (response.status !== 401) return response;
+
+  invalidateUserAccessToken(userId);
+  return fetch(url, withToken(await getUserAccessToken(userId)));
 }
 
 async function fetchCard(cardId: string): Promise<SyncableCard | null> {
@@ -185,21 +213,18 @@ async function upsertEvent(
   card: SyncableCard,
   existingEventId: string | undefined
 ) {
-  const accessToken = await getUserAccessToken(account.userId);
   const body = buildEventBody(card);
   const calendar = encodeURIComponent(account.calendarId);
 
   if (existingEventId) {
-    const response = await fetch(
+    const response = await calendarFetch(
+      account.userId,
       `${CALENDAR_API}/calendars/${calendar}/events/${encodeURIComponent(
         existingEventId
       )}`,
       {
         method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       }
     );
@@ -214,14 +239,12 @@ async function upsertEvent(
     }
   }
 
-  const created = await fetch(
+  const created = await calendarFetch(
+    account.userId,
     `${CALENDAR_API}/calendars/${calendar}/events`,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }
   );
@@ -238,12 +261,12 @@ async function deleteEvent(
   account: UserCalendarAccount,
   eventId: string
 ) {
-  const accessToken = await getUserAccessToken(account.userId);
-  const response = await fetch(
+  const response = await calendarFetch(
+    account.userId,
     `${CALENDAR_API}/calendars/${encodeURIComponent(
       account.calendarId
     )}/events/${encodeURIComponent(eventId)}`,
-    { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } }
+    { method: "DELETE" }
   );
   // 404/410 significa que já não existe — o resultado desejado.
   if (!response.ok && response.status !== 404 && response.status !== 410) {
@@ -422,8 +445,6 @@ export async function listUpcomingEvents(
   account: UserCalendarAccount,
   { days = 30, limit = 25 }: { days?: number; limit?: number } = {}
 ): Promise<UpcomingEvent[]> {
-  const accessToken = await getUserAccessToken(account.userId);
-
   const now = new Date();
   const until = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
   const params = new URLSearchParams({
@@ -434,11 +455,11 @@ export async function listUpcomingEvents(
     maxResults: String(limit),
   });
 
-  const response = await fetch(
+  const response = await calendarFetch(
+    account.userId,
     `${CALENDAR_API}/calendars/${encodeURIComponent(
       account.calendarId
-    )}/events?${params.toString()}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
+    )}/events?${params.toString()}`
   );
   if (!response.ok) {
     throw new Error(`Falha ao listar eventos: ${await response.text()}`);
@@ -549,11 +570,11 @@ export function clearCalendarCache(userId: string) {
  * justamente a leitura rápida que as cores dão.
  */
 async function fetchEventPalette(
-  accessToken: string
+  userId: string
 ): Promise<Map<string, string>> {
   const cached = paletteCache;
   if (cached && Date.now() < cached.expiresAt) return cached.value;
-  const value = await requestEventPalette(accessToken);
+  const value = await requestEventPalette(userId);
   // Resposta vazia é sinal de falha; não vale cravar isso por um dia.
   if (value.size > 0) {
     paletteCache = { value, expiresAt: Date.now() + PALETTE_TTL_MS };
@@ -562,11 +583,9 @@ async function fetchEventPalette(
 }
 
 async function requestEventPalette(
-  accessToken: string
+  userId: string
 ): Promise<Map<string, string>> {
-  const response = await fetch(`${CALENDAR_API}/colors`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const response = await calendarFetch(userId, `${CALENDAR_API}/colors`);
   if (!response.ok) return new Map();
   const data = await response.json();
   const entries = Object.entries(
@@ -595,10 +614,9 @@ export async function listUserCalendars(
 async function requestUserCalendars(
   account: UserCalendarAccount
 ): Promise<CalendarSource[]> {
-  const accessToken = await getUserAccessToken(account.userId);
-  const response = await fetch(
-    `${CALENDAR_API}/users/me/calendarList?maxResults=250`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
+  const response = await calendarFetch(
+    account.userId,
+    `${CALENDAR_API}/users/me/calendarList?maxResults=250`
   );
   if (!response.ok) {
     throw new Error(`Falha ao listar agendas: ${await response.text()}`);
@@ -637,15 +655,12 @@ export async function setCalendarSelected(
   calendarId: string,
   selected: boolean
 ): Promise<void> {
-  const accessToken = await getUserAccessToken(account.userId);
-  const response = await fetch(
+  const response = await calendarFetch(
+    account.userId,
     `${CALENDAR_API}/users/me/calendarList/${encodeURIComponent(calendarId)}`,
     {
       method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ selected }),
     }
   );
@@ -715,7 +730,6 @@ export function clearEventsCache(userId: string) {
 
 async function fetchCalendarItems(
   userId: string,
-  accessToken: string,
   calendar: CalendarSource,
   timeMin: string,
   timeMax: string
@@ -736,12 +750,12 @@ async function fetchCalendarItems(
       "items(id,summary,htmlLink,start,end,colorId,recurringEventId,description,location,hangoutLink,attendees(email,displayName))",
   });
 
-  const response = await fetch(
-    `${CALENDAR_API}/calendars/${encodeURIComponent(
-      calendar.id
-    )}/events?${params.toString()}`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
+  const url = `${CALENDAR_API}/calendars/${encodeURIComponent(
+    calendar.id
+  )}/events?${params.toString()}`;
+
+  const response = await calendarFetch(userId, url);
+
   // Uma agenda inacessível (compartilhada e revogada, por exemplo) não pode
   // derrubar a grade inteira — mas some da tela sem avisar, então pelo menos
   // deixa rastro no log.
@@ -778,7 +792,6 @@ export async function listRangeEvents(
   dayCount: number,
   calendars: CalendarSource[]
 ): Promise<WeekEvent[]> {
-  const accessToken = await getUserAccessToken(account.userId);
   const visible = calendars.filter((calendar) => calendar.selected);
 
   // Janela com um dia de folga de cada lado e em UTC puro: assim o intervalo
@@ -789,7 +802,7 @@ export async function listRangeEvents(
 
   // Paleta e "quais eventos vieram do backlog" não dependem das agendas:
   // pedir tudo junto tira duas esperas em série de abrir a semana.
-  const palettePromise = fetchEventPalette(accessToken);
+  const palettePromise = fetchEventPalette(account.userId);
   const backlogIdsPromise = fetchBacklogEventIds(account.userId);
   // Ninguém espera essas duas quando não há agenda visível; sem isso a falha
   // viraria "unhandled rejection" e derrubaria o processo.
@@ -813,13 +826,7 @@ export async function listRangeEvents(
   const perCalendar = await Promise.all(
     visible.map(async (calendar) => {
       const [items, palette, backlogIds] = await Promise.all([
-        fetchCalendarItems(
-          account.userId,
-          accessToken,
-          calendar,
-          timeMin,
-          timeMax
-        ),
+        fetchCalendarItems(account.userId, calendar, timeMin, timeMax),
         palettePromise,
         backlogIdsPromise,
       ]);
@@ -959,8 +966,6 @@ export async function createGoogleEvent(
   account: UserCalendarAccount,
   draft: EventDraft
 ): Promise<void> {
-  const accessToken = await getUserAccessToken(account.userId);
-
   const body = {
     summary: draft.title.trim() || "(sem título)",
     location: draft.location.trim(),
@@ -980,16 +985,14 @@ export async function createGoogleEvent(
     },
   };
 
-  const response = await fetch(
+  const response = await calendarFetch(
+    account.userId,
     `${CALENDAR_API}/calendars/${encodeURIComponent(
       draft.calendarId
     )}/events`,
     {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }
   );
@@ -1032,7 +1035,6 @@ export async function updateGoogleEvent(
   account: UserCalendarAccount,
   edit: EventEdit
 ): Promise<void> {
-  const accessToken = await getUserAccessToken(account.userId);
   const editingSeries = edit.scope === "series" && edit.recurringEventId;
   const targetId = editingSeries ? edit.recurringEventId! : edit.eventId;
 
@@ -1046,11 +1048,11 @@ export async function updateGoogleEvent(
     let day = edit.date;
 
     if (editingSeries) {
-      const master = await fetch(
+      const master = await calendarFetch(
+        account.userId,
         `${CALENDAR_API}/calendars/${encodeURIComponent(
           edit.calendarId
-        )}/events/${encodeURIComponent(targetId)}`,
-        { headers: { Authorization: `Bearer ${accessToken}` } }
+        )}/events/${encodeURIComponent(targetId)}`
       );
       if (master.ok) {
         const data = await master.json();
@@ -1075,16 +1077,14 @@ export async function updateGoogleEvent(
     };
   }
 
-  const response = await fetch(
+  const response = await calendarFetch(
+    account.userId,
     `${CALENDAR_API}/calendars/${encodeURIComponent(
       edit.calendarId
     )}/events/${encodeURIComponent(targetId)}`,
     {
       method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }
   );
