@@ -32,15 +32,6 @@ export default async function AdminHub() {
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       <AdminHeader title="Painel" username={username} />
 
-      {/* Fora do Promise.all de cima de propósito: são até cinco idas ao
-          Google, e o Painel não pode esperar por elas pra existir. Chega
-          por streaming, com o esqueleto do mesmo tamanho no lugar. */}
-      {account ? (
-        <Suspense fallback={<TodayAgendaSkeleton />}>
-          <TodayAgenda account={account} />
-        </Suspense>
-      ) : null}
-
       {/* Ordem do DOM já serve aos dois: empilhado no mobile/tablet dá Atalhos
           em cima, e em duas colunas no desktop dá Atalhos à esquerda.
           items-start: sem isso o grid estica os dois cards pra mesma altura e
@@ -71,6 +62,21 @@ export default async function AdminHub() {
             <UpcomingPosts posts={upcoming} />
           </div>
         </div>
+
+        {/* Item do grid, não bloco solto acima dele: no celular a agenda
+            entra depois dos Atalhos e antes das Tarefas, e no desktop volta
+            pro topo, ocupando as duas colunas.
+
+            Fora do Promise.all da página de propósito: são até cinco idas
+            ao Google, e o Painel não pode esperar por elas pra existir.
+            Chega por streaming, com o esqueleto do mesmo tamanho no lugar. */}
+        {account ? (
+          <div className="lg:order-first lg:col-span-2">
+            <Suspense fallback={<TodayAgendaSkeleton />}>
+              <TodayAgenda account={account} />
+            </Suspense>
+          </div>
+        ) : null}
 
         <section
           aria-labelledby="tarefas-titulo"

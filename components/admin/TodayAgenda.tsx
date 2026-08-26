@@ -205,7 +205,7 @@ function TodayAgendaFrame({
 
   return (
     <>
-      <details className="group mb-6 rounded-lg border border-neutral-200 bg-white p-4 lg:hidden">
+      <details className="group rounded-lg border border-neutral-200 bg-white p-4 lg:hidden">
         <summary className="cursor-pointer list-none rounded-md focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
           <div className="flex items-baseline justify-between gap-2">
             {title}
@@ -236,7 +236,7 @@ function TodayAgendaFrame({
 
       <section
         aria-labelledby="hoje-titulo"
-        className="mb-6 hidden rounded-lg border border-neutral-200 bg-white p-4 lg:block"
+        className="hidden rounded-lg border border-neutral-200 bg-white p-4 lg:block"
       >
         <div className="mb-3 flex items-baseline justify-between gap-2">
           <div id="hoje-titulo">{title}</div>
