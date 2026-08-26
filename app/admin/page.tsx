@@ -1,10 +1,16 @@
+import { Suspense } from "react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AdminActionsMenu } from "@/components/admin/AdminActionsMenu";
 import { DailyTodoList } from "@/components/admin/DailyTodoList";
 import { UpcomingPosts } from "@/components/admin/UpcomingPosts";
+import {
+  TodayAgenda,
+  TodayAgendaSkeleton,
+} from "@/components/admin/TodayAgenda";
 import { listDailyTodos } from "@/lib/dailyTodos";
 import { listUpcomingPosts } from "@/lib/upcomingPosts";
 import { getCurrentSession, getCurrentUsername } from "@/lib/session";
+import { getUserCalendarAccount } from "@/lib/userCalendars";
 
 export default async function AdminHub() {
   const [session, username, { todos, users }, upcoming] = await Promise.all([
@@ -14,6 +20,9 @@ export default async function AdminHub() {
     listUpcomingPosts(),
   ]);
 
+  // Quem não conectou agenda não vê o bloco de hoje — e nem paga a consulta.
+  const account = session ? await getUserCalendarAccount(session.userId) : null;
+
   // Serve pra pintar a tarefa recém-criada já com o responsável certo, antes
   // de o servidor responder.
   const currentUser =
@@ -22,6 +31,15 @@ export default async function AdminHub() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
       <AdminHeader title="Painel" username={username} />
+
+      {/* Fora do Promise.all de cima de propósito: são até cinco idas ao
+          Google, e o Painel não pode esperar por elas pra existir. Chega
+          por streaming, com o esqueleto do mesmo tamanho no lugar. */}
+      {account ? (
+        <Suspense fallback={<TodayAgendaSkeleton />}>
+          <TodayAgenda account={account} />
+        </Suspense>
+      ) : null}
 
       {/* Ordem do DOM já serve aos dois: empilhado no mobile/tablet dá Atalhos
           em cima, e em duas colunas no desktop dá Atalhos à esquerda.
