@@ -8,6 +8,7 @@ import {
   type NewEventSlot,
 } from "@/components/admin/EventCreate";
 import { updateEventAction } from "@/app/admin/agenda/actions";
+import { layoutDay } from "@/lib/dayLayout";
 import type { CalendarSource, WeekEvent } from "@/lib/googleCalendar";
 
 /** Altura de uma hora na grade. Define toda a escala vertical. */
@@ -48,49 +49,6 @@ function formatRange(event: WeekEvent) {
       : `${display}:${String(minute).padStart(2, "0")}${suffix}`;
   };
   return `${toText(event.startMinutes)} – ${toText(event.endMinutes)}`;
-}
-
-/**
- * Eventos que se sobrepõem dividem a largura da coluna, como no Google.
- *
- * Sem isso, dois compromissos no mesmo horário ficam um por cima do outro e
- * o de baixo some. Agrupa por interseção e distribui cada grupo em faixas.
- */
-function layoutDay(events: WeekEvent[]) {
-  const sorted = [...events].sort(
-    (a, b) => a.startMinutes - b.startMinutes || b.endMinutes - a.endMinutes
-  );
-  const positioned: { event: WeekEvent; column: number; columns: number }[] = [];
-
-  let cluster: WeekEvent[] = [];
-  let clusterEnd = -1;
-
-  const flush = () => {
-    if (cluster.length === 0) return;
-    // Cada evento entra na primeira faixa livre naquele instante.
-    const laneEnds: number[] = [];
-    const assigned = cluster.map((event) => {
-      let lane = laneEnds.findIndex((end) => end <= event.startMinutes);
-      if (lane === -1) {
-        lane = laneEnds.length;
-      }
-      laneEnds[lane] = event.endMinutes;
-      return { event, column: lane };
-    });
-    const columns = laneEnds.length;
-    for (const item of assigned) positioned.push({ ...item, columns });
-    cluster = [];
-    clusterEnd = -1;
-  };
-
-  for (const event of sorted) {
-    if (cluster.length > 0 && event.startMinutes >= clusterEnd) flush();
-    cluster.push(event);
-    clusterEnd = Math.max(clusterEnd, event.endMinutes);
-  }
-  flush();
-
-  return positioned;
 }
 
 /** Hora local do fuso do backlog, não a do relógio de quem abre a tela —

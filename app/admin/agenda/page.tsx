@@ -6,7 +6,16 @@ import { AgendaFrame } from "@/components/admin/AgendaFrame";
 import { AgendaGrid, AgendaGridSkeleton } from "./AgendaGrid";
 import { CalendarConnection } from "@/components/admin/CalendarConnection";
 import { CalendarSidebar } from "@/components/admin/CalendarSidebar";
-import { ViewPicker, type AgendaView } from "@/components/admin/ViewPicker";
+import { ViewPicker } from "@/components/admin/ViewPicker";
+import {
+  daysOf,
+  highlightOf,
+  isAgendaView,
+  isDayKey,
+  rangeOf,
+  stepOf,
+  type AgendaView,
+} from "@/lib/agendaRange";
 import { getCurrentSession, getCurrentUsername } from "@/lib/session";
 import { getUserCalendarAccount } from "@/lib/userCalendars";
 import { countBacklogCardsWithDate } from "@/lib/backlog";
@@ -40,63 +49,6 @@ const DAY_TITLE = new Intl.DateTimeFormat("pt-BR", {
   timeZone: TIME_ZONE,
 });
 
-function addDaysKey(key: string, days: number): string {
-  const [year, month, day] = key.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day + days))
-    .toISOString()
-    .slice(0, 10);
-}
-
-/** Domingo da semana daquele dia — a grade do Google começa no domingo. */
-function weekStartOf(key: string): string {
-  const [year, month, day] = key.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return addDaysKey(key, -date.getUTCDay());
-}
-
-function isView(value: string | undefined): value is AgendaView {
-  return (
-    value === "dia" || value === "4dias" || value === "semana" || value === "mes"
-  );
-}
-
-/**
- * Onde a grade começa e quantos dias mostra, por visão.
- *
- * A data que vem no endereço é sempre a "âncora" — o dia em que a pessoa
- * clicou ou para onde navegou. Cada visão a arredonda do seu jeito: semana e
- * mês recuam até o domingo que abre o bloco, dia e 4 dias começam nela
- * mesma, como no Google.
- */
-function rangeOf(view: AgendaView, anchor: string) {
-  if (view === "dia") return { start: anchor, count: 1 };
-  if (view === "4dias") return { start: anchor, count: 4 };
-  if (view === "semana") return { start: weekStartOf(anchor), count: 7 };
-  return { start: weekStartOf(`${anchor.slice(0, 7)}-01`), count: 42 };
-}
-
-function addMonthsKey(monthKey: string, amount: number): string {
-  const [year, month] = monthKey.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1 + amount, 1))
-    .toISOString()
-    .slice(0, 7);
-}
-
-/** Quantos dias as setas ‹ › andam em cada visão. */
-function stepOf(view: AgendaView, anchor: string): { back: string; next: string } {
-  if (view === "mes") {
-    const [year, month] = anchor.split("-").map(Number);
-    const shift = (amount: number) =>
-      new Date(Date.UTC(year, month - 1 + amount, 1)).toISOString().slice(0, 10);
-    return { back: shift(-1), next: shift(1) };
-  }
-  const days = view === "dia" ? 1 : view === "4dias" ? 4 : 7;
-  return {
-    back: addDaysKey(anchor, -days),
-    next: addDaysKey(anchor, days),
-  };
-}
-
 export default async function MinhaAgendaPage({
   searchParams,
 }: {
@@ -119,16 +71,11 @@ export default async function MinhaAgendaPage({
   ]);
 
   const todayKey = DAY_KEY.format(new Date());
-  const view: AgendaView = isView(params.vis) ? params.vis : "semana";
-  const anchor = /^\d{4}-\d{2}-\d{2}$/.test(params.semana ?? "")
-    ? params.semana!
-    : todayKey;
+  const view: AgendaView = isAgendaView(params.vis) ? params.vis : "semana";
+  const anchor = isDayKey(params.semana) ? params.semana : todayKey;
 
   const { start, count } = rangeOf(view, anchor);
-  const days = Array.from({ length: count }, (_, index) => {
-    const key = addDaysKey(start, index);
-    return { key, day: Number(key.slice(8, 10)) };
-  });
+  const days = daysOf(start, count);
 
   // A lista de agendas fica em cache e é barata; os compromissos, não —
   // eles chegam por streaming, dentro do <Suspense> lá embaixo. Uma conta
@@ -154,16 +101,9 @@ export default async function MinhaAgendaPage({
       ? DAY_TITLE.format(new Date(`${days[0].key}T12:00:00Z`))
       : MONTH_TITLE.format(new Date(`${middle.key}T12:00:00Z`));
 
-  // O que o mini-calendário marca. Na visão de mês são os dias do mês, não
-  // as seis linhas inteiras — senão as pontas dos meses vizinhos entrariam
-  // no destaque.
-  const highlight =
-    view === "mes"
-      ? {
-          start: `${anchor.slice(0, 7)}-01`,
-          end: addDaysKey(`${addMonthsKey(anchor.slice(0, 7), 1)}-01`, -1),
-        }
-      : { start: days[0].key, end: days[days.length - 1].key };
+  // O trecho que a lateral marca — na visão de mês, o mês em vez das seis
+  // linhas inteiras.
+  const highlight = highlightOf(view, anchor);
 
   const step = stepOf(view, anchor);
   const linkTo = (day: string, target: AgendaView = view) =>

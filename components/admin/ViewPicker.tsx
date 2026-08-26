@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-export type AgendaView = "dia" | "4dias" | "semana" | "mes";
+import type { AgendaView } from "@/lib/agendaRange";
+
+export type { AgendaView };
 
 export const VIEW_LABELS: Record<AgendaView, string> = {
   dia: "Dia",
