@@ -39,18 +39,21 @@ export function CalendarConnection({
   // do fluxo; prender a pessoa nele seria estranho.
   useEffect(() => {
     if (!open) return;
-    function handlePointerDown(pointerEvent: PointerEvent) {
-      if (!boxRef.current?.contains(pointerEvent.target as Node)) {
+    // Ouvir "click" (e não "pointerdown"): o pointerdown que abre o painel
+    // chega antes de o React processar o clique, e o painel se fechava no
+    // mesmo gesto que o abriu.
+    function handleClick(clickEvent: MouseEvent) {
+      if (!boxRef.current?.contains(clickEvent.target as Node)) {
         setOpen(false);
       }
     }
     function handleKeyDown(keyEvent: KeyboardEvent) {
       if (keyEvent.key === "Escape") setOpen(false);
     }
-    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("click", handleClick);
     window.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("click", handleClick);
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [open]);
