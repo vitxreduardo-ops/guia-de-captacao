@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import Link from "next/link";
+import { after } from "next/server";
+import { NavLink } from "@/components/admin/NavLink";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AgendaFrame } from "@/components/admin/AgendaFrame";
 import { AgendaGrid, AgendaGridSkeleton } from "./AgendaGrid";
@@ -10,6 +11,7 @@ import { getCurrentSession, getCurrentUsername } from "@/lib/session";
 import { getUserCalendarAccount } from "@/lib/userCalendars";
 import { countBacklogCardsWithDate } from "@/lib/backlog";
 import {
+  listRangeEvents,
   listUserCalendars,
   type CalendarSource,
 } from "@/lib/googleCalendar";
@@ -105,13 +107,13 @@ export default async function MinhaAgendaPage({
     vis?: string;
   }>;
 }) {
-  const [username, session, params] = await Promise.all([
-    getCurrentUsername(),
-    getCurrentSession(),
-    searchParams,
-  ]);
+  // A sessão sai do cookie, sem ida ao banco; tudo que depende dela vai
+  // junto num lote só. Em série, o nome do cabeçalho e a contagem de
+  // materiais somavam meio segundo antes de a tela começar a existir.
+  const [session, params] = await Promise.all([getCurrentSession(), searchParams]);
 
-  const [account, cardCount] = await Promise.all([
+  const [username, account, cardCount] = await Promise.all([
+    getCurrentUsername(),
     session ? getUserCalendarAccount(session.userId) : null,
     countBacklogCardsWithDate(),
   ]);
@@ -166,6 +168,22 @@ export default async function MinhaAgendaPage({
   const step = stepOf(view, anchor);
   const linkTo = (day: string, target: AgendaView = view) =>
     `/admin/agenda?vis=${target}&semana=${day}`;
+  // Depois de responder, busca os períodos vizinhos: ‹ › são o próximo
+  // clique quase sempre, e assim eles saem do cache em vez da rede. Roda
+  // fora do caminho crítico, então não atrasa esta resposta.
+  if (account && calendars.length > 0) {
+    after(async () => {
+      const neighbours = [rangeOf(view, step.back), rangeOf(view, step.next)];
+      await Promise.all(
+        neighbours.map((range) =>
+          listRangeEvents(account, range.start, range.count, calendars).catch(
+            () => []
+          )
+        )
+      );
+    });
+  }
+
   const viewHrefs = {
     dia: linkTo(anchor, "dia"),
     "4dias": linkTo(anchor, "4dias"),
@@ -209,36 +227,37 @@ export default async function MinhaAgendaPage({
                 calendars={calendars}
                 rangeStart={highlight.start}
                 rangeEnd={highlight.end}
+                focusMonth={anchor.slice(0, 7)}
                 todayKey={todayKey}
                 view={view}
               />
             }
             toolbar={
               <>
-                <Link
+                <NavLink
                   href={linkTo(todayKey)}
-                  className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+                  className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 active:bg-neutral-100"
                 >
                   Hoje
-                </Link>
+                </NavLink>
 
                 <ViewPicker current={view} hrefs={viewHrefs} />
 
                 <div className="flex items-center gap-1">
-                  <Link
+                  <NavLink
                     href={linkTo(step.back)}
-                    aria-label="Período anterior"
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"
+                    ariaLabel="Período anterior"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 active:bg-neutral-200"
                   >
                     ‹
-                  </Link>
-                  <Link
+                  </NavLink>
+                  <NavLink
                     href={linkTo(step.next)}
-                    aria-label="Próximo período"
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"
+                    ariaLabel="Próximo período"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 active:bg-neutral-200"
                   >
                     ›
-                  </Link>
+                  </NavLink>
                 </div>
 
                 <h2 className="text-lg text-neutral-800 first-letter:uppercase">

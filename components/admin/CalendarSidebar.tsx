@@ -63,6 +63,7 @@ export function CalendarSidebar({
   rangeEnd,
   todayKey,
   view,
+  focusMonth,
 }: {
   calendars: CalendarSource[];
   /** Primeiro e último dia que a grade está mostrando — o trecho que o
@@ -70,6 +71,10 @@ export function CalendarSidebar({
   rangeStart: string;
   rangeEnd: string;
   todayKey: string;
+  /** YYYY-MM que o mini-calendário abre. Vem da data em foco, não do
+   * começo do intervalo: a semana de 02/09 começa no domingo 30/08, e usar
+   * o primeiro dia deixava a lateral em agosto com a grade em setembro. */
+  focusMonth: string;
   /** Clicar num dia mantém a visão escolhida. */
   view: AgendaView;
 }) {
@@ -79,7 +84,7 @@ export function CalendarSidebar({
 
   // Mês visível no mini-calendário. Navegar pela grade traz o mês junto; o
   // reset no render evita um quadro com o mês antigo.
-  const weekMonth = rangeStart.slice(0, 7);
+  const weekMonth = focusMonth;
   const [month, setMonth] = useState(weekMonth);
   const [monthFor, setMonthFor] = useState(weekMonth);
   if (monthFor !== weekMonth) {

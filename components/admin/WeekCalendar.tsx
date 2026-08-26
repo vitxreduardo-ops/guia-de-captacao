@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { EventDetails } from "@/components/admin/EventDetails";
 import {
@@ -476,19 +476,32 @@ export function WeekCalendar({
     );
   const activeOverride = overrideApplied ? null : override;
 
-  /** Aplica a posição provisória do arrasto por cima do que veio do servidor. */
-  function withOverride(event: WeekEvent): WeekEvent {
-    if (!activeOverride || activeOverride.id !== event.id) return event;
-    return {
-      ...event,
-      dayIndex: activeOverride.dayIndex,
-      startMinutes: activeOverride.startMinutes,
-      endMinutes: activeOverride.endMinutes,
-    };
-  }
+  const allDay = useMemo(
+    () => events.filter((event) => event.allDay),
+    [events]
+  );
 
-  const allDay = events.filter((event) => event.allDay);
-  const timed = events.filter((event) => !event.allDay).map(withOverride);
+  // O posicionamento roda a cada render — e durante um arrasto isso é a cada
+  // movimento do ponteiro. Refazer a divisão de colunas só quando os eventos
+  // ou a posição provisória mudam tira esse trabalho do meio do gesto.
+  const columnsByDay = useMemo(() => {
+    const timed = events
+      .filter((event) => !event.allDay)
+      .map((event) =>
+        activeOverride && activeOverride.id === event.id
+          ? {
+              ...event,
+              dayIndex: activeOverride.dayIndex,
+              startMinutes: activeOverride.startMinutes,
+              endMinutes: activeOverride.endMinutes,
+            }
+          : event
+      );
+    return days.map((_, index) =>
+      layoutDay(timed.filter((event) => event.dayIndex === index))
+    );
+  }, [events, activeOverride, days]);
+
   const todayIndex = days.findIndex((day) => day.key === todayKey);
 
   return (
@@ -565,9 +578,7 @@ export function WeekCalendar({
 
           <div ref={columnsRef} className="flex min-w-0 flex-1">
           {days.map((day, index) => {
-            const positioned = layoutDay(
-              timed.filter((event) => event.dayIndex === index)
-            );
+            const positioned = columnsByDay[index] ?? [];
             return (
               <div
                 key={day.key}

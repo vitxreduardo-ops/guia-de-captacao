@@ -85,7 +85,32 @@ export async function listUsers(): Promise<PublicUser[]> {
   return (data ?? []).map(toPublicUser);
 }
 
+/**
+ * O nome de quem está logado aparece no cabeçalho de toda tela do admin, e
+ * a consulta ficava no caminho crítico de cada navegação — 200ms de ida ao
+ * banco por página, para um dado que muda quase nunca. O cache curto vale
+ * por processo e é limpo quando o usuário é alterado ou removido.
+ */
+const USER_TTL_MS = 60_000;
+const userCache = new Map<
+  string,
+  { value: PublicUser | null; expiresAt: number }
+>();
+
+function forgetUser(id: string) {
+  userCache.delete(id);
+}
+
 export async function getUserById(id: string): Promise<PublicUser | null> {
+  const cached = userCache.get(id);
+  if (cached && Date.now() < cached.expiresAt) return cached.value;
+
+  const user = await requestUserById(id);
+  userCache.set(id, { value: user, expiresAt: Date.now() + USER_TTL_MS });
+  return user;
+}
+
+async function requestUserById(id: string): Promise<PublicUser | null> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("users")
@@ -154,6 +179,7 @@ export async function updateUser(
     .single();
 
   if (error) throw error;
+  forgetUser(id);
   return toPublicUser(data);
 }
 
@@ -161,4 +187,5 @@ export async function deleteUser(id: string) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase.from("users").delete().eq("id", id);
   if (error) throw error;
+  forgetUser(id);
 }

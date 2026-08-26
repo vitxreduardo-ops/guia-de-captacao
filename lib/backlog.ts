@@ -523,7 +523,25 @@ export async function deleteBacklogCard(id: string) {
 }
 
 /** Quantos materiais têm data — o tanto que vai pra agenda de quem conecta. */
+/**
+ * Só alimenta o texto do painel de ajustes da agenda ("N materiais com data
+ * sendo sincronizados"), mas era consultado em toda visita à tela. Meio
+ * minuto de validade tira essa ida ao banco do caminho crítico sem que o
+ * número fique visivelmente velho.
+ */
+const CARD_COUNT_TTL_MS = 30_000;
+let cardCountCache: { value: number; expiresAt: number } | null = null;
+
 export async function countBacklogCardsWithDate(): Promise<number> {
+  if (cardCountCache && Date.now() < cardCountCache.expiresAt) {
+    return cardCountCache.value;
+  }
+  const value = await requestBacklogCardsWithDate();
+  cardCountCache = { value, expiresAt: Date.now() + CARD_COUNT_TTL_MS };
+  return value;
+}
+
+async function requestBacklogCardsWithDate(): Promise<number> {
   const supabase = getSupabaseServerClient();
   const { count, error } = await supabase
     .from("backlog_cards")
