@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toggleCalendarAction } from "@/app/admin/agenda/actions";
 import type { CalendarSource } from "@/lib/googleCalendar";
@@ -69,7 +69,6 @@ export function CalendarSidebar({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
 
   // Mês visível no mini-calendário. Trocar de semana pela grade traz o mês
   // junto; o reset no render evita um quadro com o mês antigo.
@@ -86,15 +85,6 @@ export function CalendarSidebar({
   const [pendingSelection, setPendingSelection] = useState<
     Record<string, boolean>
   >({});
-
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(keyEvent: KeyboardEvent) {
-      if (keyEvent.key === "Escape") setOpen(false);
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open]);
 
   const weekEnd = addDaysKey(weekStart, 6);
 
@@ -123,8 +113,10 @@ export function CalendarSidebar({
     });
   }
 
-  const content = (
-    <div className="space-y-5">
+  return (
+    // Sempre à vista: no celular ela fica acima da grade, em vez de
+    // escondida atrás de um botão.
+    <aside className="mb-5 w-full shrink-0 space-y-5 sm:max-w-xs lg:mb-0 lg:w-56 lg:max-w-none">
       <div>
         <div className="mb-2 flex items-center gap-1">
           <h2 className="flex-1 text-sm text-neutral-800 first-letter:uppercase">
@@ -165,10 +157,7 @@ export function CalendarSidebar({
               <button
                 key={cell.key}
                 type="button"
-                onClick={() => {
-                  setOpen(false);
-                  router.push(`/admin/agenda?semana=${cell.key}`);
-                }}
+                onClick={() => router.push(`/admin/agenda?semana=${cell.key}`)}
                 aria-current={isToday ? "date" : undefined}
                 className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full text-xs ${
                   isToday
@@ -222,47 +211,6 @@ export function CalendarSidebar({
           </p>
         ) : null}
       </div>
-    </div>
-  );
-
-  return (
-    <>
-      {/* Em telas estreitas a lateral roubaria a grade inteira; vira gaveta. */}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="mb-3 inline-flex items-center gap-1.5 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 lg:hidden"
-      >
-        Agendas e calendário
-      </button>
-
-      <aside className="hidden w-56 shrink-0 lg:block">{content}</aside>
-
-      {open ? (
-        <div
-          className="fixed inset-0 z-50 flex lg:hidden"
-          role="dialog"
-          aria-label="Agendas e calendário"
-        >
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setOpen(false)}
-          />
-          <div className="relative ml-auto h-full w-72 max-w-[85vw] overflow-y-auto bg-white p-5 shadow-xl">
-            <div className="mb-3 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                aria-label="Fechar"
-                className="rounded-full px-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
-              >
-                ✕
-              </button>
-            </div>
-            {content}
-          </div>
-        </div>
-      ) : null}
-    </>
+    </aside>
   );
 }

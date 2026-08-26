@@ -160,28 +160,12 @@ export default async function MinhaAgendaPage({
             </h2>
 
             <div className="ml-auto flex flex-wrap items-center gap-3">
-              <span className="hidden text-xs text-neutral-400 lg:inline">
+              {/* A lateral está sempre à vista e já lista as agendas com as
+                  cores; aqui basta o resumo. */}
+              <span className="text-xs text-neutral-400">
                 {calendars.filter((calendar) => calendar.selected).length} de{" "}
                 {calendars.length} agendas
               </span>
-              {/* Nas telas largas a lateral já lista as agendas com as
-                  cores; aqui a legenda só existe pra quando ela está
-                  escondida. */}
-              {calendars
-                .filter((calendar) => calendar.selected)
-                .map((calendar) => (
-                  <span
-                    key={calendar.id}
-                    className="flex items-center gap-1.5 text-xs text-neutral-500 lg:hidden"
-                  >
-                    <span
-                      aria-hidden
-                      className="h-2.5 w-2.5 rounded-sm"
-                      style={{ backgroundColor: calendar.color }}
-                    />
-                    {calendar.name}
-                  </span>
-                ))}
 
               {/* Conexão já resolvida: os ajustes ficam aqui, fora do
                   caminho, e a grade fica com a tela inteira. */}
