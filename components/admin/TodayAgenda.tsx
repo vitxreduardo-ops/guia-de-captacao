@@ -42,8 +42,9 @@ function hhmm(minutes: number) {
  * quem abre o Painel saber se pode pegar mais coisa — a grade inteira mora
  * em /admin/agenda, a um clique daqui.
  *
- * Só no desktop: no celular a tela já é uma pilha comprida de tarefas e
- * postagens, e mais um bloco empurraria tudo isso para baixo da dobra.
+ * No celular vira uma coluna só, ainda no topo: é a primeira pergunta de
+ * quem abre o Painel de manhã, e empurrar tarefas e postagens algumas
+ * linhas para baixo custa menos que esconder a resposta.
  */
 export async function TodayAgenda({
   account,
@@ -95,7 +96,7 @@ export async function TodayAgenda({
               <li key={event.id} className="break-inside-avoid">
                 <Link
                   href="/admin/agenda"
-                  className={`flex items-baseline gap-2 rounded-md px-2 py-1.5 text-sm transition-transform hover:bg-neutral-100 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none ${
+                  className={`flex items-baseline gap-2 rounded-md px-2 py-1.5 text-sm transition-transform hover:bg-neutral-100 active:scale-[0.99] pointer-coarse:min-h-11 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none ${
                     past ? "text-neutral-400" : "text-neutral-800"
                   }`}
                 >
@@ -147,7 +148,7 @@ function TodayAgendaFrame({
   return (
     <section
       aria-labelledby="hoje-titulo"
-      className="mb-6 hidden rounded-lg border border-neutral-200 bg-white p-4 lg:block"
+      className="mb-6 rounded-lg border border-neutral-200 bg-white p-4"
     >
       <div className="mb-3 flex items-baseline justify-between gap-2">
         <h2 id="hoje-titulo" className="text-sm font-semibold text-neutral-900">
