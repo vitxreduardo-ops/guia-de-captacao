@@ -78,7 +78,7 @@ export function AgendaFrame({
             title={
               open ? "Esconder calendário e agendas" : "Mostrar calendário e agendas"
             }
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-neutral-500 transition-transform hover:bg-neutral-100 hover:text-neutral-700 active:scale-90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
           >
             <svg
               aria-hidden

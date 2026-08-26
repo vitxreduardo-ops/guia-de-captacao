@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { NavLink } from "@/components/admin/NavLink";
 
 import type { AgendaView } from "@/lib/agendaRange";
 
@@ -57,7 +57,7 @@ export function ViewPicker({
         type="button"
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
-        className="flex items-center gap-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+        className="flex items-center gap-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 transition-transform hover:bg-neutral-50 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
         {VIEW_LABELS[current]}
         <span aria-hidden className="text-xs text-neutral-400">
@@ -68,18 +68,18 @@ export function ViewPicker({
       {open ? (
         <div className="absolute left-0 top-10 z-40 w-40 overflow-hidden rounded-lg border border-neutral-200 bg-white py-1 shadow-lg">
           {(Object.keys(VIEW_LABELS) as AgendaView[]).map((view) => (
-            <Link
+            <NavLink
               key={view}
               href={hrefs[view]}
               onClick={() => setOpen(false)}
-              className={`block px-3 py-1.5 text-sm hover:bg-neutral-50 ${
+              className={`block px-3 py-1.5 text-sm transition-transform hover:bg-neutral-50 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none ${
                 view === current
                   ? "font-medium text-neutral-900"
                   : "text-neutral-600"
               }`}
             >
               {VIEW_LABELS[view]}
-            </Link>
+            </NavLink>
           ))}
         </div>
       ) : null}

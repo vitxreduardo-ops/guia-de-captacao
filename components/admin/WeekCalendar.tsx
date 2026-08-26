@@ -91,6 +91,14 @@ export function WeekCalendar({
     dayKey: string;
   } | null>(null);
   const [newSlot, setNewSlot] = useState<NewEventSlot | null>(null);
+  /** Aviso no rodapé: erro de gravação ou o "movido", com o desfazer junto.
+   * Substitui o `window.alert`, que era bloqueante e aparecia no meio do
+   * gesto. */
+  const [notice, setNotice] = useState<{
+    message: string;
+    tone: "info" | "error";
+    undo?: () => void;
+  } | null>(null);
 
   const router = useRouter();
   const columnsRef = useRef<HTMLDivElement>(null);
@@ -124,13 +132,15 @@ export function WeekCalendar({
   } | null>(null);
 
   const save = useCallback(
-    async (
+    async function save(
       event: WeekEvent,
       dayIndex: number,
       startMinutes: number,
       endMinutes: number,
-      scope: "single" | "series"
-    ) => {
+      scope: "single" | "series",
+      /** Onde o bloco estava antes — é para lá que o "desfazer" volta. */
+      undo?: { dayIndex: number; startMinutes: number; endMinutes: number }
+    ) {
       const toTime = (minutes: number) =>
         `${String(Math.floor(minutes / 60) % 24).padStart(2, "0")}:${String(
           minutes % 60
@@ -153,8 +163,29 @@ export function WeekCalendar({
       if (!result.ok) {
         // Devolve o bloco pro lugar de origem e conta o motivo.
         setOverride(null);
-        window.alert(result.message);
+        setNotice({ message: result.message, tone: "error" });
         return;
+      }
+
+      // Arrastar grava direto no Google: sem uma saída, o único conserto é
+      // achar o compromisso e arrastar de volta na mão.
+      if (undo) {
+        setNotice({
+          message: "Compromisso movido.",
+          tone: "info",
+          undo: () => {
+            setNotice(null);
+            void save(
+              event,
+              undo.dayIndex,
+              undo.startMinutes,
+              undo.endMinutes,
+              scope
+            );
+          },
+        });
+      } else {
+        setNotice(null);
       }
       router.refresh();
     },
@@ -175,6 +206,28 @@ export function WeekCalendar({
     // Abre na faixa útil do dia em vez da madrugada.
     if (scrollRef.current) scrollRef.current.scrollTop = 7 * HOUR_HEIGHT;
   }, []);
+
+  useEffect(() => {
+    // O aviso de sucesso sai sozinho; o de erro fica até ser lido e
+    // fechado, porque conta algo que não aconteceu.
+    if (!notice || notice.tone === "error") return;
+    const timer = setTimeout(() => setNotice(null), 8000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  /** Abre o formulário de novo compromisso num horário do dia. */
+  function openNewSlot(dayKey: string, startMinutes: number) {
+    if (writableCalendars.length === 0) return;
+    const start = Math.max(
+      0,
+      Math.min(24 * 60 - NEW_EVENT_MINUTES, startMinutes)
+    );
+    setNewSlot({
+      dayKey,
+      startTime: timeText(start),
+      endTime: timeText(start + NEW_EVENT_MINUTES),
+    });
+  }
 
   /** Começa a acompanhar o gesto, mas só vira arrasto depois do limiar (no
    * mouse) ou de segurar parado (no toque) — senão todo clique pra abrir os
@@ -287,7 +340,11 @@ export function WeekCalendar({
         });
         return;
       }
-      void save(event, dayIndex, startMinutes, endMinutes, "single");
+      void save(event, dayIndex, startMinutes, endMinutes, "single", {
+        dayIndex: event.dayIndex,
+        startMinutes: event.startMinutes,
+        endMinutes: event.endMinutes,
+      });
     }
 
     function handleUp() {
@@ -394,13 +451,11 @@ export function WeekCalendar({
         });
         return;
       }
-      void save(
-        event,
-        event.dayIndex,
-        event.startMinutes,
-        endMinutes,
-        "single"
-      );
+      void save(event, event.dayIndex, event.startMinutes, endMinutes, "single", {
+        dayIndex: event.dayIndex,
+        startMinutes: event.startMinutes,
+        endMinutes: event.endMinutes,
+      });
     }
 
     function handleUp() {
@@ -506,7 +561,7 @@ export function WeekCalendar({
                     type="button"
                     onClick={() => setSelected({ event, dayKey: day.key })}
                     title={`${event.title} · ${event.calendarName}`}
-                    className="block w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] text-white"
+                    className="block w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] text-white transition-transform active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                     style={{ backgroundColor: event.color }}
                   >
                     {event.title}
@@ -542,27 +597,33 @@ export function WeekCalendar({
                 key={day.key}
                 className="relative min-w-0 flex-1 border-l border-neutral-100"
               >
+                {/* Clicar num horário vazio é gesto de ponteiro; quem usa
+                    teclado ou leitor de tela chega por aqui, e cai nas 9h
+                    daquele dia. */}
+                {writableCalendars.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => openNewSlot(day.key, 9 * 60)}
+                    className="sr-only z-30 focus:not-sr-only focus:absolute focus:left-1 focus:top-1 focus:rounded focus:bg-neutral-900 focus:px-2 focus:py-1 focus:text-[11px] focus:text-white"
+                  >
+                    Novo compromisso em {DAY_LABELS[weekdayOf(day.key)]}{" "}
+                    {day.day}
+                  </button>
+                ) : null}
+
                 {/* Fundo do dia. Clicar aqui cria; os blocos são irmãos
                     posteriores, então o clique neles não chega até esta
                     camada e continua abrindo os detalhes. */}
                 <div
                   onClick={(clickEvent) => {
-                    if (writableCalendars.length === 0) return;
                     const bounds =
                       clickEvent.currentTarget.getBoundingClientRect();
                     const raw =
                       ((clickEvent.clientY - bounds.top) / HOUR_HEIGHT) * 60;
-                    const snapped =
-                      Math.round(raw / SNAP_MINUTES) * SNAP_MINUTES;
-                    const start = Math.max(
-                      0,
-                      Math.min(24 * 60 - NEW_EVENT_MINUTES, snapped)
+                    openNewSlot(
+                      day.key,
+                      Math.round(raw / SNAP_MINUTES) * SNAP_MINUTES
                     );
-                    setNewSlot({
-                      dayKey: day.key,
-                      startTime: timeText(start),
-                      endTime: timeText(start + NEW_EVENT_MINUTES),
-                    });
                   }}
                 >
                   {Array.from({ length: 24 }, (_, hour) => (
@@ -604,7 +665,7 @@ export function WeekCalendar({
                         setSelected({ event, dayKey: day.key });
                       }}
                       title={`${event.title} · ${event.calendarName}`}
-                      className={`absolute select-none overflow-hidden rounded px-1.5 py-0.5 text-left text-[11px] leading-tight text-white shadow-sm ${
+                      className={`absolute select-none overflow-hidden rounded px-1.5 py-0.5 text-left text-[11px] leading-tight text-white shadow-sm transition-transform active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none ${
                         // Clicar abre os detalhes; arrastar é gesto extra.
                         // Mostrar "grab" fazia o card parecer que só arrasta.
                         "cursor-pointer"
@@ -687,10 +748,15 @@ export function WeekCalendar({
                     pending.dayIndex,
                     pending.startMinutes,
                     pending.endMinutes,
-                    "single"
+                    "single",
+                    {
+                      dayIndex: pending.event.dayIndex,
+                      startMinutes: pending.event.startMinutes,
+                      endMinutes: pending.event.endMinutes,
+                    }
                   );
                 }}
-                className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+                className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-neutral-800 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 Só este dia
               </button>
@@ -706,10 +772,15 @@ export function WeekCalendar({
                       pending.dayIndex,
                       pending.startMinutes,
                       pending.endMinutes,
-                      "series"
+                      "series",
+                      {
+                        dayIndex: pending.event.dayIndex,
+                        startMinutes: pending.event.startMinutes,
+                        endMinutes: pending.event.endMinutes,
+                      }
                     );
                   }}
-                  className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+                  className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 transition-transform hover:bg-neutral-50 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   Todos
                 </button>
@@ -722,7 +793,7 @@ export function WeekCalendar({
                   setAskScope(null);
                   setOverride(null);
                 }}
-                className="rounded-md px-3 py-1.5 text-sm text-neutral-500 hover:bg-neutral-100"
+                className="rounded-md px-3 py-1.5 text-sm text-neutral-500 transition-transform hover:bg-neutral-100 active:scale-90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 Cancelar
               </button>
@@ -742,6 +813,40 @@ export function WeekCalendar({
         calendars={writableCalendars}
         onClose={() => setNewSlot(null)}
       />
+
+      {notice ? (
+        <div
+          role="status"
+          className={`fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg px-4 py-2 text-sm shadow-lg ${
+            notice.tone === "error"
+              ? "border border-amber-200 bg-amber-50 text-amber-900"
+              : "bg-neutral-900 text-white"
+          }`}
+        >
+          <span>{notice.message}</span>
+          {notice.undo ? (
+            <button
+              type="button"
+              onClick={notice.undo}
+              className="rounded px-2 py-0.5 font-medium underline underline-offset-2 transition-colors hover:bg-white/10 active:bg-white/20"
+            >
+              Desfazer
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            aria-label="Fechar aviso"
+            className={`rounded px-1 transition-colors ${
+              notice.tone === "error"
+                ? "hover:bg-amber-100"
+                : "hover:bg-white/10"
+            }`}
+          >
+            ✕
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

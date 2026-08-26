@@ -28,15 +28,22 @@ export function NavLink({
   href,
   className,
   ariaLabel,
+  onClick,
   children,
 }: {
   href: string;
   className?: string;
   ariaLabel?: string;
+  onClick?: () => void;
   children: ReactNode;
 }) {
   return (
-    <Link href={href} aria-label={ariaLabel} className={className}>
+    <Link
+      href={href}
+      aria-label={ariaLabel}
+      onClick={onClick}
+      className={className}
+    >
       <Pending>{children}</Pending>
     </Link>
   );

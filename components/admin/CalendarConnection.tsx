@@ -70,7 +70,7 @@ export function CalendarConnection({
         </p>
         <a
           href="/api/calendar/oauth/start"
-          className="mt-4 inline-block rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+          className="mt-4 inline-block rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-neutral-800 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           Conectar com o Google
         </a>
@@ -86,7 +86,7 @@ export function CalendarConnection({
         aria-label="Ajustes da agenda"
         aria-expanded={open}
         title="Ajustes da agenda"
-        className={`flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 ${
+        className={`flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 transition-transform hover:bg-neutral-100 hover:text-neutral-700 active:scale-90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none ${
           open ? "bg-neutral-100 text-neutral-700" : ""
         }`.trim()}
       >
@@ -134,7 +134,7 @@ export function CalendarConnection({
                   );
                 })
               }
-              className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+              className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 transition-transform hover:bg-neutral-50 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
             >
               {pending ? "Sincronizando..." : "Sincronizar agora"}
             </button>
@@ -148,7 +148,7 @@ export function CalendarConnection({
                   await disconnectCalendarAction();
                 })
               }
-              className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+              className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 transition-transform hover:bg-neutral-50 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
             >
               Desconectar
             </button>

@@ -176,7 +176,7 @@ export default async function MinhaAgendaPage({
               <>
                 <NavLink
                   href={linkTo(todayKey)}
-                  className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 active:bg-neutral-100"
+                  className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 active:scale-[0.97] transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   Hoje
                 </NavLink>
@@ -187,14 +187,14 @@ export default async function MinhaAgendaPage({
                   <NavLink
                     href={linkTo(step.back)}
                     ariaLabel="Período anterior"
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 active:bg-neutral-200"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 active:scale-90 transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                   >
                     ‹
                   </NavLink>
                   <NavLink
                     href={linkTo(step.next)}
                     ariaLabel="Próximo período"
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 active:bg-neutral-200"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 active:scale-90 transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                   >
                     ›
                   </NavLink>

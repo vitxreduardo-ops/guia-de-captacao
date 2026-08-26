@@ -103,7 +103,7 @@ export function MonthCalendar({
                           type="button"
                           onClick={() => setSelected({ event, dayKey: day.key })}
                           title={`${event.title} · ${event.calendarName}`}
-                          className="flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[11px] hover:bg-neutral-100"
+                          className="flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[11px] transition-transform hover:bg-neutral-100 active:scale-90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                         >
                           {event.allDay ? (
                             <span

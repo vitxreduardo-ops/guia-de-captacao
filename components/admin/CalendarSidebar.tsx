@@ -79,7 +79,10 @@ export function CalendarSidebar({
   view: AgendaView;
 }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
+  const [navigating, startNavigation] = useTransition();
+  // Dia clicado no mini-calendário: fica marcado enquanto a grade não chega.
+  const [pendingDay, setPendingDay] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Mês visível no mini-calendário. Navegar pela grade traz o mês junto; o
@@ -136,7 +139,7 @@ export function CalendarSidebar({
             type="button"
             onClick={() => setMonth((current) => addMonths(current, -1))}
             aria-label="Mês anterior"
-            className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-500 transition-transform hover:bg-neutral-100 active:scale-90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
           >
             ‹
           </button>
@@ -144,7 +147,7 @@ export function CalendarSidebar({
             type="button"
             onClick={() => setMonth((current) => addMonths(current, 1))}
             aria-label="Próximo mês"
-            className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-neutral-500 transition-transform hover:bg-neutral-100 active:scale-90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
           >
             ›
           </button>
@@ -167,11 +170,18 @@ export function CalendarSidebar({
               <button
                 key={cell.key}
                 type="button"
-                onClick={() =>
-                  router.push(`/admin/agenda?vis=${view}&semana=${cell.key}`)
-                }
+                onClick={() => {
+                  // Sem isto o clique fica sem resposta pelo tempo do
+                  // render no servidor, e a pessoa clica de novo.
+                  setPendingDay(cell.key);
+                  startNavigation(() => {
+                    router.push(
+                      `/admin/agenda?vis=${view}&semana=${cell.key}`
+                    );
+                  });
+                }}
                 aria-current={isToday ? "date" : undefined}
-                className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full text-xs ${
+                className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full text-xs transition-transform active:scale-90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none ${
                   isToday
                     ? "bg-blue-600 font-medium text-white"
                     : inRange
@@ -179,6 +189,10 @@ export function CalendarSidebar({
                       : cell.inMonth
                         ? "text-neutral-700 hover:bg-neutral-100"
                         : "text-neutral-300 hover:bg-neutral-100"
+                } ${
+                  navigating && pendingDay === cell.key
+                    ? "ring-2 ring-blue-300"
+                    : ""
                 }`}
               >
                 {cell.day}
@@ -190,16 +204,19 @@ export function CalendarSidebar({
 
       <div>
         <h2 className="mb-2 text-sm text-neutral-800">Minhas agendas</h2>
-        <ul className={`space-y-1 ${pending ? "opacity-60" : ""}`.trim()}>
+        <ul className="space-y-1">
           {calendars.map((calendar) => {
             const checked = pendingSelection[calendar.id] ?? calendar.selected;
+            // Só a linha em voo esmaece: antes a lista inteira apagava por
+            // causa de uma caixinha.
+            const saving = calendar.id in pendingSelection;
             return (
-              <li key={calendar.id}>
-                <label className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-neutral-50">
+              <li key={calendar.id} className={saving ? "opacity-60" : ""}>
+                <label className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 transition-transform hover:bg-neutral-50 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none">
                   <input
                     type="checkbox"
                     checked={checked}
-                    disabled={pending}
+                    disabled={saving}
                     onChange={(changeEvent) =>
                       toggle(calendar, changeEvent.target.checked)
                     }

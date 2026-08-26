@@ -140,7 +140,7 @@ export function EventDetails({
                 type="button"
                 onClick={close}
                 aria-label="Fechar"
-                className="rounded-full px-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
+                className="rounded-full px-2 text-neutral-400 transition-transform hover:bg-neutral-100 hover:text-neutral-700 active:scale-90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 ✕
               </button>
@@ -226,7 +226,7 @@ export function EventDetails({
                         title: changeEvent.target.value,
                       }))
                     }
-                    className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
+                    className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
                   />
                 </label>
 
@@ -243,7 +243,7 @@ export function EventDetails({
                             startTime: changeEvent.target.value,
                           }))
                         }
-                        className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
+                        className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
                       />
                     </label>
                     <label className="flex-1">
@@ -257,7 +257,7 @@ export function EventDetails({
                             endTime: changeEvent.target.value,
                           }))
                         }
-                        className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
+                        className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
                       />
                     </label>
                   </div>
@@ -273,7 +273,7 @@ export function EventDetails({
                         location: changeEvent.target.value,
                       }))
                     }
-                    className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
+                    className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
                   />
                 </label>
 
@@ -288,7 +288,7 @@ export function EventDetails({
                         description: changeEvent.target.value,
                       }))
                     }
-                    className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
+                    className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-1.5 text-sm focus:border-neutral-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400"
                   />
                 </label>
 
@@ -334,7 +334,7 @@ export function EventDetails({
                   <button
                     type="submit"
                     disabled={pending}
-                    className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+                    className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-neutral-800 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
                   >
                     {pending ? "Salvando..." : "Salvar"}
                   </button>
@@ -342,7 +342,7 @@ export function EventDetails({
                     type="button"
                     disabled={pending}
                     onClick={() => setEditingId(null)}
-                    className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+                    className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 transition-transform hover:bg-neutral-50 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                   >
                     Cancelar
                   </button>
@@ -354,7 +354,7 @@ export function EventDetails({
                 <button
                   type="button"
                   onClick={() => startEditing(event)}
-                  className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+                  className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-neutral-800 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   Editar
                 </button>
@@ -364,7 +364,7 @@ export function EventDetails({
                   href={event.meetLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+                  className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-neutral-800 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   Entrar na chamada
                 </a>
@@ -374,7 +374,7 @@ export function EventDetails({
                   href={event.htmlLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+                  className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 transition-transform hover:bg-neutral-50 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   {event.canEdit ? "Abrir no Google ↗" : "Editar no Google ↗"}
                 </a>
