@@ -75,18 +75,24 @@ export async function TodayAgenda({
   // O próximo é o primeiro que ainda não acabou — inclui o que está
   // acontecendo agora, que é justamente o mais útil de ver destacado.
   const next = ordered.find((event) => !event.allDay && event.endMinutes > minutes);
-  // Recolhido cabe uma linha: o próximo, ou — quando o dia já acabou — o
-  // primeiro da lista, pra barra nunca ficar só com o número.
-  const highlight = next ?? ordered[0] ?? null;
+  // Recolhido cabem duas linhas: o de agora e o que vem logo depois — "o
+  // que estou fazendo e o que me espera" é a pergunta inteira. Quando o dia
+  // já acabou, as duas primeiras da lista, pra barra nunca ficar só com o
+  // número.
+  const from = next ? ordered.indexOf(next) : 0;
+  const preview = ordered.slice(from, from + 2);
 
   return (
     <TodayAgendaFrame
       count={ordered.length}
-      preview={
-        highlight ? (
-          <EventRow event={highlight} current={highlight.id === next?.id} past={false} />
-        ) : null
-      }
+      preview={preview.map((event) => (
+        <EventRow
+          key={event.id}
+          event={event}
+          current={event.id === next?.id}
+          past={false}
+        />
+      ))}
     >
       {ordered.length === 0 ? (
         <p className="py-4 text-center text-sm text-neutral-500">
@@ -225,7 +231,9 @@ function TodayAgendaFrame({
 
           {/* Recolhido, o celular ainda vê o próximo compromisso — é a
               resposta que o bloco existe pra dar. */}
-          {preview ? <div className="mt-2 group-open:hidden">{preview}</div> : null}
+          {preview ? (
+            <div className="mt-2 space-y-0.5 group-open:hidden">{preview}</div>
+          ) : null}
         </summary>
 
         <div className="mt-3">{children}</div>
@@ -264,7 +272,7 @@ export function TodayAgendaSkeleton() {
       // Recolhido no celular, o esqueleto também precisa de uma linha:
       // sem ela a barra encolhia e depois crescia quando os compromissos
       // chegavam.
-      preview={<SkeletonRow />}
+      preview={[<SkeletonRow key="a" />, <SkeletonRow key="b" />]}
     >
       <ul>
         {[0, 1, 2].map((row) => (
