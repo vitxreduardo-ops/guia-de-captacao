@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toggleCalendarAction } from "@/app/admin/agenda/actions";
+import type { AgendaView } from "@/components/admin/ViewPicker";
 import type { CalendarSource } from "@/lib/googleCalendar";
 
 const MONTH_TITLE = new Intl.DateTimeFormat("pt-BR", {
@@ -58,21 +59,27 @@ function addMonths(monthKey: string, amount: number): string {
  */
 export function CalendarSidebar({
   calendars,
-  weekStart,
+  rangeStart,
+  rangeEnd,
   todayKey,
+  view,
 }: {
   calendars: CalendarSource[];
-  /** Domingo da semana que a grade está mostrando. */
-  weekStart: string;
+  /** Primeiro e último dia que a grade está mostrando — o trecho que o
+   * mini-calendário marca. */
+  rangeStart: string;
+  rangeEnd: string;
   todayKey: string;
+  /** Clicar num dia mantém a visão escolhida. */
+  view: AgendaView;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  // Mês visível no mini-calendário. Trocar de semana pela grade traz o mês
-  // junto; o reset no render evita um quadro com o mês antigo.
-  const weekMonth = addDaysKey(weekStart, 3).slice(0, 7);
+  // Mês visível no mini-calendário. Navegar pela grade traz o mês junto; o
+  // reset no render evita um quadro com o mês antigo.
+  const weekMonth = rangeStart.slice(0, 7);
   const [month, setMonth] = useState(weekMonth);
   const [monthFor, setMonthFor] = useState(weekMonth);
   if (monthFor !== weekMonth) {
@@ -85,8 +92,6 @@ export function CalendarSidebar({
   const [pendingSelection, setPendingSelection] = useState<
     Record<string, boolean>
   >({});
-
-  const weekEnd = addDaysKey(weekStart, 6);
 
   function toggle(calendar: CalendarSource, next: boolean) {
     setError(null);
@@ -151,18 +156,20 @@ export function CalendarSidebar({
           ))}
 
           {monthGrid(month).map((cell) => {
-            const inWeek = cell.key >= weekStart && cell.key <= weekEnd;
+            const inRange = cell.key >= rangeStart && cell.key <= rangeEnd;
             const isToday = cell.key === todayKey;
             return (
               <button
                 key={cell.key}
                 type="button"
-                onClick={() => router.push(`/admin/agenda?semana=${cell.key}`)}
+                onClick={() =>
+                  router.push(`/admin/agenda?vis=${view}&semana=${cell.key}`)
+                }
                 aria-current={isToday ? "date" : undefined}
                 className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full text-xs ${
                   isToday
                     ? "bg-blue-600 font-medium text-white"
-                    : inWeek
+                    : inRange
                       ? "bg-blue-50 text-neutral-800"
                       : cell.inMonth
                         ? "text-neutral-700 hover:bg-neutral-100"

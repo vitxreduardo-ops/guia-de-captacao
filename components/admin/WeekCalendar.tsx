@@ -22,6 +22,14 @@ const DRAG_THRESHOLD_PX = 5;
 const TOUCH_HOLD_MS = 400;
 const DAY_LABELS = ["DOM.", "SEG.", "TER.", "QUA.", "QUI.", "SEX.", "SÁB."];
 
+/** Dia da semana de uma chave YYYY-MM-DD. As colunas deixaram de ser sempre
+ * domingo-a-sábado quando entraram as visões de dia e de 4 dias, então o
+ * rótulo vem da data, não da posição. */
+function weekdayOf(key: string): number {
+  const [year, month, day] = key.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+}
+
 function hourLabel(hour: number) {
   if (hour === 0) return "";
   const suffix = hour < 12 ? "AM" : "PM";
@@ -111,7 +119,8 @@ export function WeekCalendar({
   writableCalendars,
 }: {
   events: WeekEvent[];
-  /** Chaves YYYY-MM-DD dos sete dias, já resolvidas no servidor. */
+  /** Chaves YYYY-MM-DD das colunas (1, 4 ou 7 dias), já resolvidas no
+   * servidor. */
   days: { key: string; day: number }[];
   todayKey: string | null;
   /** Agendas em que a conta pode criar compromissos. */
@@ -484,18 +493,19 @@ export function WeekCalendar({
 
   return (
     <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
-      {/* Sete colunas espremidas num celular ficam ilegíveis: a semana ganha
-          uma largura mínima e rola de lado. Cabeçalho, faixa de dia todo e
-          grade ficam dentro do mesmo rolamento, senão eles se desalinham. */}
+      {/* Sete colunas espremidas num celular ficam ilegíveis: a grade ganha
+          uma largura mínima por coluna e rola de lado. Cabeçalho, faixa de
+          dia todo e colunas ficam dentro do mesmo rolamento, senão eles se
+          desalinham. */}
       <div className="overflow-x-auto">
-      <div className="min-w-[44rem]">
+      <div style={{ minWidth: `${Math.min(days.length, 7) * 6.5}rem` }}>
       {/* Cabeçalho dos dias: fora da área rolável, pra não sumir ao descer */}
       <div className="flex border-b border-neutral-200">
         <div className="w-14 shrink-0" />
         {days.map((day, index) => (
           <div key={day.key} className="flex-1 border-l border-neutral-100 py-2 text-center">
             <div className="text-[10px] font-medium uppercase tracking-wide text-neutral-400">
-              {DAY_LABELS[index]}
+              {DAY_LABELS[weekdayOf(day.key)]}
             </div>
             <div
               className={

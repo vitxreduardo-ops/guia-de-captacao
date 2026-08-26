@@ -468,7 +468,7 @@ export interface WeekEvent {
    * atravessa a meia-noite é cortado no dia — a grade é por dia. */
   startMinutes: number;
   endMinutes: number;
-  /** Índice da coluna: 0 = domingo, igual à grade do Google. */
+  /** Índice da coluna dentro do intervalo mostrado (0 = primeiro dia). */
   dayIndex: number;
   color: string;
   htmlLink: string | null;
@@ -672,15 +672,20 @@ function addDaysKey(key: string, days: number): string {
 }
 
 /**
- * Eventos de uma semana, de todas as agendas visíveis, já posicionados para
- * a grade.
+ * Eventos de um intervalo de dias, de todas as agendas visíveis, já
+ * posicionados para a grade.
+ *
+ * O intervalo é aberto de propósito: a mesma função serve para o dia, os
+ * quatro dias, a semana e as seis linhas do mês — muda só quantas colunas
+ * existem.
  *
  * As agendas são buscadas em paralelo: em série, uma pessoa com cinco
  * agendas esperaria cinco idas ao Google só pra abrir a tela.
  */
-export async function listWeekEvents(
+export async function listRangeEvents(
   account: UserCalendarAccount,
-  weekStartKey: string,
+  rangeStartKey: string,
+  dayCount: number,
   calendars: CalendarSource[]
 ): Promise<WeekEvent[]> {
   const accessToken = await getUserAccessToken(account.userId);
@@ -689,8 +694,8 @@ export async function listWeekEvents(
   // Janela com um dia de folga de cada lado e em UTC puro: assim o intervalo
   // não depende do fuso estar cravado aqui — o que decide em qual coluna o
   // evento cai é o `dayIndexOf`, que já lê tudo no fuso do backlog.
-  const timeMin = `${addDaysKey(weekStartKey, -1)}T00:00:00Z`;
-  const timeMax = `${addDaysKey(weekStartKey, 8)}T00:00:00Z`;
+  const timeMin = `${addDaysKey(rangeStartKey, -1)}T00:00:00Z`;
+  const timeMax = `${addDaysKey(rangeStartKey, dayCount + 1)}T00:00:00Z`;
 
   // Paleta e "quais eventos vieram do backlog" não dependem das agendas:
   // pedir tudo junto tira duas esperas em série de abrir a semana.
@@ -782,8 +787,8 @@ export async function listWeekEvents(
             key < endExclusive;
             key = addDaysKey(key, 1)
           ) {
-            const index = dayIndexOf(weekStartKey, key);
-            if (index < 0 || index > 6) continue;
+            const index = dayIndexOf(rangeStartKey, key);
+            if (index < 0 || index >= dayCount) continue;
             events.push({
               ...base,
               id: `${base.id}:${key}`,
@@ -797,7 +802,7 @@ export async function listWeekEvents(
         }
 
         const startKey = dayKey(startIso);
-        const index = dayIndexOf(weekStartKey, startKey);
+        const index = dayIndexOf(rangeStartKey, startKey);
         const startMinutes = minutesOfDay(startIso);
         const endIso = item.end?.dateTime;
         const endKey = endIso ? dayKey(endIso) : startKey;
@@ -810,7 +815,7 @@ export async function listWeekEvents(
 
         if (endKey === startKey) {
           const rawEnd = endIso ? minutesOfDay(endIso) : startMinutes;
-          if (index >= 0 && index <= 6) {
+          if (index >= 0 && index < dayCount) {
             events.push({
               ...base,
               allDay: false,
@@ -825,8 +830,8 @@ export async function listWeekEvents(
         // Atravessa a meia-noite: uma faixa por dia, cada uma no seu pedaço,
         // que é como a grade do Google mostra.
         for (let key = startKey; key <= endKey; key = addDaysKey(key, 1)) {
-          const dayIndex = dayIndexOf(weekStartKey, key);
-          if (dayIndex < 0 || dayIndex > 6) continue;
+          const dayIndex = dayIndexOf(rangeStartKey, key);
+          if (dayIndex < 0 || dayIndex >= dayCount) continue;
           const isFirst = key === startKey;
           const isLast = key === endKey;
           const from = isFirst ? startMinutes : 0;
@@ -851,8 +856,8 @@ export async function listWeekEvents(
   return perCalendar.flat();
 }
 
-function dayIndexOf(weekStartKey: string, key: string): number {
-  const [ys, ms, ds] = weekStartKey.split("-").map(Number);
+function dayIndexOf(rangeStartKey: string, key: string): number {
+  const [ys, ms, ds] = rangeStartKey.split("-").map(Number);
   const [y, m, d] = key.split("-").map(Number);
   const start = Date.UTC(ys, ms - 1, ds);
   const target = Date.UTC(y, m - 1, d);
