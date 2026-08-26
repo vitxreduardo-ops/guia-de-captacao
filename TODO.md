@@ -19,6 +19,24 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
       lê; ao limpar, remover também do `SELECT` em `fetchCard`
       (`lib/googleCalendar.ts`).
 
+- [ ] **Excluir compromisso não tem desfazer.** O arrasto grava no Google e
+      oferece "Desfazer" no rodapé; o excluir só pergunta antes
+      (`components/admin/EventDetails.tsx`). Recriar depois de apagado é
+      possível — os campos estão todos na tela no momento do clique —, mas o
+      evento volta com outro id, e nada que aponte pro id antigo sobrevive.
+
+- [ ] **O excluir nunca foi exercido em evento repetido.** A escolha entre
+      "só este dia" e "todos" está no código e segue o mesmo caminho da
+      edição, mas o teste de ponta a ponta foi feito só com evento avulso, em
+      26/08/2026. Apagar uma série é destrutivo o bastante pra querer o
+      usuário junto.
+
+- [ ] **Material do backlog não pode ser apagado pela agenda.** O botão é
+      escondido de propósito quando `fromBacklog` — apagar só o evento
+      deixaria o card apontando pro vazio. Falta decidir se vale apagar os
+      dois de uma vez a partir dali, ou se o backlog continua sendo o único
+      lugar.
+
 - [ ] **Estados de carregando por agenda.** Hoje a grade inteira espera a
       agenda mais lenta e mostra um esqueleto só. As cinco chamadas já são
       paralelas, então o ganho seria de percepção, não de tempo: cada agenda
