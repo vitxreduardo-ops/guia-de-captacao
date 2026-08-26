@@ -8,10 +8,17 @@ import { GalleryFolderBrowser } from "@/components/GalleryFolderBrowser";
 
 export const dynamic = "force-dynamic";
 
-type Params = Promise<{ slug: string }>;
+// A rota é catch-all: o primeiro segmento é o cliente e o resto é o caminho da
+// pasta aberta (/galeria/14bis/09.setembro/videos), pra que cada pasta tenha um
+// link próprio que pode ser mandado direto pro cliente.
+type Params = Promise<{ slug: string[] }>;
 
 export default async function PublicGalleryPage({ params }: { params: Params }) {
-  const { slug } = await params;
+  const { slug: segments } = await params;
+  const [slug, ...folderPath] = segments ?? [];
+
+  if (!slug) notFound();
+
   const client = await getGalleryClientBySlugWithImages(slug);
 
   if (!client) notFound();
@@ -47,6 +54,7 @@ export default async function PublicGalleryPage({ params }: { params: Params }) 
             root={root}
             clientName={client.name}
             slug={client.slug}
+            initialPath={folderPath.map((segment) => decodeURIComponent(segment))}
           />
         )}
       </div>

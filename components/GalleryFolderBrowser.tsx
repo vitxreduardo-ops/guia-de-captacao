@@ -260,12 +260,14 @@ export function GalleryFolderBrowser({
   root,
   clientName,
   slug,
+  initialPath = [],
 }: {
   root: GalleryFolderNode;
   clientName: string;
   slug: string;
+  initialPath?: string[];
 }) {
-  const [path, setPath] = useState<string[]>([]);
+  const [path, setPath] = useState<string[]>(initialPath);
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [search, setSearch] = useState("");
   const [selecting, setSelecting] = useState(false);
@@ -287,6 +289,34 @@ export function GalleryFolderBrowser({
     sync();
     query.addEventListener("change", sync);
     return () => query.removeEventListener("change", sync);
+  }, []);
+
+  /**
+   * Cada pasta tem URL própria (/galeria/<slug>/<pasta>/<subpasta>), então
+   * navegar troca o endereço da barra sem recarregar a página — o link do
+   * momento é sempre compartilhável e o botão voltar do navegador funciona.
+   */
+  function goTo(nextPath: string[]) {
+    setPath(nextPath);
+    const url = [
+      "/galeria",
+      slug,
+      ...nextPath.map((segment) => encodeURIComponent(segment)),
+    ].join("/");
+    window.history.pushState({ galleryPath: nextPath }, "", url);
+  }
+
+  useEffect(() => {
+    function handlePopState() {
+      const segments = window.location.pathname
+        .split("/")
+        .filter(Boolean)
+        .slice(2)
+        .map((segment) => decodeURIComponent(segment));
+      setPath(segments);
+    }
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   const current = useMemo(() => findNode(root, path) ?? root, [root, path]);
@@ -425,7 +455,7 @@ export function GalleryFolderBrowser({
         <nav className="flex flex-wrap items-center gap-1 text-sm text-neutral-500">
           <button
             type="button"
-            onClick={() => setPath([])}
+            onClick={() => goTo([])}
             className={`rounded px-1.5 py-0.5 hover:bg-neutral-100 hover:text-neutral-900 ${
               path.length === 0 ? "font-medium text-neutral-900" : ""
             }`}
@@ -437,7 +467,7 @@ export function GalleryFolderBrowser({
               <span className="text-neutral-300">/</span>
               <button
                 type="button"
-                onClick={() => setPath(path.slice(0, index + 1))}
+                onClick={() => goTo(path.slice(0, index + 1))}
                 className={`rounded px-1.5 py-0.5 hover:bg-neutral-100 hover:text-neutral-900 ${
                   index === path.length - 1
                     ? "font-medium text-neutral-900"
@@ -545,7 +575,7 @@ export function GalleryFolderBrowser({
 
                     <button
                       type="button"
-                      onClick={() => setPath([...path, folder.name])}
+                      onClick={() => goTo([...path, folder.name])}
                       className="flex flex-1 items-center gap-3 px-4 py-3 text-left text-sm font-medium text-neutral-800 transition-colors hover:bg-neutral-50 active:bg-neutral-100"
                     >
                       <span aria-hidden className="text-neutral-400">
