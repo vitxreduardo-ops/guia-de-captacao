@@ -75,9 +75,19 @@ export async function TodayAgenda({
   // O próximo é o primeiro que ainda não acabou — inclui o que está
   // acontecendo agora, que é justamente o mais útil de ver destacado.
   const next = ordered.find((event) => !event.allDay && event.endMinutes > minutes);
+  // Recolhido cabe uma linha: o próximo, ou — quando o dia já acabou — o
+  // primeiro da lista, pra barra nunca ficar só com o número.
+  const highlight = next ?? ordered[0] ?? null;
 
   return (
-    <TodayAgendaFrame count={ordered.length}>
+    <TodayAgendaFrame
+      count={ordered.length}
+      preview={
+        highlight ? (
+          <EventRow event={highlight} current={highlight.id === next?.id} past={false} />
+        ) : null
+      }
+    >
       {ordered.length === 0 ? (
         <p className="py-4 text-center text-sm text-neutral-500">
           Nenhum compromisso hoje.
@@ -89,96 +99,180 @@ export async function TodayAgenda({
         // aparecia fora de ordem — 08:00 à esquerda, 09:00 do lado, 14:00
         // de volta na linha de baixo. Aqui cada coluna desce no relógio.
         <ul className="gap-x-6 sm:columns-2 xl:columns-3">
-          {ordered.map((event) => {
-            const current = event.id === next?.id;
-            const past = !event.allDay && event.endMinutes <= minutes;
-            return (
-              <li key={event.id} className="break-inside-avoid">
-                <Link
-                  href="/admin/agenda"
-                  className={`flex items-baseline gap-2 rounded-md px-2 py-1.5 text-sm transition-transform hover:bg-neutral-100 active:scale-[0.99] pointer-coarse:min-h-11 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none ${
-                    past ? "text-neutral-400" : "text-neutral-800"
-                  }`}
-                >
-                  <span
-                    aria-hidden
-                    className="mt-1 h-2 w-2 shrink-0 self-start rounded-full"
-                    style={{ backgroundColor: event.color }}
-                  />
-                  {/* Largura fixa no horário: sem ela os títulos começavam
-                      em pontos diferentes e a coluna perdia a linha. */}
-                  <span
-                    className={`w-20 shrink-0 tabular-nums text-xs ${
-                      current ? "font-semibold text-neutral-900" : "text-neutral-500"
-                    }`}
-                  >
-                    {event.allDay
-                      ? "dia inteiro"
-                      : `${hhmm(event.startMinutes)}–${hhmm(event.endMinutes)}`}
-                  </span>
-                  <span
-                    className={`min-w-0 break-words ${current ? "font-semibold text-neutral-900" : ""}`}
-                  >
-                    {event.title}
-                    {current ? (
-                      <span className="ml-1.5 rounded bg-neutral-900 px-1.5 py-0.5 align-middle text-[10px] font-medium text-white">
-                        agora
-                      </span>
-                    ) : null}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
+          {ordered.map((event) => (
+            <li key={event.id} className="break-inside-avoid">
+              <EventRow
+                event={event}
+                current={event.id === next?.id}
+                past={!event.allDay && event.endMinutes <= minutes}
+              />
+            </li>
+          ))}
         </ul>
       )}
     </TodayAgendaFrame>
   );
 }
 
-/** Moldura comum ao conteúdo e ao esqueleto, pra grade não pular quando os
- * compromissos chegam. */
+/** Uma linha da lista: bolinha da agenda, horário e título. */
+function EventRow({
+  event,
+  current,
+  past,
+}: {
+  event: WeekEvent;
+  /** Acontecendo agora (ou o próximo a começar). */
+  current: boolean;
+  past: boolean;
+}) {
+  return (
+    <Link
+      href="/admin/agenda"
+      className={`flex items-baseline gap-2 rounded-md px-2 py-1.5 text-sm transition-transform hover:bg-neutral-100 active:scale-[0.99] pointer-coarse:min-h-11 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none ${
+        past ? "text-neutral-400" : "text-neutral-800"
+      }`}
+    >
+      <span
+        aria-hidden
+        className="mt-1 h-2 w-2 shrink-0 self-start rounded-full"
+        style={{ backgroundColor: event.color }}
+      />
+      {/* Largura fixa no horário: sem ela os títulos começavam em pontos
+          diferentes e a coluna perdia a linha. */}
+      <span
+        className={`w-20 shrink-0 tabular-nums text-xs ${
+          current ? "font-semibold text-neutral-900" : "text-neutral-500"
+        }`}
+      >
+        {event.allDay
+          ? "dia inteiro"
+          : `${hhmm(event.startMinutes)}–${hhmm(event.endMinutes)}`}
+      </span>
+      <span
+        className={`min-w-0 break-words ${current ? "font-semibold text-neutral-900" : ""}`}
+      >
+        {event.title}
+        {current ? (
+          <span className="ml-1.5 rounded bg-neutral-900 px-1.5 py-0.5 align-middle text-[10px] font-medium text-white">
+            agora
+          </span>
+        ) : null}
+      </span>
+    </Link>
+  );
+}
+
+/**
+ * Moldura comum ao conteúdo e ao esqueleto, pra grade não pular quando os
+ * compromissos chegam.
+ *
+ * Duas instâncias em vez de uma que se adapta: no celular o bloco é um
+ * `<details>` recolhido, no desktop é a lista inteira, sempre aberta. Um
+ * `<details>` só, com o corpo revelado por CSS no desktop, não serve — o
+ * Chrome esconde o conteúdo de um `details` fechado por
+ * `content-visibility`, que nenhuma classe de display alcança. E decidir
+ * isso em estado daria divergência de hidratação, porque o servidor não
+ * sabe a largura da tela. O mesmo caminho que os Atalhos já seguem.
+ */
 function TodayAgendaFrame({
   count,
+  preview,
   children,
 }: {
   count: number | null;
+  /** O que se vê recolhido, no lugar da lista: sem isso o celular ficaria
+   * com uma barra que só diz um número. */
+  preview?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  return (
-    <section
-      aria-labelledby="hoje-titulo"
-      className="mb-6 rounded-lg border border-neutral-200 bg-white p-4"
+  const title = (
+    <h2 className="text-sm font-semibold text-neutral-900">
+      Hoje na agenda
+      {count ? (
+        <span className="font-normal text-neutral-500">{` · ${count}`}</span>
+      ) : null}
+    </h2>
+  );
+
+  const link = (
+    <Link
+      href="/admin/agenda"
+      className="shrink-0 rounded text-xs text-neutral-500 hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
     >
-      <div className="mb-3 flex items-baseline justify-between gap-2">
-        <h2 id="hoje-titulo" className="text-sm font-semibold text-neutral-900">
-          Hoje na agenda
-          {count ? (
-            <span className="font-normal text-neutral-500">{` · ${count}`}</span>
-          ) : null}
-        </h2>
-        <Link
-          href="/admin/agenda"
-          className="shrink-0 rounded text-xs text-neutral-500 hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
-        >
-          Minha Agenda
-        </Link>
-      </div>
-      {children}
-    </section>
+      Minha Agenda
+    </Link>
+  );
+
+  return (
+    <>
+      <details className="group mb-6 rounded-lg border border-neutral-200 bg-white p-4 lg:hidden">
+        <summary className="cursor-pointer list-none rounded-md focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+          <div className="flex items-baseline justify-between gap-2">
+            {title}
+            <div className="flex shrink-0 items-baseline gap-3">
+              {link}
+              <svg
+                aria-hidden
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-3.5 w-3.5 self-center text-neutral-400 transition-transform group-open:rotate-180"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Recolhido, o celular ainda vê o próximo compromisso — é a
+              resposta que o bloco existe pra dar. */}
+          {preview ? <div className="mt-2 group-open:hidden">{preview}</div> : null}
+        </summary>
+
+        <div className="mt-3">{children}</div>
+      </details>
+
+      <section
+        aria-labelledby="hoje-titulo"
+        className="mb-6 hidden rounded-lg border border-neutral-200 bg-white p-4 lg:block"
+      >
+        <div className="mb-3 flex items-baseline justify-between gap-2">
+          <div id="hoje-titulo">{title}</div>
+          {link}
+        </div>
+        {children}
+      </section>
+    </>
+  );
+}
+
+/** Uma linha em cinza, do tamanho de uma de verdade. */
+function SkeletonRow() {
+  return (
+    <span className="flex animate-pulse items-center gap-2 px-2 py-1.5">
+      <span className="h-2 w-2 shrink-0 rounded-full bg-neutral-200" />
+      <span className="h-3 w-16 shrink-0 rounded bg-neutral-200" />
+      <span className="h-3 w-full rounded bg-neutral-100" />
+    </span>
   );
 }
 
 /** O que fica na tela enquanto o Google responde. */
 export function TodayAgendaSkeleton() {
   return (
-    <TodayAgendaFrame count={null}>
-      <ul className="animate-pulse gap-x-6 sm:columns-2 xl:columns-3">
+    <TodayAgendaFrame
+      count={null}
+      // Recolhido no celular, o esqueleto também precisa de uma linha:
+      // sem ela a barra encolhia e depois crescia quando os compromissos
+      // chegavam.
+      preview={<SkeletonRow />}
+    >
+      <ul className="gap-x-6 sm:columns-2 xl:columns-3">
         {[0, 1, 2].map((row) => (
-          <li key={row} className="flex break-inside-avoid items-center gap-2 px-2 py-1.5">
-            <span className="h-2 w-2 shrink-0 rounded-full bg-neutral-200" />
-            <span className="h-3 w-16 shrink-0 rounded bg-neutral-200" />
-            <span className="h-3 w-full rounded bg-neutral-100" />
+          <li key={row} className="break-inside-avoid">
+            <SkeletonRow />
           </li>
         ))}
       </ul>
