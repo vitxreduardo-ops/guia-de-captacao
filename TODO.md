@@ -30,6 +30,20 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
       surpresa, não fluidez. O assentamento (deslizar até o lugar) esse sim foi
       feito.
 
+## Painel
+
+- [ ] **O "agora" envelhece na tela.** O destaque do compromisso em curso é
+      calculado no servidor, na hora do render
+      (`components/admin/TodayAgenda.tsx`). Quem deixa o Painel aberto a manhã
+      inteira continua vendo o selo na reunião das 9h depois do meio-dia. Nada
+      revalida sozinho: precisa recarregar. Um `LiveRefresh` como o das outras
+      telas resolveria, ou mover a decisão do "agora" para o cliente.
+
+- [ ] **O link "Minha Agenda" mora dentro do `<summary>`.** No celular, tocar
+      nele navega e ao mesmo tempo alterna o `<details>`. Hoje não incomoda
+      porque a navegação leva a pessoa embora, mas voltar pelo histórico pode
+      trazer o bloco no estado oposto ao que ela deixou.
+
 ## Qualidade geral
 
 - [ ] **Erro de lint pré-existente:** `components/admin/DriveSyncForm.tsx:51`
