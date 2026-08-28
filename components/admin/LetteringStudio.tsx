@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 const EXPORT_SCALE = 3;
 
 const SYSTEM_FONTS = [
+  { family: '"BootzyTM"', label: "Bootzy" },
   { family: "Georgia, serif", label: "Georgia" },
   { family: "Helvetica, Arial, sans-serif", label: "Helvetica" },
   { family: "'Times New Roman', serif", label: "Times" },
