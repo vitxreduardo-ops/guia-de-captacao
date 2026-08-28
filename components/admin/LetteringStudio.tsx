@@ -492,6 +492,9 @@ export function LetteringStudio() {
 
         <Button
           render={<a href={png ?? "#"} download="lettering.png" />}
+          // Baixar é um link com download, não um botão: sem isso o Base UI
+          // avisa que as semânticas nativas de <button> se perdem.
+          nativeButton={false}
           size="lg"
           className="w-full"
         >
