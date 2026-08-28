@@ -69,9 +69,17 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
       no Supabase Storage, com uma lista por cliente, pede bucket, upload e
       permissão — ficou de fora da primeira versão.
 
-- [ ] **Sem contorno, sombra ou textura.** O canvas só preenche o texto. Se
-      aparecer lettering que precisa de outline ou stroke, dá pra somar
-      `strokeText` nos mesmos controles.
+- [ ] **Layouts não são salvos.** As camadas vivem só no estado da tela: sair
+      da página perde o layout. É a etapa 2 do editor — guardar a lista de
+      camadas como JSON numa tabela do Supabase e abrir por predefinição.
+
+- [ ] **Sem desfazer, guias nem imagem de fundo.** Mover camada é só arrastar,
+      e não há snap, alinhamento nem `Ctrl+Z`. Etapa 3, depois de o editor
+      assentar no uso.
+
+- [ ] **Redimensionar e girar só pelo painel.** Faltam alças no palco pra
+      escalar e girar com o dedo, que é como se espera de um editor no
+      celular.
 
 ## Qualidade geral
 
