@@ -242,3 +242,11 @@ body {
     background-color: #000 !important;
   }
 }
+
+/* Fonte de marca usada no lettering. Fica no projeto pra estar sempre na
+   lista, sem depender de alguém subir o arquivo de novo a cada uso. */
+@font-face {
+  font-family: "BootzyTM";
+  src: url("/fonts/BootzyTM.ttf") format("truetype");
+  font-display: swap;
+}
