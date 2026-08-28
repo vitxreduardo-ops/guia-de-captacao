@@ -62,6 +62,17 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
       porque a navegação leva a pessoa embora, mas voltar pelo histórico pode
       trazer o bloco no estado oposto ao que ela deixou.
 
+## Lettering
+
+- [ ] **Fontes do cliente não ficam salvas.** A fonte é carregada do arquivo
+      a cada uso, só na memória do navegador (`FontFace`). Guardar os arquivos
+      no Supabase Storage, com uma lista por cliente, pede bucket, upload e
+      permissão — ficou de fora da primeira versão.
+
+- [ ] **Sem contorno, sombra ou textura.** O canvas só preenche o texto. Se
+      aparecer lettering que precisa de outline ou stroke, dá pra somar
+      `strokeText` nos mesmos controles.
+
 ## Qualidade geral
 
 - [ ] **Erro de lint pré-existente:** `components/admin/DriveSyncForm.tsx:51`

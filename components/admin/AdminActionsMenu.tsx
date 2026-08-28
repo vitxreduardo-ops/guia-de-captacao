@@ -6,6 +6,7 @@ import {
   Images,
   Kanban,
   Library,
+  PenLine,
   Receipt,
   Users,
   type LucideIcon,
@@ -20,6 +21,7 @@ const ACTIONS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/admin/galerias", label: "Galeria do cliente", icon: Images },
   { href: "/admin/backlog", label: "Backlog do Instagram", icon: Kanban },
   { href: "/admin/agenda", label: "Minha Agenda", icon: CalendarClock },
+  { href: "/admin/lettering", label: "Lettering", icon: PenLine },
 ];
 
 const ADMIN_ONLY_ACTIONS: typeof ACTIONS = [
