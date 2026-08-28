@@ -31,6 +31,8 @@ export function LetteringStudio() {
   const [size, setSize] = useState(120);
   const [color, setColor] = useState("#111111");
   const [align, setAlign] = useState<"left" | "center" | "right">("center");
+  const [stroke, setStroke] = useState(0);
+  const [strokeColor, setStrokeColor] = useState("#ffffff");
   const [lineHeight, setLineHeight] = useState(1.1);
   const [tracking, setTracking] = useState(0);
   const [fontError, setFontError] = useState<string | null>(null);
@@ -67,7 +69,9 @@ export function LetteringStudio() {
       const step = size * lineHeight;
       const ascent = metrics[0].actualBoundingBoxAscent;
       const descent = metrics[metrics.length - 1].actualBoundingBoxDescent;
-      const pad = size * 0.15;
+      // O contorno cresce pra fora do desenho, então entra na margem — sem
+      // isso ele sai raspado na borda do PNG.
+      const pad = size * 0.15 + stroke;
       const height = (lines.length - 1) * step + ascent + descent;
 
       canvas.width = Math.ceil((width + pad * 2) * EXPORT_SCALE);
@@ -84,8 +88,18 @@ export function LetteringStudio() {
       const x =
         align === "left" ? pad : align === "right" ? pad + width : pad + width / 2;
 
+      // lineWidth dobrado e o preenchimento por cima: o traço do canvas fica
+      // metade pra dentro da letra, e essa metade some sob o fill. Sobra
+      // exatamente a espessura pedida, por fora.
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = stroke * 2;
+      ctx.lineJoin = "round";
+      ctx.miterLimit = 2;
+
       lines.forEach((line, i) => {
-        ctx.fillText(line, x, pad + ascent + i * step);
+        const y = pad + ascent + i * step;
+        if (stroke > 0) ctx.strokeText(line, x, y);
+        ctx.fillText(line, x, y);
       });
 
       setPng(canvas.toDataURL("image/png"));
@@ -94,7 +108,7 @@ export function LetteringStudio() {
     return () => {
       cancelled = true;
     };
-  }, [text, family, size, color, align, lineHeight, tracking]);
+  }, [text, family, size, color, align, lineHeight, tracking, stroke, strokeColor]);
 
   async function loadFont(file: File) {
     setFontError(null);
@@ -107,7 +121,9 @@ export function LetteringStudio() {
       setFonts((current) => [...current, { family: `"${custom}"`, label }]);
       setFamily(`"${custom}"`);
     } catch {
-      setFontError("Não deu pra ler essa fonte. Use .ttf, .otf ou .woff2.");
+      setFontError(
+        `Não deu pra ler "${file.name}". O navegador aceita .ttf, .otf, .ttc, .woff e .woff2 — atalho do Finder e arquivo protegido não funcionam.`,
+      );
     }
   }
 
@@ -148,7 +164,7 @@ export function LetteringStudio() {
             Carregar fonte do cliente
             <input
               type="file"
-              accept=".ttf,.otf,.woff,.woff2"
+              accept="font/*,.ttf,.otf,.ttc,.woff,.woff2,.TTF,.OTF"
               className="sr-only"
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -235,6 +251,37 @@ export function LetteringStudio() {
             <option value="center">Centro</option>
             <option value="right">Direita</option>
           </select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label className={LABEL} htmlFor="lettering-stroke">
+              Contorno
+            </label>
+            <input
+              id="lettering-stroke"
+              type="number"
+              min={0}
+              max={60}
+              step={1}
+              value={stroke}
+              onChange={(e) => setStroke(Math.max(0, Number(e.target.value) || 0))}
+              className={INPUT}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className={LABEL} htmlFor="lettering-stroke-color">
+              Cor do contorno
+            </label>
+            <input
+              id="lettering-stroke-color"
+              type="color"
+              value={strokeColor}
+              onChange={(e) => setStrokeColor(e.target.value)}
+              disabled={stroke === 0}
+              className="h-10 w-full rounded-md border border-neutral-200 bg-white p-1 disabled:opacity-50"
+            />
+          </div>
         </div>
 
         <Button
