@@ -36,6 +36,15 @@ export function LetteringStudio() {
   const [strokeColor, setStrokeColor] = useState("#ffffff");
   const [lineHeight, setLineHeight] = useState(1.1);
   const [tracking, setTracking] = useState(0);
+  const [shadow, setShadow] = useState(false);
+  const [shadowBlur, setShadowBlur] = useState(12);
+  const [shadowX, setShadowX] = useState(0);
+  const [shadowY, setShadowY] = useState(8);
+  const [shadowColor, setShadowColor] = useState("#000000");
+  const [box, setBox] = useState(false);
+  const [boxColor, setBoxColor] = useState("#ffffff");
+  const [boxPadding, setBoxPadding] = useState(40);
+  const [boxRadius, setBoxRadius] = useState(24);
   const [fontError, setFontError] = useState<string | null>(null);
   const [png, setPng] = useState<string | null>(null);
 
@@ -70,9 +79,13 @@ export function LetteringStudio() {
       const step = size * lineHeight;
       const ascent = metrics[0].actualBoundingBoxAscent;
       const descent = metrics[metrics.length - 1].actualBoundingBoxDescent;
-      // O contorno cresce pra fora do desenho, então entra na margem — sem
-      // isso ele sai raspado na borda do PNG.
-      const pad = size * 0.15 + stroke;
+      // Tudo que cresce pra fora do texto entra na margem, senão sai raspado
+      // na borda do PNG: contorno, respiro do box e o alcance da sombra.
+      const shadowReach = shadow
+        ? shadowBlur + Math.max(Math.abs(shadowX), Math.abs(shadowY))
+        : 0;
+      const inner = box ? boxPadding : 0;
+      const pad = size * 0.15 + stroke + inner + shadowReach;
       const height = (lines.length - 1) * step + ascent + descent;
 
       canvas.width = Math.ceil((width + pad * 2) * EXPORT_SCALE);
@@ -80,6 +93,41 @@ export function LetteringStudio() {
 
       // Redimensionar o canvas zera o contexto, então tudo é reaplicado aqui.
       ctx.scale(EXPORT_SCALE, EXPORT_SCALE);
+
+      // A sombra vai no que estiver por baixo: tendo box, é o box que projeta,
+      // senão cada letra projeta a sua. Se ficasse nos dois, a do texto bateria
+      // dentro do box e sujaria o fundo.
+      const applyShadow = () => {
+        ctx.shadowColor = shadow ? shadowColor : "transparent";
+        ctx.shadowBlur = shadow ? shadowBlur : 0;
+        ctx.shadowOffsetX = shadow ? shadowX : 0;
+        ctx.shadowOffsetY = shadow ? shadowY : 0;
+      };
+      const clearShadow = () => {
+        ctx.shadowColor = "transparent";
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+      };
+
+      if (box) {
+        applyShadow();
+        ctx.fillStyle = boxColor;
+        ctx.beginPath();
+        // O raio não pode passar da metade do lado menor, senão o canvas
+        // reclama e não desenha nada.
+        const side = Math.min(width + inner * 2, height + inner * 2);
+        ctx.roundRect(
+          pad - inner,
+          pad - inner,
+          width + inner * 2,
+          height + inner * 2,
+          Math.min(boxRadius, side / 2),
+        );
+        ctx.fill();
+        clearShadow();
+      }
+
       ctx.letterSpacing = `${tracking}px`;
       ctx.font = font;
       ctx.fillStyle = color;
@@ -97,6 +145,8 @@ export function LetteringStudio() {
       ctx.lineJoin = "round";
       ctx.miterLimit = 2;
 
+      if (!box) applyShadow();
+
       lines.forEach((line, i) => {
         const y = pad + ascent + i * step;
         if (stroke > 0) ctx.strokeText(line, x, y);
@@ -109,7 +159,26 @@ export function LetteringStudio() {
     return () => {
       cancelled = true;
     };
-  }, [text, family, size, color, align, lineHeight, tracking, stroke, strokeColor]);
+  }, [
+    text,
+    family,
+    size,
+    color,
+    align,
+    lineHeight,
+    tracking,
+    stroke,
+    strokeColor,
+    shadow,
+    shadowBlur,
+    shadowX,
+    shadowY,
+    shadowColor,
+    box,
+    boxColor,
+    boxPadding,
+    boxRadius,
+  ]);
 
   async function loadFont(file: File) {
     setFontError(null);
@@ -284,6 +353,142 @@ export function LetteringStudio() {
             />
           </div>
         </div>
+
+        <fieldset className="space-y-3 rounded-md border border-neutral-200 p-3">
+          <legend className="px-1">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-neutral-700">
+              <input
+                type="checkbox"
+                checked={shadow}
+                onChange={(e) => setShadow(e.target.checked)}
+                className="size-4 accent-neutral-900"
+              />
+              Sombra projetada
+            </label>
+          </legend>
+
+          {shadow ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className={LABEL} htmlFor="lettering-shadow-blur">
+                  Desfoque
+                </label>
+                <input
+                  id="lettering-shadow-blur"
+                  type="number"
+                  min={0}
+                  value={shadowBlur}
+                  onChange={(e) =>
+                    setShadowBlur(Math.max(0, Number(e.target.value) || 0))
+                  }
+                  className={INPUT}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className={LABEL} htmlFor="lettering-shadow-color">
+                  Cor da sombra
+                </label>
+                <input
+                  id="lettering-shadow-color"
+                  type="color"
+                  value={shadowColor}
+                  onChange={(e) => setShadowColor(e.target.value)}
+                  className="h-10 w-full rounded-md border border-neutral-200 bg-white p-1"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className={LABEL} htmlFor="lettering-shadow-x">
+                  Deslocar X
+                </label>
+                <input
+                  id="lettering-shadow-x"
+                  type="number"
+                  value={shadowX}
+                  onChange={(e) => setShadowX(Number(e.target.value) || 0)}
+                  className={INPUT}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className={LABEL} htmlFor="lettering-shadow-y">
+                  Deslocar Y
+                </label>
+                <input
+                  id="lettering-shadow-y"
+                  type="number"
+                  value={shadowY}
+                  onChange={(e) => setShadowY(Number(e.target.value) || 0)}
+                  className={INPUT}
+                />
+              </div>
+            </div>
+          ) : null}
+        </fieldset>
+
+        <fieldset className="space-y-3 rounded-md border border-neutral-200 p-3">
+          <legend className="px-1">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-neutral-700">
+              <input
+                type="checkbox"
+                checked={box}
+                onChange={(e) => setBox(e.target.checked)}
+                className="size-4 accent-neutral-900"
+              />
+              Fundo atrás do texto
+            </label>
+          </legend>
+
+          {box ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className={LABEL} htmlFor="lettering-box-color">
+                  Cor do fundo
+                </label>
+                <input
+                  id="lettering-box-color"
+                  type="color"
+                  value={boxColor}
+                  onChange={(e) => setBoxColor(e.target.value)}
+                  className="h-10 w-full rounded-md border border-neutral-200 bg-white p-1"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className={LABEL} htmlFor="lettering-box-radius">
+                  Cantos
+                </label>
+                <input
+                  id="lettering-box-radius"
+                  type="number"
+                  min={0}
+                  value={boxRadius}
+                  onChange={(e) =>
+                    setBoxRadius(Math.max(0, Number(e.target.value) || 0))
+                  }
+                  className={INPUT}
+                />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <label className={LABEL} htmlFor="lettering-box-padding">
+                  Respiro
+                </label>
+                <input
+                  id="lettering-box-padding"
+                  type="number"
+                  min={0}
+                  value={boxPadding}
+                  onChange={(e) =>
+                    setBoxPadding(Math.max(0, Number(e.target.value) || 0))
+                  }
+                  className={INPUT}
+                />
+                {/* O box não tem tamanho próprio: ele nasce do texto medido e
+                    acompanha o que for escrito, com o respiro por fora. */}
+                <p className="text-xs text-neutral-500">
+                  O fundo acompanha o texto — cantos em 0 deixam quadrado.
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </fieldset>
 
         <Button
           render={<a href={png ?? "#"} download="lettering.png" />}
