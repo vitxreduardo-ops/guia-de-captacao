@@ -25,8 +25,12 @@ export function safeScale(
   return Math.max(1, Math.min(wanted, porArea, porLado));
 }
 
-/** Tela do story. É o palco onde as camadas são posicionadas. */
-export const STAGE = { width: 1080, height: 1920 };
+/**
+ * O palco onde as camadas são posicionadas. Deitado de propósito: a peça é um
+ * overlay que vai por cima do story, não o story inteiro — e o que sai é
+ * recortado no conteúdo de qualquer jeito.
+ */
+export const STAGE = { width: 1080, height: 720 };
 
 type Layout = Size & {
   /**

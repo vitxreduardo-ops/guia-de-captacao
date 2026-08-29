@@ -512,13 +512,16 @@ export function LetteringStudio() {
           onPointerCancel={onPointerUp}
           onPointerLeave={onPointerUp}
           onLostPointerCapture={onLostCapture}
-          style={{ background: CHECKERBOARD, aspectRatio: "1080 / 1920" }}
-          className="relative mx-auto max-h-[45svh] w-auto touch-none overflow-hidden rounded-lg border border-neutral-200 select-none lg:max-h-[70svh]"
+          style={{
+            background: CHECKERBOARD,
+            aspectRatio: `${STAGE.width} / ${STAGE.height}`,
+          }}
+          className="relative w-full touch-none overflow-hidden rounded-lg border border-neutral-200 select-none"
         >
           <canvas
             ref={stageCanvasRef}
-            width={STAGE.width / 2}
-            height={STAGE.height / 2}
+            width={STAGE.width}
+            height={STAGE.height}
             className="size-full"
           />
 
