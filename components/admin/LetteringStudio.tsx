@@ -143,6 +143,19 @@ const INPUT =
 const LABEL =
   "block text-sm font-semibold tracking-[0.01em] text-neutral-700";
 
+/**
+ * A biblioteca é a única superfície escura da ferramenta. Ela cobre a tela
+ * inteira e some — não divide espaço com o resto do painel, então não gera a
+ * inconsistência que um tema escuro pela metade geraria.
+ */
+const INPUT_ESCURO =
+  "w-full rounded-md border border-white/15 bg-white/5 px-3 py-2 text-base text-neutral-100 placeholder:text-neutral-500 focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none";
+
+const LABEL_ESCURO =
+  "block text-sm font-semibold tracking-[0.01em] text-neutral-300";
+
+const BOTAO_CLARO = "bg-white text-neutral-900 hover:bg-neutral-200";
+
 /** Xadrez de fundo: é assim que se enxerga que o PNG saiu mesmo transparente. */
 /** A pessoa pediu menos movimento no sistema? Então nada de deslizar sozinho. */
 function semMovimento() {
@@ -262,6 +275,18 @@ export function LetteringStudio() {
   // Onde, na largura da tela, o painel nasce e morre — o botão que o abriu.
   const [origemDoPainel, setOrigemDoPainel] = useState<number | null>(null);
   const aba = dock ?? fechando;
+  // A biblioteca vem do servidor: até chegar, a folha mostra que está indo
+  // buscar em vez de fingir que a estante está vazia.
+  const [carregandoBiblioteca, setCarregandoBiblioteca] = useState(false);
+
+  const dockRef = useRef<Dock | null>(null);
+  const fecharDockRef = useRef<() => void>(() => {});
+
+  /** Fecha a ferramenta aberta deixando a animação de saída correr. */
+  const fecharDock = useCallback(() => {
+    setFechando(dock);
+    setDock(null);
+  }, [dock]);
   const [layouts, setLayouts] = useState<LayoutSalvo[]>([]);
   const [fontesSalvas, setFontesSalvas] = useState<FonteSalva[]>([]);
   const [nomeDoLayout, setNomeDoLayout] = useState("");
@@ -677,6 +702,7 @@ export function LetteringStudio() {
   useEffect(() => {
     if (dock !== "biblioteca") return;
     let cancelado = false;
+    setCarregandoBiblioteca(true);
     carregarBiblioteca()
       .then(({ layouts, fontes }) => {
         if (cancelado) return;
@@ -685,6 +711,9 @@ export function LetteringStudio() {
       })
       .catch(() => {
         if (!cancelado) setAviso({ texto: "Não deu pra ler a biblioteca." });
+      })
+      .finally(() => {
+        if (!cancelado) setCarregandoBiblioteca(false);
       });
     return () => {
       cancelado = true;
@@ -695,6 +724,8 @@ export function LetteringStudio() {
   useEffect(() => {
     duplicarRef.current = duplicar;
     removerRef.current = remover;
+    dockRef.current = dock;
+    fecharDockRef.current = fecharDock;
   });
 
   /** Desliza a vista até o enquadramento pedido, com mola. */
@@ -811,6 +842,14 @@ export function LetteringStudio() {
       const alvo = e.target as HTMLElement | null;
       // Dentro de um campo o teclado é do texto que está sendo digitado.
       if (alvo && /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName)) return;
+
+      // Esc fecha o que estiver aberto por cima da peça. Numa folha que
+      // cobre a tela, sair tem que ter mais de um caminho.
+      if (e.key === "Escape" && dockRef.current) {
+        e.preventDefault();
+        fecharDockRef.current();
+        return;
+      }
 
       const comando = e.metaKey || e.ctrlKey;
 
@@ -1784,8 +1823,7 @@ export function LetteringStudio() {
     });
     // Abrir um layout fecha a biblioteca pelo mesmo caminho de um toque no
     // botão: some animando, e não de um quadro pro outro.
-    setFechando(dock);
-    setDock(null);
+    fecharDock();
   }
 
   async function apagarLayout(id: string, nome: string) {
@@ -2107,6 +2145,204 @@ export function LetteringStudio() {
 
       </div>
 
+      {/* A biblioteca não cabe num painel de 40% da tela: são peças salvas,
+          fontes de cliente e um formulário de envio. Ela toma a tela inteira,
+          menos a faixa da dock — que continua alcançável, porque sair daqui
+          tem que ser tão fácil quanto entrar. Escura de propósito: é a única
+          superfície da ferramenta que cobre tudo, e o escuro diz que a peça
+          ficou pra trás em vez de competir com ela. */}
+      {aba === "biblioteca" ? (
+        <div
+          className="pointer-events-none fixed inset-0 z-40 flex flex-col p-3"
+          style={{
+            paddingBottom: "calc(max(0.75rem, env(safe-area-inset-bottom)) + 4.75rem)",
+          }}
+        >
+          <div
+            id="lettering-biblioteca"
+            role="dialog"
+            aria-modal="false"
+            // O botão da dock já se chama "Biblioteca": sem um nome próprio, o
+            // leitor de tela anuncia dois alvos com o mesmo nome.
+            aria-label="Biblioteca de letterings"
+            data-saindo={dock === null}
+            onAnimationEnd={(e) => {
+              if (e.target === e.currentTarget && dock === null) {
+                setFechando(null);
+              }
+            }}
+            className="lettering-folha pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] bg-neutral-900 text-neutral-100 shadow-2xl"
+          >
+            <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-2">
+              <h2 className="text-lg font-semibold tracking-[-0.01em]">
+                Biblioteca
+              </h2>
+              <button
+                type="button"
+                aria-label="Fechar a biblioteca"
+                onClick={fecharDock}
+                className="grid size-10 place-items-center rounded-full bg-white/10 text-neutral-200 transition-transform duration-150 active:scale-95"
+              >
+                <X aria-hidden="true" className="size-5" />
+              </button>
+            </div>
+
+            {carregandoBiblioteca ? (
+              <div className="grid flex-1 place-items-center gap-3 p-6 text-center">
+                <div
+                  aria-hidden="true"
+                  className="lettering-girando size-8 rounded-full border-2 border-white/20 border-t-white/80"
+                />
+                <p
+                  role="status"
+                  className="text-sm tracking-[0.01em] text-neutral-400"
+                >
+                  Buscando suas peças e fontes…
+                </p>
+              </div>
+            ) : (
+              <div className="min-h-0 flex-1 space-y-4 overflow-auto px-4 pt-2 pb-5">
+              <div className="space-y-1.5">
+                <label className={LABEL_ESCURO} htmlFor="lettering-nome-layout">
+                  Salvar esta peça
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="lettering-nome-layout"
+                    value={nomeDoLayout}
+                    onChange={(e) => setNomeDoLayout(e.target.value)}
+                    placeholder="Nome da peça"
+                    className={INPUT_ESCURO}
+                  />
+                  <Button
+                    className={BOTAO_CLARO}
+                    onClick={salvarNaBiblioteca}
+                    disabled={!nomeDoLayout.trim() || ocupado}
+                  >
+                    Salvar
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <p className={LABEL_ESCURO}>Peças salvas</p>
+                {layouts.length === 0 ? (
+                  <p className="text-sm text-neutral-400">
+                    Nada salvo ainda. O que você salvar aqui volta em qualquer
+                    aparelho.
+                  </p>
+                ) : (
+                  <ul className="space-y-1">
+                    {layouts.map((layout) => (
+                      <li
+                        key={layout.id}
+                        className="flex items-center gap-1 rounded-md border border-white/15"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => abrirLayout(layout)}
+                          className="flex-1 truncate px-3 py-3 text-left text-sm"
+                        >
+                          {layout.name}
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Excluir ${layout.name}`}
+                          onClick={() => apagarLayout(layout.id, layout.name)}
+                          className="p-3 text-neutral-400"
+                        >
+                          <Trash2 aria-hidden="true" className="size-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="space-y-1.5 border-t border-white/15 pt-3">
+                <p className={LABEL_ESCURO}>Fontes dos clientes</p>
+                <p className="text-xs leading-relaxed tracking-[0.01em] text-neutral-400">
+                  Guardadas de vez: não precisa subir o arquivo de novo a cada
+                  peça.
+                </p>
+
+                {fontesSalvas.length > 0 ? (
+                  <ul className="space-y-1">
+                    {fontesSalvas.map((fonte) => (
+                      <li
+                        key={fonte.id}
+                        className="flex items-center gap-1 rounded-md border border-white/15"
+                      >
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const familia = await registrarFonte(fonte);
+                            if (familia) patch({ family: familia });
+                          }}
+                          className="flex-1 truncate px-3 py-3 text-left text-sm"
+                        >
+                          {fonte.label}
+                          {fonte.client ? (
+                            <span className="ml-2 text-xs text-neutral-400">
+                              {fonte.client}
+                            </span>
+                          ) : null}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                <form
+                  action={async (formData: FormData) => {
+                    setOcupado(true);
+                    try {
+                      setFontesSalvas(await guardarFonteAction(formData));
+                      setAviso({ texto: "Fonte guardada na biblioteca" });
+                    } catch {
+                      setAviso({ texto: "Não deu pra guardar a fonte." });
+                    } finally {
+                      setOcupado(false);
+                    }
+                  }}
+                  className="space-y-2 rounded-md border border-white/15 p-2"
+                >
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      name="cliente"
+                      placeholder="Cliente"
+                      className={INPUT_ESCURO}
+                    />
+                    <input
+                      name="rotulo"
+                      placeholder="Nome da fonte"
+                      required
+                      className={INPUT_ESCURO}
+                    />
+                  </div>
+                  <input
+                    type="file"
+                    name="arquivo"
+                    required
+                    accept="font/*,.ttf,.otf,.ttc,.woff,.woff2,.TTF,.OTF"
+                    className="w-full text-sm text-neutral-300 file:mr-2 file:rounded file:border-0 file:bg-white/10 file:px-2 file:py-1 file:text-neutral-100"
+                  />
+                  <Button
+                    type="submit"
+                    disabled={ocupado}
+                    className={`w-full ${BOTAO_CLARO}`}
+                  >
+                    <Upload aria-hidden="true" data-icon="inline-start" />
+                    Guardar fonte
+                  </Button>
+                </form>
+              </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       {/* A dock flutua sobre o conteúdo, descolada das bordas, e o painel da
           ferramenta sobe acima dela — um de cada vez, que é o que cabe no
           celular. Cor sólida em vez de vidro: aqui embaixo passa a peça, e
@@ -2115,7 +2351,7 @@ export function LetteringStudio() {
         className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex flex-col items-center gap-2 px-3"
         style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
-        {aba ? (
+        {aba && aba !== "biblioteca" ? (
           <div
             id="lettering-painel"
             data-saindo={dock === null}
@@ -2295,138 +2531,6 @@ export function LetteringStudio() {
               </div>
             </div>
 
-            <div hidden={aba !== "biblioteca"} className="space-y-4 p-3">
-              <div className="space-y-1.5">
-                <label className={LABEL} htmlFor="lettering-nome-layout">
-                  Salvar esta peça
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    id="lettering-nome-layout"
-                    value={nomeDoLayout}
-                    onChange={(e) => setNomeDoLayout(e.target.value)}
-                    placeholder="Nome da peça"
-                    className={INPUT}
-                  />
-                  <Button
-                    onClick={salvarNaBiblioteca}
-                    disabled={!nomeDoLayout.trim() || ocupado}
-                  >
-                    Salvar
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <p className={LABEL}>Peças salvas</p>
-                {layouts.length === 0 ? (
-                  <p className="text-sm text-neutral-500">
-                    Nada salvo ainda. O que você salvar aqui volta em qualquer
-                    aparelho.
-                  </p>
-                ) : (
-                  <ul className="space-y-1">
-                    {layouts.map((layout) => (
-                      <li
-                        key={layout.id}
-                        className="flex items-center gap-1 rounded-md border border-neutral-200"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => abrirLayout(layout)}
-                          className="flex-1 truncate px-3 py-3 text-left text-sm"
-                        >
-                          {layout.name}
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`Excluir ${layout.name}`}
-                          onClick={() => apagarLayout(layout.id, layout.name)}
-                          className="p-3 text-neutral-500"
-                        >
-                          <Trash2 aria-hidden="true" className="size-4" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="space-y-1.5 border-t border-neutral-200 pt-3">
-                <p className={LABEL}>Fontes dos clientes</p>
-                <p className="text-xs leading-relaxed tracking-[0.01em] text-neutral-500">
-                  Guardadas de vez: não precisa subir o arquivo de novo a cada
-                  peça.
-                </p>
-
-                {fontesSalvas.length > 0 ? (
-                  <ul className="space-y-1">
-                    {fontesSalvas.map((fonte) => (
-                      <li
-                        key={fonte.id}
-                        className="flex items-center gap-1 rounded-md border border-neutral-200"
-                      >
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            const familia = await registrarFonte(fonte);
-                            if (familia) patch({ family: familia });
-                          }}
-                          className="flex-1 truncate px-3 py-3 text-left text-sm"
-                        >
-                          {fonte.label}
-                          {fonte.client ? (
-                            <span className="ml-2 text-xs text-neutral-500">
-                              {fonte.client}
-                            </span>
-                          ) : null}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-
-                <form
-                  action={async (formData: FormData) => {
-                    setOcupado(true);
-                    try {
-                      setFontesSalvas(await guardarFonteAction(formData));
-                      setAviso({ texto: "Fonte guardada na biblioteca" });
-                    } catch {
-                      setAviso({ texto: "Não deu pra guardar a fonte." });
-                    } finally {
-                      setOcupado(false);
-                    }
-                  }}
-                  className="space-y-2 rounded-md border border-neutral-200 p-2"
-                >
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      name="cliente"
-                      placeholder="Cliente"
-                      className={INPUT}
-                    />
-                    <input
-                      name="rotulo"
-                      placeholder="Nome da fonte"
-                      required
-                      className={INPUT}
-                    />
-                  </div>
-                  <input
-                    type="file"
-                    name="arquivo"
-                    required
-                    accept="font/*,.ttf,.otf,.ttc,.woff,.woff2,.TTF,.OTF"
-                    className="w-full text-sm text-neutral-600"
-                  />
-                  <Button type="submit" disabled={ocupado} className="w-full">
-                    <Upload aria-hidden="true" data-icon="inline-start" />
-                    Guardar fonte
-                  </Button>
-                </form>
-              </div>
-            </div>
             <div
               hidden={
                 aba !== "texto" && aba !== "estilo" && aba !== "efeitos"
@@ -2902,7 +3006,9 @@ export function LetteringStudio() {
                 setDock(proxima);
               }}
               aria-pressed={dock === id}
-              aria-controls="lettering-painel"
+              aria-controls={
+                id === "biblioteca" ? "lettering-biblioteca" : "lettering-painel"
+              }
               // O raio do item é concêntrico com o da dock: o interno é o
               // externo menos o respiro, senão os dois cantos brigam.
               aria-label={rotulo}
