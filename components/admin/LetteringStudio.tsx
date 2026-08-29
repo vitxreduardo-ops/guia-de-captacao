@@ -1,9 +1,19 @@
 "use client";
 
 import {
+  AlignCenter,
+  AlignCenterHorizontal,
+  AlignCenterVertical,
+  AlignEndHorizontal,
+  AlignEndVertical,
+  AlignHorizontalSpaceAround,
+  AlignStartHorizontal,
+  AlignStartVertical,
+  AlignVerticalSpaceAround,
   Download,
   GripVertical,
   Layers,
+  MoreHorizontal,
   Move,
   RotateCw,
   Smile,
@@ -39,16 +49,14 @@ import {
   shortestTurn,
   topmostAt,
   unionBounds,
+  alignedPosition,
+  distributedValues,
+  type AlignMode,
   type Layer,
   type Point,
   type Size,
 } from "@/lib/lettering";
-import {
-  drawLayer,
-  measureLayer,
-  safeScale,
-  STAGE,
-} from "@/lib/letteringDraw";
+import { drawLayer, measureLayer, safeScale, STAGE } from "@/lib/letteringDraw";
 
 const SYSTEM_FONTS = [
   { family: '"BootzyTM"', label: "Bootzy" },
@@ -117,7 +125,8 @@ export function LetteringStudio() {
   const [fontError, setFontError] = useState<string | null>(null);
   const [trim, setTrim] = useState(true);
   const [aba, setAba] = useState<Aba>("conteudo");
-  const [camadasAbertas, setCamadasAbertas] = useState(false);
+  /** null = menu fechado. Um painel de cada vez, que é o que cabe no celular. */
+  const [painel, setPainel] = useState<"camadas" | "alinhar" | null>(null);
   const [sizes, setSizes] = useState<Map<string, Size>>(new Map());
   /** PNG só existe depois de pedir: gerar em 3x a cada toque trava o celular. */
   const [png, setPng] = useState<string | null>(null);
@@ -149,7 +158,9 @@ export function LetteringStudio() {
   const sensors = useSensors(
     // Sem a distância mínima, o toque que escolhe a camada viraria arraste.
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
 
   /** Desenha o palco na resolução da tela — é a única visualização que existe. */
@@ -175,7 +186,9 @@ export function LetteringStudio() {
       if (cancelled) return;
 
       const medidas = new Map<string, Size>();
-      layers.forEach((layer) => medidas.set(layer.id, measureLayer(ctx, layer)));
+      layers.forEach((layer) =>
+        medidas.set(layer.id, measureLayer(ctx, layer)),
+      );
 
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -258,7 +271,11 @@ export function LetteringStudio() {
     const alvo = topmostAt(point, layers, sizes);
     setSelectedId(alvo?.id ?? null);
     if (!alvo) return;
-    dragRef.current = { id: alvo.id, dx: point.x - alvo.x, dy: point.y - alvo.y };
+    dragRef.current = {
+      id: alvo.id,
+      dx: point.x - alvo.x,
+      dy: point.y - alvo.y,
+    };
     capturar(e);
   }
 
@@ -401,7 +418,9 @@ export function LetteringStudio() {
     const point = stagePoint(e);
     setLayers((atual) =>
       atual.map((l) =>
-        l.id === drag.id ? { ...l, x: point.x - drag.dx, y: point.y - drag.dy } : l,
+        l.id === drag.id
+          ? { ...l, x: point.x - drag.dx, y: point.y - drag.dy }
+          : l,
       ),
     );
   }
@@ -448,8 +467,7 @@ export function LetteringStudio() {
    * o palco e recortado, e refazer isso a cada arrastada engasga no celular.
    */
   function gerarPng() {
-    const canvas =
-      exportCanvasRef.current ?? document.createElement("canvas");
+    const canvas = exportCanvasRef.current ?? document.createElement("canvas");
     exportCanvasRef.current = canvas;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -521,6 +539,18 @@ export function LetteringStudio() {
     setLayers(arrayMove(daFrentePraTras, de, para).reverse());
   }
 
+  function alinhar(modo: AlignMode) {
+    if (!selected) return;
+    const size = sizes.get(selected.id);
+    if (!size) return;
+    patch(alignedPosition(selected, size, modo, STAGE));
+  }
+
+  function distribuir(eixo: "x" | "y") {
+    const novos = distributedValues(layers.map((l) => l[eixo]));
+    setLayers((atual) => atual.map((l, i) => ({ ...l, [eixo]: novos[i] })));
+  }
+
   async function loadFont(file: File) {
     setFontError(null);
     const label = file.name.replace(/\.[^.]+$/, "");
@@ -546,6 +576,48 @@ export function LetteringStudio() {
       {/* O palco é a peça: no celular ele fica no topo e gruda, pra editar
           vendo o resultado sem precisar rolar a página. */}
       <div className="sticky top-0 z-10 -mx-4 bg-neutral-50 px-4 py-2 lg:static lg:mx-0 lg:bg-transparent lg:p-0">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => adicionar(novaCamada({ text: "Texto" }))}
+            className={`${chip} flex-1 border-neutral-900 bg-neutral-900 text-white`}
+          >
+            <Type aria-hidden="true" className="mr-1 inline size-4" />
+            Texto
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              adicionar(
+                novaCamada({
+                  kind: "emoji",
+                  text: "✨",
+                  family: EMOJI_FAMILY,
+                  size: 200,
+                }),
+              )
+            }
+            className={`${chip} flex-1 border-neutral-900 bg-neutral-900 text-white`}
+          >
+            <Smile aria-hidden="true" className="mr-1 inline size-4" />
+            Emoji
+          </button>
+          <button
+            type="button"
+            onClick={() => setPainel((atual) => (atual ? null : "camadas"))}
+            aria-expanded={painel !== null}
+            aria-controls="lettering-painel"
+            aria-label="Mais opções"
+            className={`${chip} ${
+              painel
+                ? "border-neutral-900 bg-neutral-900 text-white"
+                : "border-neutral-200 bg-white text-neutral-700"
+            }`}
+          >
+            <MoreHorizontal aria-hidden="true" className="inline size-4" />
+          </button>
+        </div>
+
         <div
           ref={stageRef}
           onPointerDown={onPointerDown}
@@ -609,88 +681,154 @@ export function LetteringStudio() {
         </div>
 
         <p className="mt-1 text-center text-xs text-neutral-500">
-          Arraste a peça ou use os botões do palco: um move, o outro gira e
-          muda o tamanho. Dois dedos fazem as duas coisas juntas.
+          Arraste a peça ou use os botões do palco: um move, o outro gira e muda
+          o tamanho. Dois dedos fazem as duas coisas juntas.
         </p>
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => adicionar(novaCamada({ text: "Texto" }))}
-            className={`${chip} flex-1 border-neutral-900 bg-neutral-900 text-white`}
+        {painel ? (
+          <div
+            id="lettering-painel"
+            className="rounded-lg border border-neutral-200 bg-white"
           >
-            <Type aria-hidden="true" className="mr-1 inline size-4" />
-            Texto
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              adicionar(
-                novaCamada({
-                  kind: "emoji",
-                  text: "✨",
-                  family: EMOJI_FAMILY,
-                  size: 200,
-                }),
-              )
-            }
-            className={`${chip} flex-1 border-neutral-900 bg-neutral-900 text-white`}
-          >
-            <Smile aria-hidden="true" className="mr-1 inline size-4" />
-            Emoji
-          </button>
-          <button
-            type="button"
-            onClick={() => setCamadasAbertas((aberto) => !aberto)}
-            aria-expanded={camadasAbertas}
-            aria-controls="lettering-camadas-lista"
-            className={`${chip} flex-1 ${
-              camadasAbertas
-                ? "border-neutral-900 bg-neutral-900 text-white"
-                : "border-neutral-200 bg-white text-neutral-700"
-            }`}
-          >
-            <Layers aria-hidden="true" className="mr-1 inline size-4" />
-            Camadas
-          </button>
-        </div>
+            <div className="flex gap-1 border-b border-neutral-200 p-2">
+              <button
+                type="button"
+                onClick={() => setPainel("camadas")}
+                className={`flex-1 rounded-md px-2 py-2 text-sm ${
+                  painel === "camadas"
+                    ? "bg-neutral-900 text-white"
+                    : "text-neutral-600"
+                }`}
+              >
+                <Layers aria-hidden="true" className="mr-1 inline size-4" />
+                Camadas
+              </button>
+              <button
+                type="button"
+                onClick={() => setPainel("alinhar")}
+                className={`flex-1 rounded-md px-2 py-2 text-sm ${
+                  painel === "alinhar"
+                    ? "bg-neutral-900 text-white"
+                    : "text-neutral-600"
+                }`}
+              >
+                <AlignCenter
+                  aria-hidden="true"
+                  className="mr-1 inline size-4"
+                />
+                Alinhamento
+              </button>
+            </div>
 
-        {/* A lista vem de cima pra baixo como as camadas aparecem na peça: a
-            primeira linha é a que fica na frente. */}
-        <div
-          id="lettering-camadas-lista"
-          hidden={!camadasAbertas}
-          className="rounded-lg border border-neutral-200 bg-white p-2"
-        >
-          <DndContext
-            // Id fixo: sem ele o dnd-kit numera os textos de acessibilidade em
-            // ordem de montagem, e servidor e cliente chegam a números
-            // diferentes.
-            id="lettering-camadas"
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={reordenar}
-          >
-            <SortableContext
-              items={daFrentePraTras.map((l) => l.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <ul className="space-y-1">
-                {daFrentePraTras.map((layer) => (
-                  <LinhaDeCamada
-                    key={layer.id}
-                    layer={layer}
-                    selecionada={layer.id === selectedId}
-                    onSelecionar={() => setSelectedId(layer.id)}
-                    onRemover={() => remover(layer.id)}
-                  />
-                ))}
-              </ul>
-            </SortableContext>
-          </DndContext>
-        </div>
+            {/* A lista vem de cima pra baixo como as camadas aparecem na
+                peça: a primeira linha é a que fica na frente. */}
+            <div hidden={painel !== "camadas"} className="p-2">
+              <DndContext
+                // Id fixo: sem ele o dnd-kit numera os textos de
+                // acessibilidade em ordem de montagem, e servidor e cliente
+                // chegam a números diferentes.
+                id="lettering-camadas"
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={reordenar}
+              >
+                <SortableContext
+                  items={daFrentePraTras.map((l) => l.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <ul className="space-y-1">
+                    {daFrentePraTras.map((layer) => (
+                      <LinhaDeCamada
+                        key={layer.id}
+                        layer={layer}
+                        selecionada={layer.id === selectedId}
+                        onSelecionar={() => setSelectedId(layer.id)}
+                        onRemover={() => remover(layer.id)}
+                      />
+                    ))}
+                  </ul>
+                </SortableContext>
+              </DndContext>
+            </div>
+
+            <div hidden={painel !== "alinhar"} className="space-y-3 p-3">
+              <div className="space-y-1.5">
+                <p className={LABEL}>Alinhar no palco</p>
+                <div className="grid grid-cols-6 gap-1">
+                  {(
+                    [
+                      ["esquerda", AlignStartVertical, "Alinhar à esquerda"],
+                      [
+                        "centro",
+                        AlignCenterVertical,
+                        "Centralizar na horizontal",
+                      ],
+                      ["direita", AlignEndVertical, "Alinhar à direita"],
+                      ["topo", AlignStartHorizontal, "Alinhar ao topo"],
+                      [
+                        "meio",
+                        AlignCenterHorizontal,
+                        "Centralizar na vertical",
+                      ],
+                      ["base", AlignEndHorizontal, "Alinhar à base"],
+                    ] as const
+                  ).map(([modo, Icone, rotulo]) => (
+                    <button
+                      key={modo}
+                      type="button"
+                      aria-label={rotulo}
+                      title={rotulo}
+                      disabled={!selected}
+                      onClick={() => alinhar(modo)}
+                      className="grid h-11 place-items-center rounded-md border border-neutral-200 text-neutral-700 disabled:opacity-40"
+                    >
+                      <Icone aria-hidden="true" className="size-4" />
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-neutral-500">
+                  Vale pra camada escolhida, contando a caixa já girada.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <p className={LABEL}>Distribuir</p>
+                <div className="grid grid-cols-2 gap-1">
+                  <button
+                    type="button"
+                    disabled={layers.length < 3}
+                    onClick={() => distribuir("x")}
+                    className="h-11 rounded-md border border-neutral-200 text-sm text-neutral-700 disabled:opacity-40"
+                  >
+                    <AlignHorizontalSpaceAround
+                      aria-hidden="true"
+                      className="mr-1 inline size-4"
+                    />
+                    Na horizontal
+                  </button>
+                  <button
+                    type="button"
+                    disabled={layers.length < 3}
+                    onClick={() => distribuir("y")}
+                    className="h-11 rounded-md border border-neutral-200 text-sm text-neutral-700 disabled:opacity-40"
+                  >
+                    <AlignVerticalSpaceAround
+                      aria-hidden="true"
+                      className="mr-1 inline size-4"
+                    />
+                    Na vertical
+                  </button>
+                </div>
+                <p className="text-xs text-neutral-500">
+                  Espaça todas as camadas por igual, mantendo as das pontas no
+                  lugar. Precisa de três ou mais.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {selected ? (
           <div className="rounded-lg border border-neutral-200 bg-white">
@@ -800,7 +938,9 @@ export function LetteringStudio() {
                       min={8}
                       max={900}
                       value={selected.size}
-                      onChange={(e) => patch({ size: Number(e.target.value) || 8 })}
+                      onChange={(e) =>
+                        patch({ size: Number(e.target.value) || 8 })
+                      }
                       className={INPUT}
                     />
                   </div>
@@ -897,7 +1037,9 @@ export function LetteringStudio() {
                         max={60}
                         value={selected.stroke}
                         onChange={(e) =>
-                          patch({ stroke: Math.max(0, Number(e.target.value) || 0) })
+                          patch({
+                            stroke: Math.max(0, Number(e.target.value) || 0),
+                          })
                         }
                         className={INPUT}
                       />
@@ -929,7 +1071,10 @@ export function LetteringStudio() {
                   {selected.shadow ? (
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <label className={LABEL} htmlFor="lettering-shadow-blur">
+                        <label
+                          className={LABEL}
+                          htmlFor="lettering-shadow-blur"
+                        >
                           Desfoque
                         </label>
                         <input
@@ -939,21 +1084,29 @@ export function LetteringStudio() {
                           value={selected.shadowBlur}
                           onChange={(e) =>
                             patch({
-                              shadowBlur: Math.max(0, Number(e.target.value) || 0),
+                              shadowBlur: Math.max(
+                                0,
+                                Number(e.target.value) || 0,
+                              ),
                             })
                           }
                           className={INPUT}
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className={LABEL} htmlFor="lettering-shadow-color">
+                        <label
+                          className={LABEL}
+                          htmlFor="lettering-shadow-color"
+                        >
                           Cor da sombra
                         </label>
                         <input
                           id="lettering-shadow-color"
                           type="color"
                           value={selected.shadowColor}
-                          onChange={(e) => patch({ shadowColor: e.target.value })}
+                          onChange={(e) =>
+                            patch({ shadowColor: e.target.value })
+                          }
                           className="h-11 w-full rounded-md border border-neutral-200 bg-white p-1"
                         />
                       </div>
@@ -1022,14 +1175,20 @@ export function LetteringStudio() {
                           value={selected.boxRadius}
                           onChange={(e) =>
                             patch({
-                              boxRadius: Math.max(0, Number(e.target.value) || 0),
+                              boxRadius: Math.max(
+                                0,
+                                Number(e.target.value) || 0,
+                              ),
                             })
                           }
                           className={INPUT}
                         />
                       </div>
                       <div className="col-span-2 space-y-1.5">
-                        <label className={LABEL} htmlFor="lettering-box-padding">
+                        <label
+                          className={LABEL}
+                          htmlFor="lettering-box-padding"
+                        >
                           Respiro
                         </label>
                         <input
@@ -1039,7 +1198,10 @@ export function LetteringStudio() {
                           value={selected.boxPadding}
                           onChange={(e) =>
                             patch({
-                              boxPadding: Math.max(0, Number(e.target.value) || 0),
+                              boxPadding: Math.max(
+                                0,
+                                Number(e.target.value) || 0,
+                              ),
                             })
                           }
                           className={INPUT}
@@ -1140,8 +1302,14 @@ function LinhaDeCamada({
   onSelecionar: () => void;
   onRemover: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: layer.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: layer.id });
 
   return (
     <li

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  alignedPosition,
   angle,
   clamp,
   distance,
+  distributedValues,
   hitsLayer,
   layerCorners,
   shortestTurn,
@@ -139,5 +141,44 @@ describe("safeScale", () => {
 
   it("nunca desce abaixo de 1x", () => {
     expect(safeScale(9000, 9000)).toBe(1);
+  });
+});
+
+describe("alignedPosition", () => {
+  const palco = { width: 1080, height: 720 };
+  const caixa = { width: 200, height: 100 };
+
+  it("encosta nas bordas contando a metade da caixa", () => {
+    const l = layer({ x: 500, y: 400 });
+    expect(alignedPosition(l, caixa, "esquerda", palco)).toEqual({ x: 100, y: 400 });
+    expect(alignedPosition(l, caixa, "direita", palco)).toEqual({ x: 980, y: 400 });
+    expect(alignedPosition(l, caixa, "topo", palco)).toEqual({ x: 500, y: 50 });
+    expect(alignedPosition(l, caixa, "base", palco)).toEqual({ x: 500, y: 670 });
+  });
+
+  it("centraliza sem mexer no outro eixo", () => {
+    const l = layer({ x: 100, y: 200 });
+    expect(alignedPosition(l, caixa, "centro", palco)).toEqual({ x: 540, y: 200 });
+    expect(alignedPosition(l, caixa, "meio", palco)).toEqual({ x: 100, y: 360 });
+  });
+
+  it("usa a caixa girada, não a deitada", () => {
+    // Em 90° a largura vira altura: encostar na esquerda pede metade de 100.
+    const girado = layer({ x: 500, y: 400, rotation: 90 });
+    expect(alignedPosition(girado, caixa, "esquerda", palco).x).toBeCloseTo(50);
+  });
+});
+
+describe("distributedValues", () => {
+  it("iguala os intervalos mantendo as pontas", () => {
+    expect(distributedValues([0, 10, 100])).toEqual([0, 50, 100]);
+  });
+
+  it("devolve na ordem em que recebeu", () => {
+    expect(distributedValues([100, 0, 10])).toEqual([100, 0, 50]);
+  });
+
+  it("não mexe com menos de três", () => {
+    expect(distributedValues([5, 90])).toEqual([5, 90]);
   });
 });

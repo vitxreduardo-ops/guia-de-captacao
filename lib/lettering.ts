@@ -129,3 +129,65 @@ export function shortestTurn(from: number, to: number): number {
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
+
+export type AlignMode =
+  | "esquerda"
+  | "centro"
+  | "direita"
+  | "topo"
+  | "meio"
+  | "base";
+
+/** Caixa da camada no palco, já contando o giro. */
+export function boundsOf(layer: Layer, size: Size): Rect {
+  return unionBounds([layerCorners(layer, size)])!;
+}
+
+/**
+ * Onde a camada precisa ficar pra encostar na borda pedida do palco. Move o
+ * centro, que é como a camada é desenhada, mas mira na caixa girada — senão
+ * uma peça inclinada encostaria com a caixa errada e sobraria fresta.
+ */
+export function alignedPosition(
+  layer: Layer,
+  size: Size,
+  mode: AlignMode,
+  stage: Size,
+): Point {
+  const caixa = boundsOf(layer, size);
+  const meiaLargura = (caixa.right - caixa.left) / 2;
+  const meiaAltura = (caixa.bottom - caixa.top) / 2;
+
+  switch (mode) {
+    case "esquerda":
+      return { x: meiaLargura, y: layer.y };
+    case "centro":
+      return { x: stage.width / 2, y: layer.y };
+    case "direita":
+      return { x: stage.width - meiaLargura, y: layer.y };
+    case "topo":
+      return { x: layer.x, y: meiaAltura };
+    case "meio":
+      return { x: layer.x, y: stage.height / 2 };
+    case "base":
+      return { x: layer.x, y: stage.height - meiaAltura };
+  }
+}
+
+/**
+ * Espalha os valores com o mesmo intervalo entre eles, mantendo o primeiro e
+ * o último onde estão — é o que "distribuir" faz num editor.
+ */
+export function distributedValues(values: number[]): number[] {
+  if (values.length < 3) return values;
+
+  const ordenados = [...values].sort((a, b) => a - b);
+  const passo =
+    (ordenados[ordenados.length - 1] - ordenados[0]) / (ordenados.length - 1);
+
+  // O resultado volta na ordem em que os valores chegaram, não na ordenada:
+  // quem chamou tem uma camada por posição e não pode receber trocado.
+  return values.map(
+    (valor) => ordenados[0] + passo * ordenados.indexOf(valor),
+  );
+}
