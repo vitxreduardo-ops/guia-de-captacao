@@ -231,3 +231,27 @@ describe("toques que não mudam nada", () => {
     expect(reduce(vazio, { type: "selecionar", id: null })).toBe(vazio);
   });
 });
+
+describe("arremesso interrompido", () => {
+  it("pegar a peça em voo e soltar de novo é um passo só", () => {
+    let h = historyOf(inicial);
+    // O arremesso é interrompido: o estado é gravado, mas o passo fica aberto.
+    h = despachar(h, {
+      type: "alterar",
+      id: "a",
+      patch: { x: 300 },
+      coalesce: "gesto:a",
+    });
+    // O arrasto seguinte substitui o topo em vez de empilhar.
+    h = despachar(h, {
+      type: "alterar",
+      id: "a",
+      patch: { x: 420 },
+      coalesce: "gesto:a",
+    });
+    h = encerrarGesto(h);
+
+    expect(h.passado).toHaveLength(1);
+    expect(desfazer(h).presente.layers[0].x).toBe(inicial.layers[0].x);
+  });
+});

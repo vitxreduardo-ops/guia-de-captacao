@@ -214,7 +214,8 @@ body {
     backdrop-filter: none !important;
   }
 
-  .bg-white\/90 {
+  .bg-white\/90,
+  .bg-white\/95 {
     background-color: #fff !important;
   }
 
@@ -233,7 +234,8 @@ body {
     backdrop-filter: none !important;
   }
 
-  .bg-white\/90 {
+  .bg-white\/90,
+  .bg-white\/95 {
     background-color: #fff !important;
     border-color: #404040 !important;
   }
@@ -249,4 +251,68 @@ body {
   font-family: "BootzyTM";
   src: url("/fonts/BootzyTM.ttf") format("truetype");
   font-display: swap;
+}
+
+/*
+  O painel de ferramentas do lettering nasce e morre no botão que o abriu — a
+  origem da transformação é escrita no elemento. Entrar e sair pelo mesmo
+  caminho é o que faz o painel parecer sair da ferramenta, e não do nada.
+*/
+@keyframes lettering-painel-abre {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lettering-painel-fecha {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(0.94);
+  }
+}
+
+.lettering-painel {
+  /* Assenta sem passar do ponto: o painel não foi arremessado por ninguém. */
+  animation: lettering-painel-abre 320ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.lettering-painel[data-saindo="true"] {
+  animation: lettering-painel-fecha 220ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/*
+  Menos movimento não quer dizer nenhum aviso: o painel ainda aparece e some,
+  só que sem deslizar nem crescer.
+*/
+@media (prefers-reduced-motion: reduce) {
+  @keyframes lettering-painel-abre {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes lettering-painel-fecha {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  .lettering-painel {
+    animation-duration: 140ms;
+  }
 }

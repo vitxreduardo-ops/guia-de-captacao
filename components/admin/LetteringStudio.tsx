@@ -136,7 +136,12 @@ const EMOJI_RAPIDOS = ["✨", "🔥", "❤️", "⭐", "👉", "😂", "🎉", "
 const INPUT =
   "w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-base text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none";
 
-const LABEL = "block text-sm font-medium text-neutral-700";
+/**
+ * Tracking acompanha o tamanho: texto miúdo pede um respiro entre letras, e
+ * título grande pede o contrário. Um valor só serviria mal aos dois.
+ */
+const LABEL =
+  "block text-sm font-semibold tracking-[0.01em] text-neutral-700";
 
 /** Xadrez de fundo: é assim que se enxerga que o PNG saiu mesmo transparente. */
 /** A pessoa pediu menos movimento no sistema? Então nada de deslizar sozinho. */
@@ -251,6 +256,12 @@ export function LetteringStudio() {
   const [trim, setTrim] = useState(true);
   /** null = dock fechada. Um painel de cada vez, que é o que cabe no celular. */
   const [dock, setDock] = useState<Dock | null>(null);
+  // A ferramenta que está saindo continua desenhada enquanto a animação de
+  // fechar corre: sem isso o painel encolheria vazio.
+  const [fechando, setFechando] = useState<Dock | null>(null);
+  // Onde, na largura da tela, o painel nasce e morre — o botão que o abriu.
+  const [origemDoPainel, setOrigemDoPainel] = useState<number | null>(null);
+  const aba = dock ?? fechando;
   const [layouts, setLayouts] = useState<LayoutSalvo[]>([]);
   const [fontesSalvas, setFontesSalvas] = useState<FonteSalva[]>([]);
   const [nomeDoLayout, setNomeDoLayout] = useState("");
@@ -952,20 +963,32 @@ export function LetteringStudio() {
     [outrasCaixas],
   );
 
-  /** Grava o resultado do gesto no histórico, como um passo só. */
-  const encerrarComCommit = useCallback(() => {
-    const vivo = vivoRef.current;
-    guiasRef.current = [];
-    if (!vivo) {
+  /**
+   * Grava o resultado do gesto no histórico, como um passo só.
+   *
+   * `continua` é o caso de pegar a peça em pleno voo: o estado precisa ser
+   * gravado agora, senão o arrasto seguinte partiria da posição de antes do
+   * arremesso e a peça saltaria. Mas o desfazer tem que voltar o arremesso
+   * inteiro, não o meio dele — por isso o passo fica aberto e o gesto
+   * seguinte substitui o topo em vez de empilhar.
+   */
+  const encerrarComCommit = useCallback(
+    (continua = false) => {
+      const vivo = vivoRef.current;
+      guiasRef.current = [];
+      if (!vivo) {
+        if (!continua) fecharPasso();
+        agendarPintura();
+        return;
+      }
+      const { id, ...patch } = vivo;
+      vivoRef.current = null;
+      despacharAcao({ type: "alterar", id, patch, coalesce: `gesto:${id}` });
+      if (!continua) fecharPasso();
       agendarPintura();
-      return;
-    }
-    const { id, ...patch } = vivo;
-    vivoRef.current = null;
-    despacharAcao({ type: "alterar", id, patch });
-    fecharPasso();
-    agendarPintura();
-  }, [despacharAcao, fecharPasso, agendarPintura]);
+    },
+    [despacharAcao, fecharPasso, agendarPintura],
+  );
 
   /**
    * Solta a camada continuando o movimento que o dedo deu: projeta onde ela
@@ -1046,7 +1069,10 @@ export function LetteringStudio() {
         dedosNaTelaRef.current.clear();
         dragRef.current = null;
         navRef.current = null;
-        if (animacaoRef.current === null && vivoRef.current) {
+        // Sem animação em curso, o dedo que levanta fecha o passo — mesmo
+        // que não haja nada vivo pra gravar. É o que impede um passo deixado
+        // aberto por uma interrupção de grudar no próximo gesto.
+        if (animacaoRef.current === null) {
           encerrarComCommit();
         }
       });
@@ -1134,7 +1160,7 @@ export function LetteringStudio() {
     if (animacaoRef.current !== null) {
       cancelAnimationFrame(animacaoRef.current);
       animacaoRef.current = null;
-      encerrarComCommit();
+      encerrarComCommit(true);
     }
     // A vista também para. Continuar deslizando durante o arrasto faria a peça
     // escapar do dedo, porque o chão estaria andando embaixo dela.
@@ -1731,6 +1757,9 @@ export function LetteringStudio() {
 
     despacharAcao({ type: "trocarTudo", state: estado });
     fecharPasso();
+    // Abrir um layout fecha a biblioteca pelo mesmo caminho de um toque no
+    // botão: some animando, e não de um quadro pro outro.
+    setFechando(dock);
     setDock(null);
   }
 
@@ -1783,7 +1812,7 @@ export function LetteringStudio() {
         <div
           ref={stageRef}
           onPointerDown={onPointerDown}
-          className="relative h-[58svh] w-full touch-none select-none lg:h-[70svh]"
+          className="relative h-[76svh] w-full touch-none select-none lg:h-[70svh]"
         >
           {/* O recorte fica só em volta do desenho. Estava no palco inteiro, e
               levava junto as alças da camada encostada na borda — some a alça,
@@ -1961,7 +1990,7 @@ export function LetteringStudio() {
               </div>
 
               <div className="space-y-1.5">
-                <p className="text-xs text-neutral-500">Ver a peça sobre</p>
+                <p className="text-xs leading-relaxed tracking-[0.01em] text-neutral-500">Ver a peça sobre</p>
                 <div className="grid grid-cols-2 gap-1">
                   {(
                     [
@@ -2023,11 +2052,6 @@ export function LetteringStudio() {
         ) : null}
 
 
-        <p className="mt-1 text-center text-xs text-neutral-500">
-          Arraste a peça pra mover, o vazio pra andar pelo palco e dois dedos
-          pra aproximar. Os cantos mudam o tamanho, a alça de cima gira, e dois
-          toques abrem o texto.
-        </p>
       </div>
 
       {/* A dock flutua sobre o conteúdo, descolada das bordas, e o painel da
@@ -2038,15 +2062,31 @@ export function LetteringStudio() {
         className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex flex-col items-center gap-2 px-3"
         style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
-        {dock ? (
+        {aba ? (
           <div
             id="lettering-painel"
+            data-saindo={dock === null}
+            // Nasce e morre no botão que o abriu: a origem da transformação é a
+            // posição dele na largura da tela. Sem isso o painel aparecia do
+            // nada e não dizia de qual ferramenta tinha vindo.
+            style={
+              origemDoPainel === null
+                ? undefined
+                : { transformOrigin: `${origemDoPainel}px 100%` }
+            }
+            // Só a animação do próprio painel encerra a saída: as de dentro
+            // sobem por aqui também e desmontariam o cartão no meio dela.
+            onAnimationEnd={(e) => {
+              if (e.target === e.currentTarget && dock === null) {
+                setFechando(null);
+              }
+            }}
             // Cartão próprio, com o mesmo raio da dock: sem uma borda visível o
             // painel se confundia com o palco e não dava pra ver onde um
             // acabava e o outro começava.
-            className="pointer-events-auto max-h-[40svh] w-full max-w-md overflow-auto rounded-[28px] border border-neutral-200 bg-neutral-100 shadow-xl"
+            className="lettering-painel pointer-events-auto max-h-[40svh] w-full max-w-md overflow-auto rounded-[28px] border border-neutral-200 bg-neutral-100 shadow-xl"
           >
-            <div hidden={dock !== "emoji"} className="space-y-3 p-3">
+            <div hidden={aba !== "emoji"} className="space-y-3 p-3">
               <Button
                 className="w-full"
                 onClick={() =>
@@ -2090,7 +2130,7 @@ export function LetteringStudio() {
 
             {/* A lista vem de cima pra baixo como as camadas aparecem na
                 peça: a primeira linha é a que fica na frente. */}
-            <div hidden={dock !== "camadas"} className="p-2">
+            <div hidden={aba !== "camadas"} className="p-2">
               <DndContext
                 // Id fixo: sem ele o dnd-kit numera os textos de
                 // acessibilidade em ordem de montagem, e servidor e cliente
@@ -2127,7 +2167,7 @@ export function LetteringStudio() {
               </DndContext>
             </div>
 
-            <div hidden={dock !== "alinhar"} className="space-y-3 p-3">
+            <div hidden={aba !== "alinhar"} className="space-y-3 p-3">
               <div className="space-y-1.5">
                 <p className={LABEL}>Alinhar no palco</p>
                 <div className="grid grid-cols-6 gap-1">
@@ -2162,7 +2202,7 @@ export function LetteringStudio() {
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-neutral-500">
+                <p className="text-xs leading-relaxed tracking-[0.01em] text-neutral-500">
                   Vale pra camada escolhida, contando a caixa já girada.
                 </p>
               </div>
@@ -2195,14 +2235,14 @@ export function LetteringStudio() {
                     Na vertical
                   </button>
                 </div>
-                <p className="text-xs text-neutral-500">
+                <p className="text-xs leading-relaxed tracking-[0.01em] text-neutral-500">
                   Espaça todas as camadas por igual, mantendo as das pontas no
                   lugar. Precisa de três ou mais.
                 </p>
               </div>
             </div>
 
-            <div hidden={dock !== "biblioteca"} className="space-y-4 p-3">
+            <div hidden={aba !== "biblioteca"} className="space-y-4 p-3">
               <div className="space-y-1.5">
                 <label className={LABEL} htmlFor="lettering-nome-layout">
                   Salvar esta peça
@@ -2261,7 +2301,7 @@ export function LetteringStudio() {
 
               <div className="space-y-1.5 border-t border-neutral-200 pt-3">
                 <p className={LABEL}>Fontes dos clientes</p>
-                <p className="text-xs text-neutral-500">
+                <p className="text-xs leading-relaxed tracking-[0.01em] text-neutral-500">
                   Guardadas de vez: não precisa subir o arquivo de novo a cada
                   peça.
                 </p>
@@ -2336,11 +2376,11 @@ export function LetteringStudio() {
             </div>
             <div
               hidden={
-                dock !== "texto" && dock !== "estilo" && dock !== "efeitos"
+                aba !== "texto" && aba !== "estilo" && aba !== "efeitos"
               }
               className="space-y-3 p-3"
             >
-              {dock === "texto" ? (
+              {aba === "texto" ? (
                 <Button
                   variant="secondary"
                   className="w-full"
@@ -2353,7 +2393,7 @@ export function LetteringStudio() {
 
               {selected ? (
                 <div className="space-y-3">
-                  {dock === "texto" ? (
+                  {aba === "texto" ? (
                     <>
                       <div className="space-y-1.5">
                         <label className={LABEL} htmlFor="lettering-text">
@@ -2423,7 +2463,7 @@ export function LetteringStudio() {
                     </>
                   ) : null}
 
-                  {dock === "estilo" ? (
+                  {aba === "estilo" ? (
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <label className={LABEL} htmlFor="lettering-size">
@@ -2523,7 +2563,7 @@ export function LetteringStudio() {
                     </div>
                   ) : null}
 
-                  {dock === "efeitos" ? (
+                  {aba === "efeitos" ? (
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
@@ -2741,7 +2781,7 @@ export function LetteringStudio() {
               )}
             </div>
 
-            <div hidden={dock !== "exportar"} className="space-y-2 p-3">
+            <div hidden={aba !== "exportar"} className="space-y-2 p-3">
               <label className="flex cursor-pointer items-center gap-2 py-1 text-sm text-neutral-700">
                 <input
                   type="checkbox"
@@ -2799,7 +2839,15 @@ export function LetteringStudio() {
             <button
               key={id}
               type="button"
-              onClick={() => setDock((atual) => (atual === id ? null : id))}
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                const painel = document.getElementById("lettering-painel");
+                const esquerda = painel?.getBoundingClientRect().left ?? 0;
+                setOrigemDoPainel(r.left + r.width / 2 - esquerda);
+                const proxima = dock === id ? null : id;
+                setFechando(proxima === null ? dock : null);
+                setDock(proxima);
+              }}
               aria-pressed={dock === id}
               aria-controls="lettering-painel"
               // O raio do item é concêntrico com o da dock: o interno é o
@@ -2811,7 +2859,7 @@ export function LetteringStudio() {
               // O nome aparece só na ferramenta aberta. Oito rótulos lado a
               // lado não cabem sem cortar palavra, e rótulo cortado não ajuda
               // ninguém — o da vez basta pra situar.
-              className={`flex min-w-0 shrink-0 items-center gap-1.5 rounded-[22px] px-3 py-2.5 text-[11px] transition-all duration-200 active:scale-95 ${
+              className={`flex min-w-0 shrink-0 items-center gap-1.5 rounded-[22px] px-3 py-2.5 text-[11px] font-medium tracking-[0.01em] transition-[transform,background-color,color] duration-150 active:scale-95 ${
                 dock === id
                   ? "bg-neutral-900 text-white"
                   : "flex-1 justify-center text-neutral-600"
@@ -2830,7 +2878,7 @@ export function LetteringStudio() {
         <div className="fixed inset-0 z-50 flex flex-col bg-neutral-900/80 p-4">
           <div className="mx-auto flex w-full max-w-md flex-1 flex-col gap-3 overflow-auto rounded-lg bg-white p-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-medium text-neutral-900">
+              <h2 className="text-lg font-semibold tracking-[-0.01em] text-neutral-900">
                 Seu lettering
               </h2>
               <button
@@ -2855,7 +2903,7 @@ export function LetteringStudio() {
               />
             </div>
 
-            <p className="text-center text-xs text-neutral-500">
+            <p className="text-center text-xs tracking-[0.01em] text-neutral-500">
               {png.largura} × {png.altura} pixels
             </p>
 
