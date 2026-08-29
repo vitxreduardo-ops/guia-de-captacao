@@ -69,13 +69,13 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
       no Supabase Storage, com uma lista por cliente, pede bucket, upload e
       permissão — ficou de fora da primeira versão.
 
-- [ ] **Layouts não são salvos.** As camadas vivem só no estado da tela: sair
-      da página perde o layout. É a etapa 2 do editor — guardar a lista de
-      camadas como JSON numa tabela do Supabase e abrir por predefinição.
+- [ ] **O rascunho é um só.** O layout aberto volta sozinho, mas não há como
+      guardar vários nem nomeá-los. Layouts com nome pedem tabela no Supabase
+      — é a fase 3 do plano.
 
-- [ ] **Sem desfazer, guias nem imagem de fundo.** Mover camada é só arrastar,
-      e não há snap, alinhamento nem `Ctrl+Z`. Etapa 3, depois de o editor
-      assentar no uso.
+- [ ] **Sem imã nem guias.** Alinhar só por botão; arrastar não gruda no
+      centro nem nos eixos das outras camadas. É a fase 1 do plano, junto com
+      o desenho fora do React e a inércia ao soltar.
 
 - [ ] **A alça é uma só, num canto fixo.** Resolve girar e redimensionar, mas
       não é o que se espera de um editor: faltam as quatro alças de canto, com

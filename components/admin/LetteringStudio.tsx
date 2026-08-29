@@ -15,6 +15,8 @@ import {
   Layers,
   MoreHorizontal,
   Move,
+  Redo2,
+  Undo2,
   RotateCw,
   Smile,
   Trash2,
@@ -32,7 +34,6 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
@@ -40,6 +41,22 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  desfazer,
+  despachar,
+  encerrarGesto,
+  historyOf,
+  podeDesfazer,
+  podeRefazer,
+  refazer,
+  type Action,
+  type History,
+} from "@/lib/letteringState";
+import {
+  fontesFaltando,
+  guardarRascunho,
+  lerRascunho,
+} from "@/lib/letteringStorage";
 import { Button } from "@/components/ui/button";
 import {
   angle,
@@ -116,17 +133,35 @@ function novaCamada(over: Partial<Layer> = {}): Layer {
 }
 
 export function LetteringStudio() {
-  const [inicial] = useState(novaCamada);
-  const [layers, setLayers] = useState<Layer[]>(() => [inicial]);
-  // A primeira camada já entra escolhida: abrir a tela num estado em que nada
-  // pode ser editado só rende um toque a mais.
-  const [selectedId, setSelectedId] = useState<string | null>(inicial.id);
+  // O rascunho é lido na primeira renderização: começar vazio e preencher
+  // depois faria a peça piscar na tela a cada abertura.
+  const [history, setHistory] = useState<History>(() => {
+    const primeira = novaCamada();
+    return historyOf(
+      lerRascunho() ?? { layers: [primeira], selectedId: primeira.id },
+    );
+  });
+  const { layers, selectedId } = history.presente;
+
+  const despacharAcao = useCallback(
+    (action: Action) => setHistory((h) => despachar(h, action)),
+    [],
+  );
+  const fecharPasso = useCallback(
+    () => setHistory((h) => encerrarGesto(h)),
+    [],
+  );
+  const setSelectedId = useCallback(
+    (id: string | null) => setHistory((h) => despachar(h, { type: "selecionar", id })),
+    [],
+  );
   const [fonts, setFonts] = useState(SYSTEM_FONTS);
   const [fontError, setFontError] = useState<string | null>(null);
   const [trim, setTrim] = useState(true);
   const [aba, setAba] = useState<Aba>("conteudo");
   /** null = menu fechado. Um painel de cada vez, que é o que cabe no celular. */
   const [painel, setPainel] = useState<"camadas" | "alinhar" | null>(null);
+  const [aviso, setAviso] = useState<{ texto: string } | null>(null);
   const [sizes, setSizes] = useState<Map<string, Size>>(new Map());
   /** PNG só existe depois de pedir: gerar em 3x a cada toque trava o celular. */
   const [png, setPng] = useState<string | null>(null);
@@ -229,14 +264,37 @@ export function LetteringStudio() {
     };
   }, []);
 
+  /** Guarda o rascunho a cada mudança: fechar a aba não pode custar o layout. */
+  useEffect(() => {
+    guardarRascunho(history.presente);
+  }, [history.presente]);
+
+  useEffect(() => {
+    if (!aviso) return;
+    const t = setTimeout(() => setAviso(null), 6000);
+    return () => clearTimeout(t);
+  }, [aviso]);
+
+  /** Atalhos de teclado no computador. No celular valem os botões do palco. */
+  useEffect(() => {
+    const aoTeclar = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z") return;
+      const alvo = e.target as HTMLElement | null;
+      // Dentro de um campo, desfazer é do texto que está sendo digitado.
+      if (alvo && /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName)) return;
+      e.preventDefault();
+      setHistory((h) => (e.shiftKey ? refazer(h) : desfazer(h)));
+    };
+    window.addEventListener("keydown", aoTeclar);
+    return () => window.removeEventListener("keydown", aoTeclar);
+  }, []);
+
   const patch = useCallback(
-    (over: Partial<Layer>) => {
+    (over: Partial<Layer>, coalesce?: string) => {
       if (!selectedId) return;
-      setLayers((atual) =>
-        atual.map((l) => (l.id === selectedId ? { ...l, ...over } : l)),
-      );
+      despacharAcao({ type: "alterar", id: selectedId, patch: over, coalesce });
     },
-    [selectedId],
+    [selectedId, despacharAcao],
   );
 
   /** Coordenadas do dedo convertidas pro tamanho real do palco. */
@@ -323,21 +381,20 @@ export function LetteringStudio() {
       };
       const escala = distance(centro, point) / base.distancia;
       const giro = shortestTurn(base.angulo, angle(centro, point));
-      setLayers((atual) =>
-        atual.map((l) =>
-          l.id === base.id
-            ? {
-                ...l,
-                size: Math.round(clamp(base.size * escala, 8, 900)),
-                rotation: Math.round(clamp(base.rotation + giro, -180, 180)),
-              }
-            : l,
-        ),
-      );
+      despacharAcao({
+        type: "alterar",
+        id: base.id,
+        patch: {
+          size: Math.round(clamp(base.size * escala, 8, 900)),
+          rotation: Math.round(clamp(base.rotation + giro, -180, 180)),
+        },
+        coalesce: `alca:${base.id}`,
+      });
     };
 
     const soltar = () => {
       alcaRef.current = null;
+      fecharPasso();
       window.removeEventListener("pointermove", mover);
       window.removeEventListener("pointerup", soltar);
       window.removeEventListener("pointercancel", soltar);
@@ -365,20 +422,19 @@ export function LetteringStudio() {
         x: ((ev.clientX - rect.left) / rect.width) * STAGE.width,
         y: ((ev.clientY - rect.top) / rect.height) * STAGE.height,
       };
-      setLayers((atual) =>
-        atual.map((l) =>
-          l.id === base.id
-            ? {
-                ...l,
-                x: base.x + (ponto.x - inicio.x),
-                y: base.y + (ponto.y - inicio.y),
-              }
-            : l,
-        ),
-      );
+      despacharAcao({
+        type: "alterar",
+        id: base.id,
+        patch: {
+          x: base.x + (ponto.x - inicio.x),
+          y: base.y + (ponto.y - inicio.y),
+        },
+        coalesce: `mover:${base.id}`,
+      });
     };
 
     const soltar = () => {
+      fecharPasso();
       window.removeEventListener("pointermove", mover);
       window.removeEventListener("pointerup", soltar);
       window.removeEventListener("pointercancel", soltar);
@@ -399,30 +455,27 @@ export function LetteringStudio() {
     if (pinch && dedos.length >= 2) {
       const escala = distance(dedos[0], dedos[1]) / (pinch.distancia || 1);
       const giro = shortestTurn(pinch.angulo, angle(dedos[0], dedos[1]));
-      setLayers((atual) =>
-        atual.map((l) =>
-          l.id === pinch.id
-            ? {
-                ...l,
-                size: Math.round(clamp(pinch.size * escala, 8, 900)),
-                rotation: Math.round(clamp(pinch.rotation + giro, -180, 180)),
-              }
-            : l,
-        ),
-      );
+      despacharAcao({
+        type: "alterar",
+        id: pinch.id,
+        patch: {
+          size: Math.round(clamp(pinch.size * escala, 8, 900)),
+          rotation: Math.round(clamp(pinch.rotation + giro, -180, 180)),
+        },
+        coalesce: `pinca:${pinch.id}`,
+      });
       return;
     }
 
     const drag = dragRef.current;
     if (!drag) return;
     const point = stagePoint(e);
-    setLayers((atual) =>
-      atual.map((l) =>
-        l.id === drag.id
-          ? { ...l, x: point.x - drag.dx, y: point.y - drag.dy }
-          : l,
-      ),
-    );
+    despacharAcao({
+      type: "alterar",
+      id: drag.id,
+      patch: { x: point.x - drag.dx, y: point.y - drag.dy },
+      coalesce: `mover:${drag.id}`,
+    });
   }
 
   function onPointerUp(e: React.PointerEvent) {
@@ -509,18 +562,17 @@ export function LetteringStudio() {
   }
 
   function adicionar(layer: Layer) {
-    setLayers((atual) => [...atual, layer]);
-    setSelectedId(layer.id);
+    despacharAcao({ type: "adicionar", layer });
     setAba("conteudo");
   }
 
   function remover(id: string) {
-    setLayers((atual) => {
-      const resto = atual.filter((l) => l.id !== id);
-      if (id === selectedId) {
-        setSelectedId(resto.length > 0 ? resto[resto.length - 1].id : null);
-      }
-      return resto;
+    const alvo = layers.find((l) => l.id === id);
+    despacharAcao({ type: "remover", id });
+    // Apagar não pede confirmação: pede volta. O aviso some sozinho, e até lá
+    // um toque devolve a camada inteira, com estilo e posição.
+    setAviso({
+      texto: `"${(alvo?.text ?? "").split("\n")[0] || "camada"}" removida`,
     });
   }
 
@@ -536,7 +588,10 @@ export function LetteringStudio() {
     const de = daFrentePraTras.findIndex((l) => l.id === active.id);
     const para = daFrentePraTras.findIndex((l) => l.id === over.id);
     if (de < 0 || para < 0) return;
-    setLayers(arrayMove(daFrentePraTras, de, para).reverse());
+    // A lista está de trás pra frente em relação ao desenho, então os índices
+    // viram antes de entrar no histórico.
+    const ultimo = layers.length - 1;
+    despacharAcao({ type: "reordenar", de: ultimo - de, para: ultimo - para });
   }
 
   function alinhar(modo: AlignMode) {
@@ -548,7 +603,17 @@ export function LetteringStudio() {
 
   function distribuir(eixo: "x" | "y") {
     const novos = distributedValues(layers.map((l) => l[eixo]));
-    setLayers((atual) => atual.map((l, i) => ({ ...l, [eixo]: novos[i] })));
+    // Todas as camadas num passo só: desfazer tem que devolver a distribuição
+    // inteira, não uma camada por vez.
+    layers.forEach((l, i) =>
+      despacharAcao({
+        type: "alterar",
+        id: l.id,
+        patch: { [eixo]: novos[i] },
+        coalesce: "distribuir",
+      }),
+    );
+    fecharPasso();
   }
 
   async function loadFont(file: File) {
@@ -567,6 +632,13 @@ export function LetteringStudio() {
       );
     }
   }
+
+  // A fonte do cliente vive só na memória do navegador: ao voltar de um
+  // rascunho ela não existe mais, e a peça desenha com a fonte de reserva.
+  const faltando = fontesFaltando(
+    layers,
+    fonts.map((f) => f.family),
+  );
 
   const chip =
     "shrink-0 rounded-full border px-3 py-2 text-sm whitespace-nowrap";
@@ -601,6 +673,24 @@ export function LetteringStudio() {
           >
             <Smile aria-hidden="true" className="mr-1 inline size-4" />
             Emoji
+          </button>
+          <button
+            type="button"
+            aria-label="Desfazer"
+            disabled={!podeDesfazer(history)}
+            onClick={() => setHistory(desfazer)}
+            className={`${chip} border-neutral-200 bg-white text-neutral-700 disabled:opacity-40`}
+          >
+            <Undo2 aria-hidden="true" className="inline size-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="Refazer"
+            disabled={!podeRefazer(history)}
+            onClick={() => setHistory(refazer)}
+            className={`${chip} border-neutral-200 bg-white text-neutral-700 disabled:opacity-40`}
+          >
+            <Redo2 aria-hidden="true" className="inline size-4" />
           </button>
           <button
             type="button"
@@ -679,6 +769,35 @@ export function LetteringStudio() {
             </>
           ) : null}
         </div>
+
+        {aviso ? (
+          <div
+            role="status"
+            className="mt-2 flex items-center gap-2 rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 shadow-sm"
+          >
+            <span className="flex-1 truncate">{aviso.texto}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setHistory(desfazer);
+                setAviso(null);
+              }}
+              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white"
+            >
+              Desfazer
+            </button>
+          </div>
+        ) : null}
+
+        {faltando.length > 0 ? (
+          <p
+            role="alert"
+            className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+          >
+            O rascunho usa uma fonte que veio de arquivo e não fica salva.
+            Carregue a fonte de novo pra peça voltar ao normal.
+          </p>
+        ) : null}
 
         <p className="mt-1 text-center text-xs text-neutral-500">
           Arraste a peça ou use os botões do palco: um move, o outro gira e muda
