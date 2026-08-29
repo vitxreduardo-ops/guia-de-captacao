@@ -77,10 +77,9 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
       e não há snap, alinhamento nem `Ctrl+Z`. Etapa 3, depois de o editor
       assentar no uso.
 
-- [ ] **A alça some quando a camada é maior que o palco.** Ela fica no canto
-      da moldura, e o palco corta o que passa da borda — numa camada grande a
-      alça cai fora e não dá pra pegar. Prender a alça na borda do palco
-      resolveria.
+- [ ] **A alça é uma só, num canto fixo.** Resolve girar e redimensionar, mas
+      não é o que se espera de um editor: faltam as quatro alças de canto, com
+      a de giro separada da de tamanho.
 
 ## Qualidade geral
 

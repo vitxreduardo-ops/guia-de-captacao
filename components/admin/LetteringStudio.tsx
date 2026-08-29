@@ -526,6 +526,7 @@ export function LetteringStudio() {
               assim ela não tem como vazar pro PNG. */}
           {selected && sizes.has(selected.id) ? (
             <div
+              aria-hidden="true"
               className="pointer-events-none absolute border-2 border-dashed border-neutral-900/70"
               style={{
                 left: `${(selected.x / STAGE.width) * 100}%`,
@@ -534,18 +535,21 @@ export function LetteringStudio() {
                 height: `${(sizes.get(selected.id)!.height / STAGE.height) * 100}%`,
                 transform: `translate(-50%, -50%) rotate(${selected.rotation}deg)`,
               }}
+            />
+          ) : null}
+
+          {/* A alça mora num canto do palco, não em cima da camada. No canto
+              da moldura ela cobria justamente a área que se quer arrastar — e
+              sumia da tela quando a camada passava da borda. */}
+          {selected ? (
+            <button
+              type="button"
+              aria-label="Girar e redimensionar"
+              onPointerDown={onAlcaDown}
+              className="absolute right-3 bottom-3 grid size-12 touch-none place-items-center rounded-full border border-neutral-200 bg-white/95 text-neutral-700 shadow-md"
             >
-              {/* A alça acompanha o giro junto com a moldura, então ela fica
-                  sempre no mesmo canto da camada, não no canto da tela. */}
-              <button
-                type="button"
-                aria-label="Girar e redimensionar"
-                onPointerDown={onAlcaDown}
-                className="pointer-events-auto absolute -right-5 -bottom-5 grid size-10 touch-none place-items-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-md"
-              >
-                <RotateCw aria-hidden="true" className="size-4" />
-              </button>
-            </div>
+              <RotateCw aria-hidden="true" className="size-5" />
+            </button>
           ) : null}
         </div>
 
