@@ -15,13 +15,14 @@ import {
   Download,
   GripVertical,
   Layers,
-  MoreHorizontal,
   Move,
   Share2,
   Redo2,
   Undo2,
   RotateCw,
+  Palette,
   Smile,
+  Sparkles,
   Trash2,
   Type,
   Upload,
@@ -154,8 +155,15 @@ const FUNDOS = {
   foto: "linear-gradient(160deg, #5b7fa6 0%, #a8b8a0 45%, #d9b98c 75%, #6b4f3a 100%)",
 } as const;
 
-
-type Aba = "conteudo" | "estilo" | "efeitos";
+type Dock =
+  | "texto"
+  | "estilo"
+  | "efeitos"
+  | "emoji"
+  | "camadas"
+  | "alinhar"
+  | "biblioteca"
+  | "exportar";
 
 let contador = 0;
 function novaCamada(over: Partial<Layer> = {}): Layer {
@@ -208,17 +216,15 @@ export function LetteringStudio() {
     [],
   );
   const setSelectedId = useCallback(
-    (id: string | null) => setHistory((h) => despachar(h, { type: "selecionar", id })),
+    (id: string | null) =>
+      setHistory((h) => despachar(h, { type: "selecionar", id })),
     [],
   );
   const [fonts, setFonts] = useState(SYSTEM_FONTS);
   const [fontError, setFontError] = useState<string | null>(null);
   const [trim, setTrim] = useState(true);
-  const [aba, setAba] = useState<Aba>("conteudo");
-  /** null = menu fechado. Um painel de cada vez, que é o que cabe no celular. */
-  const [painel, setPainel] = useState<
-    "camadas" | "alinhar" | "biblioteca" | null
-  >(null);
+  /** null = dock fechada. Um painel de cada vez, que é o que cabe no celular. */
+  const [dock, setDock] = useState<Dock | null>(null);
   const [layouts, setLayouts] = useState<LayoutSalvo[]>([]);
   const [fontesSalvas, setFontesSalvas] = useState<FonteSalva[]>([]);
   const [nomeDoLayout, setNomeDoLayout] = useState("");
@@ -290,7 +296,7 @@ export function LetteringStudio() {
    * árvore inteira — painel, lista, abas — sessenta vezes por segundo só pra
    * mover um número. O estado recebe o resultado quando o gesto acaba.
    */
-  const vivoRef = useRef<Partial<Layer> & { id: string } | null>(null);
+  const vivoRef = useRef<(Partial<Layer> & { id: string }) | null>(null);
   const guiasRef = useRef<Guia[]>([]);
   const quadroRef = useRef<number | null>(null);
   const medidasRef = useRef<Map<string, Size>>(new Map());
@@ -300,8 +306,6 @@ export function LetteringStudio() {
   const amostrasRef = useRef<{ x: Amostra[]; y: Amostra[] }>({ x: [], y: [] });
   const animacaoRef = useRef<number | null>(null);
   const medirRef = useRef<HTMLCanvasElement | null>(null);
-
-
 
   const selected = layers.find((l) => l.id === selectedId) ?? null;
 
@@ -349,7 +353,9 @@ export function LetteringStudio() {
 
     // Moldura e guias vivem no canvas do palco, que não é o canvas da
     // exportação — não há como elas vazarem pro PNG.
-    const escolhida = camadasRef.current.find((l) => l.id === selecaoRef.current);
+    const escolhida = camadasRef.current.find(
+      (l) => l.id === selecaoRef.current,
+    );
     const medida = escolhida ? medidasRef.current.get(escolhida.id) : null;
     if (escolhida && medida) {
       const layer = comGesto(escolhida);
@@ -405,7 +411,9 @@ export function LetteringStudio() {
 
     const medirTudo = () => {
       const medidas = new Map<string, Size>();
-      layers.forEach((layer) => medidas.set(layer.id, measureLayer(ctx, layer)));
+      layers.forEach((layer) =>
+        medidas.set(layer.id, measureLayer(ctx, layer)),
+      );
       medidasRef.current = medidas;
       setSizes(medidas);
       pintar();
@@ -444,7 +452,7 @@ export function LetteringStudio() {
 
   /** A biblioteca é buscada quando a aba abre, não na carga da tela. */
   useEffect(() => {
-    if (painel !== "biblioteca") return;
+    if (dock !== "biblioteca") return;
     let cancelado = false;
     carregarBiblioteca()
       .then(({ layouts, fontes }) => {
@@ -458,7 +466,7 @@ export function LetteringStudio() {
     return () => {
       cancelado = true;
     };
-  }, [painel]);
+  }, [dock]);
 
   /** Guarda o rascunho a cada mudança: fechar a aba não pode custar o layout. */
   useEffect(() => {
@@ -564,7 +572,13 @@ export function LetteringStudio() {
         guiasRef.current = [];
         return { x, y };
       }
-      const r = snap({ x, y }, size, outrasCaixas(id), STAGE, STAGE.width * 0.012);
+      const r = snap(
+        { x, y },
+        size,
+        outrasCaixas(id),
+        STAGE,
+        STAGE.width * 0.012,
+      );
       const grudouAgora =
         r.guias.length > guiasRef.current.length && r.guias.length > 0;
       guiasRef.current = r.guias;
@@ -1020,7 +1034,7 @@ export function LetteringStudio() {
 
   function adicionar(layer: Layer) {
     despacharAcao({ type: "adicionar", layer });
-    setAba("conteudo");
+    setDock("texto");
   }
 
   function duplicar(id: string) {
@@ -1119,7 +1133,10 @@ export function LetteringStudio() {
     try {
       // O que vai pro banco é o mesmo formato do rascunho, com carimbo de
       // versão: sem ele a validação recusa o layout na volta.
-      const lista = await guardarLayoutAction(nome, paraGuardar(history.presente));
+      const lista = await guardarLayoutAction(
+        nome,
+        paraGuardar(history.presente),
+      );
       setLayouts(lista);
       setNomeDoLayout("");
       setAviso({ texto: `"${nome}" salvo na biblioteca` });
@@ -1151,7 +1168,7 @@ export function LetteringStudio() {
 
     despacharAcao({ type: "trocarTudo", state: estado });
     fecharPasso();
-    setPainel(null);
+    setDock(null);
   }
 
   async function apagarLayout(id: string, nome: string) {
@@ -1197,36 +1214,11 @@ export function LetteringStudio() {
     "shrink-0 rounded-full border px-3 py-2 text-sm whitespace-nowrap transition-transform duration-100 active:scale-95";
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-3 lg:max-w-none lg:grid lg:grid-cols-[1fr_minmax(320px,400px)] lg:items-start">
+    <div className="mx-auto flex w-full max-w-md flex-col gap-3 pb-44 lg:max-w-2xl">
       {/* O palco é a peça: no celular ele fica no topo e gruda, pra editar
           vendo o resultado sem precisar rolar a página. */}
       <div className="sticky top-0 z-10 -mx-4 bg-neutral-50 px-4 py-2 lg:static lg:mx-0 lg:bg-transparent lg:p-0">
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => adicionar(novaCamada({ text: "Texto" }))}
-            className={`${chip} flex-1 border-neutral-900 bg-neutral-900 text-white`}
-          >
-            <Type aria-hidden="true" className="mr-1 inline size-4" />
-            Texto
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              adicionar(
-                novaCamada({
-                  kind: "emoji",
-                  text: "✨",
-                  family: EMOJI_FAMILY,
-                  size: 200,
-                }),
-              )
-            }
-            className={`${chip} flex-1 border-neutral-900 bg-neutral-900 text-white`}
-          >
-            <Smile aria-hidden="true" className="mr-1 inline size-4" />
-            Emoji
-          </button>
+        <div className="flex justify-end gap-2">
           <button
             type="button"
             aria-label="Desfazer"
@@ -1244,20 +1236,6 @@ export function LetteringStudio() {
             className={`${chip} border-neutral-200 bg-white text-neutral-700 disabled:opacity-40`}
           >
             <Redo2 aria-hidden="true" className="inline size-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setPainel((atual) => (atual ? null : "camadas"))}
-            aria-expanded={painel !== null}
-            aria-controls="lettering-painel"
-            aria-label="Mais opções"
-            className={`${chip} ${
-              painel
-                ? "border-neutral-900 bg-neutral-900 text-white"
-                : "border-neutral-200 bg-white text-neutral-700"
-            }`}
-          >
-            <MoreHorizontal aria-hidden="true" className="inline size-4" />
           </button>
         </div>
 
@@ -1370,57 +1348,59 @@ export function LetteringStudio() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {painel ? (
+      {/* A dock: uma barra deslizante embaixo; o painel do botão sobe acima
+          dela, um de cada vez, que é o que cabe no celular. */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white">
+        {dock ? (
           <div
             id="lettering-painel"
-            className="rounded-lg border border-neutral-200 bg-white"
+            className="mx-auto max-h-[40svh] w-full max-w-md overflow-auto"
           >
-            <div className="flex gap-1 border-b border-neutral-200 p-2">
-              <button
-                type="button"
-                onClick={() => setPainel("camadas")}
-                className={`flex-1 rounded-md px-2 py-2 text-sm ${
-                  painel === "camadas"
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-600"
-                }`}
+            <div hidden={dock !== "emoji"} className="space-y-3 p-3">
+              <Button
+                className="w-full"
+                onClick={() =>
+                  adicionar(
+                    novaCamada({
+                      kind: "emoji",
+                      text: "✨",
+                      family: EMOJI_FAMILY,
+                      size: 200,
+                    }),
+                  )
+                }
               >
-                <Layers aria-hidden="true" className="mr-1 inline size-4" />
-                Camadas
-              </button>
-              <button
-                type="button"
-                onClick={() => setPainel("alinhar")}
-                className={`flex-1 rounded-md px-2 py-2 text-sm ${
-                  painel === "alinhar"
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-600"
-                }`}
-              >
-                <AlignCenter
-                  aria-hidden="true"
-                  className="mr-1 inline size-4"
-                />
-                Alinhar
-              </button>
-              <button
-                type="button"
-                onClick={() => setPainel("biblioteca")}
-                className={`flex-1 rounded-md px-2 py-2 text-sm ${
-                  painel === "biblioteca"
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-600"
-                }`}
-              >
-                <BookMarked aria-hidden="true" className="mr-1 inline size-4" />
-                Biblioteca
-              </button>
+                <Smile aria-hidden="true" data-icon="inline-start" />
+                Novo emoji
+              </Button>
+              <div className="flex flex-wrap gap-1">
+                {EMOJI_RAPIDOS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() =>
+                      selected?.kind === "emoji"
+                        ? patch({ text: emoji })
+                        : adicionar(
+                            novaCamada({
+                              kind: "emoji",
+                              text: emoji,
+                              family: EMOJI_FAMILY,
+                              size: 200,
+                            }),
+                          )
+                    }
+                    className="rounded border border-neutral-200 px-3 py-2 text-lg hover:bg-neutral-50"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* A lista vem de cima pra baixo como as camadas aparecem na
                 peça: a primeira linha é a que fica na frente. */}
-            <div hidden={painel !== "camadas"} className="p-2">
+            <div hidden={dock !== "camadas"} className="p-2">
               <DndContext
                 // Id fixo: sem ele o dnd-kit numera os textos de
                 // acessibilidade em ordem de montagem, e servidor e cliente
@@ -1450,7 +1430,7 @@ export function LetteringStudio() {
               </DndContext>
             </div>
 
-            <div hidden={painel !== "alinhar"} className="space-y-3 p-3">
+            <div hidden={dock !== "alinhar"} className="space-y-3 p-3">
               <div className="space-y-1.5">
                 <p className={LABEL}>Alinhar no palco</p>
                 <div className="grid grid-cols-6 gap-1">
@@ -1525,7 +1505,7 @@ export function LetteringStudio() {
               </div>
             </div>
 
-            <div hidden={painel !== "biblioteca"} className="space-y-4 p-3">
+            <div hidden={dock !== "biblioteca"} className="space-y-4 p-3">
               <div className="space-y-1.5">
                 <label className={LABEL} htmlFor="lettering-nome-layout">
                   Salvar esta peça
@@ -1657,430 +1637,481 @@ export function LetteringStudio() {
                 </form>
               </div>
             </div>
-          </div>
-        ) : null}
-
-        {selected ? (
-          <div className="rounded-lg border border-neutral-200 bg-white">
-            <div className="flex items-center gap-1 border-b border-neutral-200 p-2">
-              {(
-                [
-                  ["conteudo", "Conteúdo"],
-                  ["estilo", "Estilo"],
-                  ["efeitos", "Efeitos"],
-                ] as const
-              ).map(([id, rotulo]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setAba(id)}
-                  className={`flex-1 rounded-md px-2 py-2 text-sm ${
-                    aba === id
-                      ? "bg-neutral-900 text-white"
-                      : "text-neutral-600 hover:bg-neutral-100"
-                  }`}
+            <div
+              hidden={
+                dock !== "texto" && dock !== "estilo" && dock !== "efeitos"
+              }
+              className="space-y-3 p-3"
+            >
+              {dock === "texto" ? (
+                <Button
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => adicionar(novaCamada({ text: "Texto" }))}
                 >
-                  {rotulo}
-                </button>
-              ))}
-            </div>
+                  <Type aria-hidden="true" data-icon="inline-start" />
+                  Novo texto
+                </Button>
+              ) : null}
 
-            <div className="space-y-3 p-3">
-              {aba === "conteudo" ? (
-                <>
-                  <div className="space-y-1.5">
-                    <label className={LABEL} htmlFor="lettering-text">
-                      {selected.kind === "emoji" ? "Emoji" : "Texto"}
-                    </label>
-                    <textarea
-                      id="lettering-text"
-                      value={selected.text}
-                      onChange={(e) => patch({ text: e.target.value })}
-                      rows={selected.kind === "emoji" ? 1 : 3}
-                      className={INPUT}
-                    />
-                    {selected.kind === "emoji" ? (
-                      <div className="flex flex-wrap gap-1">
-                        {EMOJI_RAPIDOS.map((emoji) => (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() => patch({ text: emoji })}
-                            className="rounded border border-neutral-200 px-3 py-2 text-lg hover:bg-neutral-50"
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {selected.kind === "text" ? (
-                    <div className="space-y-1.5">
-                      <label className={LABEL} htmlFor="lettering-font">
-                        Fonte
-                      </label>
-                      <select
-                        id="lettering-font"
-                        value={selected.family}
-                        onChange={(e) => patch({ family: e.target.value })}
-                        className={INPUT}
-                      >
-                        {fonts.map((font) => (
-                          <option key={font.family} value={font.family}>
-                            {font.label}
-                          </option>
-                        ))}
-                      </select>
-                      <label className="inline-flex cursor-pointer items-center gap-2 py-2 text-sm text-neutral-600">
-                        <Upload aria-hidden="true" className="size-4" />
-                        Carregar fonte do cliente
-                        <input
-                          type="file"
-                          accept="font/*,.ttf,.otf,.ttc,.woff,.woff2,.TTF,.OTF"
-                          className="sr-only"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) void loadFont(file);
-                            e.target.value = "";
-                          }}
+              {selected ? (
+                <div className="space-y-3">
+                  {dock === "texto" ? (
+                    <>
+                      <div className="space-y-1.5">
+                        <label className={LABEL} htmlFor="lettering-text">
+                          {selected.kind === "emoji" ? "Emoji" : "Texto"}
+                        </label>
+                        <textarea
+                          id="lettering-text"
+                          value={selected.text}
+                          onChange={(e) => patch({ text: e.target.value })}
+                          rows={selected.kind === "emoji" ? 1 : 3}
+                          className={INPUT}
                         />
+                        {selected.kind === "emoji" ? (
+                          <div className="flex flex-wrap gap-1">
+                            {EMOJI_RAPIDOS.map((emoji) => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => patch({ text: emoji })}
+                                className="rounded border border-neutral-200 px-3 py-2 text-lg hover:bg-neutral-50"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {selected.kind === "text" ? (
+                        <div className="space-y-1.5">
+                          <label className={LABEL} htmlFor="lettering-font">
+                            Fonte
+                          </label>
+                          <select
+                            id="lettering-font"
+                            value={selected.family}
+                            onChange={(e) => patch({ family: e.target.value })}
+                            className={INPUT}
+                          >
+                            {fonts.map((font) => (
+                              <option key={font.family} value={font.family}>
+                                {font.label}
+                              </option>
+                            ))}
+                          </select>
+                          <label className="inline-flex cursor-pointer items-center gap-2 py-2 text-sm text-neutral-600">
+                            <Upload aria-hidden="true" className="size-4" />
+                            Carregar fonte do cliente
+                            <input
+                              type="file"
+                              accept="font/*,.ttf,.otf,.ttc,.woff,.woff2,.TTF,.OTF"
+                              className="sr-only"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void loadFont(file);
+                                e.target.value = "";
+                              }}
+                            />
+                          </label>
+                          {fontError ? (
+                            <p role="alert" className="text-sm text-red-600">
+                              {fontError}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </>
+                  ) : null}
+
+                  {dock === "estilo" ? (
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className={LABEL} htmlFor="lettering-size">
+                          Tamanho
+                        </label>
+                        <input
+                          id="lettering-size"
+                          type="number"
+                          min={8}
+                          max={900}
+                          value={selected.size}
+                          onChange={(e) =>
+                            patch({ size: Number(e.target.value) || 8 })
+                          }
+                          className={INPUT}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className={LABEL} htmlFor="lettering-rotation">
+                          Girar
+                        </label>
+                        <input
+                          id="lettering-rotation"
+                          type="number"
+                          min={-180}
+                          max={180}
+                          value={selected.rotation}
+                          onChange={(e) =>
+                            patch({ rotation: Number(e.target.value) || 0 })
+                          }
+                          className={INPUT}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className={LABEL} htmlFor="lettering-color">
+                          Cor
+                        </label>
+                        <input
+                          id="lettering-color"
+                          type="color"
+                          value={selected.color}
+                          onChange={(e) => patch({ color: e.target.value })}
+                          className="h-11 w-full rounded-md border border-neutral-200 bg-white p-1"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className={LABEL} htmlFor="lettering-align">
+                          Alinhamento
+                        </label>
+                        <select
+                          id="lettering-align"
+                          value={selected.align}
+                          onChange={(e) =>
+                            patch({ align: e.target.value as Layer["align"] })
+                          }
+                          className={INPUT}
+                        >
+                          <option value="left">Esquerda</option>
+                          <option value="center">Centro</option>
+                          <option value="right">Direita</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label
+                          className={LABEL}
+                          htmlFor="lettering-line-height"
+                        >
+                          Entrelinha
+                        </label>
+                        <input
+                          id="lettering-line-height"
+                          type="number"
+                          step={0.05}
+                          min={0.5}
+                          max={3}
+                          value={selected.lineHeight}
+                          onChange={(e) =>
+                            patch({ lineHeight: Number(e.target.value) || 1 })
+                          }
+                          className={INPUT}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className={LABEL} htmlFor="lettering-tracking">
+                          Espaçamento
+                        </label>
+                        <input
+                          id="lettering-tracking"
+                          type="number"
+                          value={selected.tracking}
+                          onChange={(e) =>
+                            patch({ tracking: Number(e.target.value) || 0 })
+                          }
+                          className={INPUT}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {dock === "efeitos" ? (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <label className={LABEL} htmlFor="lettering-stroke">
+                            Contorno
+                          </label>
+                          <input
+                            id="lettering-stroke"
+                            type="number"
+                            min={0}
+                            max={60}
+                            value={selected.stroke}
+                            onChange={(e) =>
+                              patch({
+                                stroke: Math.max(
+                                  0,
+                                  Number(e.target.value) || 0,
+                                ),
+                              })
+                            }
+                            className={INPUT}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label
+                            className={LABEL}
+                            htmlFor="lettering-stroke-color"
+                          >
+                            Cor do contorno
+                          </label>
+                          <input
+                            id="lettering-stroke-color"
+                            type="color"
+                            value={selected.strokeColor}
+                            onChange={(e) =>
+                              patch({ strokeColor: e.target.value })
+                            }
+                            disabled={selected.stroke === 0}
+                            className="h-11 w-full rounded-md border border-neutral-200 bg-white p-1 disabled:opacity-50"
+                          />
+                        </div>
+                      </div>
+
+                      <label className="flex cursor-pointer items-center gap-2 py-1 text-sm font-medium text-neutral-700">
+                        <input
+                          type="checkbox"
+                          checked={selected.shadow}
+                          onChange={(e) => patch({ shadow: e.target.checked })}
+                          className="size-5 accent-neutral-900"
+                        />
+                        Sombra projetada
                       </label>
-                      {fontError ? (
-                        <p role="alert" className="text-sm text-red-600">
-                          {fontError}
-                        </p>
+                      {selected.shadow ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <label
+                              className={LABEL}
+                              htmlFor="lettering-shadow-blur"
+                            >
+                              Desfoque
+                            </label>
+                            <input
+                              id="lettering-shadow-blur"
+                              type="number"
+                              min={0}
+                              value={selected.shadowBlur}
+                              onChange={(e) =>
+                                patch({
+                                  shadowBlur: Math.max(
+                                    0,
+                                    Number(e.target.value) || 0,
+                                  ),
+                                })
+                              }
+                              className={INPUT}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label
+                              className={LABEL}
+                              htmlFor="lettering-shadow-color"
+                            >
+                              Cor da sombra
+                            </label>
+                            <input
+                              id="lettering-shadow-color"
+                              type="color"
+                              value={selected.shadowColor}
+                              onChange={(e) =>
+                                patch({ shadowColor: e.target.value })
+                              }
+                              className="h-11 w-full rounded-md border border-neutral-200 bg-white p-1"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label
+                              className={LABEL}
+                              htmlFor="lettering-shadow-x"
+                            >
+                              Deslocar X
+                            </label>
+                            <input
+                              id="lettering-shadow-x"
+                              type="number"
+                              value={selected.shadowX}
+                              onChange={(e) =>
+                                patch({ shadowX: Number(e.target.value) || 0 })
+                              }
+                              className={INPUT}
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label
+                              className={LABEL}
+                              htmlFor="lettering-shadow-y"
+                            >
+                              Deslocar Y
+                            </label>
+                            <input
+                              id="lettering-shadow-y"
+                              type="number"
+                              value={selected.shadowY}
+                              onChange={(e) =>
+                                patch({ shadowY: Number(e.target.value) || 0 })
+                              }
+                              className={INPUT}
+                            />
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <label className="flex cursor-pointer items-center gap-2 py-1 text-sm font-medium text-neutral-700">
+                        <input
+                          type="checkbox"
+                          checked={selected.box}
+                          onChange={(e) => patch({ box: e.target.checked })}
+                          className="size-5 accent-neutral-900"
+                        />
+                        Fundo atrás do texto
+                      </label>
+                      {selected.box ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <label
+                              className={LABEL}
+                              htmlFor="lettering-box-color"
+                            >
+                              Cor do fundo
+                            </label>
+                            <input
+                              id="lettering-box-color"
+                              type="color"
+                              value={selected.boxColor}
+                              onChange={(e) =>
+                                patch({ boxColor: e.target.value })
+                              }
+                              className="h-11 w-full rounded-md border border-neutral-200 bg-white p-1"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label
+                              className={LABEL}
+                              htmlFor="lettering-box-radius"
+                            >
+                              Cantos
+                            </label>
+                            <input
+                              id="lettering-box-radius"
+                              type="number"
+                              min={0}
+                              value={selected.boxRadius}
+                              onChange={(e) =>
+                                patch({
+                                  boxRadius: Math.max(
+                                    0,
+                                    Number(e.target.value) || 0,
+                                  ),
+                                })
+                              }
+                              className={INPUT}
+                            />
+                          </div>
+                          <div className="col-span-2 space-y-1.5">
+                            <label
+                              className={LABEL}
+                              htmlFor="lettering-box-padding"
+                            >
+                              Respiro
+                            </label>
+                            <input
+                              id="lettering-box-padding"
+                              type="number"
+                              min={0}
+                              value={selected.boxPadding}
+                              onChange={(e) =>
+                                patch({
+                                  boxPadding: Math.max(
+                                    0,
+                                    Number(e.target.value) || 0,
+                                  ),
+                                })
+                              }
+                              className={INPUT}
+                            />
+                          </div>
+                        </div>
                       ) : null}
                     </div>
                   ) : null}
-                </>
-              ) : null}
-
-              {aba === "estilo" ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className={LABEL} htmlFor="lettering-size">
-                      Tamanho
-                    </label>
-                    <input
-                      id="lettering-size"
-                      type="number"
-                      min={8}
-                      max={900}
-                      value={selected.size}
-                      onChange={(e) =>
-                        patch({ size: Number(e.target.value) || 8 })
-                      }
-                      className={INPUT}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className={LABEL} htmlFor="lettering-rotation">
-                      Girar
-                    </label>
-                    <input
-                      id="lettering-rotation"
-                      type="number"
-                      min={-180}
-                      max={180}
-                      value={selected.rotation}
-                      onChange={(e) =>
-                        patch({ rotation: Number(e.target.value) || 0 })
-                      }
-                      className={INPUT}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className={LABEL} htmlFor="lettering-color">
-                      Cor
-                    </label>
-                    <input
-                      id="lettering-color"
-                      type="color"
-                      value={selected.color}
-                      onChange={(e) => patch({ color: e.target.value })}
-                      className="h-11 w-full rounded-md border border-neutral-200 bg-white p-1"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className={LABEL} htmlFor="lettering-align">
-                      Alinhamento
-                    </label>
-                    <select
-                      id="lettering-align"
-                      value={selected.align}
-                      onChange={(e) =>
-                        patch({ align: e.target.value as Layer["align"] })
-                      }
-                      className={INPUT}
-                    >
-                      <option value="left">Esquerda</option>
-                      <option value="center">Centro</option>
-                      <option value="right">Direita</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className={LABEL} htmlFor="lettering-line-height">
-                      Entrelinha
-                    </label>
-                    <input
-                      id="lettering-line-height"
-                      type="number"
-                      step={0.05}
-                      min={0.5}
-                      max={3}
-                      value={selected.lineHeight}
-                      onChange={(e) =>
-                        patch({ lineHeight: Number(e.target.value) || 1 })
-                      }
-                      className={INPUT}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className={LABEL} htmlFor="lettering-tracking">
-                      Espaçamento
-                    </label>
-                    <input
-                      id="lettering-tracking"
-                      type="number"
-                      value={selected.tracking}
-                      onChange={(e) =>
-                        patch({ tracking: Number(e.target.value) || 0 })
-                      }
-                      className={INPUT}
-                    />
-                  </div>
                 </div>
-              ) : null}
+              ) : (
+                <p className="p-1 text-sm text-neutral-500">
+                  Toque numa camada no palco ou em Camadas pra editar.
+                </p>
+              )}
+            </div>
 
-              {aba === "efeitos" ? (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className={LABEL} htmlFor="lettering-stroke">
-                        Contorno
-                      </label>
-                      <input
-                        id="lettering-stroke"
-                        type="number"
-                        min={0}
-                        max={60}
-                        value={selected.stroke}
-                        onChange={(e) =>
-                          patch({
-                            stroke: Math.max(0, Number(e.target.value) || 0),
-                          })
-                        }
-                        className={INPUT}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className={LABEL} htmlFor="lettering-stroke-color">
-                        Cor do contorno
-                      </label>
-                      <input
-                        id="lettering-stroke-color"
-                        type="color"
-                        value={selected.strokeColor}
-                        onChange={(e) => patch({ strokeColor: e.target.value })}
-                        disabled={selected.stroke === 0}
-                        className="h-11 w-full rounded-md border border-neutral-200 bg-white p-1 disabled:opacity-50"
-                      />
-                    </div>
-                  </div>
+            <div hidden={dock !== "exportar"} className="space-y-2 p-3">
+              <label className="flex cursor-pointer items-center gap-2 py-1 text-sm text-neutral-700">
+                <input
+                  type="checkbox"
+                  checked={trim}
+                  onChange={(e) => setTrim(e.target.checked)}
+                  className="size-5 accent-neutral-900"
+                />
+                Cortar no conteúdo (figurinha)
+              </label>
 
-                  <label className="flex cursor-pointer items-center gap-2 py-1 text-sm font-medium text-neutral-700">
-                    <input
-                      type="checkbox"
-                      checked={selected.shadow}
-                      onChange={(e) => patch({ shadow: e.target.checked })}
-                      className="size-5 accent-neutral-900"
-                    />
-                    Sombra projetada
-                  </label>
-                  {selected.shadow ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <label
-                          className={LABEL}
-                          htmlFor="lettering-shadow-blur"
-                        >
-                          Desfoque
-                        </label>
-                        <input
-                          id="lettering-shadow-blur"
-                          type="number"
-                          min={0}
-                          value={selected.shadowBlur}
-                          onChange={(e) =>
-                            patch({
-                              shadowBlur: Math.max(
-                                0,
-                                Number(e.target.value) || 0,
-                              ),
-                            })
-                          }
-                          className={INPUT}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label
-                          className={LABEL}
-                          htmlFor="lettering-shadow-color"
-                        >
-                          Cor da sombra
-                        </label>
-                        <input
-                          id="lettering-shadow-color"
-                          type="color"
-                          value={selected.shadowColor}
-                          onChange={(e) =>
-                            patch({ shadowColor: e.target.value })
-                          }
-                          className="h-11 w-full rounded-md border border-neutral-200 bg-white p-1"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className={LABEL} htmlFor="lettering-shadow-x">
-                          Deslocar X
-                        </label>
-                        <input
-                          id="lettering-shadow-x"
-                          type="number"
-                          value={selected.shadowX}
-                          onChange={(e) =>
-                            patch({ shadowX: Number(e.target.value) || 0 })
-                          }
-                          className={INPUT}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className={LABEL} htmlFor="lettering-shadow-y">
-                          Deslocar Y
-                        </label>
-                        <input
-                          id="lettering-shadow-y"
-                          type="number"
-                          value={selected.shadowY}
-                          onChange={(e) =>
-                            patch({ shadowY: Number(e.target.value) || 0 })
-                          }
-                          className={INPUT}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
+              <div className="space-y-1.5">
+                <label className={LABEL} htmlFor="lettering-qualidade">
+                  Tamanho do arquivo
+                </label>
+                <select
+                  id="lettering-qualidade"
+                  value={qualidade}
+                  onChange={(e) => setQualidade(Number(e.target.value))}
+                  className={INPUT}
+                >
+                  <option value={EXPORT_SCALE}>
+                    Máximo, pra usar de verdade
+                  </option>
+                  <option value={2}>Médio</option>
+                  <option value={1}>Pequeno, só pra conferir</option>
+                </select>
+              </div>
 
-                  <label className="flex cursor-pointer items-center gap-2 py-1 text-sm font-medium text-neutral-700">
-                    <input
-                      type="checkbox"
-                      checked={selected.box}
-                      onChange={(e) => patch({ box: e.target.checked })}
-                      className="size-5 accent-neutral-900"
-                    />
-                    Fundo atrás do texto
-                  </label>
-                  {selected.box ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <label className={LABEL} htmlFor="lettering-box-color">
-                          Cor do fundo
-                        </label>
-                        <input
-                          id="lettering-box-color"
-                          type="color"
-                          value={selected.boxColor}
-                          onChange={(e) => patch({ boxColor: e.target.value })}
-                          className="h-11 w-full rounded-md border border-neutral-200 bg-white p-1"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className={LABEL} htmlFor="lettering-box-radius">
-                          Cantos
-                        </label>
-                        <input
-                          id="lettering-box-radius"
-                          type="number"
-                          min={0}
-                          value={selected.boxRadius}
-                          onChange={(e) =>
-                            patch({
-                              boxRadius: Math.max(
-                                0,
-                                Number(e.target.value) || 0,
-                              ),
-                            })
-                          }
-                          className={INPUT}
-                        />
-                      </div>
-                      <div className="col-span-2 space-y-1.5">
-                        <label
-                          className={LABEL}
-                          htmlFor="lettering-box-padding"
-                        >
-                          Respiro
-                        </label>
-                        <input
-                          id="lettering-box-padding"
-                          type="number"
-                          min={0}
-                          value={selected.boxPadding}
-                          onChange={(e) =>
-                            patch({
-                              boxPadding: Math.max(
-                                0,
-                                Number(e.target.value) || 0,
-                              ),
-                            })
-                          }
-                          className={INPUT}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
+              <Button size="lg" className="w-full" onClick={gerarPng}>
+                <Download aria-hidden="true" data-icon="inline-start" />
+                Exportar
+              </Button>
             </div>
           </div>
-        ) : (
-          <p className="rounded-lg border border-neutral-200 bg-white p-4 text-sm text-neutral-500">
-            Toque numa camada no palco ou na fita acima pra editar.
-          </p>
-        )}
+        ) : null}
 
-        <div className="space-y-2 rounded-lg border border-neutral-200 bg-white p-3">
-          <label className="flex cursor-pointer items-center gap-2 py-1 text-sm text-neutral-700">
-            <input
-              type="checkbox"
-              checked={trim}
-              onChange={(e) => setTrim(e.target.checked)}
-              className="size-5 accent-neutral-900"
-            />
-            Cortar no conteúdo (figurinha)
-          </label>
-
-          <div className="space-y-1.5">
-            <label className={LABEL} htmlFor="lettering-qualidade">
-              Tamanho do arquivo
-            </label>
-            <select
-              id="lettering-qualidade"
-              value={qualidade}
-              onChange={(e) => setQualidade(Number(e.target.value))}
-              className={INPUT}
+        <nav
+          aria-label="Ferramentas"
+          className="mx-auto flex w-full max-w-md gap-1 overflow-x-auto border-t border-neutral-200 p-1"
+        >
+          {(
+            [
+              ["texto", "Texto", Type],
+              ["estilo", "Estilo", Palette],
+              ["efeitos", "Efeitos", Sparkles],
+              ["emoji", "Emoji", Smile],
+              ["camadas", "Camadas", Layers],
+              ["alinhar", "Alinhar", AlignCenter],
+              ["biblioteca", "Biblioteca", BookMarked],
+              ["exportar", "Exportar", Download],
+            ] as const
+          ).map(([id, rotulo, Icone]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setDock((atual) => (atual === id ? null : id))}
+              aria-pressed={dock === id}
+              aria-controls="lettering-painel"
+              className={`flex shrink-0 flex-col items-center gap-0.5 rounded-md px-3 py-2 text-xs transition-transform duration-100 active:scale-95 ${
+                dock === id ? "bg-neutral-900 text-white" : "text-neutral-600"
+              }`}
             >
-              <option value={EXPORT_SCALE}>Máximo, pra usar de verdade</option>
-              <option value={2}>Médio</option>
-              <option value={1}>Pequeno, só pra conferir</option>
-            </select>
-          </div>
-
-          <Button size="lg" className="w-full" onClick={gerarPng}>
-            <Download aria-hidden="true" data-icon="inline-start" />
-            Gerar PNG
-          </Button>
-        </div>
+              <Icone aria-hidden="true" className="size-5" />
+              {rotulo}
+            </button>
+          ))}
+        </nav>
       </div>
 
       {/* O PNG aparece numa folha por cima: no celular é aqui que se segura o
