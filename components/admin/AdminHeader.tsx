@@ -23,10 +23,17 @@ export async function AdminHeader({
   title,
   trail,
   username,
+  dense = false,
 }: {
   title: string;
   trail?: BreadcrumbItem[];
   username?: string | null;
+  /**
+   * Versão baixa do cabeçalho, pra tela que é ferramenta e não documento: o
+   * título sai (a trilha já nomeia a página) e a folga encolhe, porque cada
+   * faixa aqui em cima é faixa a menos pra área de trabalho no celular.
+   */
+  dense?: boolean;
 }) {
   // A campainha é buscada aqui, e não em cada página, pra aparecer igual em
   // todo o admin sem repetir a consulta em dez lugares.
@@ -39,7 +46,7 @@ export async function AdminHeader({
     : [[], 0];
 
   return (
-    <header className="mb-8">
+    <header className={dense ? "mb-3" : "mb-8"}>
       {/* Todo o admin fica montado sob este header, então é daqui que sai a
           sincronização com o que os outros usuários estão fazendo. */}
       <LiveRefresh />
@@ -48,7 +55,7 @@ export async function AdminHeader({
       <Link
         href="/admin"
         aria-label="Ir para o Painel"
-        className={`mx-auto mb-4 block w-fit rounded ${FOCUS_RING}`}
+        className={`mx-auto block w-fit rounded ${dense ? "mb-2" : "mb-4"} ${FOCUS_RING}`}
       >
         <TatuLogo className="block h-[30px] w-auto text-black" />
       </Link>
@@ -115,9 +122,15 @@ export async function AdminHeader({
         </div>
       </div>
 
-      <h1 className="mt-5 text-xl leading-tight font-semibold tracking-tight text-neutral-900">
-        {title}
-      </h1>
+      {dense ? (
+        // O nome da página continua acessível pela trilha e pelo título do
+        // documento; repeti-lo aqui só empurraria a ferramenta pra baixo.
+        <h1 className="sr-only">{title}</h1>
+      ) : (
+        <h1 className="mt-5 text-xl leading-tight font-semibold tracking-tight text-neutral-900">
+          {title}
+        </h1>
+      )}
     </header>
   );
 }

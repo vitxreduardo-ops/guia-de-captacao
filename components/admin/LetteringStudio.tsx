@@ -321,8 +321,23 @@ export function LetteringStudio() {
    * React — no meio de um gesto isso custaria um render por quadro.
    */
   const molduraRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * Deslocamento da vista, em unidades do palco.
+   *
+   * O painel de ferramentas sobe por cima do palco e tapa justamente onde a
+   * peça costuma estar. Em vez de encolher o palco, a vista anda até deixar a
+   * camada escolhida na faixa que sobrou visível.
+   */
+  const camRef = useRef<Point>({ x: 0, y: 0 });
+  const camAnimRef = useRef<number | null>(null);
+  const painelRef = useRef<HTMLDivElement | null>(null);
+
   /** Último toque, pra reconhecer o segundo como duplo. */
-  const toqueRef = useRef<{ id: string | null; t: number } | null>(null);
+  const toqueRef = useRef<{
+    id: string | null;
+    t: number;
+    ponto: Point;
+  } | null>(null);
   /**
    * O atalho de teclado é registrado uma vez só e precisa chamar as ações
    * atuais; guardá-las em ref evita reassinar o evento a cada render.
@@ -364,6 +379,7 @@ export function LetteringStudio() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.scale(escala, escala);
+    ctx.translate(-camRef.current.x, -camRef.current.y);
 
     camadasRef.current.forEach((base) => {
       const layer = comGesto(base);
@@ -385,8 +401,8 @@ export function LetteringStudio() {
       if (escolhida && medida) {
         const layer = comGesto(escolhida);
         moldura.hidden = false;
-        moldura.style.left = `${(layer.x / STAGE.width) * 100}%`;
-        moldura.style.top = `${(layer.y / STAGE.height) * 100}%`;
+        moldura.style.left = `${((layer.x - camRef.current.x) / STAGE.width) * 100}%`;
+        moldura.style.top = `${((layer.y - camRef.current.y) / STAGE.height) * 100}%`;
         moldura.style.width = `${(medida.width / STAGE.width) * 100}%`;
         moldura.style.height = `${(medida.height / STAGE.height) * 100}%`;
         moldura.style.transform = `translate(-50%, -50%) rotate(${layer.rotation}deg)`;
@@ -403,11 +419,11 @@ export function LetteringStudio() {
       guiasRef.current.forEach((guia) => {
         ctx.beginPath();
         if (guia.eixo === "x") {
-          ctx.moveTo(guia.pos, 0);
-          ctx.lineTo(guia.pos, STAGE.height);
+          ctx.moveTo(guia.pos, camRef.current.y);
+          ctx.lineTo(guia.pos, camRef.current.y + STAGE.height);
         } else {
-          ctx.moveTo(0, guia.pos);
-          ctx.lineTo(STAGE.width, guia.pos);
+          ctx.moveTo(camRef.current.x, guia.pos);
+          ctx.lineTo(camRef.current.x + STAGE.width, guia.pos);
         }
         ctx.stroke();
       });
@@ -494,6 +510,80 @@ export function LetteringStudio() {
     duplicarRef.current = duplicar;
     removerRef.current = remover;
   });
+
+  /**
+   * Leva a vista até a camada escolhida, deixando-a no meio da faixa de palco
+   * que o painel não cobre. Sem painel aberto, a vista volta pro lugar.
+   */
+  const acomodarVista = useCallback(
+    (id: string | null) => {
+      const palco = stageRef.current;
+      if (!palco) return;
+
+      const camada = camadasRef.current.find((l) => l.id === id);
+      let alvo: Point = { x: 0, y: 0 };
+
+      if (camada) {
+        const caixaPalco = palco.getBoundingClientRect();
+        const topoDoPainel =
+          painelRef.current?.getBoundingClientRect().top ?? window.innerHeight;
+        // A faixa que sobra entre o topo do palco e o que o painel cobre.
+        const visivel = Math.max(
+          caixaPalco.height * 0.25,
+          Math.min(caixaPalco.bottom, topoDoPainel) - caixaPalco.top,
+        );
+        const meioVisivelEmPalco =
+          (visivel / 2 / caixaPalco.height) * STAGE.height;
+
+        alvo = {
+          x: camada.x - STAGE.width / 2,
+          y: camada.y - meioVisivelEmPalco,
+        };
+      }
+
+      if (camAnimRef.current !== null) {
+        cancelAnimationFrame(camAnimRef.current);
+        camAnimRef.current = null;
+      }
+
+      if (semMovimento()) {
+        camRef.current = alvo;
+        pintar();
+        return;
+      }
+
+      let molaX: Mola = { valor: camRef.current.x, velocidade: 0 };
+      let molaY: Mola = { valor: camRef.current.y, velocidade: 0 };
+      let anterior: number | null = null;
+
+      const passo = (agora: number) => {
+        const dt = anterior === null ? 1 / 60 : (agora - anterior) / 1000;
+        anterior = agora;
+        molaX = passoDaMola(molaX, alvo.x, dt, 0.4);
+        molaY = passoDaMola(molaY, alvo.y, dt, 0.4);
+        camRef.current = { x: molaX.valor, y: molaY.valor };
+        pintar();
+
+        if (molaParada(molaX, alvo.x) && molaParada(molaY, alvo.y)) {
+          camRef.current = alvo;
+          camAnimRef.current = null;
+          pintar();
+          return;
+        }
+        camAnimRef.current = requestAnimationFrame(passo);
+      };
+      camAnimRef.current = requestAnimationFrame(passo);
+    },
+    [pintar],
+  );
+
+  /**
+   * Abrir uma ferramenta acomoda a vista na camada escolhida; fechar devolve o
+   * palco inteiro. Trocar de camada com o painel aberto também acompanha.
+   */
+  useEffect(() => {
+    acomodarVista(dock ? selectedId : null);
+  }, [dock, selectedId, acomodarVista]);
 
   /** Guarda o rascunho a cada mudança: fechar a aba não pode custar o layout. */
   useEffect(() => {
@@ -768,12 +858,17 @@ export function LetteringStudio() {
 
   /** Coordenadas do dedo convertidas pro tamanho real do palco. */
   function stagePoint(e: React.PointerEvent): Point {
+    return pontoDoPalco(e.clientX, e.clientY);
+  }
+
+  /** Da tela pro palco, já somando o quanto a vista está deslocada. */
+  const pontoDoPalco = useCallback((clientX: number, clientY: number): Point => {
     const rect = stageRef.current!.getBoundingClientRect();
     return {
-      x: ((e.clientX - rect.left) / rect.width) * STAGE.width,
-      y: ((e.clientY - rect.top) / rect.height) * STAGE.height,
+      x: ((clientX - rect.left) / rect.width) * STAGE.width + camRef.current.x,
+      y: ((clientY - rect.top) / rect.height) * STAGE.height + camRef.current.y,
     };
-  }
+  }, []);
 
   function onPointerDown(e: React.PointerEvent) {
     // Uma animação em curso é interrompida pelo toque: quem manda é o dedo.
@@ -806,11 +901,23 @@ export function LetteringStudio() {
     const alvo = camadaNoPonto(point);
 
     // Dois toques na peça abrem o texto dela. Escrever é o que mais se faz
-    // aqui, e era o caminho mais longo: descer até a aba Conteúdo.
+    // aqui, e era o caminho mais longo da tela.
+    //
+    // O segundo toque precisa cair quase no mesmo lugar do primeiro: tocar pra
+    // escolher e tocar de novo pra arrastar são dois toques seguidos na mesma
+    // camada, e sem a distância isso abria o painel sozinho o tempo todo.
     const agora = e.timeStamp;
     const anterior = toqueRef.current;
-    toqueRef.current = { id: alvo?.id ?? null, t: agora };
-    if (alvo && anterior && anterior.id === alvo.id && agora - anterior.t < 400) {
+    toqueRef.current = { id: alvo?.id ?? null, t: agora, ponto: point };
+    const pertoDoAnterior =
+      anterior && distance(anterior.ponto, point) < STAGE.width * 0.03;
+    if (
+      alvo &&
+      anterior &&
+      anterior.id === alvo.id &&
+      pertoDoAnterior &&
+      agora - anterior.t < 300
+    ) {
       setSelectedId(alvo.id);
       setDock("texto");
       requestAnimationFrame(() => {
@@ -872,12 +979,8 @@ export function LetteringStudio() {
     alcaRef.current = base;
 
     const mover = (ev: PointerEvent) => {
-      const rect = stageRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const point = {
-        x: ((ev.clientX - rect.left) / rect.width) * STAGE.width,
-        y: ((ev.clientY - rect.top) / rect.height) * STAGE.height,
-      };
+      if (!stageRef.current) return;
+      const point = pontoDoPalco(ev.clientX, ev.clientY);
       const escala = distance(centro, point) / base.distancia;
       const giro = shortestTurn(base.angulo, angle(centro, point));
       // Canto muda tamanho, alça de cima gira. Separado porque cada gesto tem
@@ -927,12 +1030,8 @@ export function LetteringStudio() {
     const base = { id: selected.id, x: selected.x, y: selected.y };
 
     const mover = (ev: PointerEvent) => {
-      const rect = stageRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const ponto = {
-        x: ((ev.clientX - rect.left) / rect.width) * STAGE.width,
-        y: ((ev.clientY - rect.top) / rect.height) * STAGE.height,
-      };
+      if (!stageRef.current) return;
+      const ponto = pontoDoPalco(ev.clientX, ev.clientY);
       const bruto = {
         x: base.x + (ponto.x - inicio.x),
         y: base.y + (ponto.y - inicio.y),
@@ -1485,6 +1584,7 @@ export function LetteringStudio() {
         {dock ? (
           <div
             id="lettering-painel"
+            ref={painelRef}
             className="mx-auto max-h-[40svh] w-full max-w-md overflow-auto"
           >
             <div hidden={dock !== "emoji"} className="space-y-3 p-3">
