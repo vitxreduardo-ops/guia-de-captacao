@@ -220,3 +220,14 @@ describe("duplicar", () => {
     expect(s).toBe(inicial);
   });
 });
+
+describe("toques que não mudam nada", () => {
+  it("escolher a mesma camada devolve o mesmo estado", () => {
+    expect(reduce(inicial, { type: "selecionar", id: "a" })).toBe(inicial);
+  });
+
+  it("desmarcar quando já não havia escolha devolve o mesmo estado", () => {
+    const vazio: EditorState = { layers: [camada("a")], selectedId: null };
+    expect(reduce(vazio, { type: "selecionar", id: null })).toBe(vazio);
+  });
+});

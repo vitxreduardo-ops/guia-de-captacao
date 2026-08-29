@@ -25,11 +25,14 @@ export function velocidade(amostras: Amostra[], janelaMs = 80): number {
 }
 
 /**
- * Quanto a peça ainda andaria sozinha depois de solta, no mesmo modelo de
- * desaceleração que a rolagem usa. É o que faz um peteleco parecer arremesso
- * em vez de parar debaixo do dedo.
+ * Quanto a peça ainda andaria sozinha depois de solta.
+ *
+ * A taxa é mais seca que a da rolagem de listas (0,998). Numa lista o dedo
+ * pede metros de conteúdo; num editor um peteleco curto tem que render um
+ * empurrão curto — com a taxa da rolagem, soltar a peça com a vista afastada
+ * jogava ela meio palco adiante.
  */
-export function projetar(velocidadePorSegundo: number, desaceleracao = 0.998) {
+export function projetar(velocidadePorSegundo: number, desaceleracao = 0.99) {
   return (
     ((velocidadePorSegundo / 1000) * desaceleracao) / (1 - desaceleracao)
   );

@@ -35,6 +35,11 @@ describe("velocidade", () => {
 });
 
 describe("projetar", () => {
+  it("é mais seco que a rolagem de lista", () => {
+    // A mesma velocidade projeta bem menos que com a taxa de rolagem (0,998).
+    expect(projetar(1000)).toBeLessThan(projetar(1000, 0.998) / 5);
+  });
+
   it("anda mais quanto mais rápido o dedo saiu", () => {
     const devagar = projetar(200);
     const rapido = projetar(1000);

@@ -1014,9 +1014,40 @@ export function LetteringStudio() {
   }, [encerrarComCommit]);
 
   /** Coordenadas do dedo convertidas pro tamanho real do palco. */
-  function stagePoint(e: React.PointerEvent): Point {
+  function stagePoint(e: React.PointerEvent | PointerEvent): Point {
     return pontoDoPalco(e.clientX, e.clientY);
   }
+
+  /**
+   * Liga o gesto do palco a ouvintes do próprio navegador, e não aos do React.
+   *
+   * O botão de mover já fazia assim e era visivelmente mais leve que arrastar
+   * direto no palco. O caminho do React passa por delegação e reconciliação
+   * antes de chegar aqui; num gesto contínuo isso é uma volta inteira por
+   * evento, e no celular a mão sente.
+   */
+  const ouvindoRef = useRef(false);
+
+  const ligarGestoNativo = useCallback(() => {
+    if (ouvindoRef.current) return;
+    ouvindoRef.current = true;
+
+    const mover = (ev: PointerEvent) => tratarMovimento(ev);
+    const soltar = (ev: PointerEvent) => {
+      tratarFim(ev);
+      if (pointersRef.current.size === 0) {
+        ouvindoRef.current = false;
+        window.removeEventListener("pointermove", mover);
+        window.removeEventListener("pointerup", soltar);
+        window.removeEventListener("pointercancel", soltar);
+      }
+    };
+
+    window.addEventListener("pointermove", mover, { passive: true });
+    window.addEventListener("pointerup", soltar);
+    window.addEventListener("pointercancel", soltar);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * O ponto do palco de volta pra medida da tela, sem o zoom aplicado. É com
@@ -1088,7 +1119,7 @@ export function LetteringStudio() {
         distancia: Math.max(1, distance(naTela[0], naTela[1])),
         zoom: camRef.current.z,
       };
-      capturar(e);
+      ligarGestoNativo();
       return;
     }
 
@@ -1136,7 +1167,7 @@ export function LetteringStudio() {
         distancia: 1,
         zoom: camRef.current.z,
       };
-      capturar(e);
+      ligarGestoNativo();
       return;
     }
 
@@ -1145,20 +1176,7 @@ export function LetteringStudio() {
       dx: point.x - alvo.x,
       dy: point.y - alvo.y,
     };
-    capturar(e);
-  }
-
-  /**
-   * A captura é o que mantém o arrastar vivo quando o dedo sai do palco. Ela
-   * pode ser recusada (ponteiro já solto, por exemplo), e aí o gesto continua
-   * valendo — por isso nunca pode derrubar o resto do toque.
-   */
-  function capturar(e: React.PointerEvent) {
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {
-      // sem captura o arrastar ainda funciona dentro do palco
-    }
+    ligarGestoNativo();
   }
 
   /**
@@ -1267,7 +1285,7 @@ export function LetteringStudio() {
     window.addEventListener("pointercancel", soltar);
   }
 
-  function onPointerMove(e: React.PointerEvent) {
+  function tratarMovimento(e: PointerEvent) {
     if (!pointersRef.current.has(e.pointerId)) return;
     pointersRef.current.set(e.pointerId, stagePoint(e));
     dedosNaTelaRef.current.set(e.pointerId, localDaTela(e.clientX, e.clientY));
@@ -1325,7 +1343,7 @@ export function LetteringStudio() {
     agendarPintura();
   }
 
-  function onPointerUp(e: React.PointerEvent) {
+  function tratarFim(e: PointerEvent) {
     const arrastava = dragRef.current;
     pointersRef.current.delete(e.pointerId);
     dedosNaTelaRef.current.delete(e.pointerId);
@@ -1354,23 +1372,6 @@ export function LetteringStudio() {
       };
     }
 
-    try {
-      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      }
-    } catch {
-      // ponteiro já solto pelo navegador
-    }
-  }
-
-  /** O navegador pode tirar a captura sozinho — aí o gesto acabou. */
-  function onLostCapture(e: React.PointerEvent) {
-    pointersRef.current.delete(e.pointerId);
-    dedosNaTelaRef.current.delete(e.pointerId);
-    if (pointersRef.current.size === 0) {
-      dragRef.current = null;
-      navRef.current = null;
-    }
   }
 
   /**
@@ -1647,11 +1648,6 @@ export function LetteringStudio() {
         <div
           ref={stageRef}
           onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          onPointerLeave={onPointerUp}
-          onLostPointerCapture={onLostCapture}
           style={{
             background: FUNDOS[fundo],
             aspectRatio: `${STAGE.width} / ${STAGE.height}`,

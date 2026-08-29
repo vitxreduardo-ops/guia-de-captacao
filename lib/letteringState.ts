@@ -33,6 +33,10 @@ export function reduce(state: EditorState, action: Action): EditorState {
       };
 
     case "selecionar":
+      // Escolher o que já estava escolhido não é mudança. Devolver um estado
+      // novo aqui fazia a tela inteira reconciliar e o rascunho ser regravado
+      // a cada toque no palco.
+      if (state.selectedId === action.id) return state;
       return { ...state, selectedId: action.id };
 
     case "alterar":
