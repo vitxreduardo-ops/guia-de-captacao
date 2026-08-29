@@ -4,6 +4,7 @@ import {
   Download,
   GripVertical,
   Layers,
+  Move,
   RotateCw,
   Smile,
   Trash2,
@@ -330,6 +331,47 @@ export function LetteringStudio() {
     window.addEventListener("pointercancel", soltar);
   }
 
+  /**
+   * Botão de mover: a camada anda o mesmo tanto que o dedo, em vez de pular
+   * pra baixo dele — o dedo está no canto do palco, longe da peça.
+   */
+  function onMoverDown(e: React.PointerEvent) {
+    if (!selected) return;
+    e.stopPropagation();
+    const inicio = stagePoint(e);
+    const base = { id: selected.id, x: selected.x, y: selected.y };
+
+    const mover = (ev: PointerEvent) => {
+      const rect = stageRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const ponto = {
+        x: ((ev.clientX - rect.left) / rect.width) * STAGE.width,
+        y: ((ev.clientY - rect.top) / rect.height) * STAGE.height,
+      };
+      setLayers((atual) =>
+        atual.map((l) =>
+          l.id === base.id
+            ? {
+                ...l,
+                x: base.x + (ponto.x - inicio.x),
+                y: base.y + (ponto.y - inicio.y),
+              }
+            : l,
+        ),
+      );
+    };
+
+    const soltar = () => {
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", soltar);
+      window.removeEventListener("pointercancel", soltar);
+    };
+
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", soltar);
+    window.addEventListener("pointercancel", soltar);
+  }
+
   function onPointerMove(e: React.PointerEvent) {
     if (!pointersRef.current.has(e.pointerId)) return;
     pointersRef.current.set(e.pointerId, stagePoint(e));
@@ -545,20 +587,30 @@ export function LetteringStudio() {
               da moldura ela cobria justamente a área que se quer arrastar — e
               sumia da tela quando a camada passava da borda. */}
           {selected ? (
-            <button
-              type="button"
-              aria-label="Girar e redimensionar"
-              onPointerDown={onAlcaDown}
-              className="absolute right-3 bottom-3 grid size-12 touch-none place-items-center rounded-full border border-neutral-200 bg-white/95 text-neutral-700 shadow-md"
-            >
-              <RotateCw aria-hidden="true" className="size-5" />
-            </button>
+            <>
+              <button
+                type="button"
+                aria-label="Mover a camada"
+                onPointerDown={onMoverDown}
+                className="absolute bottom-3 left-3 grid size-12 touch-none place-items-center rounded-full border border-neutral-200 bg-white/95 text-neutral-700 shadow-md"
+              >
+                <Move aria-hidden="true" className="size-5" />
+              </button>
+              <button
+                type="button"
+                aria-label="Girar e redimensionar"
+                onPointerDown={onAlcaDown}
+                className="absolute right-3 bottom-3 grid size-12 touch-none place-items-center rounded-full border border-neutral-200 bg-white/95 text-neutral-700 shadow-md"
+              >
+                <RotateCw aria-hidden="true" className="size-5" />
+              </button>
+            </>
           ) : null}
         </div>
 
         <p className="mt-1 text-center text-xs text-neutral-500">
-          Arraste pra mover. Dois dedos giram e mudam o tamanho — no
-          computador, use os campos em Estilo.
+          Arraste a peça ou use os botões do palco: um move, o outro gira e
+          muda o tamanho. Dois dedos fazem as duas coisas juntas.
         </p>
       </div>
 
