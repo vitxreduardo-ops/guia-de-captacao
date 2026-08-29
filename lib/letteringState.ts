@@ -19,6 +19,7 @@ export type Action =
   | { type: "selecionar"; id: string | null }
   | { type: "alterar"; id: string; patch: Partial<Layer>; coalesce?: string }
   | { type: "remover"; id: string }
+  | { type: "duplicar"; id: string; novoId: string; desloca: number }
   | { type: "reordenar"; de: number; para: number }
   | { type: "trocarTudo"; state: EditorState };
 
@@ -41,6 +42,23 @@ export function reduce(state: EditorState, action: Action): EditorState {
           l.id === action.id ? { ...l, ...action.patch } : l,
         ),
       };
+
+    case "duplicar": {
+      const original = state.layers.find((l) => l.id === action.id);
+      if (!original) return state;
+      // A cópia nasce um pouco ao lado: exatamente em cima da original ela
+      // pareceria que nada aconteceu.
+      const copia: Layer = {
+        ...original,
+        id: action.novoId,
+        x: original.x + action.desloca,
+        y: original.y + action.desloca,
+      };
+      const i = state.layers.indexOf(original);
+      const layers = [...state.layers];
+      layers.splice(i + 1, 0, copia);
+      return { layers, selectedId: copia.id };
+    }
 
     case "remover": {
       const layers = state.layers.filter((l) => l.id !== action.id);

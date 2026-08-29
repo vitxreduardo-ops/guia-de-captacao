@@ -64,6 +64,10 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
 
 ## Lettering
 
+- [ ] **Compartilhamento nativo não foi testado no iPhone.** O botão só
+      aparece onde `navigator.canShare` aceita arquivo, e o navegador embutido
+      usado nos testes não aceita — quem confirma é o Safari de verdade.
+
 - [ ] **Fontes do cliente não ficam salvas.** A fonte é carregada do arquivo
       a cada uso, só na memória do navegador (`FontFace`). Guardar os arquivos
       no Supabase Storage, com uma lista por cliente, pede bucket, upload e
@@ -80,6 +84,13 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
 - [ ] **A alça é uma só, num canto fixo.** Resolve girar e redimensionar, mas
       não é o que se espera de um editor: faltam as quatro alças de canto, com
       a de giro separada da de tamanho.
+
+## Login
+
+- [ ] **Mostrar senha e lembrar usuário.** A tela de entrada
+      (`app/admin/login/page.tsx`) tem só os dois campos: falta o botão de
+      olho para revelar a senha e o "lembrar de mim" que traga o usuário
+      preenchido na próxima visita.
 
 ## Qualidade geral
 

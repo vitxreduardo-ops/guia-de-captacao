@@ -179,3 +179,44 @@ describe("histórico", () => {
     expect(podeDesfazer(h)).toBe(false);
   });
 });
+
+describe("duplicar", () => {
+  it("põe a cópia logo acima da original e já a escolhe", () => {
+    const dois = reduce(inicial, { type: "adicionar", layer: camada("b") });
+    const s = reduce(dois, {
+      type: "duplicar",
+      id: "a",
+      novoId: "copia",
+      desloca: 24,
+    });
+    expect(s.layers.map((l) => l.id)).toEqual(["a", "copia", "b"]);
+    expect(s.selectedId).toBe("copia");
+  });
+
+  it("copia o estilo inteiro e desloca a posição", () => {
+    const base: EditorState = {
+      layers: [camada("a", { color: "#ff0000", rotation: 30, x: 100, y: 200 })],
+      selectedId: "a",
+    };
+    const s = reduce(base, {
+      type: "duplicar",
+      id: "a",
+      novoId: "copia",
+      desloca: 24,
+    });
+    const copia = s.layers[1];
+    expect(copia.color).toBe("#ff0000");
+    expect(copia.rotation).toBe(30);
+    expect(copia).toMatchObject({ x: 124, y: 224 });
+  });
+
+  it("ignora id que não existe", () => {
+    const s = reduce(inicial, {
+      type: "duplicar",
+      id: "sumiu",
+      novoId: "copia",
+      desloca: 24,
+    });
+    expect(s).toBe(inicial);
+  });
+});

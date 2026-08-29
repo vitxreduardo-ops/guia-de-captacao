@@ -10,11 +10,13 @@ import {
   AlignStartHorizontal,
   AlignStartVertical,
   AlignVerticalSpaceAround,
+  Copy,
   Download,
   GripVertical,
   Layers,
   MoreHorizontal,
   Move,
+  Share2,
   Redo2,
   Undo2,
   RotateCw,
@@ -40,7 +42,13 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { snap, type Guia } from "@/lib/letteringSnap";
 import {
   molaParada,
@@ -85,7 +93,13 @@ import {
   type Rect,
   type Size,
 } from "@/lib/lettering";
-import { drawLayer, measureLayer, safeScale, STAGE } from "@/lib/letteringDraw";
+import {
+  drawLayer,
+  EXPORT_SCALE,
+  measureLayer,
+  safeScale,
+  STAGE,
+} from "@/lib/letteringDraw";
 
 const SYSTEM_FONTS = [
   { family: '"BootzyTM"', label: "Bootzy" },
@@ -117,8 +131,19 @@ function vibrar(ms: number) {
   }
 }
 
-const CHECKERBOARD =
-  "repeating-conic-gradient(#e5e5e5 0% 25%, #ffffff 0% 50%) 50% / 16px 16px";
+/**
+ * Fundos de prova. O xadrez mostra que o PNG é mesmo transparente; os outros
+ * existem porque a peça é um overlay — lettering branco some no xadrez claro e
+ * o problema só apareceria depois, já no story.
+ */
+const FUNDOS = {
+  xadrez:
+    "repeating-conic-gradient(#e5e5e5 0% 25%, #ffffff 0% 50%) 50% / 16px 16px",
+  claro: "#f5f5f4",
+  escuro: "#171717",
+  foto: "linear-gradient(160deg, #5b7fa6 0%, #a8b8a0 45%, #d9b98c 75%, #6b4f3a 100%)",
+} as const;
+
 
 type Aba = "conteudo" | "estilo" | "efeitos";
 
@@ -185,7 +210,32 @@ export function LetteringStudio() {
   const [aviso, setAviso] = useState<{ texto: string } | null>(null);
   const [sizes, setSizes] = useState<Map<string, Size>>(new Map());
   /** PNG só existe depois de pedir: gerar em 3x a cada toque trava o celular. */
-  const [png, setPng] = useState<string | null>(null);
+  const [png, setPng] = useState<{
+    url: string;
+    largura: number;
+    altura: number;
+  } | null>(null);
+  const [qualidade, setQualidade] = useState(EXPORT_SCALE);
+  /** Fundo da prévia: a peça é um overlay e precisa ser vista sobre os dois. */
+  const [fundo, setFundo] = useState<"xadrez" | "claro" | "escuro" | "foto">(
+    "xadrez",
+  );
+  /** O arquivo pronto pra folha de compartilhamento do sistema. */
+  const arquivoRef = useRef<File | null>(null);
+  /**
+   * Nem todo navegador entrega arquivo pra folha do sistema. Onde não entrega,
+   * o caminho antigo — segurar o dedo na imagem — continua valendo.
+   */
+  const podeCompartilhar = useSyncExternalStore(
+    () => () => {},
+    () =>
+      typeof navigator !== "undefined" &&
+      typeof navigator.canShare === "function" &&
+      navigator.canShare({
+        files: [new File([], "t.png", { type: "image/png" })],
+      }),
+    () => false,
+  );
 
   const stageCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const exportCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -879,7 +929,9 @@ export function LetteringStudio() {
 
     const width = Math.max(1, area.right - area.left);
     const height = Math.max(1, area.bottom - area.top);
-    const escala = safeScale(width, height);
+    // A escala pedida ainda passa pelo teto do aparelho: no iPhone um canvas
+    // grande demais volta em branco, sem erro nenhum.
+    const escala = safeScale(width, height, qualidade);
     canvas.width = Math.ceil(width * escala);
     canvas.height = Math.ceil(height * escala);
 
@@ -895,12 +947,49 @@ export function LetteringStudio() {
       ctx.restore();
     });
 
-    setPng(canvas.toDataURL("image/png"));
+    setPng({
+      url: canvas.toDataURL("image/png"),
+      largura: canvas.width,
+      altura: canvas.height,
+    });
+
+    // O arquivo é preparado junto, e não no toque de compartilhar: o iOS só
+    // abre a folha do sistema no gesto da pessoa, e um await no meio do
+    // caminho faz ele considerar que o gesto já passou.
+    canvas.toBlob((blob) => {
+      arquivoRef.current = blob
+        ? new File([blob], "lettering.png", { type: "image/png" })
+        : null;
+    }, "image/png");
+  }
+
+  /** Entrega o PNG pra folha de compartilhamento do sistema. */
+  async function compartilhar() {
+    const file = arquivoRef.current;
+    if (!file) return;
+    try {
+      await navigator.share({ files: [file] });
+    } catch (erro) {
+      // Cancelar a folha não é falha; qualquer outra coisa vira recado.
+      if ((erro as Error)?.name !== "AbortError") {
+        setAviso({ texto: "Não deu pra abrir o compartilhamento." });
+      }
+    }
   }
 
   function adicionar(layer: Layer) {
     despacharAcao({ type: "adicionar", layer });
     setAba("conteudo");
+  }
+
+  function duplicar(id: string) {
+    despacharAcao({
+      type: "duplicar",
+      id,
+      novoId: novaCamada().id,
+      // Um deslocamento visível o bastante pra perceber que são duas peças.
+      desloca: 32,
+    });
   }
 
   function remover(id: string) {
@@ -1056,7 +1145,7 @@ export function LetteringStudio() {
           onPointerLeave={onPointerUp}
           onLostPointerCapture={onLostCapture}
           style={{
-            background: CHECKERBOARD,
+            background: FUNDOS[fundo],
             aspectRatio: `${STAGE.width} / ${STAGE.height}`,
           }}
           className="relative w-full touch-none overflow-hidden rounded-lg border border-neutral-200 select-none"
@@ -1121,6 +1210,32 @@ export function LetteringStudio() {
             Carregue a fonte de novo pra peça voltar ao normal.
           </p>
         ) : null}
+
+        <div className="mt-2 flex items-center gap-1">
+          <span className="mr-1 text-xs text-neutral-500">Ver sobre</span>
+          {(
+            [
+              ["xadrez", "Transparente"],
+              ["claro", "Claro"],
+              ["escuro", "Escuro"],
+              ["foto", "Foto"],
+            ] as const
+          ).map(([id, rotulo]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setFundo(id)}
+              aria-pressed={fundo === id}
+              className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-transform duration-100 active:scale-95 ${
+                fundo === id
+                  ? "border-neutral-900 bg-neutral-900 text-white"
+                  : "border-neutral-200 bg-white text-neutral-600"
+              }`}
+            >
+              {rotulo}
+            </button>
+          ))}
+        </div>
 
         <p className="mt-1 text-center text-xs text-neutral-500">
           Arraste a peça ou use os botões do palco: um move, o outro gira e muda
@@ -1187,6 +1302,7 @@ export function LetteringStudio() {
                         layer={layer}
                         selecionada={layer.id === selectedId}
                         onSelecionar={() => setSelectedId(layer.id)}
+                        onDuplicar={() => duplicar(layer.id)}
                         onRemover={() => remover(layer.id)}
                       />
                     ))}
@@ -1672,6 +1788,22 @@ export function LetteringStudio() {
             Cortar no conteúdo (figurinha)
           </label>
 
+          <div className="space-y-1.5">
+            <label className={LABEL} htmlFor="lettering-qualidade">
+              Tamanho do arquivo
+            </label>
+            <select
+              id="lettering-qualidade"
+              value={qualidade}
+              onChange={(e) => setQualidade(Number(e.target.value))}
+              className={INPUT}
+            >
+              <option value={EXPORT_SCALE}>Máximo, pra usar de verdade</option>
+              <option value={2}>Médio</option>
+              <option value={1}>Pequeno, só pra conferir</option>
+            </select>
+          </div>
+
           <Button size="lg" className="w-full" onClick={gerarPng}>
             <Download aria-hidden="true" data-icon="inline-start" />
             Gerar PNG
@@ -1699,32 +1831,50 @@ export function LetteringStudio() {
             </div>
 
             <div
-              style={{ background: CHECKERBOARD }}
+              style={{ background: FUNDOS[fundo] }}
               className="grid flex-1 place-items-center rounded-md border border-neutral-200 p-2"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={png}
+                src={png.url}
                 alt="Lettering pronto"
-                className="max-h-[50svh] w-auto max-w-full"
+                className="max-h-[46svh] w-auto max-w-full"
               />
             </div>
 
-            <p className="text-sm text-neutral-600">
-              No celular: segure o dedo na imagem e escolha &quot;Adicionar às
-              Fotos&quot;. Depois é só usar o sticker de foto no story.
+            <p className="text-center text-xs text-neutral-500">
+              {png.largura} × {png.altura} pixels
             </p>
 
+            {podeCompartilhar ? (
+              <>
+                <Button size="lg" className="w-full" onClick={compartilhar}>
+                  <Share2 aria-hidden="true" data-icon="inline-start" />
+                  Salvar ou compartilhar
+                </Button>
+                <p className="text-sm text-neutral-600">
+                  Abre a folha do sistema: &quot;Salvar em Fotos&quot; põe a
+                  figurinha na galeria, pronta pro story.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-neutral-600">
+                No celular: segure o dedo na imagem e escolha &quot;Adicionar às
+                Fotos&quot;. Depois é só usar o sticker de foto no story.
+              </p>
+            )}
+
             <Button
-              render={<a href={png} download="lettering.png" />}
+              render={<a href={png.url} download="lettering.png" />}
               // Baixar é um link com download, não um botão: sem isso o Base UI
               // avisa que as semânticas nativas de <button> se perdem.
               nativeButton={false}
               size="lg"
+              variant={podeCompartilhar ? "secondary" : "default"}
               className="w-full"
             >
               <Download aria-hidden="true" data-icon="inline-start" />
-              Baixar no computador
+              Baixar arquivo
             </Button>
           </div>
         </div>
@@ -1737,11 +1887,13 @@ function LinhaDeCamada({
   layer,
   selecionada,
   onSelecionar,
+  onDuplicar,
   onRemover,
 }: {
   layer: Layer;
   selecionada: boolean;
   onSelecionar: () => void;
+  onDuplicar: () => void;
   onRemover: () => void;
 }) {
   const {
@@ -1781,6 +1933,14 @@ function LinhaDeCamada({
           className="flex-1 truncate py-3 pr-2 text-left text-sm"
         >
           {layer.text.split("\n")[0] || "(vazio)"}
+        </button>
+        <button
+          type="button"
+          aria-label="Duplicar camada"
+          onClick={onDuplicar}
+          className="p-3 text-neutral-500"
+        >
+          <Copy aria-hidden="true" className="size-4" />
         </button>
         <button
           type="button"
