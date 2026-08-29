@@ -525,7 +525,14 @@ export function LetteringStudio() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const cantos = layers.map((l) => layerCorners(l, sizes.get(l.id)!));
+    // Camada recém-criada ainda pode não ter medida: o desenho mede num
+    // efeito, e o toque em Gerar PNG pode chegar antes dele.
+    const cantos = layers
+      .map((l) => {
+        const size = sizes.get(l.id);
+        return size ? layerCorners(l, size) : null;
+      })
+      .filter((c): c is NonNullable<typeof c> => c !== null);
     const cru = unionBounds(cantos);
     // Uma folga em volta do recorte: cortar rente ao glifo deixa o
     // antisserrilhado das bordas encostando no limite do PNG.
