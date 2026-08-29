@@ -106,3 +106,26 @@ export function topmostAt(
   }
   return null;
 }
+
+/** Distância entre dois dedos — é o que vira escala no pinça. */
+export function distance(a: Point, b: Point): number {
+  return Math.hypot(b.x - a.x, b.y - a.y);
+}
+
+/** Ângulo em graus entre dois dedos — é o que vira giro no pinça. */
+export function angle(a: Point, b: Point): number {
+  return (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+}
+
+/**
+ * Giro acumulado sem dar salto de 360°: passar de 179° pra -179° é um passo de
+ * 2° pra esquerda, não uma volta inteira.
+ */
+export function shortestTurn(from: number, to: number): number {
+  return ((to - from + 540) % 360) - 180;
+}
+
+/** Segura o valor entre um mínimo e um máximo. */
+export function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}

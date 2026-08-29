@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  angle,
+  clamp,
+  distance,
   hitsLayer,
   layerCorners,
+  shortestTurn,
   topmostAt,
   unionBounds,
   type Layer,
@@ -95,5 +99,25 @@ describe("topmostAt", () => {
     ]);
     expect(topmostAt({ x: 100, y: 100 }, [baixo, cima], sizes)?.id).toBe("cima");
     expect(topmostAt({ x: 900, y: 900 }, [baixo, cima], sizes)).toBeNull();
+  });
+});
+
+describe("gestos de dois dedos", () => {
+  it("mede distância e ângulo entre os dedos", () => {
+    expect(distance({ x: 0, y: 0 }, { x: 3, y: 4 })).toBe(5);
+    expect(angle({ x: 0, y: 0 }, { x: 1, y: 0 })).toBe(0);
+    expect(angle({ x: 0, y: 0 }, { x: 0, y: 1 })).toBe(90);
+  });
+
+  it("gira pelo caminho curto ao cruzar 180°", () => {
+    expect(shortestTurn(179, -179)).toBe(2);
+    expect(shortestTurn(-179, 179)).toBe(-2);
+    expect(shortestTurn(10, 40)).toBe(30);
+  });
+
+  it("segura o valor no intervalo", () => {
+    expect(clamp(5, 0, 10)).toBe(5);
+    expect(clamp(-3, 0, 10)).toBe(0);
+    expect(clamp(99, 0, 10)).toBe(10);
   });
 });

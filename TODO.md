@@ -77,9 +77,9 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
       e não há snap, alinhamento nem `Ctrl+Z`. Etapa 3, depois de o editor
       assentar no uso.
 
-- [ ] **Redimensionar e girar só pelo painel.** Faltam alças no palco pra
-      escalar e girar com o dedo, que é como se espera de um editor no
-      celular.
+- [ ] **Sem alças de canto no palco.** Escalar e girar com dois dedos já
+      funciona; falta a alça de canto, que é o caminho de quem edita no
+      computador com o mouse.
 
 ## Qualidade geral
 
