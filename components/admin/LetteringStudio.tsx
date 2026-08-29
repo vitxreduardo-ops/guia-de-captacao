@@ -14,6 +14,8 @@ import {
   Copy,
   Crosshair,
   Download,
+  Eye,
+  EyeOff,
   GripVertical,
   Layers,
   MoreHorizontal,
@@ -95,7 +97,6 @@ import {
   hitsLayer,
   layerCorners,
   shortestTurn,
-  topmostAt,
   unionBounds,
   alignedPosition,
   boundsOf,
@@ -165,6 +166,17 @@ const FUNDOS = {
   escuro: "#171717",
   foto: "linear-gradient(160deg, #5b7fa6 0%, #a8b8a0 45%, #d9b98c 75%, #6b4f3a 100%)",
 } as const;
+
+/**
+ * A vista sobre o palco: canto de onde se olha e quanto se aproxima. A peça
+ * não muda de tamanho quando o zoom muda — o que muda é a lente.
+ */
+type Vista = { x: number; y: number; z: number };
+
+/** Até onde a lente vai. Perto o bastante pra ajustar letra, longe o
+ *  bastante pra ver a peça inteira fora do palco. */
+const ZOOM_MIN = 0.3;
+const ZOOM_MAX = 5;
 
 type Dock =
   | "texto"
@@ -282,16 +294,32 @@ export function LetteringStudio() {
   const stageCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const exportCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
-  /** Dedos em cima do palco, por pointerId. */
+  /** Dedos em cima do palco, por pointerId, em coordenadas do palco. */
   const pointersRef = useRef<Map<number, Point>>(new Map());
+  /**
+   * Os mesmos dedos, mas na medida da tela.
+   *
+   * A pinça precisa disto: em coordenadas do palco a distância entre os dedos
+   * já vem dividida pelo zoom, e usar isso pra calcular o próprio zoom se
+   * realimenta — afastar os dedos acabava diminuindo a peça.
+   */
+  const dedosNaTelaRef = useRef<Map<number, Point>>(new Map());
   const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
-  const pinchRef = useRef<{
-    id: string;
+  /**
+   * Navegação do palco: arrastar o vazio move a vista, dois dedos aproximam.
+   * A pinça é da lente, não da peça — o tamanho da peça sai das alças, como
+   * em qualquer editor.
+   */
+  const navRef = useRef<{
+    modo: "mover" | "lente";
+    /** Ponto do palco sob o dedo (ou sob o meio dos dedos) quando começou. */
+    ancora: Point;
+    /** Onde esse ponto estava na tela, em unidades de palco sem zoom. */
+    ancoraLocal: Point;
     distancia: number;
-    angulo: number;
-    size: number;
-    rotation: number;
+    zoom: number;
   } | null>(null);
+
   /** Mesma conta da pinça, mas com um dedo só, puxando a alça do canto. */
   const alcaRef = useRef<{
     id: string;
@@ -332,7 +360,7 @@ export function LetteringStudio() {
    * peça costuma estar. Em vez de encolher o palco, a vista anda até deixar a
    * camada escolhida na faixa que sobrou visível.
    */
-  const camRef = useRef<Point>({ x: 0, y: 0 });
+  const camRef = useRef<Vista>({ x: 0, y: 0, z: 1 });
   const camAnimRef = useRef<number | null>(null);
   const painelRef = useRef<HTMLDivElement | null>(null);
 
@@ -379,13 +407,16 @@ export function LetteringStudio() {
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
 
-    const escala = canvas.width / STAGE.width;
+    const base = canvas.width / STAGE.width;
+    const { x: camX, y: camY, z } = camRef.current;
+    const escala = base * z;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.scale(escala, escala);
-    ctx.translate(-camRef.current.x, -camRef.current.y);
+    ctx.translate(-camX, -camY);
 
     camadasRef.current.forEach((base) => {
+      if (base.hidden) return;
       const layer = comGesto(base);
       ctx.save();
       ctx.translate(layer.x, layer.y);
@@ -402,13 +433,15 @@ export function LetteringStudio() {
     const medida = escolhida ? medidasRef.current.get(escolhida.id) : null;
     const moldura = molduraRef.current;
     if (moldura) {
-      if (escolhida && medida) {
+      if (escolhida && medida && !escolhida.hidden) {
         const layer = comGesto(escolhida);
         moldura.hidden = false;
-        moldura.style.left = `${((layer.x - camRef.current.x) / STAGE.width) * 100}%`;
-        moldura.style.top = `${((layer.y - camRef.current.y) / STAGE.height) * 100}%`;
-        moldura.style.width = `${(medida.width / STAGE.width) * 100}%`;
-        moldura.style.height = `${(medida.height / STAGE.height) * 100}%`;
+        // A moldura é DOM, então acompanha a lente na mão: posição e tamanho
+        // saem da mesma conta que o canvas usa.
+        moldura.style.left = `${(((layer.x - camX) * z) / STAGE.width) * 100}%`;
+        moldura.style.top = `${(((layer.y - camY) * z) / STAGE.height) * 100}%`;
+        moldura.style.width = `${((medida.width * z) / STAGE.width) * 100}%`;
+        moldura.style.height = `${((medida.height * z) / STAGE.height) * 100}%`;
         moldura.style.transform = `translate(-50%, -50%) rotate(${layer.rotation}deg)`;
       } else {
         moldura.hidden = true;
@@ -423,11 +456,11 @@ export function LetteringStudio() {
       guiasRef.current.forEach((guia) => {
         ctx.beginPath();
         if (guia.eixo === "x") {
-          ctx.moveTo(guia.pos, camRef.current.y);
-          ctx.lineTo(guia.pos, camRef.current.y + STAGE.height);
+          ctx.moveTo(guia.pos, camY);
+          ctx.lineTo(guia.pos, camY + STAGE.height / z);
         } else {
-          ctx.moveTo(camRef.current.x, guia.pos);
-          ctx.lineTo(camRef.current.x + STAGE.width, guia.pos);
+          ctx.moveTo(camX, guia.pos);
+          ctx.lineTo(camX + STAGE.width / z, guia.pos);
         }
         ctx.stroke();
       });
@@ -515,9 +548,9 @@ export function LetteringStudio() {
     removerRef.current = remover;
   });
 
-  /** Desliza a vista até o ponto pedido, com mola. */
+  /** Desliza a vista até o enquadramento pedido, com mola. */
   const animarVista = useCallback(
-    (alvo: Point) => {
+    (alvo: Vista) => {
       if (camAnimRef.current !== null) {
         cancelAnimationFrame(camAnimRef.current);
         camAnimRef.current = null;
@@ -531,6 +564,10 @@ export function LetteringStudio() {
 
       let molaX: Mola = { valor: camRef.current.x, velocidade: 0 };
       let molaY: Mola = { valor: camRef.current.y, velocidade: 0 };
+      // O zoom anda numa escala bem menor que as coordenadas; a mola dele
+      // trabalha em passos de mil pra parar no mesmo momento que as outras.
+      let molaZ: Mola = { valor: camRef.current.z * 1000, velocidade: 0 };
+      const alvoZ = alvo.z * 1000;
       let anterior: number | null = null;
 
       const passo = (agora: number) => {
@@ -538,10 +575,19 @@ export function LetteringStudio() {
         anterior = agora;
         molaX = passoDaMola(molaX, alvo.x, dt, 0.4);
         molaY = passoDaMola(molaY, alvo.y, dt, 0.4);
-        camRef.current = { x: molaX.valor, y: molaY.valor };
+        molaZ = passoDaMola(molaZ, alvoZ, dt, 0.4);
+        camRef.current = {
+          x: molaX.valor,
+          y: molaY.valor,
+          z: molaZ.valor / 1000,
+        };
         pintar();
 
-        if (molaParada(molaX, alvo.x) && molaParada(molaY, alvo.y)) {
+        if (
+          molaParada(molaX, alvo.x) &&
+          molaParada(molaY, alvo.y) &&
+          molaParada(molaZ, alvoZ)
+        ) {
           camRef.current = alvo;
           camAnimRef.current = null;
           pintar();
@@ -564,7 +610,8 @@ export function LetteringStudio() {
       if (!palco) return;
 
       const camada = camadasRef.current.find((l) => l.id === id);
-      let alvo: Point = { x: 0, y: 0 };
+      const z = camRef.current.z;
+      let alvo: Vista = { x: 0, y: 0, z };
 
       if (camada) {
         const caixaPalco = palco.getBoundingClientRect();
@@ -579,8 +626,9 @@ export function LetteringStudio() {
           (visivel / 2 / caixaPalco.height) * STAGE.height;
 
         alvo = {
-          x: camada.x - STAGE.width / 2,
-          y: camada.y - meioVisivelEmPalco,
+          x: camada.x - STAGE.width / 2 / z,
+          y: camada.y - meioVisivelEmPalco / z,
+          z,
         };
       }
 
@@ -604,13 +652,24 @@ export function LetteringStudio() {
 
     const conteudo = unionBounds(caixas);
     if (!conteudo) {
-      animarVista({ x: 0, y: 0 });
+      animarVista({ x: 0, y: 0, z: 1 });
       return;
     }
 
+    // Enquadra o desenho inteiro com uma folga em volta, sem passar do zoom
+    // que o palco aceita.
+    const largura = Math.max(1, conteudo.right - conteudo.left);
+    const altura = Math.max(1, conteudo.bottom - conteudo.top);
+    const z = clamp(
+      Math.min(STAGE.width / largura, STAGE.height / altura) * 0.85,
+      ZOOM_MIN,
+      ZOOM_MAX,
+    );
+
     animarVista({
-      x: (conteudo.left + conteudo.right) / 2 - STAGE.width / 2,
-      y: (conteudo.top + conteudo.bottom) / 2 - STAGE.height / 2,
+      x: (conteudo.left + conteudo.right) / 2 - STAGE.width / 2 / z,
+      y: (conteudo.top + conteudo.bottom) / 2 - STAGE.height / 2 / z,
+      z,
     });
   }, [animarVista]);
 
@@ -730,19 +789,33 @@ export function LetteringStudio() {
   }, []);
 
   /**
-   * Qual camada o toque escolhe. O desenho tem prioridade; se o dedo não
-   * encostou em tinta nenhuma, a caixa ainda vale — é o que salva a camada
-   * fina demais pra acertar no dedo.
+   * Qual camada o toque escolhe: a de cima cujo desenho está sob o dedo.
+   *
+   * A tolerância em volta do ponto existe pra letra fina não exigir mira. E
+   * não há mais volta pra caixa quando nada é acertado: no vazio o toque passa
+   * a arrastar o palco, e a caixa — que é enorme numa frase larga — roubaria
+   * esse gesto em quase toda a tela.
    */
   const camadaNoPonto = useCallback(
     (ponto: Point) => {
+      const folga = (STAGE.width * 0.012) / camRef.current.z;
+      const vizinhos: Point[] = [
+        ponto,
+        { x: ponto.x - folga, y: ponto.y },
+        { x: ponto.x + folga, y: ponto.y },
+        { x: ponto.x, y: ponto.y - folga },
+        { x: ponto.x, y: ponto.y + folga },
+      ];
+
       for (let i = camadasRef.current.length - 1; i >= 0; i--) {
         const l = camadasRef.current[i];
+        if (l.hidden) continue;
         const size = medidasRef.current.get(l.id);
-        if (!size || !hitsLayer(ponto, l, size)) continue;
-        if (acertaODesenho(l, ponto)) return l;
+        if (!size) continue;
+        if (!vizinhos.some((v) => hitsLayer(v, l, size))) continue;
+        if (vizinhos.some((v) => acertaODesenho(l, v))) return l;
       }
-      return topmostAt(ponto, camadasRef.current, medidasRef.current);
+      return null;
     },
     [acertaODesenho],
   );
@@ -878,8 +951,9 @@ export function LetteringStudio() {
       // arremesso pararia debaixo do dedo.
       queueMicrotask(() => {
         pointersRef.current.clear();
-        pinchRef.current = null;
+        dedosNaTelaRef.current.clear();
         dragRef.current = null;
+        navRef.current = null;
         if (animacaoRef.current === null && vivoRef.current) {
           encerrarComCommit();
         }
@@ -898,12 +972,31 @@ export function LetteringStudio() {
     return pontoDoPalco(e.clientX, e.clientY);
   }
 
+  /**
+   * O ponto do palco de volta pra medida da tela, sem o zoom aplicado. É com
+   * ele que a vista é recalculada pra manter algo parado sob o dedo.
+   */
+  const localDoPalco = useCallback((ponto: Point): Point => {
+    const { x, y, z } = camRef.current;
+    return { x: (ponto.x - x) * z, y: (ponto.y - y) * z };
+  }, []);
+
+  /** Ponto do dedo na medida da tela, em unidades de palco e sem zoom. */
+  const localDaTela = useCallback((clientX: number, clientY: number): Point => {
+    const rect = stageRef.current!.getBoundingClientRect();
+    return {
+      x: ((clientX - rect.left) / rect.width) * STAGE.width,
+      y: ((clientY - rect.top) / rect.height) * STAGE.height,
+    };
+  }, []);
+
   /** Da tela pro palco, já somando o quanto a vista está deslocada. */
   const pontoDoPalco = useCallback((clientX: number, clientY: number): Point => {
     const rect = stageRef.current!.getBoundingClientRect();
+    const { x, y, z } = camRef.current;
     return {
-      x: ((clientX - rect.left) / rect.width) * STAGE.width + camRef.current.x,
-      y: ((clientY - rect.top) / rect.height) * STAGE.height + camRef.current.y,
+      x: (((clientX - rect.left) / rect.width) * STAGE.width) / z + x,
+      y: (((clientY - rect.top) / rect.height) * STAGE.height) / z + y,
     };
   }, []);
 
@@ -927,18 +1020,25 @@ export function LetteringStudio() {
 
     const point = stagePoint(e);
     pointersRef.current.set(e.pointerId, point);
+    dedosNaTelaRef.current.set(e.pointerId, localDaTela(e.clientX, e.clientY));
 
     const dedos = [...pointersRef.current.values()];
-    if (dedos.length === 2 && selected) {
-      // Dois dedos no palco: escala e gira a camada já escolhida, em vez de
-      // trocar de camada no meio do gesto.
+    const naTela = [...dedosNaTelaRef.current.values()];
+    if (dedos.length === 2) {
+      // Dois dedos aproximam e afastam a vista. O que está sob os dedos fica
+      // parado enquanto o zoom muda — é o que faz a pinça parecer que pega o
+      // desenho, e não a tela.
       dragRef.current = null;
-      pinchRef.current = {
-        id: selected.id,
-        distancia: distance(dedos[0], dedos[1]),
-        angulo: angle(dedos[0], dedos[1]),
-        size: selected.size,
-        rotation: selected.rotation,
+      const meio = {
+        x: (dedos[0].x + dedos[1].x) / 2,
+        y: (dedos[0].y + dedos[1].y) / 2,
+      };
+      navRef.current = {
+        modo: "lente",
+        ancora: meio,
+        ancoraLocal: localDoPalco(meio),
+        distancia: Math.max(1, distance(naTela[0], naTela[1])),
+        zoom: camRef.current.z,
       };
       capturar(e);
       return;
@@ -977,7 +1077,21 @@ export function LetteringStudio() {
     }
 
     setSelectedId(alvo?.id ?? null);
-    if (!alvo) return;
+
+    if (!alvo) {
+      // Dedo no vazio arrasta o palco. Antes o gesto morria aqui: o toque só
+      // desmarcava a camada e não havia como andar pela peça.
+      navRef.current = {
+        modo: "mover",
+        ancora: point,
+        ancoraLocal: localDoPalco(point),
+        distancia: 1,
+        zoom: camRef.current.z,
+      };
+      capturar(e);
+      return;
+    }
+
     dragRef.current = {
       id: alvo.id,
       dx: point.x - alvo.x,
@@ -1108,29 +1222,41 @@ export function LetteringStudio() {
   function onPointerMove(e: React.PointerEvent) {
     if (!pointersRef.current.has(e.pointerId)) return;
     pointersRef.current.set(e.pointerId, stagePoint(e));
-    const dedos = [...pointersRef.current.values()];
+    dedosNaTelaRef.current.set(e.pointerId, localDaTela(e.clientX, e.clientY));
+    const naTela = [...dedosNaTelaRef.current.values()];
 
-    const pinch = pinchRef.current;
-    if (pinch && dedos.length < 2) pinchRef.current = null;
-    if (pinch && dedos.length >= 2) {
-      const escala = distance(dedos[0], dedos[1]) / (pinch.distancia || 1);
-      const giro = shortestTurn(pinch.angulo, angle(dedos[0], dedos[1]));
-      vivoRef.current = {
-        id: pinch.id,
-        size: Math.round(clamp(pinch.size * escala, 8, 900)),
-        rotation: Math.round(clamp(pinch.rotation + giro, -180, 180)),
-      };
-      // O tamanho muda a caixa, e a caixa é o que o imã e a moldura usam.
-      const l = camadasRef.current.find((c) => c.id === pinch.id);
-      const ctx = stageCanvasRef.current?.getContext("2d");
-      if (l && ctx) {
-        medidasRef.current.set(
-          pinch.id,
-          measureLayer(ctx, { ...l, ...vivoRef.current }),
+    const nav = navRef.current;
+    if (nav) {
+      if (nav.modo === "lente" && naTela.length >= 2) {
+        const meioLocal = {
+          x: (naTela[0].x + naTela[1].x) / 2,
+          y: (naTela[0].y + naTela[1].y) / 2,
+        };
+        const z = clamp(
+          (nav.zoom * distance(naTela[0], naTela[1])) / nav.distancia,
+          ZOOM_MIN,
+          ZOOM_MAX,
         );
+        // A âncora precisa continuar caindo no mesmo lugar da tela.
+        camRef.current = {
+          z,
+          x: nav.ancora.x - meioLocal.x / z,
+          y: nav.ancora.y - meioLocal.y / z,
+        };
+        pintar();
+        return;
       }
-      agendarPintura();
-      return;
+
+      if (nav.modo === "mover" && naTela.length === 1) {
+        const local = naTela[0];
+        camRef.current = {
+          ...camRef.current,
+          x: nav.ancora.x - local.x / camRef.current.z,
+          y: nav.ancora.y - local.y / camRef.current.z,
+        };
+        pintar();
+        return;
+      }
     }
 
     const drag = dragRef.current;
@@ -1151,21 +1277,20 @@ export function LetteringStudio() {
 
   function onPointerUp(e: React.PointerEvent) {
     const arrastava = dragRef.current;
-    const pincava = pinchRef.current;
     pointersRef.current.delete(e.pointerId);
+    dedosNaTelaRef.current.delete(e.pointerId);
     const dedos = [...pointersRef.current.values()];
+
+    if (dedos.length === 0) navRef.current = null;
+    else if (navRef.current?.modo === "lente" && dedos.length < 2) {
+      navRef.current = null;
+    }
 
     if (dedos.length === 0 && vivoRef.current) {
       // Arrastar termina com inércia; escalar e girar param onde pararam.
       if (arrastava) soltarComInercia(arrastava.id);
-      else if (pincava) encerrarComCommit();
       else encerrarComCommit();
     }
-
-    // Tirar um dedo tem que encerrar a pinça na hora. Enquanto isso dependia
-    // de todos os "pointerup" chegarem, um evento perdido deixava o giro
-    // ligado pra sempre: a camada seguia girando ao encostar no palco.
-    if (dedos.length < 2) pinchRef.current = null;
 
     if (dedos.length === 0) {
       dragRef.current = null;
@@ -1191,8 +1316,11 @@ export function LetteringStudio() {
   /** O navegador pode tirar a captura sozinho — aí o gesto acabou. */
   function onLostCapture(e: React.PointerEvent) {
     pointersRef.current.delete(e.pointerId);
-    if (pointersRef.current.size < 2) pinchRef.current = null;
-    if (pointersRef.current.size === 0) dragRef.current = null;
+    dedosNaTelaRef.current.delete(e.pointerId);
+    if (pointersRef.current.size === 0) {
+      dragRef.current = null;
+      navRef.current = null;
+    }
   }
 
   /**
@@ -1208,6 +1336,7 @@ export function LetteringStudio() {
     // Camada recém-criada ainda pode não ter medida: o desenho mede num
     // efeito, e o toque em Gerar PNG pode chegar antes dele.
     const cantos = layers
+      .filter((l) => !l.hidden)
       .map((l) => {
         const size = sizes.get(l.id);
         return size ? layerCorners(l, size) : null;
@@ -1240,6 +1369,8 @@ export function LetteringStudio() {
     ctx.translate(-area.left, -area.top);
 
     layers.forEach((layer) => {
+      // O que está apagado na tela não pode aparecer no arquivo.
+      if (layer.hidden) return;
       ctx.save();
       ctx.translate(layer.x, layer.y);
       ctx.rotate((layer.rotation * Math.PI) / 180);
@@ -1654,8 +1785,9 @@ export function LetteringStudio() {
 
 
         <p className="mt-1 text-center text-xs text-neutral-500">
-          Arraste pra mover, puxe um canto pra mudar o tamanho e a alça de cima
-          pra girar. Dois dedos fazem tudo junto, e dois toques abrem o texto.
+          Arraste a peça pra mover, o vazio pra andar pelo palco e dois dedos
+          pra aproximar. Os cantos mudam o tamanho, a alça de cima gira, e dois
+          toques abrem o texto.
         </p>
       </div>
 
@@ -1741,6 +1873,13 @@ export function LetteringStudio() {
                         layer={layer}
                         selecionada={layer.id === selectedId}
                         onSelecionar={() => setSelectedId(layer.id)}
+                        onAlternarVisivel={() =>
+                          despacharAcao({
+                            type: "alterar",
+                            id: layer.id,
+                            patch: { hidden: !layer.hidden },
+                          })
+                        }
                         onDuplicar={() => duplicar(layer.id)}
                         onRemover={() => remover(layer.id)}
                       />
@@ -2523,12 +2662,14 @@ function LinhaDeCamada({
   layer,
   selecionada,
   onSelecionar,
+  onAlternarVisivel,
   onDuplicar,
   onRemover,
 }: {
   layer: Layer;
   selecionada: boolean;
   onSelecionar: () => void;
+  onAlternarVisivel: () => void;
   onDuplicar: () => void;
   onRemover: () => void;
 }) {
@@ -2566,9 +2707,24 @@ function LinhaDeCamada({
         <button
           type="button"
           onClick={onSelecionar}
-          className="flex-1 truncate py-3 pr-2 text-left text-sm"
+          className={`flex-1 truncate py-3 pr-2 text-left text-sm ${
+            layer.hidden ? "text-neutral-400 line-through" : ""
+          }`}
         >
           {layer.text.split("\n")[0] || "(vazio)"}
+        </button>
+        <button
+          type="button"
+          aria-label={layer.hidden ? "Mostrar camada" : "Esconder camada"}
+          aria-pressed={!layer.hidden}
+          onClick={onAlternarVisivel}
+          className="p-3 text-neutral-500"
+        >
+          {layer.hidden ? (
+            <EyeOff aria-hidden="true" className="size-4" />
+          ) : (
+            <Eye aria-hidden="true" className="size-4" />
+          )}
         </button>
         <button
           type="button"

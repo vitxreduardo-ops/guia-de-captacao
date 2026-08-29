@@ -35,6 +35,11 @@ export type Layer = {
   y: number;
   /** Em graus, pra ficar legível no painel. */
   rotation: number;
+  /**
+   * Camada apagada continua na lista e no arquivo salvo, mas some do palco e
+   * do PNG — é o jeito de guardar uma variação sem apagá-la.
+   */
+  hidden?: boolean;
 };
 
 export type Size = { width: number; height: number };
