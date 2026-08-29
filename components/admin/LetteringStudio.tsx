@@ -877,6 +877,12 @@ export function LetteringStudio() {
       animacaoRef.current = null;
       encerrarComCommit();
     }
+    // A vista também para. Continuar deslizando durante o arrasto faria a peça
+    // escapar do dedo, porque o chão estaria andando embaixo dela.
+    if (camAnimRef.current !== null) {
+      cancelAnimationFrame(camAnimRef.current);
+      camAnimRef.current = null;
+    }
     amostrasRef.current = { x: [], y: [] };
 
     const point = stagePoint(e);
@@ -1407,37 +1413,12 @@ export function LetteringStudio() {
     fonts.map((f) => f.family),
   );
 
-  // A resposta acontece no dedo descendo, não no clique concluído: esperar o
-  // toque terminar pra dar sinal de vida lê como travamento.
-  const chip =
-    "shrink-0 rounded-full border px-3 py-2 text-sm whitespace-nowrap transition-transform duration-100 active:scale-95";
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-3 pb-44 lg:max-w-2xl">
       {/* O palco é a peça: no celular ele fica no topo e gruda, pra editar
           vendo o resultado sem precisar rolar a página. */}
       <div className="sticky top-0 z-10 -mx-4 bg-neutral-50 px-4 py-2 lg:static lg:mx-0 lg:bg-transparent lg:p-0">
-        <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            aria-label="Desfazer"
-            disabled={!podeDesfazer(history)}
-            onClick={() => setHistory(desfazer)}
-            className={`${chip} border-neutral-200 bg-white text-neutral-700 disabled:opacity-40`}
-          >
-            <Undo2 aria-hidden="true" className="inline size-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="Refazer"
-            disabled={!podeRefazer(history)}
-            onClick={() => setHistory(refazer)}
-            className={`${chip} border-neutral-200 bg-white text-neutral-700 disabled:opacity-40`}
-          >
-            <Redo2 aria-hidden="true" className="inline size-4" />
-          </button>
-        </div>
-
         <div
           ref={stageRef}
           onPointerDown={onPointerDown}
@@ -1500,6 +1481,30 @@ export function LetteringStudio() {
               className="pointer-events-auto absolute -top-14 left-1/2 grid size-11 -translate-x-1/2 touch-none place-items-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-md"
             >
               <RotateCw aria-hidden="true" className="size-4" />
+            </button>
+          </div>
+
+          {/* Desfazer e refazer moram dentro do palco: é onde o olho está
+              quando algo sai errado, e fora dele eles roubavam uma faixa da
+              tela só pra si. */}
+          <div className="absolute top-3 right-3 flex gap-2">
+            <button
+              type="button"
+              aria-label="Desfazer"
+              disabled={!podeDesfazer(history)}
+              onClick={() => setHistory(desfazer)}
+              className="grid size-10 place-items-center rounded-full border border-neutral-200 bg-white/95 text-neutral-700 shadow-md transition-transform duration-100 active:scale-95 disabled:opacity-40"
+            >
+              <Undo2 aria-hidden="true" className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Refazer"
+              disabled={!podeRefazer(history)}
+              onClick={() => setHistory(refazer)}
+              className="grid size-10 place-items-center rounded-full border border-neutral-200 bg-white/95 text-neutral-700 shadow-md transition-transform duration-100 active:scale-95 disabled:opacity-40"
+            >
+              <Redo2 aria-hidden="true" className="size-4" />
             </button>
           </div>
 
@@ -1580,12 +1585,14 @@ export function LetteringStudio() {
 
       {/* A dock: uma barra deslizante embaixo; o painel do botão sobe acima
           dela, um de cada vez, que é o que cabe no celular. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-neutral-100">
         {dock ? (
           <div
             id="lettering-painel"
             ref={painelRef}
-            className="mx-auto max-h-[40svh] w-full max-w-md overflow-auto"
+            // Fundo cinza e uma linha em cima: sem isso o painel se confundia
+            // com o palco e não dava pra ver onde um acabava e o outro começava.
+            className="mx-auto max-h-[40svh] w-full max-w-md overflow-auto border-b border-neutral-200 bg-neutral-100"
           >
             <div hidden={dock !== "emoji"} className="space-y-3 p-3">
               <Button

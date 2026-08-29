@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Home } from "lucide-react";
 import Link from "next/link";
 import { logout } from "@/app/admin/login/actions";
 import { LiveRefresh } from "@/components/admin/LiveRefresh";
@@ -45,8 +45,38 @@ export async function AdminHeader({
       ])
     : [[], 0];
 
+  if (dense) {
+    return (
+      <header className="mb-3">
+        <LiveRefresh />
+        <div className="flex items-center justify-center gap-4">
+          <Link
+            href="/admin"
+            aria-label="Ir para o Painel"
+            className={`grid size-10 place-items-center rounded-md text-neutral-600 transition-transform hover:bg-neutral-100 hover:text-neutral-900 active:scale-95 ${FOCUS_RING}`}
+          >
+            <Home aria-hidden="true" className="size-5" />
+          </Link>
+
+          <TatuLogo className="block h-[26px] w-auto text-black" />
+
+          <form action={logout}>
+            <button
+              type="submit"
+              className={`flex h-10 items-center rounded-md border border-neutral-300 px-3 text-sm text-neutral-600 transition-transform hover:bg-neutral-50 hover:text-neutral-900 active:scale-95 ${FOCUS_RING}`}
+            >
+              Sair
+            </button>
+          </form>
+        </div>
+        {/* O nome da tela continua para quem usa leitor de tela. */}
+        <h1 className="sr-only">{title}</h1>
+      </header>
+    );
+  }
+
   return (
-    <header className={dense ? "mb-3" : "mb-8"}>
+    <header className="mb-8">
       {/* Todo o admin fica montado sob este header, então é daqui que sai a
           sincronização com o que os outros usuários estão fazendo. */}
       <LiveRefresh />
@@ -55,7 +85,7 @@ export async function AdminHeader({
       <Link
         href="/admin"
         aria-label="Ir para o Painel"
-        className={`mx-auto block w-fit rounded ${dense ? "mb-2" : "mb-4"} ${FOCUS_RING}`}
+        className={`mx-auto mb-4 block w-fit rounded ${FOCUS_RING}`}
       >
         <TatuLogo className="block h-[30px] w-auto text-black" />
       </Link>
@@ -122,15 +152,9 @@ export async function AdminHeader({
         </div>
       </div>
 
-      {dense ? (
-        // O nome da página continua acessível pela trilha e pelo título do
-        // documento; repeti-lo aqui só empurraria a ferramenta pra baixo.
-        <h1 className="sr-only">{title}</h1>
-      ) : (
-        <h1 className="mt-5 text-xl leading-tight font-semibold tracking-tight text-neutral-900">
-          {title}
-        </h1>
-      )}
+      <h1 className="mt-5 text-xl leading-tight font-semibold tracking-tight text-neutral-900">
+        {title}
+      </h1>
     </header>
   );
 }
