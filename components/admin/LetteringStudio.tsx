@@ -388,6 +388,18 @@ export function LetteringStudio() {
    */
   const caixaDoPalcoRef = useRef<DOMRect | null>(null);
   /**
+   * Altura da janela em unidades do palco.
+   *
+   * A janela deixou de ter a proporção do palco: ela ocupa a tela que sobra, e
+   * o palco virou o mundo por onde se anda. A largura visível continua sendo a
+   * largura do palco em zoom 1; a altura sai da forma da janela.
+   */
+  const alturaVisivelRef = useRef(STAGE.height);
+  /** A pintura vista de fora, pra quem é declarado antes dela. */
+  const pinturaRef = useRef<() => void>(() => {});
+  /** A vista se acomoda uma vez na abertura, e não a cada remedida. */
+  const jaEnquadrouRef = useRef(false);
+  /**
    * Deslocamento da vista, em unidades do palco.
    *
    * O painel de ferramentas sobe por cima do palco e tapa justamente onde a
@@ -431,7 +443,20 @@ export function LetteringStudio() {
     const palco = stageRef.current;
     if (!palco) return;
     const medir = () => {
-      caixaDoPalcoRef.current = palco.getBoundingClientRect();
+      const caixa = palco.getBoundingClientRect();
+      caixaDoPalcoRef.current = caixa;
+      if (caixa.width > 0) {
+        alturaVisivelRef.current = (caixa.height / caixa.width) * STAGE.width;
+        const canvas = stageCanvasRef.current;
+        if (canvas) {
+          // O canvas acompanha a forma da janela, senão o desenho estica.
+          const altura = Math.round(alturaVisivelRef.current);
+          if (canvas.height !== altura) {
+            canvas.height = altura;
+            pinturaRef.current();
+          }
+        }
+      }
     };
     medir();
     const observador = new ResizeObserver(medir);
@@ -452,6 +477,7 @@ export function LetteringStudio() {
     selecaoRef.current = selectedId;
     gradeRef.current = grade;
     encaixeRef.current = encaixe;
+    pinturaRef.current = pintar;
   });
 
   /** A camada como ela está agora, já com o que o gesto está mexendo. */
@@ -487,7 +513,7 @@ export function LetteringStudio() {
       };
       const ate = {
         x: camX + STAGE.width / z,
-        y: camY + STAGE.height / z,
+        y: camY + alturaVisivelRef.current / z,
       };
       ctx.fillStyle = "rgba(23, 23, 23, .22)";
       for (let x = de.x; x <= ate.x; x += passo) {
@@ -525,19 +551,19 @@ export function LetteringStudio() {
         // a página a cada quadro. Agora o tamanho fica fixo — na medida sem
         // zoom — e o gesto inteiro cabe numa transformação, que é o que o
         // navegador compõe sem refazer conta de layout.
-        const larguraBase = (medida.width / STAGE.width) * 100;
-        const alturaBase = (medida.height / STAGE.height) * 100;
+        const caixa = caixaDoPalcoRef.current;
+        const porUnidade = (caixa?.width ?? STAGE.width) / STAGE.width;
+
+        const larguraBase = Math.round(medida.width * porUnidade);
+        const alturaBase = Math.round(medida.height * porUnidade);
         if (moldura.dataset.w !== String(larguraBase)) {
           moldura.dataset.w = String(larguraBase);
-          moldura.style.width = `${larguraBase}%`;
+          moldura.style.width = `${larguraBase}px`;
         }
         if (moldura.dataset.h !== String(alturaBase)) {
           moldura.dataset.h = String(alturaBase);
-          moldura.style.height = `${alturaBase}%`;
+          moldura.style.height = `${alturaBase}px`;
         }
-
-        const caixa = caixaDoPalcoRef.current;
-        const porUnidade = (caixa?.width ?? STAGE.width) / STAGE.width;
         const px = (layer.x - camX) * z * porUnidade;
         const py = (layer.y - camY) * z * porUnidade;
         moldura.style.transform =
@@ -557,7 +583,7 @@ export function LetteringStudio() {
         ctx.beginPath();
         if (guia.eixo === "x") {
           ctx.moveTo(guia.pos, camY);
-          ctx.lineTo(guia.pos, camY + STAGE.height / z);
+          ctx.lineTo(guia.pos, camY + alturaVisivelRef.current / z);
         } else {
           ctx.moveTo(camX, guia.pos);
           ctx.lineTo(camX + STAGE.width / z, guia.pos);
@@ -726,7 +752,7 @@ export function LetteringStudio() {
           Math.min(caixaPalco.bottom, topoDoPainel) - caixaPalco.top,
         );
         const meioVisivelEmPalco =
-          (visivel / 2 / caixaPalco.height) * STAGE.height;
+          (visivel / 2 / caixaPalco.height) * alturaVisivelRef.current;
 
         alvo = {
           x: camada.x - STAGE.width / 2 / z,
@@ -764,17 +790,28 @@ export function LetteringStudio() {
     const largura = Math.max(1, conteudo.right - conteudo.left);
     const altura = Math.max(1, conteudo.bottom - conteudo.top);
     const z = clamp(
-      Math.min(STAGE.width / largura, STAGE.height / altura) * 0.85,
+      Math.min(STAGE.width / largura, alturaVisivelRef.current / altura) * 0.85,
       ZOOM_MIN,
       ZOOM_MAX,
     );
 
     animarVista({
       x: (conteudo.left + conteudo.right) / 2 - STAGE.width / 2 / z,
-      y: (conteudo.top + conteudo.bottom) / 2 - STAGE.height / 2 / z,
+      y: (conteudo.top + conteudo.bottom) / 2 - alturaVisivelRef.current / 2 / z,
       z,
     });
   }, [animarVista]);
+
+  /**
+   * Na abertura a vista enquadra o que está desenhado. O palco é maior que a
+   * janela em quase toda tela, e começar no canto dele deixaria a peça fora de
+   * vista sem motivo.
+   */
+  useEffect(() => {
+    if (jaEnquadrouRef.current || sizes.size === 0) return;
+    jaEnquadrouRef.current = true;
+    centralizar();
+  }, [sizes, centralizar]);
 
   /**
    * Abrir uma ferramenta acomoda a vista na camada escolhida; fechar devolve o
@@ -1119,9 +1156,12 @@ export function LetteringStudio() {
   const localDaTela = useCallback((clientX: number, clientY: number): Point => {
     const rect =
       caixaDoPalcoRef.current ?? stageRef.current!.getBoundingClientRect();
+    // A mesma escala nos dois eixos: a janela não tem mais a proporção do
+    // palco, e usar a altura dela aqui deformaria o gesto.
+    const porUnidade = rect.width / STAGE.width;
     return {
-      x: ((clientX - rect.left) / rect.width) * STAGE.width,
-      y: ((clientY - rect.top) / rect.height) * STAGE.height,
+      x: (clientX - rect.left) / porUnidade,
+      y: (clientY - rect.top) / porUnidade,
     };
   }, []);
 
@@ -1130,9 +1170,10 @@ export function LetteringStudio() {
     const rect =
       caixaDoPalcoRef.current ?? stageRef.current!.getBoundingClientRect();
     const { x, y, z } = camRef.current;
+    const porUnidade = rect.width / STAGE.width;
     return {
-      x: (((clientX - rect.left) / rect.width) * STAGE.width) / z + x,
-      y: (((clientY - rect.top) / rect.height) * STAGE.height) / z + y,
+      x: (clientX - rect.left) / porUnidade / z + x,
+      y: (clientY - rect.top) / porUnidade / z + y,
     };
   }, []);
 
@@ -1790,8 +1831,7 @@ export function LetteringStudio() {
         <div
           ref={stageRef}
           onPointerDown={onPointerDown}
-          style={{ aspectRatio: `${STAGE.width} / ${STAGE.height}` }}
-          className="relative w-full touch-none select-none"
+          className="relative h-[58svh] w-full touch-none select-none lg:h-[70svh]"
         >
           {/* O recorte fica só em volta do desenho. Estava no palco inteiro, e
               levava junto as alças da camada encostada na borda — some a alça,

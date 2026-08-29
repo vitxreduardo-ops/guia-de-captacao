@@ -28,12 +28,12 @@ export function safeScale(
 /**
  * O palco onde as camadas são posicionadas.
  *
- * Deitado de propósito: a peça é um overlay que vai por cima do story, não o
- * story inteiro — e o que sai é recortado no conteúdo de qualquer jeito. Mais
- * alto que o formato de vídeo porque agora dá pra andar e aproximar: o palco
- * virou área de trabalho, não moldura.
+ * Quadrado de propósito: a peça é um overlay que vai por cima do story, não o
+ * story inteiro — e o que sai é recortado no conteúdo de qualquer jeito. Sem
+ * formato, ele deixa de sugerir um enquadramento e vira o que é: área de
+ * trabalho, com a janela mostrando o pedaço que couber na tela.
  */
-export const STAGE = { width: 1440, height: 1080 };
+export const STAGE = { width: 1440, height: 1440 };
 
 /** Espaçamento da grade de pontos, em unidades do palco. */
 export const PASSO_DA_GRADE = 60;
