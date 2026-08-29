@@ -18,11 +18,11 @@ import { Accordion } from "@/components/Accordion";
 const ACTIONS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/admin/guias", label: "Guia de Captação", icon: Clapperboard },
   { href: "/admin/orcamentos", label: "Orçamento", icon: Receipt },
-  { href: "/briefing", label: "Briefing do cliente", icon: ClipboardList },
+  { href: "/briefing", label: "Briefing", icon: ClipboardList },
   { href: "/admin/biblioteca", label: "Biblioteca", icon: Library },
-  { href: "/admin/galerias", label: "Galeria do cliente", icon: Images },
-  { href: "/admin/backlog", label: "Backlog do Instagram", icon: Kanban },
-  { href: "/admin/agenda", label: "Minha Agenda", icon: CalendarClock },
+  { href: "/admin/galerias", label: "Galeria", icon: Images },
+  { href: "/admin/backlog", label: "Backlog", icon: Kanban },
+  { href: "/admin/agenda", label: "Agenda", icon: CalendarClock },
   { href: "/admin/lettering", label: "Lettering", icon: PenLine },
 ];
 
