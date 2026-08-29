@@ -60,6 +60,7 @@ import {
   molaParada,
   passoDaMola,
   projetar,
+  resistencia,
   velocidade,
   type Amostra,
   type Mola,
@@ -112,6 +113,7 @@ import {
   esqueceMedidas,
   EXPORT_SCALE,
   measureLayer,
+  PASSO_DA_GRADE,
   safeScale,
   STAGE,
 } from "@/lib/letteringDraw";
@@ -259,6 +261,8 @@ export function LetteringStudio() {
    */
   /** Ajustes da vista, no canto do palco. */
   const [ajustes, setAjustes] = useState(false);
+  const [grade, setGrade] = useState(false);
+  const [encaixe, setEncaixe] = useState(true);
   const [aviso, setAviso] = useState<{
     texto: string;
     comDesfazer?: boolean;
@@ -317,6 +321,15 @@ export function LetteringStudio() {
 
   /** Folga em pixels de tela antes de um toque virar arrasto. */
   const FOLGA_DO_ARRASTO = 10;
+
+  /**
+   * Dois dedos que encostam e saem sem mexer nada desfazem, como no sistema.
+   *
+   * Desfazer é a ação que autoriza experimentar, e num editor de toque é das
+   * mais frequentes — estava a dois toques, dentro do menu de ajustes. Um
+   * gesto sem alvo resolve sem tomar espaço de tela.
+   */
+  const doisDedosRef = useRef<{ t: number; moveu: boolean } | null>(null);
   /**
    * Navegação do palco: arrastar o vazio move a vista, dois dedos aproximam.
    * A pinça é da lente, não da peça — o tamanho da peça sai das alças, como
@@ -354,6 +367,8 @@ export function LetteringStudio() {
   const quadroRef = useRef<number | null>(null);
   const medidasRef = useRef<Map<string, Size>>(new Map());
   const camadasRef = useRef<Layer[]>(layers);
+  const gradeRef = useRef(false);
+  const encaixeRef = useRef(true);
   const selecaoRef = useRef<string | null>(selectedId);
   /** Posições recentes do dedo, pra saber a velocidade na hora de soltar. */
   const amostrasRef = useRef<{ x: Amostra[]; y: Amostra[] }>({ x: [], y: [] });
@@ -381,6 +396,11 @@ export function LetteringStudio() {
    */
   const camRef = useRef<Vista>({ x: 0, y: 0, z: 1 });
   const camAnimRef = useRef<number | null>(null);
+  /** Posições recentes da vista, pra ela continuar como a peça continua. */
+  const amostrasDaVistaRef = useRef<{ x: Amostra[]; y: Amostra[] }>({
+    x: [],
+    y: [],
+  });
   const painelRef = useRef<HTMLDivElement | null>(null);
 
   /** Último toque, pra reconhecer o segundo como duplo. */
@@ -430,6 +450,8 @@ export function LetteringStudio() {
   useEffect(() => {
     camadasRef.current = layers;
     selecaoRef.current = selectedId;
+    gradeRef.current = grade;
+    encaixeRef.current = encaixe;
   });
 
   /** A camada como ela está agora, já com o que o gesto está mexendo. */
@@ -452,6 +474,30 @@ export function LetteringStudio() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.scale(escala, escala);
     ctx.translate(-camX, -camY);
+
+    // A grade vem primeiro, atrás de tudo: ela é chão, não conteúdo. Os
+    // pontos são desenhados só onde a vista alcança — percorrer o palco
+    // inteiro custaria caro quando a lente está bem aproximada.
+    if (gradeRef.current) {
+      const passo = PASSO_DA_GRADE;
+      const raio = Math.max(1, 1.5 / z);
+      const de = {
+        x: Math.floor(camX / passo) * passo,
+        y: Math.floor(camY / passo) * passo,
+      };
+      const ate = {
+        x: camX + STAGE.width / z,
+        y: camY + STAGE.height / z,
+      };
+      ctx.fillStyle = "rgba(23, 23, 23, .22)";
+      for (let x = de.x; x <= ate.x; x += passo) {
+        for (let y = de.y; y <= ate.y; y += passo) {
+          ctx.beginPath();
+          ctx.arc(x, y, raio, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
 
     camadasRef.current.forEach((base) => {
       if (base.hidden) return;
@@ -576,10 +622,10 @@ export function LetteringStudio() {
     };
   }, [layers, pintar]);
 
-  /** Redesenha quando muda só a escolha, sem passar pela medição. */
+  /** Redesenha o que não passa pela medição: a escolha e a grade. */
   useEffect(() => {
     pintar();
-  }, [selectedId, pintar]);
+  }, [selectedId, grade, pintar]);
 
   /** A biblioteca é buscada quando a aba abre, não na carga da tela. */
   useEffect(() => {
@@ -1104,6 +1150,7 @@ export function LetteringStudio() {
       camAnimRef.current = null;
     }
     amostrasRef.current = { x: [], y: [] };
+    amostrasDaVistaRef.current = { x: [], y: [] };
     // Encostar no palco fecha os ajustes: eles cobrem justamente o canto onde
     // a peça costuma estar.
     setAjustes(false);
@@ -1135,6 +1182,8 @@ export function LetteringStudio() {
         distancia: Math.max(1, distance(naTela[0], naTela[1])),
         zoom: camRef.current.z,
       };
+      // Guardado pra reconhecer o toque de dois dedos, que é desfazer.
+      doisDedosRef.current = { t: e.timeStamp, moveu: false };
       ligarGestoNativo();
       return;
     }
@@ -1192,6 +1241,13 @@ export function LetteringStudio() {
       dx: point.x - alvo.x,
       dy: point.y - alvo.y,
     };
+
+    // A moldura aparece no dedo descendo, não depois que o estado chega. É
+    // pouco tempo, mas é onde a sensação de comando direto se decide — e o
+    // laço de pintura já sabe tudo que precisa.
+    selecaoRef.current = alvo.id;
+    pintar();
+
     ligarGestoNativo();
   }
 
@@ -1310,6 +1366,7 @@ export function LetteringStudio() {
       if (andou < FOLGA_DO_ARRASTO) return;
 
       inicio.armado = true;
+      if (doisDedosRef.current) doisDedosRef.current.moveu = true;
       // O gesto recomeça daqui: sem recolocar a âncora, a peça daria um pulo
       // do tamanho da folga no primeiro quadro.
       const agora = stagePoint(e);
@@ -1338,11 +1395,15 @@ export function LetteringStudio() {
           x: (naTela[0].x + naTela[1].x) / 2,
           y: (naTela[0].y + naTela[1].y) / 2,
         };
-        const z = clamp(
-          (nav.zoom * distance(naTela[0], naTela[1])) / nav.distancia,
-          ZOOM_MIN,
-          ZOOM_MAX,
-        );
+        // Fora dos limites o dedo continua andando e a lente responde cada
+        // vez menos, em vez de congelar. Ao soltar, a vista volta pro limite.
+        const cru = (nav.zoom * distance(naTela[0], naTela[1])) / nav.distancia;
+        const z =
+          cru > ZOOM_MAX
+            ? ZOOM_MAX + resistencia(cru - ZOOM_MAX, ZOOM_MAX)
+            : cru < ZOOM_MIN
+              ? ZOOM_MIN - resistencia(ZOOM_MIN - cru, ZOOM_MIN)
+              : cru;
         // A âncora precisa continuar caindo no mesmo lugar da tela.
         camRef.current = {
           z,
@@ -1362,6 +1423,13 @@ export function LetteringStudio() {
           x: nav.ancora.x - local.x / camRef.current.z,
           y: nav.ancora.y - local.y / camRef.current.z,
         };
+        const t = e.timeStamp;
+        amostrasDaVistaRef.current.x.push({ valor: camRef.current.x, t });
+        amostrasDaVistaRef.current.y.push({ valor: camRef.current.y, t });
+        if (amostrasDaVistaRef.current.x.length > 12) {
+          amostrasDaVistaRef.current.x.shift();
+          amostrasDaVistaRef.current.y.shift();
+        }
         agendarPintura();
         return;
       }
@@ -1384,12 +1452,43 @@ export function LetteringStudio() {
   }
 
   function tratarFim(e: PointerEvent) {
+    const doisDedos = doisDedosRef.current;
+    if (doisDedos && !doisDedos.moveu && e.timeStamp - doisDedos.t < 400) {
+      doisDedosRef.current = null;
+      pointersRef.current.clear();
+      dedosNaTelaRef.current.clear();
+      navRef.current = null;
+      inicioRef.current = null;
+      setHistory(desfazer);
+      vibrar(10);
+      return;
+    }
+    if (doisDedos) doisDedosRef.current = null;
+
     const arrastava = dragRef.current;
     pointersRef.current.delete(e.pointerId);
     dedosNaTelaRef.current.delete(e.pointerId);
     const dedos = [...pointersRef.current.values()];
 
     if (dedos.length === 0) {
+      // A vista sai como a peça sai: continuando o movimento que o dedo deu.
+      // Parar seco aqui e deslizar na peça eram duas físicas pro mesmo gesto.
+      const forcado = clamp(camRef.current.z, ZOOM_MIN, ZOOM_MAX);
+      if (navRef.current?.modo === "lente" && forcado !== camRef.current.z) {
+        // Passou do limite durante o gesto: agora volta.
+        animarVista({ ...camRef.current, z: forcado });
+      } else if (navRef.current?.modo === "mover") {
+        const vx = velocidade(amostrasDaVistaRef.current.x);
+        const vy = velocidade(amostrasDaVistaRef.current.y);
+        if (Math.abs(vx) > 40 || Math.abs(vy) > 40) {
+          animarVista({
+            ...camRef.current,
+            x: camRef.current.x + projetar(vx),
+            y: camRef.current.y + projetar(vy),
+          });
+        }
+      }
+      amostrasDaVistaRef.current = { x: [], y: [] };
       navRef.current = null;
       inicioRef.current = null;
     }
@@ -1836,6 +1935,38 @@ export function LetteringStudio() {
                 <Crosshair aria-hidden="true" className="size-4" />
                 Centralizar
               </button>
+
+              <div className="space-y-1">
+                {(
+                  [
+                    ["Grade", grade, setGrade],
+                    ["Encaixe", encaixe, setEncaixe],
+                  ] as const
+                ).map(([rotulo, ligado, alternar]) => (
+                  <button
+                    key={rotulo}
+                    type="button"
+                    role="switch"
+                    aria-checked={ligado}
+                    onClick={() => alternar((v) => !v)}
+                    className="flex w-full items-center justify-between rounded-md border border-neutral-200 px-3 py-2 text-sm text-neutral-700 transition-transform duration-100 active:scale-95"
+                  >
+                    {rotulo}
+                    <span
+                      aria-hidden="true"
+                      className={`h-5 w-9 rounded-full p-0.5 transition-colors ${
+                        ligado ? "bg-neutral-900" : "bg-neutral-300"
+                      }`}
+                    >
+                      <span
+                        className={`block size-4 rounded-full bg-white transition-transform ${
+                          ligado ? "translate-x-4" : ""
+                        }`}
+                      />
+                    </span>
+                  </button>
+                ))}
+              </div>
 
               <div className="space-y-1.5">
                 <p className="text-xs text-neutral-500">Ver a peça sobre</p>

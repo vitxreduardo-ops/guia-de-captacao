@@ -70,3 +70,16 @@ export function molaParada(estado: Mola, alvo: number, tolerancia = 0.5) {
     Math.abs(estado.velocidade) < tolerancia * 10
   );
 }
+
+/**
+ * Resistência de borda: o quanto de um excesso realmente passa.
+ *
+ * Parar seco num limite lê como travamento. Deixando o dedo continuar e a
+ * resposta diminuir, o gesto diz "acabou aqui" sem precisar congelar — e ao
+ * soltar tudo volta pro limite.
+ */
+export function resistencia(excesso: number, dimensao: number, constante = 0.55) {
+  return (
+    (excesso * dimensao * constante) / (dimensao + constante * Math.abs(excesso))
+  );
+}

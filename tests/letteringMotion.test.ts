@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   molaParada,
+  resistencia,
   passoDaMola,
   projetar,
   velocidade,
@@ -91,5 +92,25 @@ describe("mola", () => {
     const normal = passoDaMola({ valor: 0, velocidade: 0 }, 100, 1 / 30);
     const saltoDeDoisSegundos = passoDaMola({ valor: 0, velocidade: 0 }, 100, 2);
     expect(saltoDeDoisSegundos).toEqual(normal);
+  });
+});
+
+describe("resistencia", () => {
+  it("deixa passar cada vez menos quanto mais longe", () => {
+    const perto = resistencia(10, 100);
+    const longe = resistencia(200, 100);
+    expect(perto).toBeLessThan(10);
+    expect(longe).toBeGreaterThan(perto);
+    // Duas vezes mais dedo não dá duas vezes mais movimento.
+    expect(resistencia(20, 100)).toBeLessThan(perto * 2);
+  });
+
+  it("respeita o sinal e não mexe no zero", () => {
+    expect(resistencia(0, 100)).toBe(0);
+    expect(Math.sign(resistencia(-30, 100))).toBe(-1);
+  });
+
+  it("nunca ultrapassa a própria dimensão", () => {
+    expect(Math.abs(resistencia(100000, 100))).toBeLessThan(100);
   });
 });

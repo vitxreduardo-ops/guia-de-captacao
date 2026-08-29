@@ -64,3 +64,22 @@ describe("snap", () => {
     expect(r.guias).toEqual([{ eixo: "x", pos: 500 }]);
   });
 });
+
+describe("encaixe na grade", () => {
+  it("puxa o centro pro ponto de grade mais perto", () => {
+    const r = snap({ x: 244, y: 300 }, caixa, [], palco, tol, 60);
+    expect(r.x).toBe(240);
+    expect(r.guias).toContainEqual({ eixo: "x", pos: 240 });
+  });
+
+  it("desligada, não interfere", () => {
+    const r = snap({ x: 244, y: 123 }, caixa, [], palco, tol, 0);
+    expect(r.x).toBe(244);
+  });
+
+  it("não engole um alinhamento mais perto", () => {
+    // 250 é centro do palco; a grade mais perta é 240, a 10 de distância.
+    const r = snap({ x: 498, y: 123 }, caixa, [], palco, tol, 60);
+    expect(r.x).toBe(500);
+  });
+});

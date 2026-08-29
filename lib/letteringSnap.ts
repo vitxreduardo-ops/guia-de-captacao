@@ -23,6 +23,8 @@ export function snap(
   outras: Rect[],
   stage: Size,
   tolerancia: number,
+  /** Passo da grade, quando ela está ligada. Zero desliga esse encaixe. */
+  grade = 0,
 ): Resultado {
   const guias: Guia[] = [];
 
@@ -59,19 +61,30 @@ export function snap(
     return posicao + escolha.desloca;
   };
 
+  /** O ponto da grade mais perto, pra ele entrar como candidato de centro. */
+  const naGrade = (v: number) => (grade > 0 ? [Math.round(v / grade) * grade] : []);
+
   return {
     x: resolver(
       "x",
       centro.x,
       caixa.width,
-      [stage.width / 2, ...outras.map((o) => (o.left + o.right) / 2)],
+      [
+        stage.width / 2,
+        ...outras.map((o) => (o.left + o.right) / 2),
+        ...naGrade(centro.x),
+      ],
       [0, stage.width, ...outras.flatMap((o) => [o.left, o.right])],
     ),
     y: resolver(
       "y",
       centro.y,
       caixa.height,
-      [stage.height / 2, ...outras.map((o) => (o.top + o.bottom) / 2)],
+      [
+        stage.height / 2,
+        ...outras.map((o) => (o.top + o.bottom) / 2),
+        ...naGrade(centro.y),
+      ],
       [0, stage.height, ...outras.flatMap((o) => [o.top, o.bottom])],
     ),
     guias,
