@@ -307,6 +307,17 @@ export function LetteringStudio() {
   const dedosNaTelaRef = useRef<Map<number, Point>>(new Map());
   const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
   /**
+   * Onde o dedo encostou, na medida da tela, e se o gesto já virou movimento.
+   *
+   * Sem essa folga, o tremor natural do dedo num toque de escolha já arrastava
+   * a peça e gravava um passo no histórico — e tocar o vazio pra desmarcar
+   * mexia a vista de brinde.
+   */
+  const inicioRef = useRef<{ ponto: Point; armado: boolean } | null>(null);
+
+  /** Folga em pixels de tela antes de um toque virar arrasto. */
+  const FOLGA_DO_ARRASTO = 10;
+  /**
    * Navegação do palco: arrastar o vazio move a vista, dois dedos aproximam.
    * A pinça é da lente, não da peça — o tamanho da peça sai das alças, como
    * em qualquer editor.
@@ -1100,6 +1111,11 @@ export function LetteringStudio() {
     const point = stagePoint(e);
     pointersRef.current.set(e.pointerId, point);
     dedosNaTelaRef.current.set(e.pointerId, localDaTela(e.clientX, e.clientY));
+    inicioRef.current = {
+      ponto: { x: e.clientX, y: e.clientY },
+      // Dois dedos já são intenção declarada: a pinça não espera folga.
+      armado: pointersRef.current.size > 1,
+    };
 
     const dedos = [...pointersRef.current.values()];
     const naTela = [...dedosNaTelaRef.current.values()];
@@ -1287,6 +1303,30 @@ export function LetteringStudio() {
 
   function tratarMovimento(e: PointerEvent) {
     if (!pointersRef.current.has(e.pointerId)) return;
+
+    const inicio = inicioRef.current;
+    if (inicio && !inicio.armado) {
+      const andou = distance(inicio.ponto, { x: e.clientX, y: e.clientY });
+      if (andou < FOLGA_DO_ARRASTO) return;
+
+      inicio.armado = true;
+      // O gesto recomeça daqui: sem recolocar a âncora, a peça daria um pulo
+      // do tamanho da folga no primeiro quadro.
+      const agora = stagePoint(e);
+      const drag = dragRef.current;
+      const nav = navRef.current;
+      if (drag) {
+        const camada = camadasRef.current.find((l) => l.id === drag.id);
+        if (camada) {
+          drag.dx = agora.x - camada.x;
+          drag.dy = agora.y - camada.y;
+        }
+      } else if (nav) {
+        nav.ancora = agora;
+      }
+      amostrasRef.current = { x: [], y: [] };
+    }
+
     pointersRef.current.set(e.pointerId, stagePoint(e));
     dedosNaTelaRef.current.set(e.pointerId, localDaTela(e.clientX, e.clientY));
     const naTela = [...dedosNaTelaRef.current.values()];
@@ -1349,7 +1389,10 @@ export function LetteringStudio() {
     dedosNaTelaRef.current.delete(e.pointerId);
     const dedos = [...pointersRef.current.values()];
 
-    if (dedos.length === 0) navRef.current = null;
+    if (dedos.length === 0) {
+      navRef.current = null;
+      inicioRef.current = null;
+    }
     else if (navRef.current?.modo === "lente" && dedos.length < 2) {
       navRef.current = null;
     }
@@ -1648,18 +1691,23 @@ export function LetteringStudio() {
         <div
           ref={stageRef}
           onPointerDown={onPointerDown}
-          style={{
-            background: FUNDOS[fundo],
-            aspectRatio: `${STAGE.width} / ${STAGE.height}`,
-          }}
-          className="relative w-full touch-none overflow-hidden rounded-lg border border-neutral-200 select-none"
+          style={{ aspectRatio: `${STAGE.width} / ${STAGE.height}` }}
+          className="relative w-full touch-none select-none"
         >
-          <canvas
-            ref={stageCanvasRef}
-            width={STAGE.width}
-            height={STAGE.height}
-            className="size-full"
-          />
+          {/* O recorte fica só em volta do desenho. Estava no palco inteiro, e
+              levava junto as alças da camada encostada na borda — some a alça,
+              some o único jeito de girar aquela peça. */}
+          <div
+            style={{ background: FUNDOS[fundo] }}
+            className="absolute inset-0 overflow-hidden rounded-lg border border-neutral-200"
+          >
+            <canvas
+              ref={stageCanvasRef}
+              width={STAGE.width}
+              height={STAGE.height}
+              className="size-full"
+            />
+          </div>
 
           {/* A alça mora num canto do palco, não em cima da camada. No canto
               da moldura ela cobria justamente a área que se quer arrastar — e
@@ -1677,12 +1725,27 @@ export function LetteringStudio() {
           >
             {/* Cantos mudam o tamanho. A área de toque é maior que o desenho:
                 44px é o mínimo que o dedo acerta sem mira. */}
+            {/* Centradas no canto, metade pra dentro. Inteiras pra fora, a peça
+                encostada na borda direita jogava a alça pra fora da tela —
+                visível, mas impossível de tocar. */}
             {(
               [
-                ["-top-5 -left-5", "Aumentar pelo canto superior esquerdo"],
-                ["-top-5 -right-5", "Aumentar pelo canto superior direito"],
-                ["-bottom-5 -left-5", "Aumentar pelo canto inferior esquerdo"],
-                ["-bottom-5 -right-5", "Aumentar pelo canto inferior direito"],
+                [
+                  "top-0 left-0 -translate-x-1/2 -translate-y-1/2",
+                  "Aumentar pelo canto superior esquerdo",
+                ],
+                [
+                  "top-0 right-0 translate-x-1/2 -translate-y-1/2",
+                  "Aumentar pelo canto superior direito",
+                ],
+                [
+                  "bottom-0 left-0 -translate-x-1/2 translate-y-1/2",
+                  "Aumentar pelo canto inferior esquerdo",
+                ],
+                [
+                  "bottom-0 right-0 translate-x-1/2 translate-y-1/2",
+                  "Aumentar pelo canto inferior direito",
+                ],
               ] as const
             ).map(([posicao, rotulo]) => (
               <button
