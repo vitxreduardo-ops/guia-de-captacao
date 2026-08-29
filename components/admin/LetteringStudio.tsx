@@ -41,6 +41,15 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { snap, type Guia } from "@/lib/letteringSnap";
+import {
+  molaParada,
+  passoDaMola,
+  projetar,
+  velocidade,
+  type Amostra,
+  type Mola,
+} from "@/lib/letteringMotion";
 import {
   desfazer,
   despachar,
@@ -62,15 +71,18 @@ import {
   angle,
   clamp,
   distance,
+  hitsLayer,
   layerCorners,
   shortestTurn,
   topmostAt,
   unionBounds,
   alignedPosition,
+  boundsOf,
   distributedValues,
   type AlignMode,
   type Layer,
   type Point,
+  type Rect,
   type Size,
 } from "@/lib/lettering";
 import { drawLayer, measureLayer, safeScale, STAGE } from "@/lib/letteringDraw";
@@ -96,6 +108,15 @@ const INPUT =
 const LABEL = "block text-sm font-medium text-neutral-700";
 
 /** Xadrez de fundo: é assim que se enxerga que o PNG saiu mesmo transparente. */
+/** Pulso curto onde o aparelho oferecer. No iPhone o Safari ignora, sem erro. */
+function vibrar(ms: number) {
+  try {
+    navigator.vibrate?.(ms);
+  } catch {
+    // aparelho sem vibração
+  }
+}
+
 const CHECKERBOARD =
   "repeating-conic-gradient(#e5e5e5 0% 25%, #ffffff 0% 50%) 50% / 16px 16px";
 
@@ -188,6 +209,27 @@ export function LetteringStudio() {
     rotation: number;
   } | null>(null);
 
+  /**
+   * O que o gesto está mudando neste instante, fora do React.
+   *
+   * Enquanto o dedo está na tela o desenho lê daqui e pinta em
+   * requestAnimationFrame. Mandar cada movimento pro estado reconciliava a
+   * árvore inteira — painel, lista, abas — sessenta vezes por segundo só pra
+   * mover um número. O estado recebe o resultado quando o gesto acaba.
+   */
+  const vivoRef = useRef<Partial<Layer> & { id: string } | null>(null);
+  const guiasRef = useRef<Guia[]>([]);
+  const quadroRef = useRef<number | null>(null);
+  const medidasRef = useRef<Map<string, Size>>(new Map());
+  const camadasRef = useRef<Layer[]>(layers);
+  const selecaoRef = useRef<string | null>(selectedId);
+  /** Posições recentes do dedo, pra saber a velocidade na hora de soltar. */
+  const amostrasRef = useRef<{ x: Amostra[]; y: Amostra[] }>({ x: [], y: [] });
+  const animacaoRef = useRef<number | null>(null);
+  const medirRef = useRef<HTMLCanvasElement | null>(null);
+
+
+
   const selected = layers.find((l) => l.id === selectedId) ?? null;
 
   const sensors = useSensors(
@@ -198,71 +240,134 @@ export function LetteringStudio() {
     }),
   );
 
-  /** Desenha o palco na resolução da tela — é a única visualização que existe. */
+  // O desenho roda fora do React e precisa enxergar o estado atual sem ser
+  // recriado a cada render — por isso o espelho em refs.
   useEffect(() => {
+    camadasRef.current = layers;
+    selecaoRef.current = selectedId;
+  });
+
+  /** A camada como ela está agora, já com o que o gesto está mexendo. */
+  const comGesto = useCallback((layer: Layer): Layer => {
+    const vivo = vivoRef.current;
+    return vivo && vivo.id === layer.id ? { ...layer, ...vivo } : layer;
+  }, []);
+
+  /** Desenha o palco: as camadas, a moldura da escolhida e as guias do imã. */
+  const pintar = useCallback(() => {
+    quadroRef.current = null;
     const canvas = stageCanvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
 
-    // Fonte recém-carregada só mede certo depois que o navegador confirma que
-    // ela está pronta — sem isso a primeira medição sai com a fonte de sistema.
-    const usadas = [...new Set(layers.map((l) => `${l.size}px ${l.family}`))];
-    let cancelled = false;
+    const escala = canvas.width / STAGE.width;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(escala, escala);
 
-    // Se o navegador recusar a string da fonte — o Safari é mais rígido com a
-    // lista de famílias — o desenho tem que acontecer do mesmo jeito, com a
-    // fonte que houver. Antes, uma recusa aqui deixava o palco vazio.
-    const prontas = Promise.all(
-      usadas.map((f) => document.fonts.load(f).catch(() => null)),
-    );
-
-    prontas.then(() => {
-      if (cancelled) return;
-
-      const medidas = new Map<string, Size>();
-      layers.forEach((layer) =>
-        medidas.set(layer.id, measureLayer(ctx, layer)),
-      );
-
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.scale(canvas.width / STAGE.width, canvas.height / STAGE.height);
-
-      layers.forEach((layer) => {
-        ctx.save();
-        ctx.translate(layer.x, layer.y);
-        ctx.rotate((layer.rotation * Math.PI) / 180);
-        drawLayer(ctx, layer);
-        ctx.restore();
-      });
-
-      setSizes(medidas);
+    camadasRef.current.forEach((base) => {
+      const layer = comGesto(base);
+      ctx.save();
+      ctx.translate(layer.x, layer.y);
+      ctx.rotate((layer.rotation * Math.PI) / 180);
+      drawLayer(ctx, layer);
+      ctx.restore();
     });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [layers]);
+    // Moldura e guias vivem no canvas do palco, que não é o canvas da
+    // exportação — não há como elas vazarem pro PNG.
+    const escolhida = camadasRef.current.find((l) => l.id === selecaoRef.current);
+    const medida = escolhida ? medidasRef.current.get(escolhida.id) : null;
+    if (escolhida && medida) {
+      const layer = comGesto(escolhida);
+      ctx.save();
+      ctx.translate(layer.x, layer.y);
+      ctx.rotate((layer.rotation * Math.PI) / 180);
+      ctx.strokeStyle = "rgba(23, 23, 23, .7)";
+      ctx.lineWidth = 2 / escala;
+      ctx.setLineDash([6 / escala, 5 / escala]);
+      ctx.strokeRect(
+        -medida.width / 2,
+        -medida.height / 2,
+        medida.width,
+        medida.height,
+      );
+      ctx.restore();
+    }
+
+    if (guiasRef.current.length > 0) {
+      ctx.save();
+      ctx.strokeStyle = "#D4187C";
+      ctx.lineWidth = 1.5 / escala;
+      ctx.setLineDash([]);
+      guiasRef.current.forEach((guia) => {
+        ctx.beginPath();
+        if (guia.eixo === "x") {
+          ctx.moveTo(guia.pos, 0);
+          ctx.lineTo(guia.pos, STAGE.height);
+        } else {
+          ctx.moveTo(0, guia.pos);
+          ctx.lineTo(STAGE.width, guia.pos);
+        }
+        ctx.stroke();
+      });
+      ctx.restore();
+    }
+  }, [comGesto]);
+
+  const agendarPintura = useCallback(() => {
+    if (quadroRef.current !== null) return;
+    quadroRef.current = requestAnimationFrame(pintar);
+  }, [pintar]);
 
   /**
-   * Rede de segurança pros gestos do palco: se o dedo levantar fora dele — ou
-   * o navegador cancelar o toque — o gesto tem que morrer junto, senão ele
-   * continua valendo no toque seguinte.
+   * Mede as camadas e redesenha. A medição é síncrona quando as fontes já
+   * estão prontas: esperar uma promessa a cada mudança punha o desenho um
+   * passo atrás do dedo mesmo quando não havia fonte nova pra carregar.
    */
   useEffect(() => {
-    const encerrar = () => {
-      pointersRef.current.clear();
-      pinchRef.current = null;
-      dragRef.current = null;
+    const canvas = stageCanvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!ctx) return;
+
+    const medirTudo = () => {
+      const medidas = new Map<string, Size>();
+      layers.forEach((layer) => medidas.set(layer.id, measureLayer(ctx, layer)));
+      medidasRef.current = medidas;
+      setSizes(medidas);
+      pintar();
     };
-    window.addEventListener("pointerup", encerrar);
-    window.addEventListener("pointercancel", encerrar);
+
+    const usadas = [...new Set(layers.map((l) => `${l.size}px ${l.family}`))];
+    const faltaCarregar = usadas.filter((f) => {
+      try {
+        return !document.fonts.check(f);
+      } catch {
+        // Família que o navegador recusa: tratar como pronta e usar a reserva.
+        return false;
+      }
+    });
+
+    if (faltaCarregar.length === 0) {
+      medirTudo();
+      return;
+    }
+
+    let cancelado = false;
+    Promise.all(
+      faltaCarregar.map((f) => document.fonts.load(f).catch(() => null)),
+    ).then(() => {
+      if (!cancelado) medirTudo();
+    });
     return () => {
-      window.removeEventListener("pointerup", encerrar);
-      window.removeEventListener("pointercancel", encerrar);
+      cancelado = true;
     };
-  }, []);
+  }, [layers, pintar]);
+
+  /** Redesenha quando muda só a escolha, sem passar pela medição. */
+  useEffect(() => {
+    pintar();
+  }, [selectedId, pintar]);
 
   /** Guarda o rascunho a cada mudança: fechar a aba não pode custar o layout. */
   useEffect(() => {
@@ -297,6 +402,193 @@ export function LetteringStudio() {
     [selectedId, despacharAcao],
   );
 
+  /**
+   * O toque acertou o desenho, e não só a caixa?
+   *
+   * Desenha a camada num canvas de um pixel só, posicionado exatamente onde o
+   * dedo encostou, e olha se saiu tinta ali. Sem isso, tocar num canto vazio
+   * de um texto girado selecionava a peça e travava o acesso ao que está
+   * atrás dela.
+   */
+  const acertaODesenho = useCallback((layer: Layer, ponto: Point) => {
+    try {
+      const canvas = (medirRef.current ??= document.createElement("canvas"));
+      canvas.width = 1;
+      canvas.height = 1;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return true;
+
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.translate(0.5 - ponto.x, 0.5 - ponto.y);
+      ctx.translate(layer.x, layer.y);
+      ctx.rotate((layer.rotation * Math.PI) / 180);
+      drawLayer(ctx, layer);
+
+      return ctx.getImageData(0, 0, 1, 1).data[3] > 0;
+    } catch {
+      // Sem leitura de pixel, a caixa volta a ser a resposta.
+      return true;
+    }
+  }, []);
+
+  /**
+   * Qual camada o toque escolhe. O desenho tem prioridade; se o dedo não
+   * encostou em tinta nenhuma, a caixa ainda vale — é o que salva a camada
+   * fina demais pra acertar no dedo.
+   */
+  const camadaNoPonto = useCallback(
+    (ponto: Point) => {
+      for (let i = camadasRef.current.length - 1; i >= 0; i--) {
+        const l = camadasRef.current[i];
+        const size = medidasRef.current.get(l.id);
+        if (!size || !hitsLayer(ponto, l, size)) continue;
+        if (acertaODesenho(l, ponto)) return l;
+      }
+      return topmostAt(ponto, camadasRef.current, medidasRef.current);
+    },
+    [acertaODesenho],
+  );
+
+  /** Caixas das outras camadas, que é contra elas que o imã procura encaixe. */
+  const outrasCaixas = useCallback((id: string) => {
+    const fora: Rect[] = [];
+    camadasRef.current.forEach((l) => {
+      if (l.id === id) return;
+      const size = medidasRef.current.get(l.id);
+      if (size) fora.push(boundsOf(l, size));
+    });
+    return fora;
+  }, []);
+
+  /**
+   * Aplica o imã e guarda as guias do encaixe. A tolerância acompanha o
+   * tamanho do palco, não a tela: em telas diferentes o imã precisa pegar no
+   * mesmo lugar do desenho.
+   */
+  const comImã = useCallback(
+    (id: string, x: number, y: number) => {
+      const size = medidasRef.current.get(id);
+      if (!size) {
+        guiasRef.current = [];
+        return { x, y };
+      }
+      const r = snap({ x, y }, size, outrasCaixas(id), STAGE, STAGE.width * 0.012);
+      const grudouAgora =
+        r.guias.length > guiasRef.current.length && r.guias.length > 0;
+      guiasRef.current = r.guias;
+      // Um toque curto no encaixe: confirma sem exigir que o olho verifique.
+      if (grudouAgora) vibrar(8);
+      return { x: r.x, y: r.y };
+    },
+    [outrasCaixas],
+  );
+
+  /** Grava o resultado do gesto no histórico, como um passo só. */
+  const encerrarComCommit = useCallback(() => {
+    const vivo = vivoRef.current;
+    guiasRef.current = [];
+    if (!vivo) {
+      agendarPintura();
+      return;
+    }
+    const { id, ...patch } = vivo;
+    vivoRef.current = null;
+    despacharAcao({ type: "alterar", id, patch });
+    fecharPasso();
+    agendarPintura();
+  }, [despacharAcao, fecharPasso, agendarPintura]);
+
+  /**
+   * Solta a camada continuando o movimento que o dedo deu: projeta onde ela
+   * pararia, deixa o imã escolher o encaixe perto dali e assenta com mola,
+   * herdando a velocidade — sem isso aparece uma emenda entre arrastar e
+   * animar.
+   */
+  const soltarComInercia = useCallback(
+    (id: string) => {
+      const vivo = vivoRef.current;
+      if (!vivo || vivo.x === undefined || vivo.y === undefined) {
+        encerrarComCommit();
+        return;
+      }
+
+      const vx = velocidade(amostrasRef.current.x);
+      const vy = velocidade(amostrasRef.current.y);
+
+      // O destino fica dentro do palco: sem esse limite um arremesso mandava a
+      // peça pra fora da tela, onde não há como tocar nela de novo.
+      const destino = {
+        x: clamp(vivo.x + projetar(vx), 0, STAGE.width),
+        y: clamp(vivo.y + projetar(vy), 0, STAGE.height),
+      };
+      const alvo = comImã(id, destino.x, destino.y);
+
+      // Aba escondida não pinta quadro nenhum, e a mola nunca terminaria: o
+      // gesto ficaria pendente até a pessoa voltar pro app. Aqui ela vai
+      // direto pro destino e o passo é gravado.
+      if (document.hidden) {
+        vivoRef.current = { id, x: alvo.x, y: alvo.y };
+        encerrarComCommit();
+        return;
+      }
+
+      let molaX: Mola = { valor: vivo.x, velocidade: vx };
+      let molaY: Mola = { valor: vivo.y, velocidade: vy };
+      let anterior: number | null = null;
+
+      const passo = (agora: number) => {
+        const dt = anterior === null ? 1 / 60 : (agora - anterior) / 1000;
+        anterior = agora;
+        // Eixos independentes: uma mola só na distância desandaria quando x e y
+        // saem com velocidades diferentes.
+        molaX = passoDaMola(molaX, alvo.x, dt);
+        molaY = passoDaMola(molaY, alvo.y, dt);
+        vivoRef.current = { id, x: molaX.valor, y: molaY.valor };
+        pintar();
+
+        if (molaParada(molaX, alvo.x) && molaParada(molaY, alvo.y)) {
+          animacaoRef.current = null;
+          vivoRef.current = { id, x: alvo.x, y: alvo.y };
+          encerrarComCommit();
+          return;
+        }
+        animacaoRef.current = requestAnimationFrame(passo);
+      };
+
+      animacaoRef.current = requestAnimationFrame(passo);
+    },
+    [comImã, encerrarComCommit, pintar],
+  );
+
+  /**
+   * Rede de segurança pros gestos do palco: se o dedo levantar fora dele — ou
+   * o navegador cancelar o toque — o gesto morre junto, e o que ele mudou
+   * vira passo. Sem isso o movimento ficava só no desenho e sumia no
+   * recarregamento seguinte.
+   */
+  useEffect(() => {
+    const encerrar = () => {
+      // Um microtask de atraso deixa o handler do palco agir primeiro. Sem
+      // isso esta rede cortaria a inércia antes de ela começar, e todo
+      // arremesso pararia debaixo do dedo.
+      queueMicrotask(() => {
+        pointersRef.current.clear();
+        pinchRef.current = null;
+        dragRef.current = null;
+        if (animacaoRef.current === null && vivoRef.current) {
+          encerrarComCommit();
+        }
+      });
+    };
+    window.addEventListener("pointerup", encerrar);
+    window.addEventListener("pointercancel", encerrar);
+    return () => {
+      window.removeEventListener("pointerup", encerrar);
+      window.removeEventListener("pointercancel", encerrar);
+    };
+  }, [encerrarComCommit]);
+
   /** Coordenadas do dedo convertidas pro tamanho real do palco. */
   function stagePoint(e: React.PointerEvent): Point {
     const rect = stageRef.current!.getBoundingClientRect();
@@ -307,6 +599,14 @@ export function LetteringStudio() {
   }
 
   function onPointerDown(e: React.PointerEvent) {
+    // Uma animação em curso é interrompida pelo toque: quem manda é o dedo.
+    if (animacaoRef.current !== null) {
+      cancelAnimationFrame(animacaoRef.current);
+      animacaoRef.current = null;
+      encerrarComCommit();
+    }
+    amostrasRef.current = { x: [], y: [] };
+
     const point = stagePoint(e);
     pointersRef.current.set(e.pointerId, point);
 
@@ -326,7 +626,7 @@ export function LetteringStudio() {
       return;
     }
 
-    const alvo = topmostAt(point, layers, sizes);
+    const alvo = camadaNoPonto(point);
     setSelectedId(alvo?.id ?? null);
     if (!alvo) return;
     dragRef.current = {
@@ -381,20 +681,25 @@ export function LetteringStudio() {
       };
       const escala = distance(centro, point) / base.distancia;
       const giro = shortestTurn(base.angulo, angle(centro, point));
-      despacharAcao({
-        type: "alterar",
+      vivoRef.current = {
         id: base.id,
-        patch: {
-          size: Math.round(clamp(base.size * escala, 8, 900)),
-          rotation: Math.round(clamp(base.rotation + giro, -180, 180)),
-        },
-        coalesce: `alca:${base.id}`,
-      });
+        size: Math.round(clamp(base.size * escala, 8, 900)),
+        rotation: Math.round(clamp(base.rotation + giro, -180, 180)),
+      };
+      const l = camadasRef.current.find((c) => c.id === base.id);
+      const ctx = stageCanvasRef.current?.getContext("2d");
+      if (l && ctx) {
+        medidasRef.current.set(
+          base.id,
+          measureLayer(ctx, { ...l, ...vivoRef.current }),
+        );
+      }
+      agendarPintura();
     };
 
     const soltar = () => {
       alcaRef.current = null;
-      fecharPasso();
+      encerrarComCommit();
       window.removeEventListener("pointermove", mover);
       window.removeEventListener("pointerup", soltar);
       window.removeEventListener("pointercancel", soltar);
@@ -412,6 +717,7 @@ export function LetteringStudio() {
   function onMoverDown(e: React.PointerEvent) {
     if (!selected) return;
     e.stopPropagation();
+    amostrasRef.current = { x: [], y: [] };
     const inicio = stagePoint(e);
     const base = { id: selected.id, x: selected.x, y: selected.y };
 
@@ -422,19 +728,23 @@ export function LetteringStudio() {
         x: ((ev.clientX - rect.left) / rect.width) * STAGE.width,
         y: ((ev.clientY - rect.top) / rect.height) * STAGE.height,
       };
-      despacharAcao({
-        type: "alterar",
-        id: base.id,
-        patch: {
-          x: base.x + (ponto.x - inicio.x),
-          y: base.y + (ponto.y - inicio.y),
-        },
-        coalesce: `mover:${base.id}`,
-      });
+      const bruto = {
+        x: base.x + (ponto.x - inicio.x),
+        y: base.y + (ponto.y - inicio.y),
+      };
+      const t = ev.timeStamp;
+      amostrasRef.current.x.push({ valor: bruto.x, t });
+      amostrasRef.current.y.push({ valor: bruto.y, t });
+      if (amostrasRef.current.x.length > 12) {
+        amostrasRef.current.x.shift();
+        amostrasRef.current.y.shift();
+      }
+      vivoRef.current = { id: base.id, ...comImã(base.id, bruto.x, bruto.y) };
+      agendarPintura();
     };
 
     const soltar = () => {
-      fecharPasso();
+      soltarComInercia(base.id);
       window.removeEventListener("pointermove", mover);
       window.removeEventListener("pointerup", soltar);
       window.removeEventListener("pointercancel", soltar);
@@ -455,32 +765,52 @@ export function LetteringStudio() {
     if (pinch && dedos.length >= 2) {
       const escala = distance(dedos[0], dedos[1]) / (pinch.distancia || 1);
       const giro = shortestTurn(pinch.angulo, angle(dedos[0], dedos[1]));
-      despacharAcao({
-        type: "alterar",
+      vivoRef.current = {
         id: pinch.id,
-        patch: {
-          size: Math.round(clamp(pinch.size * escala, 8, 900)),
-          rotation: Math.round(clamp(pinch.rotation + giro, -180, 180)),
-        },
-        coalesce: `pinca:${pinch.id}`,
-      });
+        size: Math.round(clamp(pinch.size * escala, 8, 900)),
+        rotation: Math.round(clamp(pinch.rotation + giro, -180, 180)),
+      };
+      // O tamanho muda a caixa, e a caixa é o que o imã e a moldura usam.
+      const l = camadasRef.current.find((c) => c.id === pinch.id);
+      const ctx = stageCanvasRef.current?.getContext("2d");
+      if (l && ctx) {
+        medidasRef.current.set(
+          pinch.id,
+          measureLayer(ctx, { ...l, ...vivoRef.current }),
+        );
+      }
+      agendarPintura();
       return;
     }
 
     const drag = dragRef.current;
     if (!drag) return;
     const point = stagePoint(e);
-    despacharAcao({
-      type: "alterar",
-      id: drag.id,
-      patch: { x: point.x - drag.dx, y: point.y - drag.dy },
-      coalesce: `mover:${drag.id}`,
-    });
+    const bruto = { x: point.x - drag.dx, y: point.y - drag.dy };
+    // O relógio vem do próprio evento: é o instante em que o dedo esteve ali.
+    const t = e.timeStamp;
+    amostrasRef.current.x.push({ valor: bruto.x, t });
+    amostrasRef.current.y.push({ valor: bruto.y, t });
+    if (amostrasRef.current.x.length > 12) {
+      amostrasRef.current.x.shift();
+      amostrasRef.current.y.shift();
+    }
+    vivoRef.current = { id: drag.id, ...comImã(drag.id, bruto.x, bruto.y) };
+    agendarPintura();
   }
 
   function onPointerUp(e: React.PointerEvent) {
+    const arrastava = dragRef.current;
+    const pincava = pinchRef.current;
     pointersRef.current.delete(e.pointerId);
     const dedos = [...pointersRef.current.values()];
+
+    if (dedos.length === 0 && vivoRef.current) {
+      // Arrastar termina com inércia; escalar e girar param onde pararam.
+      if (arrastava) soltarComInercia(arrastava.id);
+      else if (pincava) encerrarComCommit();
+      else encerrarComCommit();
+    }
 
     // Tirar um dedo tem que encerrar a pinça na hora. Enquanto isso dependia
     // de todos os "pointerup" chegarem, um evento perdido deixava o giro
@@ -647,8 +977,10 @@ export function LetteringStudio() {
     fonts.map((f) => f.family),
   );
 
+  // A resposta acontece no dedo descendo, não no clique concluído: esperar o
+  // toque terminar pra dar sinal de vida lê como travamento.
   const chip =
-    "shrink-0 rounded-full border px-3 py-2 text-sm whitespace-nowrap";
+    "shrink-0 rounded-full border px-3 py-2 text-sm whitespace-nowrap transition-transform duration-100 active:scale-95";
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-3 lg:max-w-none lg:grid lg:grid-cols-[1fr_minmax(320px,400px)] lg:items-start">
@@ -736,22 +1068,6 @@ export function LetteringStudio() {
             className="size-full"
           />
 
-          {/* A moldura de seleção é uma div por cima, nunca parte do desenho —
-              assim ela não tem como vazar pro PNG. */}
-          {selected && sizes.has(selected.id) ? (
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute border-2 border-dashed border-neutral-900/70"
-              style={{
-                left: `${(selected.x / STAGE.width) * 100}%`,
-                top: `${(selected.y / STAGE.height) * 100}%`,
-                width: `${(sizes.get(selected.id)!.width / STAGE.width) * 100}%`,
-                height: `${(sizes.get(selected.id)!.height / STAGE.height) * 100}%`,
-                transform: `translate(-50%, -50%) rotate(${selected.rotation}deg)`,
-              }}
-            />
-          ) : null}
-
           {/* A alça mora num canto do palco, não em cima da camada. No canto
               da moldura ela cobria justamente a área que se quer arrastar — e
               sumia da tela quando a camada passava da borda. */}
@@ -761,7 +1077,7 @@ export function LetteringStudio() {
                 type="button"
                 aria-label="Mover a camada"
                 onPointerDown={onMoverDown}
-                className="absolute bottom-3 left-3 grid size-12 touch-none place-items-center rounded-full border border-neutral-200 bg-white/95 text-neutral-700 shadow-md"
+                className="absolute bottom-3 left-3 grid size-12 touch-none place-items-center rounded-full border border-neutral-200 bg-white/95 text-neutral-700 shadow-md transition-transform duration-100 active:scale-95 active:bg-neutral-100"
               >
                 <Move aria-hidden="true" className="size-5" />
               </button>
@@ -769,7 +1085,7 @@ export function LetteringStudio() {
                 type="button"
                 aria-label="Girar e redimensionar"
                 onPointerDown={onAlcaDown}
-                className="absolute right-3 bottom-3 grid size-12 touch-none place-items-center rounded-full border border-neutral-200 bg-white/95 text-neutral-700 shadow-md"
+                className="absolute right-3 bottom-3 grid size-12 touch-none place-items-center rounded-full border border-neutral-200 bg-white/95 text-neutral-700 shadow-md transition-transform duration-100 active:scale-95 active:bg-neutral-100"
               >
                 <RotateCw aria-hidden="true" className="size-5" />
               </button>

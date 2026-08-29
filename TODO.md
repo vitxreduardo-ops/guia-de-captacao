@@ -73,9 +73,9 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
       guardar vários nem nomeá-los. Layouts com nome pedem tabela no Supabase
       — é a fase 3 do plano.
 
-- [ ] **Sem imã nem guias.** Alinhar só por botão; arrastar não gruda no
-      centro nem nos eixos das outras camadas. É a fase 1 do plano, junto com
-      o desenho fora do React e a inércia ao soltar.
+- [ ] **A peça pode passar da borda enquanto o dedo arrasta.** Ao soltar ela
+      volta pra dentro do palco, mas durante o gesto sai livre — falta a
+      resistência progressiva da borda, que avisa que ali acabou.
 
 - [ ] **A alça é uma só, num canto fixo.** Resolve girar e redimensionar, mas
       não é o que se espera de um editor: faltam as quatro alças de canto, com
