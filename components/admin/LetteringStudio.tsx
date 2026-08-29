@@ -109,6 +109,7 @@ import {
 } from "@/lib/lettering";
 import {
   drawLayer,
+  esqueceMedidas,
   EXPORT_SCALE,
   measureLayer,
   safeScale,
@@ -354,6 +355,13 @@ export function LetteringStudio() {
    */
   const molduraRef = useRef<HTMLDivElement | null>(null);
   /**
+   * Tamanho do palco na tela, medido fora do laço.
+   *
+   * Perguntar isso ao navegador obriga ele a recalcular a página, e estava
+   * sendo perguntado a cada movimento de dedo e a cada quadro de desenho.
+   */
+  const caixaDoPalcoRef = useRef<DOMRect | null>(null);
+  /**
    * Deslocamento da vista, em unidades do palco.
    *
    * O painel de ferramentas sobe por cima do palco e tapa justamente onde a
@@ -386,6 +394,25 @@ export function LetteringStudio() {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
+
+  /** Remede o palco quando ele muda de tamanho, e não durante o gesto. */
+  useEffect(() => {
+    const palco = stageRef.current;
+    if (!palco) return;
+    const medir = () => {
+      caixaDoPalcoRef.current = palco.getBoundingClientRect();
+    };
+    medir();
+    const observador = new ResizeObserver(medir);
+    observador.observe(palco);
+    window.addEventListener("scroll", medir, true);
+    window.addEventListener("resize", medir);
+    return () => {
+      observador.disconnect();
+      window.removeEventListener("scroll", medir, true);
+      window.removeEventListener("resize", medir);
+    };
+  }, []);
 
   // O desenho roda fora do React e precisa enxergar o estado atual sem ser
   // recriado a cada render — por isso o espelho em refs.
@@ -436,13 +463,29 @@ export function LetteringStudio() {
       if (escolhida && medida && !escolhida.hidden) {
         const layer = comGesto(escolhida);
         moldura.hidden = false;
-        // A moldura é DOM, então acompanha a lente na mão: posição e tamanho
-        // saem da mesma conta que o canvas usa.
-        moldura.style.left = `${(((layer.x - camX) * z) / STAGE.width) * 100}%`;
-        moldura.style.top = `${(((layer.y - camY) * z) / STAGE.height) * 100}%`;
-        moldura.style.width = `${((medida.width * z) / STAGE.width) * 100}%`;
-        moldura.style.height = `${((medida.height * z) / STAGE.height) * 100}%`;
-        moldura.style.transform = `translate(-50%, -50%) rotate(${layer.rotation}deg)`;
+
+        // Tamanho e posição em porcentagem obrigavam o navegador a recalcular
+        // a página a cada quadro. Agora o tamanho fica fixo — na medida sem
+        // zoom — e o gesto inteiro cabe numa transformação, que é o que o
+        // navegador compõe sem refazer conta de layout.
+        const larguraBase = (medida.width / STAGE.width) * 100;
+        const alturaBase = (medida.height / STAGE.height) * 100;
+        if (moldura.dataset.w !== String(larguraBase)) {
+          moldura.dataset.w = String(larguraBase);
+          moldura.style.width = `${larguraBase}%`;
+        }
+        if (moldura.dataset.h !== String(alturaBase)) {
+          moldura.dataset.h = String(alturaBase);
+          moldura.style.height = `${alturaBase}%`;
+        }
+
+        const caixa = caixaDoPalcoRef.current;
+        const porUnidade = (caixa?.width ?? STAGE.width) / STAGE.width;
+        const px = (layer.x - camX) * z * porUnidade;
+        const py = (layer.y - camY) * z * porUnidade;
+        moldura.style.transform =
+          `translate3d(${px}px, ${py}px, 0) translate(-50%, -50%) ` +
+          `rotate(${layer.rotation}deg) scale(${z})`;
       } else {
         moldura.hidden = true;
       }
@@ -512,7 +555,10 @@ export function LetteringStudio() {
     Promise.all(
       faltaCarregar.map((f) => document.fonts.load(f).catch(() => null)),
     ).then(() => {
-      if (!cancelado) medirTudo();
+      if (cancelado) return;
+      // Chegou fonte: o que já foi medido pode ter sido medido com a reserva.
+      esqueceMedidas();
+      medirTudo();
     });
     return () => {
       cancelado = true;
@@ -983,7 +1029,8 @@ export function LetteringStudio() {
 
   /** Ponto do dedo na medida da tela, em unidades de palco e sem zoom. */
   const localDaTela = useCallback((clientX: number, clientY: number): Point => {
-    const rect = stageRef.current!.getBoundingClientRect();
+    const rect =
+      caixaDoPalcoRef.current ?? stageRef.current!.getBoundingClientRect();
     return {
       x: ((clientX - rect.left) / rect.width) * STAGE.width,
       y: ((clientY - rect.top) / rect.height) * STAGE.height,
@@ -992,7 +1039,8 @@ export function LetteringStudio() {
 
   /** Da tela pro palco, já somando o quanto a vista está deslocada. */
   const pontoDoPalco = useCallback((clientX: number, clientY: number): Point => {
-    const rect = stageRef.current!.getBoundingClientRect();
+    const rect =
+      caixaDoPalcoRef.current ?? stageRef.current!.getBoundingClientRect();
     const { x, y, z } = camRef.current;
     return {
       x: (((clientX - rect.left) / rect.width) * STAGE.width) / z + x,
@@ -1243,7 +1291,9 @@ export function LetteringStudio() {
           x: nav.ancora.x - meioLocal.x / z,
           y: nav.ancora.y - meioLocal.y / z,
         };
-        pintar();
+        // Uma pintura por quadro. O iPhone entrega vários toques no mesmo
+        // quadro, e pintar em cada um era desenhar pro lixo.
+        agendarPintura();
         return;
       }
 
@@ -1254,7 +1304,7 @@ export function LetteringStudio() {
           x: nav.ancora.x - local.x / camRef.current.z,
           y: nav.ancora.y - local.y / camRef.current.z,
         };
-        pintar();
+        agendarPintura();
         return;
       }
     }
@@ -1489,6 +1539,7 @@ export function LetteringStudio() {
         const face = new FontFace(fonte.family, bytes);
         await face.load();
         document.fonts.add(face);
+        esqueceMedidas();
         setFonts((atual) => [
           ...atual,
           { family: familia, label: fonte.label },
@@ -1568,6 +1619,9 @@ export function LetteringStudio() {
       const face = new FontFace(custom, await file.arrayBuffer());
       await face.load();
       document.fonts.add(face);
+      // O mesmo texto passa a ter outra forma: o que foi medido antes vira
+      // mentira.
+      esqueceMedidas();
       setFonts((current) => [...current, { family: `"${custom}"`, label }]);
       patch({ family: `"${custom}"` });
     } catch {
@@ -1620,6 +1674,9 @@ export function LetteringStudio() {
           <div
             ref={molduraRef}
             hidden
+            // Ancorada no canto: quem posiciona é a transformação, e o
+            // navegador sabe compor isso sem refazer a página.
+            style={{ left: 0, top: 0, willChange: "transform" }}
             className="pointer-events-none absolute border-2 border-dashed border-neutral-900/70"
           >
             {/* Cantos mudam o tamanho. A área de toque é maior que o desenho:

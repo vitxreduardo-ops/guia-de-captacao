@@ -51,6 +51,39 @@ type Layout = Size & {
 };
 
 /**
+ * Medidas já calculadas, por camada.
+ *
+ * Medir texto obriga o navegador a remontar as formas das letras, e é a conta
+ * mais cara do desenho. O resultado não muda enquanto o texto e o corpo forem
+ * os mesmos, então refazer isso a cada quadro de gesto era trabalho jogado
+ * fora — no iPhone, o bastante pra segurar a mão.
+ */
+const medidas = new Map<string, Layout>();
+
+/** Só o que muda a forma do desenho entra na chave. Cor e posição, não. */
+function chaveDoLayout(layer: Layer) {
+  return [
+    layer.text,
+    layer.family,
+    layer.size,
+    layer.lineHeight,
+    layer.tracking,
+    layer.align,
+    layer.stroke,
+    layer.box ? layer.boxPadding : 0,
+    layer.shadow ? `${layer.shadowBlur}:${layer.shadowX}:${layer.shadowY}` : 0,
+  ].join("|");
+}
+
+/**
+ * Esquece o que foi medido. Serve pra quando uma fonte nova é registrada: o
+ * mesmo texto passa a ter outra forma, e a medida guardada vira mentira.
+ */
+export function esqueceMedidas() {
+  medidas.clear();
+}
+
+/**
  * Mede a camada inteira medindo os extremos reais do desenho, não a largura de
  * avanço: itálico, swash e emoji saem da caixa do avanço e seriam cortados.
  */
@@ -59,10 +92,17 @@ export function layoutLayer(
   layer: Layer,
 ): Layout {
   const lines = layer.text.split("\n");
+
+  // O contexto é preparado sempre: quem chama vai desenhar em seguida, e a
+  // fonte precisa estar posta mesmo quando a medida já é conhecida.
   ctx.letterSpacing = `${layer.tracking}px`;
   ctx.font = `${layer.size}px ${layer.family}`;
   ctx.textAlign = layer.align;
   ctx.textBaseline = "alphabetic";
+
+  const chave = chaveDoLayout(layer);
+  const guardado = medidas.get(chave);
+  if (guardado) return guardado;
 
   const metrics = lines.map((line) => ctx.measureText(line || " "));
   const step = layer.size * layer.lineHeight;
@@ -86,7 +126,7 @@ export function layoutLayer(
     : 0;
   const grow = layer.stroke + (layer.box ? layer.boxPadding : 0) + shadowReach;
 
-  return {
+  const layout: Layout = {
     width: textWidth + grow * 2,
     height: textHeight + grow * 2,
     // O centro do desenho fica em (left+right)/2; a âncora é o quanto empurrar
@@ -100,6 +140,12 @@ export function layoutLayer(
     textWidth,
     textHeight,
   };
+
+  // Um teto pra memória: peça em edição gera uma chave por letra digitada.
+  if (medidas.size > 400) medidas.clear();
+  medidas.set(chave, layout);
+
+  return layout;
 }
 
 export function measureLayer(
