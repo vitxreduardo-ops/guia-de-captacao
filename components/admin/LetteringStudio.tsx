@@ -1,15 +1,32 @@
 "use client";
 
 import {
-  ArrowDown,
-  ArrowUp,
   Download,
+  GripVertical,
+  RotateCw,
   Smile,
   Trash2,
   Type,
   Upload,
   X,
 } from "lucide-react";
+import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -115,8 +132,22 @@ export function LetteringStudio() {
     size: number;
     rotation: number;
   } | null>(null);
+  /** Mesma conta da pinça, mas com um dedo só, puxando a alça do canto. */
+  const alcaRef = useRef<{
+    id: string;
+    distancia: number;
+    angulo: number;
+    size: number;
+    rotation: number;
+  } | null>(null);
 
   const selected = layers.find((l) => l.id === selectedId) ?? null;
+
+  const sensors = useSensors(
+    // Sem a distância mínima, o toque que escolhe a camada viraria arraste.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   /** Desenha o palco na resolução da tela — é a única visualização que existe. */
   useEffect(() => {
@@ -222,12 +253,63 @@ export function LetteringStudio() {
     }
   }
 
+  /** Puxar a alça: a distância até o centro vira tamanho, o ângulo vira giro. */
+  function onAlcaDown(e: React.PointerEvent) {
+    if (!selected) return;
+    // Sem isto o toque na alça viraria arrastar da camada logo abaixo dela.
+    e.stopPropagation();
+    const point = stagePoint(e);
+    const centro = { x: selected.x, y: selected.y };
+    alcaRef.current = {
+      id: selected.id,
+      distancia: Math.max(1, distance(centro, point)),
+      angulo: angle(centro, point),
+      size: selected.size,
+      rotation: selected.rotation,
+    };
+    capturar(e);
+  }
+
+  function onAlcaMove(e: React.PointerEvent) {
+    const alca = alcaRef.current;
+    if (!alca || !selected) return;
+    e.stopPropagation();
+    const point = stagePoint(e);
+    const centro = { x: selected.x, y: selected.y };
+    const escala = distance(centro, point) / alca.distancia;
+    const giro = shortestTurn(alca.angulo, angle(centro, point));
+    setLayers((atual) =>
+      atual.map((l) =>
+        l.id === alca.id
+          ? {
+              ...l,
+              size: Math.round(clamp(alca.size * escala, 8, 900)),
+              rotation: Math.round(clamp(alca.rotation + giro, -180, 180)),
+            }
+          : l,
+      ),
+    );
+  }
+
+  function onAlcaUp(e: React.PointerEvent) {
+    alcaRef.current = null;
+    e.stopPropagation();
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // ponteiro já solto pelo navegador
+    }
+  }
+
   function onPointerMove(e: React.PointerEvent) {
     if (!pointersRef.current.has(e.pointerId)) return;
     pointersRef.current.set(e.pointerId, stagePoint(e));
     const dedos = [...pointersRef.current.values()];
 
     const pinch = pinchRef.current;
+    if (pinch && dedos.length < 2) pinchRef.current = null;
     if (pinch && dedos.length >= 2) {
       const escala = distance(dedos[0], dedos[1]) / (pinch.distancia || 1);
       const giro = shortestTurn(pinch.angulo, angle(dedos[0], dedos[1]));
@@ -257,8 +339,25 @@ export function LetteringStudio() {
 
   function onPointerUp(e: React.PointerEvent) {
     pointersRef.current.delete(e.pointerId);
-    if (pointersRef.current.size < 2) pinchRef.current = null;
-    if (pointersRef.current.size === 0) dragRef.current = null;
+    const dedos = [...pointersRef.current.values()];
+
+    // Tirar um dedo tem que encerrar a pinça na hora. Enquanto isso dependia
+    // de todos os "pointerup" chegarem, um evento perdido deixava o giro
+    // ligado pra sempre: a camada seguia girando ao encostar no palco.
+    if (dedos.length < 2) pinchRef.current = null;
+
+    if (dedos.length === 0) {
+      dragRef.current = null;
+    } else if (dedos.length === 1 && selected && !dragRef.current) {
+      // Sobrou um dedo depois da pinça: ele volta a arrastar, em vez de a
+      // camada ficar presa até levantar tudo.
+      dragRef.current = {
+        id: selected.id,
+        dx: dedos[0].x - selected.x,
+        dy: dedos[0].y - selected.y,
+      };
+    }
+
     try {
       if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         e.currentTarget.releasePointerCapture(e.pointerId);
@@ -266,6 +365,13 @@ export function LetteringStudio() {
     } catch {
       // ponteiro já solto pelo navegador
     }
+  }
+
+  /** O navegador pode tirar a captura sozinho — aí o gesto acabou. */
+  function onLostCapture(e: React.PointerEvent) {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchRef.current = null;
+    if (pointersRef.current.size === 0) dragRef.current = null;
   }
 
   /**
@@ -331,15 +437,19 @@ export function LetteringStudio() {
     });
   }
 
-  function mover(id: string, passo: -1 | 1) {
-    setLayers((atual) => {
-      const i = atual.findIndex((l) => l.id === id);
-      const j = i + passo;
-      if (i < 0 || j < 0 || j >= atual.length) return atual;
-      const copia = [...atual];
-      [copia[i], copia[j]] = [copia[j], copia[i]];
-      return copia;
-    });
+  /**
+   * A lista mostra a camada da frente em cima; o desenho pinta na ordem
+   * inversa. A conversão fica só aqui, pra não espalhar índice invertido.
+   */
+  const daFrentePraTras = [...layers].reverse();
+
+  function reordenar(e: DragEndEvent) {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const de = daFrentePraTras.findIndex((l) => l.id === active.id);
+    const para = daFrentePraTras.findIndex((l) => l.id === over.id);
+    if (de < 0 || para < 0) return;
+    setLayers(arrayMove(daFrentePraTras, de, para).reverse());
   }
 
   async function loadFont(file: File) {
@@ -373,6 +483,8 @@ export function LetteringStudio() {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
+          onPointerLeave={onPointerUp}
+          onLostPointerCapture={onLostCapture}
           style={{ background: CHECKERBOARD, aspectRatio: "1080 / 1920" }}
           className="relative mx-auto max-h-[45svh] w-auto touch-none overflow-hidden rounded-lg border border-neutral-200 select-none lg:max-h-[70svh]"
         >
@@ -387,7 +499,6 @@ export function LetteringStudio() {
               assim ela não tem como vazar pro PNG. */}
           {selected && sizes.has(selected.id) ? (
             <div
-              aria-hidden="true"
               className="pointer-events-none absolute border-2 border-dashed border-neutral-900/70"
               style={{
                 left: `${(selected.x / STAGE.width) * 100}%`,
@@ -396,7 +507,21 @@ export function LetteringStudio() {
                 height: `${(sizes.get(selected.id)!.height / STAGE.height) * 100}%`,
                 transform: `translate(-50%, -50%) rotate(${selected.rotation}deg)`,
               }}
-            />
+            >
+              {/* A alça acompanha o giro junto com a moldura, então ela fica
+                  sempre no mesmo canto da camada, não no canto da tela. */}
+              <button
+                type="button"
+                aria-label="Girar e redimensionar"
+                onPointerDown={onAlcaDown}
+                onPointerMove={onAlcaMove}
+                onPointerUp={onAlcaUp}
+                onPointerCancel={onAlcaUp}
+                className="pointer-events-auto absolute -right-5 -bottom-5 grid size-10 touch-none place-items-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-md"
+              >
+                <RotateCw aria-hidden="true" className="size-4" />
+              </button>
+            </div>
           ) : null}
         </div>
 
@@ -407,13 +532,11 @@ export function LetteringStudio() {
       </div>
 
       <div className="flex flex-col gap-3">
-        {/* Camadas numa fita que rola de lado: no celular uma lista vertical
-            empurraria os controles pra fora da tela. */}
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={() => adicionar(novaCamada({ text: "Texto" }))}
-            className={`${chip} border-neutral-900 bg-neutral-900 text-white`}
+            className={`${chip} flex-1 border-neutral-900 bg-neutral-900 text-white`}
           >
             <Type aria-hidden="true" className="mr-1 inline size-4" />
             Texto
@@ -430,26 +553,45 @@ export function LetteringStudio() {
                 }),
               )
             }
-            className={`${chip} border-neutral-900 bg-neutral-900 text-white`}
+            className={`${chip} flex-1 border-neutral-900 bg-neutral-900 text-white`}
           >
             <Smile aria-hidden="true" className="mr-1 inline size-4" />
             Emoji
           </button>
+        </div>
 
-          {[...layers].reverse().map((layer) => (
-            <button
-              key={layer.id}
-              type="button"
-              onClick={() => setSelectedId(layer.id)}
-              className={`${chip} max-w-32 truncate ${
-                layer.id === selectedId
-                  ? "border-neutral-900 bg-neutral-100"
-                  : "border-neutral-200 bg-white"
-              }`}
+        {/* A lista vem de cima pra baixo como as camadas aparecem na peça: a
+            primeira linha é a que fica na frente. */}
+        <div className="rounded-lg border border-neutral-200 bg-white p-2">
+          <p className="px-1 pb-2 text-sm font-medium text-neutral-700">
+            Camadas
+          </p>
+          <DndContext
+            // Id fixo: sem ele o dnd-kit numera os textos de acessibilidade em
+            // ordem de montagem, e servidor e cliente chegam a números
+            // diferentes.
+            id="lettering-camadas"
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={reordenar}
+          >
+            <SortableContext
+              items={daFrentePraTras.map((l) => l.id)}
+              strategy={verticalListSortingStrategy}
             >
-              {layer.text.split("\n")[0] || "(vazio)"}
-            </button>
-          ))}
+              <ul className="space-y-1">
+                {daFrentePraTras.map((layer) => (
+                  <LinhaDeCamada
+                    key={layer.id}
+                    layer={layer}
+                    selecionada={layer.id === selectedId}
+                    onSelecionar={() => setSelectedId(layer.id)}
+                    onRemover={() => remover(layer.id)}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
         </div>
 
         {selected ? (
@@ -475,30 +617,6 @@ export function LetteringStudio() {
                   {rotulo}
                 </button>
               ))}
-              <button
-                type="button"
-                aria-label="Trazer pra frente"
-                onClick={() => mover(selected.id, 1)}
-                className="rounded-md p-2 text-neutral-500 hover:bg-neutral-100"
-              >
-                <ArrowUp aria-hidden="true" className="size-4" />
-              </button>
-              <button
-                type="button"
-                aria-label="Mandar pra trás"
-                onClick={() => mover(selected.id, -1)}
-                className="rounded-md p-2 text-neutral-500 hover:bg-neutral-100"
-              >
-                <ArrowDown aria-hidden="true" className="size-4" />
-              </button>
-              <button
-                type="button"
-                aria-label="Remover camada"
-                onClick={() => remover(selected.id)}
-                className="rounded-md p-2 text-neutral-500 hover:bg-neutral-100"
-              >
-                <Trash2 aria-hidden="true" className="size-4" />
-              </button>
             </div>
 
             <div className="space-y-3 p-3">
@@ -910,5 +1028,61 @@ export function LetteringStudio() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function LinhaDeCamada({
+  layer,
+  selecionada,
+  onSelecionar,
+  onRemover,
+}: {
+  layer: Layer;
+  selecionada: boolean;
+  onSelecionar: () => void;
+  onRemover: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: layer.id });
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={isDragging ? "opacity-40" : ""}
+    >
+      <div
+        className={`flex items-center gap-1 rounded-md border ${
+          selecionada
+            ? "border-neutral-900 bg-neutral-50"
+            : "border-neutral-200 bg-white"
+        }`}
+      >
+        <button
+          type="button"
+          aria-label="Mudar a ordem"
+          className="cursor-grab touch-none p-2 text-neutral-400"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical aria-hidden="true" className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={onSelecionar}
+          className="flex-1 truncate py-3 pr-2 text-left text-sm"
+        >
+          {layer.text.split("\n")[0] || "(vazio)"}
+        </button>
+        <button
+          type="button"
+          aria-label="Remover camada"
+          onClick={onRemover}
+          className="p-3 text-neutral-500"
+        >
+          <Trash2 aria-hidden="true" className="size-4" />
+        </button>
+      </div>
+    </li>
   );
 }
