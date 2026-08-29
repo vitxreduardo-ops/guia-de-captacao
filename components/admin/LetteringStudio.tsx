@@ -413,7 +413,6 @@ export function LetteringStudio() {
     x: [],
     y: [],
   });
-  const painelRef = useRef<HTMLDivElement | null>(null);
 
   /** Último toque, pra reconhecer o segundo como duplo. */
   const toqueRef = useRef<{
@@ -730,49 +729,12 @@ export function LetteringStudio() {
   );
 
   /**
-   * Leva a vista até a camada escolhida, deixando-a no meio da faixa de palco
-   * que o painel não cobre. Sem painel aberto, a vista volta pro lugar.
-   */
-  const acomodarVista = useCallback(
-    (id: string | null) => {
-      const palco = stageRef.current;
-      if (!palco) return;
-
-      const camada = camadasRef.current.find((l) => l.id === id);
-      const z = camRef.current.z;
-      let alvo: Vista = { x: 0, y: 0, z };
-
-      if (camada) {
-        const caixaPalco = palco.getBoundingClientRect();
-        const topoDoPainel =
-          painelRef.current?.getBoundingClientRect().top ?? window.innerHeight;
-        // A faixa que sobra entre o topo do palco e o que o painel cobre.
-        const visivel = Math.max(
-          caixaPalco.height * 0.25,
-          Math.min(caixaPalco.bottom, topoDoPainel) - caixaPalco.top,
-        );
-        const meioVisivelEmPalco =
-          (visivel / 2 / caixaPalco.height) * alturaVisivelRef.current;
-
-        alvo = {
-          x: camada.x - STAGE.width / 2 / z,
-          y: camada.y - meioVisivelEmPalco / z,
-          z,
-        };
-      }
-
-      animarVista(alvo);
-    },
-    [animarVista],
-  );
-
-  /**
-   * Traz de volta o que está desenhado, mesmo que a peça tenha sido arrastada
-   * pra fora da vista. Sem zoom: a vista vai até o meio do conteúdo, que é o
-   * enquadramento possível num palco de tamanho fixo.
+   * Traz de volta o que está desenhado, mesmo depois de a peça ser arrastada
+   * pra longe, e escolhe o zoom que faz tudo caber com folga.
    */
   const centralizar = useCallback(() => {
     const caixas = camadasRef.current
+      .filter((l) => !l.hidden)
       .map((l) => {
         const size = medidasRef.current.get(l.id);
         return size ? layerCorners(l, size) : null;
@@ -785,8 +747,6 @@ export function LetteringStudio() {
       return;
     }
 
-    // Enquadra o desenho inteiro com uma folga em volta, sem passar do zoom
-    // que o palco aceita.
     const largura = Math.max(1, conteudo.right - conteudo.left);
     const altura = Math.max(1, conteudo.bottom - conteudo.top);
     const z = clamp(
@@ -812,14 +772,6 @@ export function LetteringStudio() {
     jaEnquadrouRef.current = true;
     centralizar();
   }, [sizes, centralizar]);
-
-  /**
-   * Abrir uma ferramenta acomoda a vista na camada escolhida; fechar devolve o
-   * palco inteiro. Trocar de camada com o painel aberto também acompanha.
-   */
-  useEffect(() => {
-    acomodarVista(dock ? selectedId : null);
-  }, [dock, selectedId, acomodarVista]);
 
   /** Guarda o rascunho a cada mudança: fechar a aba não pode custar o layout. */
   useEffect(() => {
@@ -2089,7 +2041,6 @@ export function LetteringStudio() {
         {dock ? (
           <div
             id="lettering-painel"
-            ref={painelRef}
             // Cartão próprio, com o mesmo raio da dock: sem uma borda visível o
             // painel se confundia com o palco e não dava pra ver onde um
             // acabava e o outro começava.
