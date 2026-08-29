@@ -265,6 +265,16 @@ export function LetteringStudio() {
   const [layouts, setLayouts] = useState<LayoutSalvo[]>([]);
   const [fontesSalvas, setFontesSalvas] = useState<FonteSalva[]>([]);
   const [nomeDoLayout, setNomeDoLayout] = useState("");
+  /**
+   * Qual layout da biblioteca está aberto, e como ele era quando abriu. A
+   * assinatura olha só as camadas: escolher uma camada não é alteração, e sem
+   * isso o aviso de não salvo acendia a cada toque no palco.
+   */
+  const [aberto, setAberto] = useState<{
+    id: string;
+    nome: string;
+    assinatura: string;
+  } | null>(null);
   const [ocupado, setOcupado] = useState(false);
   /**
    * `comDesfazer` só existe onde desfazer é a resposta certa. Num recado de
@@ -1728,6 +1738,16 @@ export function LetteringStudio() {
       );
       setLayouts(lista);
       setNomeDoLayout("");
+      // O que acabou de ir pro banco passa a ser o ponto de comparação: o
+      // sinal de não salvo tem que apagar no mesmo instante.
+      const salvo = lista.find((l) => l.name === nome);
+      if (salvo) {
+        setAberto({
+          id: salvo.id,
+          nome,
+          assinatura: JSON.stringify(history.presente.layers),
+        });
+      }
       setAviso({ texto: `"${nome}" salvo na biblioteca` });
     } catch {
       setAviso({ texto: "Não deu pra salvar na biblioteca." });
@@ -1757,6 +1777,11 @@ export function LetteringStudio() {
 
     despacharAcao({ type: "trocarTudo", state: estado });
     fecharPasso();
+    setAberto({
+      id: layout.id,
+      nome: layout.name,
+      assinatura: JSON.stringify(estado.layers),
+    });
     // Abrir um layout fecha a biblioteca pelo mesmo caminho de um toque no
     // botão: some animando, e não de um quadro pro outro.
     setFechando(dock);
@@ -1768,6 +1793,10 @@ export function LetteringStudio() {
     setOcupado(true);
     try {
       setLayouts(await excluirLayoutAction(id));
+      // Apagar o que está aberto deixa a peça na tela, mas ela não é mais
+      // aquele layout: sem soltar o nome, a barra apontaria pra um registro
+      // que não existe.
+      setAberto((atual) => (atual?.id === id ? null : atual));
       setAviso({ texto: `"${nome}" saiu da biblioteca` });
     } catch {
       setAviso({ texto: "Não deu pra excluir." });
@@ -1798,6 +1827,13 @@ export function LetteringStudio() {
 
   // A fonte do cliente vive só na memória do navegador: ao voltar de um
   // rascunho ela não existe mais, e a peça desenha com a fonte de reserva.
+  /**
+   * A peça na tela saiu do que está guardado? Só as camadas contam — a
+   * escolha muda a cada toque e não é alteração de conteúdo.
+   */
+  const alterado =
+    aberto !== null && JSON.stringify(layers) !== aberto.assinatura;
+
   const faltando = fontesFaltando(
     layers,
     fonts.map((f) => f.family),
@@ -1903,7 +1939,24 @@ export function LetteringStudio() {
           ) : null}
         </div>
 
-          {/* Ajustes do palco num botão só: desfazer, refazer e sobre o que a
+          {/* Que peça é esta. Sem isso a tela não respondia onde a pessoa está:
+            abrir um layout, mexer e voltar depois era indistinguível de
+            começar do zero. O ponto acende quando o que está na frente já não
+            é o que está guardado. */}
+        <div className="pointer-events-none absolute top-5 left-7 z-20 flex max-w-[55%] items-center gap-1.5 rounded-full border border-neutral-200 bg-white/95 px-3 py-1.5 shadow-md">
+          {alterado ? (
+            <span
+              aria-hidden="true"
+              className="size-1.5 shrink-0 rounded-full bg-amber-500"
+            />
+          ) : null}
+          <span className="truncate text-xs font-medium tracking-[0.01em] text-neutral-700">
+            {aberto ? aberto.nome : "Rascunho"}
+          </span>
+          {alterado ? <span className="sr-only">com alterações não salvas</span> : null}
+        </div>
+
+        {/* Ajustes do palco num botão só: desfazer, refazer e sobre o que a
             peça está sendo vista. São controles da vista, não da peça — por
             isso ficam aqui e não na barra de ferramentas. */}
         <div className="absolute top-5 right-7 z-20">
