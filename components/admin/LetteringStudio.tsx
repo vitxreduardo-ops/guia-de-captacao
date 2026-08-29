@@ -133,6 +133,15 @@ const INPUT =
 const LABEL = "block text-sm font-medium text-neutral-700";
 
 /** Xadrez de fundo: é assim que se enxerga que o PNG saiu mesmo transparente. */
+/** A pessoa pediu menos movimento no sistema? Então nada de deslizar sozinho. */
+function semMovimento() {
+  try {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
+  }
+}
+
 /** Pulso curto onde o aparelho oferecer. No iPhone o Safari ignora, sem erro. */
 function vibrar(ms: number) {
   try {
@@ -306,6 +315,20 @@ export function LetteringStudio() {
   const amostrasRef = useRef<{ x: Amostra[]; y: Amostra[] }>({ x: [], y: [] });
   const animacaoRef = useRef<number | null>(null);
   const medirRef = useRef<HTMLCanvasElement | null>(null);
+  /**
+   * A moldura com as alças é DOM, não canvas: alça precisa receber toque. Ela
+   * é posicionada direto pelo style dentro do laço de pintura, sem passar pelo
+   * React — no meio de um gesto isso custaria um render por quadro.
+   */
+  const molduraRef = useRef<HTMLDivElement | null>(null);
+  /** Último toque, pra reconhecer o segundo como duplo. */
+  const toqueRef = useRef<{ id: string | null; t: number } | null>(null);
+  /**
+   * O atalho de teclado é registrado uma vez só e precisa chamar as ações
+   * atuais; guardá-las em ref evita reassinar o evento a cada render.
+   */
+  const duplicarRef = useRef<(id: string) => void>(() => {});
+  const removerRef = useRef<(id: string) => void>(() => {});
 
   const selected = layers.find((l) => l.id === selectedId) ?? null;
 
@@ -351,27 +374,25 @@ export function LetteringStudio() {
       ctx.restore();
     });
 
-    // Moldura e guias vivem no canvas do palco, que não é o canvas da
-    // exportação — não há como elas vazarem pro PNG.
+    // A moldura é DOM por causa das alças, e acompanha o gesto pelo style —
+    // como as guias, ela nunca toca o canvas da exportação.
     const escolhida = camadasRef.current.find(
       (l) => l.id === selecaoRef.current,
     );
     const medida = escolhida ? medidasRef.current.get(escolhida.id) : null;
-    if (escolhida && medida) {
-      const layer = comGesto(escolhida);
-      ctx.save();
-      ctx.translate(layer.x, layer.y);
-      ctx.rotate((layer.rotation * Math.PI) / 180);
-      ctx.strokeStyle = "rgba(23, 23, 23, .7)";
-      ctx.lineWidth = 2 / escala;
-      ctx.setLineDash([6 / escala, 5 / escala]);
-      ctx.strokeRect(
-        -medida.width / 2,
-        -medida.height / 2,
-        medida.width,
-        medida.height,
-      );
-      ctx.restore();
+    const moldura = molduraRef.current;
+    if (moldura) {
+      if (escolhida && medida) {
+        const layer = comGesto(escolhida);
+        moldura.hidden = false;
+        moldura.style.left = `${(layer.x / STAGE.width) * 100}%`;
+        moldura.style.top = `${(layer.y / STAGE.height) * 100}%`;
+        moldura.style.width = `${(medida.width / STAGE.width) * 100}%`;
+        moldura.style.height = `${(medida.height / STAGE.height) * 100}%`;
+        moldura.style.transform = `translate(-50%, -50%) rotate(${layer.rotation}deg)`;
+      } else {
+        moldura.hidden = true;
+      }
     }
 
     if (guiasRef.current.length > 0) {
@@ -468,6 +489,12 @@ export function LetteringStudio() {
     };
   }, [dock]);
 
+  // O atalho de teclado é assinado uma vez e chama as ações atuais por ref.
+  useEffect(() => {
+    duplicarRef.current = duplicar;
+    removerRef.current = remover;
+  });
+
   /** Guarda o rascunho a cada mudança: fechar a aba não pode custar o layout. */
   useEffect(() => {
     guardarRascunho(history.presente);
@@ -482,16 +509,60 @@ export function LetteringStudio() {
   /** Atalhos de teclado no computador. No celular valem os botões do palco. */
   useEffect(() => {
     const aoTeclar = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z") return;
       const alvo = e.target as HTMLElement | null;
-      // Dentro de um campo, desfazer é do texto que está sendo digitado.
+      // Dentro de um campo o teclado é do texto que está sendo digitado.
       if (alvo && /^(INPUT|TEXTAREA|SELECT)$/.test(alvo.tagName)) return;
+
+      const comando = e.metaKey || e.ctrlKey;
+
+      if (comando && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        setHistory((h) => (e.shiftKey ? refazer(h) : desfazer(h)));
+        return;
+      }
+
+      const escolhida = selecaoRef.current;
+      if (!escolhida) return;
+
+      if (comando && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        duplicarRef.current(escolhida);
+        return;
+      }
+
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        removerRef.current(escolhida);
+        return;
+      }
+
+      const passos: Record<string, [number, number]> = {
+        ArrowLeft: [-1, 0],
+        ArrowRight: [1, 0],
+        ArrowUp: [0, -1],
+        ArrowDown: [0, 1],
+      };
+      const passo = passos[e.key];
+      if (!passo) return;
+
       e.preventDefault();
-      setHistory((h) => (e.shiftKey ? refazer(h) : desfazer(h)));
+      // Shift anda em salto; sozinha, a seta ajusta fino.
+      const distancia = e.shiftKey ? 20 : 2;
+      const camada = camadasRef.current.find((l) => l.id === escolhida);
+      if (!camada) return;
+      despacharAcao({
+        type: "alterar",
+        id: escolhida,
+        patch: {
+          x: camada.x + passo[0] * distancia,
+          y: camada.y + passo[1] * distancia,
+        },
+        coalesce: `teclado:${escolhida}`,
+      });
     };
     window.addEventListener("keydown", aoTeclar);
     return () => window.removeEventListener("keydown", aoTeclar);
-  }, []);
+  }, [despacharAcao]);
 
   const patch = useCallback(
     (over: Partial<Layer>, coalesce?: string) => {
@@ -630,9 +701,10 @@ export function LetteringStudio() {
       const alvo = comImã(id, destino.x, destino.y);
 
       // Aba escondida não pinta quadro nenhum, e a mola nunca terminaria: o
-      // gesto ficaria pendente até a pessoa voltar pro app. Aqui ela vai
-      // direto pro destino e o passo é gravado.
-      if (document.hidden) {
+      // gesto ficaria pendente até a pessoa voltar pro app. Quem pediu menos
+      // movimento no sistema também não quer ver a peça deslizando sozinha —
+      // nos dois casos ela vai direto pro destino e o passo é gravado.
+      if (document.hidden || semMovimento()) {
         vivoRef.current = { id, x: alvo.x, y: alvo.y };
         encerrarComCommit();
         return;
@@ -732,6 +804,25 @@ export function LetteringStudio() {
     }
 
     const alvo = camadaNoPonto(point);
+
+    // Dois toques na peça abrem o texto dela. Escrever é o que mais se faz
+    // aqui, e era o caminho mais longo: descer até a aba Conteúdo.
+    const agora = e.timeStamp;
+    const anterior = toqueRef.current;
+    toqueRef.current = { id: alvo?.id ?? null, t: agora };
+    if (alvo && anterior && anterior.id === alvo.id && agora - anterior.t < 400) {
+      setSelectedId(alvo.id);
+      setDock("texto");
+      requestAnimationFrame(() => {
+        const campo = document.getElementById("lettering-text");
+        if (campo instanceof HTMLTextAreaElement) {
+          campo.focus();
+          campo.select();
+        }
+      });
+      return;
+    }
+
     setSelectedId(alvo?.id ?? null);
     if (!alvo) return;
     dragRef.current = {
@@ -762,7 +853,10 @@ export function LetteringStudio() {
    * "pointerup" chegar na alça deixava o giro preso quando o evento se perdia
    * — e só soltava ao tocar em outro lugar da tela.
    */
-  function onAlcaDown(e: React.PointerEvent) {
+  function onAlcaDown(
+    e: React.PointerEvent,
+    faz: { escala?: boolean; giro?: boolean } = { escala: true, giro: true },
+  ) {
     if (!selected) return;
     // Sem isto o toque na alça viraria arrastar da camada logo abaixo dela.
     e.stopPropagation();
@@ -786,10 +880,16 @@ export function LetteringStudio() {
       };
       const escala = distance(centro, point) / base.distancia;
       const giro = shortestTurn(base.angulo, angle(centro, point));
+      // Canto muda tamanho, alça de cima gira. Separado porque cada gesto tem
+      // sua intenção: ajustar o corpo da letra sem torcer a peça, e vice-versa.
       vivoRef.current = {
         id: base.id,
-        size: Math.round(clamp(base.size * escala, 8, 900)),
-        rotation: Math.round(clamp(base.rotation + giro, -180, 180)),
+        ...(faz.escala
+          ? { size: Math.round(clamp(base.size * escala, 8, 900)) }
+          : {}),
+        ...(faz.giro
+          ? { rotation: Math.round(clamp(base.rotation + giro, -180, 180)) }
+          : {}),
       };
       const l = camadasRef.current.find((c) => c.id === base.id);
       const ctx = stageCanvasRef.current?.getContext("2d");
@@ -1263,25 +1363,56 @@ export function LetteringStudio() {
           {/* A alça mora num canto do palco, não em cima da camada. No canto
               da moldura ela cobria justamente a área que se quer arrastar — e
               sumia da tela quando a camada passava da borda. */}
+          {/* Moldura da camada escolhida. Fica sempre montada e é o laço de
+              pintura que a posiciona e a esconde — remontar isso a cada quadro
+              custaria um render por movimento do dedo. */}
+          <div
+            ref={molduraRef}
+            hidden
+            className="pointer-events-none absolute border-2 border-dashed border-neutral-900/70"
+          >
+            {/* Cantos mudam o tamanho. A área de toque é maior que o desenho:
+                44px é o mínimo que o dedo acerta sem mira. */}
+            {(
+              [
+                ["-top-5 -left-5", "Aumentar pelo canto superior esquerdo"],
+                ["-top-5 -right-5", "Aumentar pelo canto superior direito"],
+                ["-bottom-5 -left-5", "Aumentar pelo canto inferior esquerdo"],
+                ["-bottom-5 -right-5", "Aumentar pelo canto inferior direito"],
+              ] as const
+            ).map(([posicao, rotulo]) => (
+              <button
+                key={posicao}
+                type="button"
+                aria-label={rotulo}
+                onPointerDown={(e) => onAlcaDown(e, { escala: true })}
+                className={`pointer-events-auto absolute ${posicao} grid size-10 touch-none place-items-center`}
+              >
+                <span className="block size-3.5 rounded-full border-2 border-neutral-900 bg-white shadow-sm" />
+              </button>
+            ))}
+
+            {/* A de girar fica afastada do corpo, acima: perto dos cantos ela
+                seria pega por engano. */}
+            <button
+              type="button"
+              aria-label="Girar a camada"
+              onPointerDown={(e) => onAlcaDown(e, { giro: true })}
+              className="pointer-events-auto absolute -top-14 left-1/2 grid size-11 -translate-x-1/2 touch-none place-items-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-md"
+            >
+              <RotateCw aria-hidden="true" className="size-4" />
+            </button>
+          </div>
+
           {selected ? (
-            <>
-              <button
-                type="button"
-                aria-label="Mover a camada"
-                onPointerDown={onMoverDown}
-                className="absolute bottom-3 left-3 grid size-12 touch-none place-items-center rounded-full border border-neutral-200 bg-white/95 text-neutral-700 shadow-md transition-transform duration-100 active:scale-95 active:bg-neutral-100"
-              >
-                <Move aria-hidden="true" className="size-5" />
-              </button>
-              <button
-                type="button"
-                aria-label="Girar e redimensionar"
-                onPointerDown={onAlcaDown}
-                className="absolute right-3 bottom-3 grid size-12 touch-none place-items-center rounded-full border border-neutral-200 bg-white/95 text-neutral-700 shadow-md transition-transform duration-100 active:scale-95 active:bg-neutral-100"
-              >
-                <RotateCw aria-hidden="true" className="size-5" />
-              </button>
-            </>
+            <button
+              type="button"
+              aria-label="Mover a camada"
+              onPointerDown={onMoverDown}
+              className="absolute bottom-3 left-3 grid size-12 touch-none place-items-center rounded-full border border-neutral-200 bg-white/95 text-neutral-700 shadow-md transition-transform duration-100 active:scale-95 active:bg-neutral-100"
+            >
+              <Move aria-hidden="true" className="size-5" />
+            </button>
           ) : null}
         </div>
 
@@ -1343,8 +1474,8 @@ export function LetteringStudio() {
         </div>
 
         <p className="mt-1 text-center text-xs text-neutral-500">
-          Arraste a peça ou use os botões do palco: um move, o outro gira e muda
-          o tamanho. Dois dedos fazem as duas coisas juntas.
+          Arraste pra mover, puxe um canto pra mudar o tamanho e a alça de cima
+          pra girar. Dois dedos fazem tudo junto, e dois toques abrem o texto.
         </p>
       </div>
 

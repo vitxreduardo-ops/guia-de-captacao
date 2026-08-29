@@ -81,9 +81,14 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
       volta pra dentro do palco, mas durante o gesto sai livre — falta a
       resistência progressiva da borda, que avisa que ali acabou.
 
-- [ ] **A alça é uma só, num canto fixo.** Resolve girar e redimensionar, mas
-      não é o que se espera de um editor: faltam as quatro alças de canto, com
-      a de giro separada da de tamanho.
+- [ ] **O componente do estúdio passou de 2.300 linhas.** Estado, gestos,
+      desenho, painéis e exportação no mesmo arquivo. A geometria e o estado já
+      saíram pra `lib/`, o que provou que o corte funciona — falta separar
+      palco, dock e inspetor.
+
+- [ ] **Interface sem tema escuro.** Vale pro admin inteiro, não só pro
+      lettering: hoje tudo é cinza claro fixo. Fazer só nesta tela deixaria o
+      painel inconsistente.
 
 ## Login
 
