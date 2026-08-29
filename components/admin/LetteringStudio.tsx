@@ -12,9 +12,11 @@ import {
   AlignStartVertical,
   AlignVerticalSpaceAround,
   Copy,
+  Crosshair,
   Download,
   GripVertical,
   Layers,
+  MoreHorizontal,
   Move,
   Share2,
   Redo2,
@@ -242,6 +244,8 @@ export function LetteringStudio() {
    * `comDesfazer` só existe onde desfazer é a resposta certa. Num recado de
    * "salvo", o botão desfaria a última edição — não o salvamento.
    */
+  /** Ajustes da vista, no canto do palco. */
+  const [ajustes, setAjustes] = useState(false);
   const [aviso, setAviso] = useState<{
     texto: string;
     comDesfazer?: boolean;
@@ -511,36 +515,9 @@ export function LetteringStudio() {
     removerRef.current = remover;
   });
 
-  /**
-   * Leva a vista até a camada escolhida, deixando-a no meio da faixa de palco
-   * que o painel não cobre. Sem painel aberto, a vista volta pro lugar.
-   */
-  const acomodarVista = useCallback(
-    (id: string | null) => {
-      const palco = stageRef.current;
-      if (!palco) return;
-
-      const camada = camadasRef.current.find((l) => l.id === id);
-      let alvo: Point = { x: 0, y: 0 };
-
-      if (camada) {
-        const caixaPalco = palco.getBoundingClientRect();
-        const topoDoPainel =
-          painelRef.current?.getBoundingClientRect().top ?? window.innerHeight;
-        // A faixa que sobra entre o topo do palco e o que o painel cobre.
-        const visivel = Math.max(
-          caixaPalco.height * 0.25,
-          Math.min(caixaPalco.bottom, topoDoPainel) - caixaPalco.top,
-        );
-        const meioVisivelEmPalco =
-          (visivel / 2 / caixaPalco.height) * STAGE.height;
-
-        alvo = {
-          x: camada.x - STAGE.width / 2,
-          y: camada.y - meioVisivelEmPalco,
-        };
-      }
-
+  /** Desliza a vista até o ponto pedido, com mola. */
+  const animarVista = useCallback(
+    (alvo: Point) => {
       if (camAnimRef.current !== null) {
         cancelAnimationFrame(camAnimRef.current);
         camAnimRef.current = null;
@@ -576,6 +553,66 @@ export function LetteringStudio() {
     },
     [pintar],
   );
+
+  /**
+   * Leva a vista até a camada escolhida, deixando-a no meio da faixa de palco
+   * que o painel não cobre. Sem painel aberto, a vista volta pro lugar.
+   */
+  const acomodarVista = useCallback(
+    (id: string | null) => {
+      const palco = stageRef.current;
+      if (!palco) return;
+
+      const camada = camadasRef.current.find((l) => l.id === id);
+      let alvo: Point = { x: 0, y: 0 };
+
+      if (camada) {
+        const caixaPalco = palco.getBoundingClientRect();
+        const topoDoPainel =
+          painelRef.current?.getBoundingClientRect().top ?? window.innerHeight;
+        // A faixa que sobra entre o topo do palco e o que o painel cobre.
+        const visivel = Math.max(
+          caixaPalco.height * 0.25,
+          Math.min(caixaPalco.bottom, topoDoPainel) - caixaPalco.top,
+        );
+        const meioVisivelEmPalco =
+          (visivel / 2 / caixaPalco.height) * STAGE.height;
+
+        alvo = {
+          x: camada.x - STAGE.width / 2,
+          y: camada.y - meioVisivelEmPalco,
+        };
+      }
+
+      animarVista(alvo);
+    },
+    [animarVista],
+  );
+
+  /**
+   * Traz de volta o que está desenhado, mesmo que a peça tenha sido arrastada
+   * pra fora da vista. Sem zoom: a vista vai até o meio do conteúdo, que é o
+   * enquadramento possível num palco de tamanho fixo.
+   */
+  const centralizar = useCallback(() => {
+    const caixas = camadasRef.current
+      .map((l) => {
+        const size = medidasRef.current.get(l.id);
+        return size ? layerCorners(l, size) : null;
+      })
+      .filter((c): c is NonNullable<typeof c> => c !== null);
+
+    const conteudo = unionBounds(caixas);
+    if (!conteudo) {
+      animarVista({ x: 0, y: 0 });
+      return;
+    }
+
+    animarVista({
+      x: (conteudo.left + conteudo.right) / 2 - STAGE.width / 2,
+      y: (conteudo.top + conteudo.bottom) / 2 - STAGE.height / 2,
+    });
+  }, [animarVista]);
 
   /**
    * Abrir uma ferramenta acomoda a vista na camada escolhida; fechar devolve o
@@ -884,6 +921,9 @@ export function LetteringStudio() {
       camAnimRef.current = null;
     }
     amostrasRef.current = { x: [], y: [] };
+    // Encostar no palco fecha os ajustes: eles cobrem justamente o canto onde
+    // a peça costuma estar.
+    setAjustes(false);
 
     const point = stagePoint(e);
     pointersRef.current.set(e.pointerId, point);
@@ -1418,7 +1458,7 @@ export function LetteringStudio() {
     <div className="mx-auto flex w-full max-w-md flex-col gap-3 pb-44 lg:max-w-2xl">
       {/* O palco é a peça: no celular ele fica no topo e gruda, pra editar
           vendo o resultado sem precisar rolar a página. */}
-      <div className="sticky top-0 z-10 -mx-4 bg-neutral-50 px-4 py-2 lg:static lg:mx-0 lg:bg-transparent lg:p-0">
+      <div className="relative sticky top-0 z-10 -mx-4 bg-neutral-50 px-4 py-2 lg:static lg:mx-0 lg:bg-transparent lg:p-0">
         <div
           ref={stageRef}
           onPointerDown={onPointerDown}
@@ -1484,30 +1524,6 @@ export function LetteringStudio() {
             </button>
           </div>
 
-          {/* Desfazer e refazer moram dentro do palco: é onde o olho está
-              quando algo sai errado, e fora dele eles roubavam uma faixa da
-              tela só pra si. */}
-          <div className="absolute top-3 right-3 flex gap-2">
-            <button
-              type="button"
-              aria-label="Desfazer"
-              disabled={!podeDesfazer(history)}
-              onClick={() => setHistory(desfazer)}
-              className="grid size-10 place-items-center rounded-full border border-neutral-200 bg-white/95 text-neutral-700 shadow-md transition-transform duration-100 active:scale-95 disabled:opacity-40"
-            >
-              <Undo2 aria-hidden="true" className="size-4" />
-            </button>
-            <button
-              type="button"
-              aria-label="Refazer"
-              disabled={!podeRefazer(history)}
-              onClick={() => setHistory(refazer)}
-              className="grid size-10 place-items-center rounded-full border border-neutral-200 bg-white/95 text-neutral-700 shadow-md transition-transform duration-100 active:scale-95 disabled:opacity-40"
-            >
-              <Redo2 aria-hidden="true" className="size-4" />
-            </button>
-          </div>
-
           {selected ? (
             <button
               type="button"
@@ -1517,6 +1533,91 @@ export function LetteringStudio() {
             >
               <Move aria-hidden="true" className="size-5" />
             </button>
+          ) : null}
+        </div>
+
+          {/* Ajustes do palco num botão só: desfazer, refazer e sobre o que a
+            peça está sendo vista. São controles da vista, não da peça — por
+            isso ficam aqui e não na barra de ferramentas. */}
+        <div className="absolute top-5 right-7 z-20">
+          <button
+            type="button"
+            aria-label="Ajustes do palco"
+            aria-expanded={ajustes}
+            onClick={() => setAjustes((aberto) => !aberto)}
+            className={`grid size-10 place-items-center rounded-full border shadow-md transition-transform duration-100 active:scale-95 ${
+              ajustes
+                ? "border-neutral-900 bg-neutral-900 text-white"
+                : "border-neutral-200 bg-white/95 text-neutral-700"
+            }`}
+          >
+            <MoreHorizontal aria-hidden="true" className="size-5" />
+          </button>
+
+          {ajustes ? (
+            <div className="absolute top-12 right-0 w-52 space-y-3 rounded-lg border border-neutral-200 bg-white p-3 shadow-lg">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  aria-label="Desfazer"
+                  disabled={!podeDesfazer(history)}
+                  onClick={() => setHistory(desfazer)}
+                  className="flex flex-1 items-center justify-center gap-1 rounded-md border border-neutral-200 py-2 text-sm text-neutral-700 transition-transform duration-100 active:scale-95 disabled:opacity-40"
+                >
+                  <Undo2 aria-hidden="true" className="size-4" />
+                  Desfazer
+                </button>
+                <button
+                  type="button"
+                  aria-label="Refazer"
+                  disabled={!podeRefazer(history)}
+                  onClick={() => setHistory(refazer)}
+                  className="grid w-11 place-items-center rounded-md border border-neutral-200 text-neutral-700 transition-transform duration-100 active:scale-95 disabled:opacity-40"
+                >
+                  <Redo2 aria-hidden="true" className="size-4" />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  centralizar();
+                  setAjustes(false);
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-md border border-neutral-200 py-2 text-sm text-neutral-700 transition-transform duration-100 active:scale-95"
+              >
+                <Crosshair aria-hidden="true" className="size-4" />
+                Centralizar
+              </button>
+
+              <div className="space-y-1.5">
+                <p className="text-xs text-neutral-500">Ver a peça sobre</p>
+                <div className="grid grid-cols-2 gap-1">
+                  {(
+                    [
+                      ["xadrez", "Transparente"],
+                      ["claro", "Claro"],
+                      ["escuro", "Escuro"],
+                      ["foto", "Foto"],
+                    ] as const
+                  ).map(([id, rotulo]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setFundo(id)}
+                      aria-pressed={fundo === id}
+                      className={`rounded-md border px-2 py-2 text-xs transition-transform duration-100 active:scale-95 ${
+                        fundo === id
+                          ? "border-neutral-900 bg-neutral-900 text-white"
+                          : "border-neutral-200 bg-white text-neutral-600"
+                      }`}
+                    >
+                      {rotulo}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           ) : null}
         </div>
 
@@ -1551,31 +1652,6 @@ export function LetteringStudio() {
           </p>
         ) : null}
 
-        <div className="mt-2 flex items-center gap-1">
-          <span className="mr-1 text-xs text-neutral-500">Ver sobre</span>
-          {(
-            [
-              ["xadrez", "Transparente"],
-              ["claro", "Claro"],
-              ["escuro", "Escuro"],
-              ["foto", "Foto"],
-            ] as const
-          ).map(([id, rotulo]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setFundo(id)}
-              aria-pressed={fundo === id}
-              className={`flex-1 rounded-md border px-2 py-1.5 text-xs transition-transform duration-100 active:scale-95 ${
-                fundo === id
-                  ? "border-neutral-900 bg-neutral-900 text-white"
-                  : "border-neutral-200 bg-white text-neutral-600"
-              }`}
-            >
-              {rotulo}
-            </button>
-          ))}
-        </div>
 
         <p className="mt-1 text-center text-xs text-neutral-500">
           Arraste pra mover, puxe um canto pra mudar o tamanho e a alça de cima
