@@ -25,6 +25,18 @@ export async function sendWhatsAppNotice(text: string): Promise<boolean> {
       console.error("CallMeBot respondeu", response.status);
       return false;
     }
+
+    // O CallMeBot responde 203 tanto pra sucesso quanto pra erro — telefone
+    // fora do formato ou apikey vencida só aparecem no corpo da página.
+    const body = await response.text();
+    if (/invalid|error|not found|expired/i.test(body)) {
+      console.error(
+        "CallMeBot recusou o envio:",
+        body.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 200)
+      );
+      return false;
+    }
+
     return true;
   } catch (error) {
     console.error("CallMeBot falhou", error);
