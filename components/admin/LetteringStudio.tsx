@@ -1659,16 +1659,22 @@ export function LetteringStudio() {
         </p>
       </div>
 
-      {/* A dock: uma barra deslizante embaixo; o painel do botão sobe acima
-          dela, um de cada vez, que é o que cabe no celular. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-neutral-100">
+      {/* A dock flutua sobre o conteúdo, descolada das bordas, e o painel da
+          ferramenta sobe acima dela — um de cada vez, que é o que cabe no
+          celular. Cor sólida em vez de vidro: aqui embaixo passa a peça, e
+          material translúcido brigaria com ela. */}
+      <div
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex flex-col items-center gap-2 px-3"
+        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+      >
         {dock ? (
           <div
             id="lettering-painel"
             ref={painelRef}
-            // Fundo cinza e uma linha em cima: sem isso o painel se confundia
-            // com o palco e não dava pra ver onde um acabava e o outro começava.
-            className="mx-auto max-h-[40svh] w-full max-w-md overflow-auto border-b border-neutral-200 bg-neutral-100"
+            // Cartão próprio, com o mesmo raio da dock: sem uma borda visível o
+            // painel se confundia com o palco e não dava pra ver onde um
+            // acabava e o outro começava.
+            className="pointer-events-auto max-h-[40svh] w-full max-w-md overflow-auto rounded-[28px] border border-neutral-200 bg-neutral-100 shadow-xl"
           >
             <div hidden={dock !== "emoji"} className="space-y-3 p-3">
               <Button
@@ -2397,7 +2403,9 @@ export function LetteringStudio() {
 
         <nav
           aria-label="Ferramentas"
-          className="mx-auto flex w-full max-w-md gap-1 overflow-x-auto border-t border-neutral-200 p-1"
+          // Pílula sólida com sombra difusa, no espírito da dock do iOS 26: um
+          // painel flutuante de cantos bem arredondados, separado das bordas.
+          className="pointer-events-auto flex w-full max-w-md justify-between gap-0 rounded-[28px] border border-neutral-200 bg-white p-1.5 shadow-xl"
         >
           {(
             [
@@ -2417,12 +2425,23 @@ export function LetteringStudio() {
               onClick={() => setDock((atual) => (atual === id ? null : id))}
               aria-pressed={dock === id}
               aria-controls="lettering-painel"
-              className={`flex shrink-0 flex-col items-center gap-0.5 rounded-md px-3 py-2 text-xs transition-transform duration-100 active:scale-95 ${
-                dock === id ? "bg-neutral-900 text-white" : "text-neutral-600"
+              // O raio do item é concêntrico com o da dock: o interno é o
+              // externo menos o respiro, senão os dois cantos brigam.
+              aria-label={rotulo}
+              // O raio do item é concêntrico com o da dock: o interno é o
+              // externo menos o respiro, senão os dois cantos brigam.
+              //
+              // O nome aparece só na ferramenta aberta. Oito rótulos lado a
+              // lado não cabem sem cortar palavra, e rótulo cortado não ajuda
+              // ninguém — o da vez basta pra situar.
+              className={`flex min-w-0 shrink-0 items-center gap-1.5 rounded-[22px] px-3 py-2.5 text-[11px] transition-all duration-200 active:scale-95 ${
+                dock === id
+                  ? "bg-neutral-900 text-white"
+                  : "flex-1 justify-center text-neutral-600"
               }`}
             >
-              <Icone aria-hidden="true" className="size-5" />
-              {rotulo}
+              <Icone aria-hidden="true" className="size-5 shrink-0" />
+              {dock === id ? <span className="whitespace-nowrap">{rotulo}</span> : null}
             </button>
           ))}
         </nav>
