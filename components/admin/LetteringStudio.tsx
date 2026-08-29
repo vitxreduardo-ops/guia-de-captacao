@@ -24,7 +24,12 @@ import {
   type Point,
   type Size,
 } from "@/lib/lettering";
-import { drawLayer, measureLayer, EXPORT_SCALE, STAGE } from "@/lib/letteringDraw";
+import {
+  drawLayer,
+  measureLayer,
+  safeScale,
+  STAGE,
+} from "@/lib/letteringDraw";
 
 const SYSTEM_FONTS = [
   { family: '"BootzyTM"', label: "Bootzy" },
@@ -125,7 +130,14 @@ export function LetteringStudio() {
     const usadas = [...new Set(layers.map((l) => `${l.size}px ${l.family}`))];
     let cancelled = false;
 
-    Promise.all(usadas.map((f) => document.fonts.load(f))).then(() => {
+    // Se o navegador recusar a string da fonte — o Safari é mais rígido com a
+    // lista de famílias — o desenho tem que acontecer do mesmo jeito, com a
+    // fonte que houver. Antes, uma recusa aqui deixava o palco vazio.
+    const prontas = Promise.all(
+      usadas.map((f) => document.fonts.load(f).catch(() => null)),
+    );
+
+    prontas.then(() => {
       if (cancelled) return;
 
       const medidas = new Map<string, Size>();
@@ -284,11 +296,12 @@ export function LetteringStudio() {
 
     const width = Math.max(1, area.right - area.left);
     const height = Math.max(1, area.bottom - area.top);
-    canvas.width = Math.ceil(width * EXPORT_SCALE);
-    canvas.height = Math.ceil(height * EXPORT_SCALE);
+    const escala = safeScale(width, height);
+    canvas.width = Math.ceil(width * escala);
+    canvas.height = Math.ceil(height * escala);
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.scale(EXPORT_SCALE, EXPORT_SCALE);
+    ctx.scale(escala, escala);
     ctx.translate(-area.left, -area.top);
 
     layers.forEach((layer) => {

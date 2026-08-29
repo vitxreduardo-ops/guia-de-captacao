@@ -10,6 +10,7 @@ import {
   unionBounds,
   type Layer,
 } from "@/lib/lettering";
+import { safeScale } from "@/lib/letteringDraw";
 
 function layer(over: Partial<Layer> = {}): Layer {
   return {
@@ -119,5 +120,24 @@ describe("gestos de dois dedos", () => {
     expect(clamp(5, 0, 10)).toBe(5);
     expect(clamp(-3, 0, 10)).toBe(0);
     expect(clamp(99, 0, 10)).toBe(10);
+  });
+});
+
+describe("safeScale", () => {
+  it("mantém 3x quando cabe", () => {
+    expect(safeScale(400, 300)).toBe(3);
+  });
+
+  it("segura a escala no limite de canvas do iPhone", () => {
+    // O palco inteiro em 3x daria 3240x5760: acima do teto do iOS.
+    const escala = safeScale(1080, 1920);
+    expect(escala).toBeLessThan(3);
+    expect(1080 * escala).toBeLessThanOrEqual(4096);
+    expect(1920 * escala).toBeLessThanOrEqual(4096);
+    expect(1080 * escala * (1920 * escala)).toBeLessThanOrEqual(16_000_000);
+  });
+
+  it("nunca desce abaixo de 1x", () => {
+    expect(safeScale(9000, 9000)).toBe(1);
   });
 });

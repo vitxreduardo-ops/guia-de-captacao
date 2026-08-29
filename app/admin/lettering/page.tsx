@@ -1,5 +1,5 @@
 import { AdminHeader } from "@/components/admin/AdminHeader";
-import { LetteringStudio } from "@/components/admin/LetteringStudio";
+import { LetteringStudioClient } from "@/components/admin/LetteringStudioClient";
 import { getCurrentUsername } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export default async function LetteringPage() {
         username={username}
       />
 
-      <LetteringStudio />
+      <LetteringStudioClient />
     </div>
   );
 }

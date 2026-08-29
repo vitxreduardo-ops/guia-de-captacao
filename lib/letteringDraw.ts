@@ -3,6 +3,28 @@ import type { Layer, Size } from "@/lib/lettering";
 /** O PNG sai em 3x pra dar resolução de story sem precisar pedir o tamanho. */
 export const EXPORT_SCALE = 3;
 
+/**
+ * Teto de canvas do iOS. Passando disso o Safari não avisa: devolve um canvas
+ * em branco, e o PNG sai vazio. O lado máximo é o limite mais apertado, que
+ * aparece em iPhone mais antigo.
+ */
+const MAX_CANVAS_AREA = 16_000_000;
+const MAX_CANVAS_SIDE = 4096;
+
+/**
+ * Maior escala que ainda cabe no canvas — em 1080x1920, 3x já daria 18,7
+ * milhões de pixels e estouraria o limite do iPhone.
+ */
+export function safeScale(
+  width: number,
+  height: number,
+  wanted = EXPORT_SCALE,
+): number {
+  const porArea = Math.sqrt(MAX_CANVAS_AREA / (width * height));
+  const porLado = MAX_CANVAS_SIDE / Math.max(width, height);
+  return Math.max(1, Math.min(wanted, porArea, porLado));
+}
+
 /** Tela do story. É o palco onde as camadas são posicionadas. */
 export const STAGE = { width: 1080, height: 1920 };
 
