@@ -2,6 +2,7 @@
 
 import {
   AlignCenter,
+  BookMarked,
   AlignCenterHorizontal,
   AlignCenterVertical,
   AlignEndHorizontal,
@@ -73,7 +74,16 @@ import {
   fontesFaltando,
   guardarRascunho,
   lerRascunho,
+  paraGuardar,
+  validar as validarLayout,
 } from "@/lib/letteringStorage";
+import {
+  carregarBiblioteca,
+  excluirLayoutAction,
+  guardarFonteAction,
+  guardarLayoutAction,
+} from "@/app/admin/lettering/actions";
+import type { FonteSalva, LayoutSalvo } from "@/lib/letteringLibrary";
 import { Button } from "@/components/ui/button";
 import {
   angle,
@@ -206,8 +216,21 @@ export function LetteringStudio() {
   const [trim, setTrim] = useState(true);
   const [aba, setAba] = useState<Aba>("conteudo");
   /** null = menu fechado. Um painel de cada vez, que é o que cabe no celular. */
-  const [painel, setPainel] = useState<"camadas" | "alinhar" | null>(null);
-  const [aviso, setAviso] = useState<{ texto: string } | null>(null);
+  const [painel, setPainel] = useState<
+    "camadas" | "alinhar" | "biblioteca" | null
+  >(null);
+  const [layouts, setLayouts] = useState<LayoutSalvo[]>([]);
+  const [fontesSalvas, setFontesSalvas] = useState<FonteSalva[]>([]);
+  const [nomeDoLayout, setNomeDoLayout] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  /**
+   * `comDesfazer` só existe onde desfazer é a resposta certa. Num recado de
+   * "salvo", o botão desfaria a última edição — não o salvamento.
+   */
+  const [aviso, setAviso] = useState<{
+    texto: string;
+    comDesfazer?: boolean;
+  } | null>(null);
   const [sizes, setSizes] = useState<Map<string, Size>>(new Map());
   /** PNG só existe depois de pedir: gerar em 3x a cada toque trava o celular. */
   const [png, setPng] = useState<{
@@ -418,6 +441,24 @@ export function LetteringStudio() {
   useEffect(() => {
     pintar();
   }, [selectedId, pintar]);
+
+  /** A biblioteca é buscada quando a aba abre, não na carga da tela. */
+  useEffect(() => {
+    if (painel !== "biblioteca") return;
+    let cancelado = false;
+    carregarBiblioteca()
+      .then(({ layouts, fontes }) => {
+        if (cancelado) return;
+        setLayouts(layouts);
+        setFontesSalvas(fontes);
+      })
+      .catch(() => {
+        if (!cancelado) setAviso({ texto: "Não deu pra ler a biblioteca." });
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [painel]);
 
   /** Guarda o rascunho a cada mudança: fechar a aba não pode custar o layout. */
   useEffect(() => {
@@ -999,6 +1040,7 @@ export function LetteringStudio() {
     // um toque devolve a camada inteira, com estilo e posição.
     setAviso({
       texto: `"${(alvo?.text ?? "").split("\n")[0] || "camada"}" removida`,
+      comDesfazer: true,
     });
   }
 
@@ -1040,6 +1082,89 @@ export function LetteringStudio() {
       }),
     );
     fecharPasso();
+  }
+
+  /**
+   * Registra no navegador uma fonte que veio da biblioteca. O arquivo é
+   * buscado da rota do app, que exige sessão — o bucket é privado.
+   */
+  const registrarFonte = useCallback(
+    async (fonte: FonteSalva) => {
+      const familia = `"${fonte.family}"`;
+      if (fonts.some((f) => f.family === familia)) return familia;
+      try {
+        const bytes = await fetch(
+          `/api/lettering/fontes/${encodeURIComponent(fonte.family)}`,
+        ).then((r) => r.arrayBuffer());
+        const face = new FontFace(fonte.family, bytes);
+        await face.load();
+        document.fonts.add(face);
+        setFonts((atual) => [
+          ...atual,
+          { family: familia, label: fonte.label },
+        ]);
+        return familia;
+      } catch {
+        setAviso({ texto: `Não deu pra carregar a fonte ${fonte.label}.` });
+        return null;
+      }
+    },
+    [fonts],
+  );
+
+  async function salvarNaBiblioteca() {
+    const nome = nomeDoLayout.trim();
+    if (!nome || ocupado) return;
+    setOcupado(true);
+    try {
+      // O que vai pro banco é o mesmo formato do rascunho, com carimbo de
+      // versão: sem ele a validação recusa o layout na volta.
+      const lista = await guardarLayoutAction(nome, paraGuardar(history.presente));
+      setLayouts(lista);
+      setNomeDoLayout("");
+      setAviso({ texto: `"${nome}" salvo na biblioteca` });
+    } catch {
+      setAviso({ texto: "Não deu pra salvar na biblioteca." });
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  /**
+   * Abrir um layout salvo troca tudo que está na tela — e por isso entra no
+   * histórico: um toque errado aqui tem que ter volta.
+   */
+  async function abrirLayout(layout: LayoutSalvo) {
+    const estado = validarLayout(layout.data);
+    if (!estado) {
+      setAviso({ texto: "Esse layout foi salvo num formato antigo." });
+      return;
+    }
+
+    // As fontes do layout são registradas antes do desenho, senão a peça
+    // aparece por um instante com a fonte de reserva.
+    await Promise.all(
+      fontesSalvas
+        .filter((f) => estado.layers.some((l) => l.family === `"${f.family}"`))
+        .map(registrarFonte),
+    );
+
+    despacharAcao({ type: "trocarTudo", state: estado });
+    fecharPasso();
+    setPainel(null);
+  }
+
+  async function apagarLayout(id: string, nome: string) {
+    if (ocupado) return;
+    setOcupado(true);
+    try {
+      setLayouts(await excluirLayoutAction(id));
+      setAviso({ texto: `"${nome}" saiu da biblioteca` });
+    } catch {
+      setAviso({ texto: "Não deu pra excluir." });
+    } finally {
+      setOcupado(false);
+    }
   }
 
   async function loadFont(file: File) {
@@ -1188,16 +1313,18 @@ export function LetteringStudio() {
             className="mt-2 flex items-center gap-2 rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-700 shadow-sm"
           >
             <span className="flex-1 truncate">{aviso.texto}</span>
-            <button
-              type="button"
-              onClick={() => {
-                setHistory(desfazer);
-                setAviso(null);
-              }}
-              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white"
-            >
-              Desfazer
-            </button>
+            {aviso.comDesfazer ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setHistory(desfazer);
+                  setAviso(null);
+                }}
+                className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white"
+              >
+                Desfazer
+              </button>
+            ) : null}
           </div>
         ) : null}
 
@@ -1275,7 +1402,19 @@ export function LetteringStudio() {
                   aria-hidden="true"
                   className="mr-1 inline size-4"
                 />
-                Alinhamento
+                Alinhar
+              </button>
+              <button
+                type="button"
+                onClick={() => setPainel("biblioteca")}
+                className={`flex-1 rounded-md px-2 py-2 text-sm ${
+                  painel === "biblioteca"
+                    ? "bg-neutral-900 text-white"
+                    : "text-neutral-600"
+                }`}
+              >
+                <BookMarked aria-hidden="true" className="mr-1 inline size-4" />
+                Biblioteca
               </button>
             </div>
 
@@ -1383,6 +1522,139 @@ export function LetteringStudio() {
                   Espaça todas as camadas por igual, mantendo as das pontas no
                   lugar. Precisa de três ou mais.
                 </p>
+              </div>
+            </div>
+
+            <div hidden={painel !== "biblioteca"} className="space-y-4 p-3">
+              <div className="space-y-1.5">
+                <label className={LABEL} htmlFor="lettering-nome-layout">
+                  Salvar esta peça
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="lettering-nome-layout"
+                    value={nomeDoLayout}
+                    onChange={(e) => setNomeDoLayout(e.target.value)}
+                    placeholder="Nome da peça"
+                    className={INPUT}
+                  />
+                  <Button
+                    onClick={salvarNaBiblioteca}
+                    disabled={!nomeDoLayout.trim() || ocupado}
+                  >
+                    Salvar
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <p className={LABEL}>Peças salvas</p>
+                {layouts.length === 0 ? (
+                  <p className="text-sm text-neutral-500">
+                    Nada salvo ainda. O que você salvar aqui volta em qualquer
+                    aparelho.
+                  </p>
+                ) : (
+                  <ul className="space-y-1">
+                    {layouts.map((layout) => (
+                      <li
+                        key={layout.id}
+                        className="flex items-center gap-1 rounded-md border border-neutral-200"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => abrirLayout(layout)}
+                          className="flex-1 truncate px-3 py-3 text-left text-sm"
+                        >
+                          {layout.name}
+                        </button>
+                        <button
+                          type="button"
+                          aria-label={`Excluir ${layout.name}`}
+                          onClick={() => apagarLayout(layout.id, layout.name)}
+                          className="p-3 text-neutral-500"
+                        >
+                          <Trash2 aria-hidden="true" className="size-4" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="space-y-1.5 border-t border-neutral-200 pt-3">
+                <p className={LABEL}>Fontes dos clientes</p>
+                <p className="text-xs text-neutral-500">
+                  Guardadas de vez: não precisa subir o arquivo de novo a cada
+                  peça.
+                </p>
+
+                {fontesSalvas.length > 0 ? (
+                  <ul className="space-y-1">
+                    {fontesSalvas.map((fonte) => (
+                      <li
+                        key={fonte.id}
+                        className="flex items-center gap-1 rounded-md border border-neutral-200"
+                      >
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const familia = await registrarFonte(fonte);
+                            if (familia) patch({ family: familia });
+                          }}
+                          className="flex-1 truncate px-3 py-3 text-left text-sm"
+                        >
+                          {fonte.label}
+                          {fonte.client ? (
+                            <span className="ml-2 text-xs text-neutral-500">
+                              {fonte.client}
+                            </span>
+                          ) : null}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                <form
+                  action={async (formData: FormData) => {
+                    setOcupado(true);
+                    try {
+                      setFontesSalvas(await guardarFonteAction(formData));
+                      setAviso({ texto: "Fonte guardada na biblioteca" });
+                    } catch {
+                      setAviso({ texto: "Não deu pra guardar a fonte." });
+                    } finally {
+                      setOcupado(false);
+                    }
+                  }}
+                  className="space-y-2 rounded-md border border-neutral-200 p-2"
+                >
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      name="cliente"
+                      placeholder="Cliente"
+                      className={INPUT}
+                    />
+                    <input
+                      name="rotulo"
+                      placeholder="Nome da fonte"
+                      required
+                      className={INPUT}
+                    />
+                  </div>
+                  <input
+                    type="file"
+                    name="arquivo"
+                    required
+                    accept="font/*,.ttf,.otf,.ttc,.woff,.woff2,.TTF,.OTF"
+                    className="w-full text-sm text-neutral-600"
+                  />
+                  <Button type="submit" disabled={ocupado} className="w-full">
+                    <Upload aria-hidden="true" data-icon="inline-start" />
+                    Guardar fonte
+                  </Button>
+                </form>
               </div>
             </div>
           </div>

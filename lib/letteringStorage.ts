@@ -21,19 +21,34 @@ type Guardado = {
  * só o nome da família, e o desenho cai na fonte de reserva até ela ser
  * carregada de novo.
  */
-export function serializar(state: EditorState): string {
-  const guardado: Guardado = {
+export function paraGuardar(state: EditorState): Guardado {
+  return {
     versao: VERSAO,
     layers: state.layers,
     selectedId: state.selectedId,
   };
-  return JSON.stringify(guardado);
+}
+
+export function serializar(state: EditorState): string {
+  return JSON.stringify(paraGuardar(state));
 }
 
 export function desserializar(texto: string | null): EditorState | null {
   if (!texto) return null;
   try {
-    const dado = JSON.parse(texto) as Partial<Guardado>;
+    return validar(JSON.parse(texto));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Valida um layout já em forma de objeto — é assim que ele chega da
+ * biblioteca, onde o banco guarda JSON e não texto.
+ */
+export function validar(entrada: unknown): EditorState | null {
+  try {
+    const dado = entrada as Partial<Guardado>;
     if (dado.versao !== VERSAO) return null;
     if (!Array.isArray(dado.layers) || dado.layers.length === 0) return null;
 

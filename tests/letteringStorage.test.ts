@@ -3,7 +3,9 @@ import type { Layer } from "@/lib/lettering";
 import {
   desserializar,
   fontesFaltando,
+  paraGuardar,
   serializar,
+  validar,
 } from "@/lib/letteringStorage";
 import type { EditorState } from "@/lib/letteringState";
 
@@ -96,5 +98,28 @@ describe("fontesFaltando", () => {
       camada("b", { family: "Impact, sans-serif" }),
     ];
     expect(fontesFaltando(layers, [])).toEqual([]);
+  });
+});
+
+describe("validar", () => {
+  it("aceita layout que veio do banco como objeto", () => {
+    const doBanco = { versao: 1, layers: [camada("a")], selectedId: "a" };
+    expect(validar(doBanco)?.layers).toHaveLength(1);
+  });
+
+  it("recusa objeto sem forma de layout", () => {
+    expect(validar(null)).toBeNull();
+    expect(validar({ versao: 99, layers: [camada("a")] })).toBeNull();
+    expect(validar("texto solto")).toBeNull();
+  });
+});
+
+describe("paraGuardar", () => {
+  it("carimba a versão — é o que a volta do banco confere", () => {
+    const state: EditorState = { layers: [camada("a")], selectedId: "a" };
+    const guardado = paraGuardar(state);
+    expect(guardado).toMatchObject({ versao: 1 });
+    // O que sai daqui tem que ser aceito de volta, sem passar por texto.
+    expect(validar(guardado)).toEqual(state);
   });
 });

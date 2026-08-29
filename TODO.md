@@ -68,14 +68,14 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
       aparece onde `navigator.canShare` aceita arquivo, e o navegador embutido
       usado nos testes não aceita — quem confirma é o Safari de verdade.
 
-- [ ] **Fontes do cliente não ficam salvas.** A fonte é carregada do arquivo
-      a cada uso, só na memória do navegador (`FontFace`). Guardar os arquivos
-      no Supabase Storage, com uma lista por cliente, pede bucket, upload e
-      permissão — ficou de fora da primeira versão.
+- [ ] **O envio de fonte pela tela não foi testado ponta a ponta.** A camada
+      de dados foi provada contra o banco real (guardar, listar, baixar,
+      excluir), mas o formulário em si só dá pra confirmar no navegador de
+      verdade — o embutido não monta o arquivo no `FormData`.
 
-- [ ] **O rascunho é um só.** O layout aberto volta sozinho, mas não há como
-      guardar vários nem nomeá-los. Layouts com nome pedem tabela no Supabase
-      — é a fase 3 do plano.
+- [ ] **Sem modelos de partida.** A tabela já tem `is_template`, mas nada na
+      tela cria ou lista modelo. Falta decidir o que entra: começar do vazio
+      ainda é o único caminho.
 
 - [ ] **A peça pode passar da borda enquanto o dedo arrasta.** Ao soltar ela
       volta pra dentro do palco, mas durante o gesto sai livre — falta a
