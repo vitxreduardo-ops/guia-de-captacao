@@ -77,9 +77,10 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
       e não há snap, alinhamento nem `Ctrl+Z`. Etapa 3, depois de o editor
       assentar no uso.
 
-- [ ] **Sem alças de canto no palco.** Escalar e girar com dois dedos já
-      funciona; falta a alça de canto, que é o caminho de quem edita no
-      computador com o mouse.
+- [ ] **A alça some quando a camada é maior que o palco.** Ela fica no canto
+      da moldura, e o palco corta o que passa da borda — numa camada grande a
+      alça cai fora e não dá pra pegar. Prender a alça na borda do palco
+      resolveria.
 
 ## Qualidade geral
 

@@ -3,6 +3,7 @@
 import {
   Download,
   GripVertical,
+  Layers,
   RotateCw,
   Smile,
   Trash2,
@@ -115,6 +116,7 @@ export function LetteringStudio() {
   const [fontError, setFontError] = useState<string | null>(null);
   const [trim, setTrim] = useState(true);
   const [aba, setAba] = useState<Aba>("conteudo");
+  const [camadasAbertas, setCamadasAbertas] = useState(false);
   const [sizes, setSizes] = useState<Map<string, Size>>(new Map());
   /** PNG só existe depois de pedir: gerar em 3x a cada toque trava o celular. */
   const [png, setPng] = useState<string | null>(null);
@@ -194,6 +196,25 @@ export function LetteringStudio() {
     };
   }, [layers]);
 
+  /**
+   * Rede de segurança pros gestos do palco: se o dedo levantar fora dele — ou
+   * o navegador cancelar o toque — o gesto tem que morrer junto, senão ele
+   * continua valendo no toque seguinte.
+   */
+  useEffect(() => {
+    const encerrar = () => {
+      pointersRef.current.clear();
+      pinchRef.current = null;
+      dragRef.current = null;
+    };
+    window.addEventListener("pointerup", encerrar);
+    window.addEventListener("pointercancel", encerrar);
+    return () => {
+      window.removeEventListener("pointerup", encerrar);
+      window.removeEventListener("pointercancel", encerrar);
+    };
+  }, []);
+
   const patch = useCallback(
     (over: Partial<Layer>) => {
       if (!selectedId) return;
@@ -253,54 +274,60 @@ export function LetteringStudio() {
     }
   }
 
-  /** Puxar a alça: a distância até o centro vira tamanho, o ângulo vira giro. */
+  /**
+   * Puxar a alça: a distância até o centro vira tamanho, o ângulo vira giro.
+   *
+   * O gesto é acompanhado no window, não no próprio botão. Esperar o
+   * "pointerup" chegar na alça deixava o giro preso quando o evento se perdia
+   * — e só soltava ao tocar em outro lugar da tela.
+   */
   function onAlcaDown(e: React.PointerEvent) {
     if (!selected) return;
     // Sem isto o toque na alça viraria arrastar da camada logo abaixo dela.
     e.stopPropagation();
-    const point = stagePoint(e);
     const centro = { x: selected.x, y: selected.y };
-    alcaRef.current = {
+    const inicio = stagePoint(e);
+    const base = {
       id: selected.id,
-      distancia: Math.max(1, distance(centro, point)),
-      angulo: angle(centro, point),
+      distancia: Math.max(1, distance(centro, inicio)),
+      angulo: angle(centro, inicio),
       size: selected.size,
       rotation: selected.rotation,
     };
-    capturar(e);
-  }
+    alcaRef.current = base;
 
-  function onAlcaMove(e: React.PointerEvent) {
-    const alca = alcaRef.current;
-    if (!alca || !selected) return;
-    e.stopPropagation();
-    const point = stagePoint(e);
-    const centro = { x: selected.x, y: selected.y };
-    const escala = distance(centro, point) / alca.distancia;
-    const giro = shortestTurn(alca.angulo, angle(centro, point));
-    setLayers((atual) =>
-      atual.map((l) =>
-        l.id === alca.id
-          ? {
-              ...l,
-              size: Math.round(clamp(alca.size * escala, 8, 900)),
-              rotation: Math.round(clamp(alca.rotation + giro, -180, 180)),
-            }
-          : l,
-      ),
-    );
-  }
+    const mover = (ev: PointerEvent) => {
+      const rect = stageRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const point = {
+        x: ((ev.clientX - rect.left) / rect.width) * STAGE.width,
+        y: ((ev.clientY - rect.top) / rect.height) * STAGE.height,
+      };
+      const escala = distance(centro, point) / base.distancia;
+      const giro = shortestTurn(base.angulo, angle(centro, point));
+      setLayers((atual) =>
+        atual.map((l) =>
+          l.id === base.id
+            ? {
+                ...l,
+                size: Math.round(clamp(base.size * escala, 8, 900)),
+                rotation: Math.round(clamp(base.rotation + giro, -180, 180)),
+              }
+            : l,
+        ),
+      );
+    };
 
-  function onAlcaUp(e: React.PointerEvent) {
-    alcaRef.current = null;
-    e.stopPropagation();
-    try {
-      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      }
-    } catch {
-      // ponteiro já solto pelo navegador
-    }
+    const soltar = () => {
+      alcaRef.current = null;
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", soltar);
+      window.removeEventListener("pointercancel", soltar);
+    };
+
+    window.addEventListener("pointermove", mover);
+    window.addEventListener("pointerup", soltar);
+    window.addEventListener("pointercancel", soltar);
   }
 
   function onPointerMove(e: React.PointerEvent) {
@@ -514,9 +541,6 @@ export function LetteringStudio() {
                 type="button"
                 aria-label="Girar e redimensionar"
                 onPointerDown={onAlcaDown}
-                onPointerMove={onAlcaMove}
-                onPointerUp={onAlcaUp}
-                onPointerCancel={onAlcaUp}
                 className="pointer-events-auto absolute -right-5 -bottom-5 grid size-10 touch-none place-items-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-md"
               >
                 <RotateCw aria-hidden="true" className="size-4" />
@@ -558,14 +582,29 @@ export function LetteringStudio() {
             <Smile aria-hidden="true" className="mr-1 inline size-4" />
             Emoji
           </button>
+          <button
+            type="button"
+            onClick={() => setCamadasAbertas((aberto) => !aberto)}
+            aria-expanded={camadasAbertas}
+            aria-controls="lettering-camadas-lista"
+            className={`${chip} flex-1 ${
+              camadasAbertas
+                ? "border-neutral-900 bg-neutral-900 text-white"
+                : "border-neutral-200 bg-white text-neutral-700"
+            }`}
+          >
+            <Layers aria-hidden="true" className="mr-1 inline size-4" />
+            Camadas
+          </button>
         </div>
 
         {/* A lista vem de cima pra baixo como as camadas aparecem na peça: a
             primeira linha é a que fica na frente. */}
-        <div className="rounded-lg border border-neutral-200 bg-white p-2">
-          <p className="px-1 pb-2 text-sm font-medium text-neutral-700">
-            Camadas
-          </p>
+        <div
+          id="lettering-camadas-lista"
+          hidden={!camadasAbertas}
+          className="rounded-lg border border-neutral-200 bg-white p-2"
+        >
           <DndContext
             // Id fixo: sem ele o dnd-kit numera os textos de acessibilidade em
             // ordem de montagem, e servidor e cliente chegam a números
