@@ -22,12 +22,12 @@ export default function BriefingPage() {
   // Os passos dependem do serviço escolhido: quem pede site não responde as
   // perguntas de vídeo. Trocar o serviço encurta ou alonga o caminho, então o
   // passo atual é preso ao que existe agora.
-  const steps = stepsFor(values.servico ?? "");
+  const steps = stepsFor(values);
   const step = Math.min(rawStep, steps.length - 1);
   const current = steps[step];
   const isLast = step === steps.length - 1;
   const missing = current.fields.filter(
-    (f) => f.required && !(values[f.name] ?? "").trim()
+    (f) => f.required && !(values[f.name] ?? "").trim(),
   );
 
   function set(name: string, value: string) {
