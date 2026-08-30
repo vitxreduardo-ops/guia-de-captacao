@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { submitBriefingAction } from "./actions";
-import { stepsFor } from "./fields";
+import { stepsFor, telefoneValido } from "./fields";
 
 const INPUT =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 transition-colors focus:border-neutral-500 focus:outline-none";
 
 const ERROR_MESSAGES: Record<string, string> = {
   campos: "Faltou preencher algum campo obrigatório.",
+  telefone: "Confira o WhatsApp: precisa ter DDD e 8 ou 9 dígitos.",
   servidor: "Não consegui salvar agora. Tenta de novo em instantes.",
 };
 
@@ -30,11 +31,19 @@ export default function BriefingPage() {
     (f) => f.required && !(values[f.name] ?? "").trim(),
   );
 
+  // O WhatsApp é o único caminho de volta pro cliente: número mal digitado
+  // some sem ninguém dos dois lados perceber, então trava aqui.
+  const contatoNoPasso = current.fields.some((f) => f.name === "contato");
+  const contato = (values.contato ?? "").trim();
+  const contatoRuim =
+    contatoNoPasso && contato !== "" && !telefoneValido(contato);
+
   function set(name: string, value: string) {
     setValues((v) => ({ ...v, [name]: value }));
   }
 
   function advance() {
+    if (contatoRuim) return;
     if (!isLast) {
       setStep((s) => s + 1);
       return;
@@ -45,6 +54,15 @@ export default function BriefingPage() {
       if (result.ok) setSent(true);
       else setError(result.error);
     });
+  }
+
+  // Enter nos campos de uma linha avança. A submissão implícita do form não é
+  // confiável em todo navegador, e textarea continua servindo pra quebrar
+  // linha, então o atalho fica só nos inputs.
+  function onEnter(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    advance();
   }
 
   if (sent) {
@@ -85,7 +103,13 @@ export default function BriefingPage() {
         {current.title}
       </h1>
 
-      <div className="mt-8 space-y-5">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          advance();
+        }}
+        className="mt-8 space-y-5"
+      >
         {current.fields.map((field) => (
           <div key={field.name}>
             <label
@@ -135,44 +159,66 @@ export default function BriefingPage() {
                 onChange={(e) => set(field.name, e.target.value)}
                 className={INPUT}
               />
+            ) : field.type === "tel" ? (
+              <input
+                id={field.name}
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel-national"
+                onKeyDown={onEnter}
+                aria-invalid={contatoRuim || undefined}
+                aria-describedby={contatoRuim ? "contato-erro" : undefined}
+                value={values[field.name] ?? ""}
+                onChange={(e) => set(field.name, e.target.value)}
+                className={`${INPUT} ${contatoRuim ? "border-red-500" : ""}`}
+              />
             ) : (
               <input
                 id={field.name}
                 type="text"
+                autoComplete={
+                  field.name === "nome" ? "organization" : undefined
+                }
                 value={values[field.name] ?? ""}
                 onChange={(e) => set(field.name, e.target.value)}
                 className={INPUT}
               />
             )}
+
+            {field.name === "contato" && contatoRuim && (
+              <p id="contato-erro" className="mt-1.5 text-sm text-red-600">
+                Confira o número: precisa ter DDD e 8 ou 9 dígitos.
+              </p>
+            )}
           </div>
         ))}
-      </div>
+
+        <div className="flex items-center gap-3 pt-5">
+          {step > 0 && (
+            <button
+              type="button"
+              onClick={() => setStep((s) => s - 1)}
+              disabled={pending}
+              className="rounded-md px-3 py-2 text-sm text-neutral-500 transition-transform hover:text-neutral-900 active:scale-[0.97] disabled:opacity-40"
+            >
+              Voltar
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={missing.length > 0 || contatoRuim || pending}
+            className="ml-auto rounded-md bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition-transform active:scale-[0.97] disabled:opacity-40"
+          >
+            {pending ? "Enviando…" : isLast ? "Enviar briefing" : "Continuar"}
+          </button>
+        </div>
+      </form>
 
       {error && (
         <p className="mt-6 text-sm text-red-600">
           {ERROR_MESSAGES[error] ?? "Algo deu errado. Tenta de novo."}
         </p>
       )}
-
-      <div className="mt-10 flex items-center gap-3">
-        {step > 0 && (
-          <button
-            type="button"
-            onClick={() => setStep((s) => s - 1)}
-            className="rounded-md px-3 py-2 text-sm text-neutral-500 transition-transform hover:text-neutral-900 active:scale-[0.97]"
-          >
-            Voltar
-          </button>
-        )}
-        <button
-          type="button"
-          disabled={missing.length > 0 || pending}
-          onClick={advance}
-          className="ml-auto rounded-md bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition-transform active:scale-[0.97] disabled:opacity-40"
-        >
-          {pending ? "Enviando…" : isLast ? "Enviar briefing" : "Continuar"}
-        </button>
-      </div>
     </main>
   );
 }

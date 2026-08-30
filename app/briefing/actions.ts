@@ -2,7 +2,7 @@
 
 import { createBriefing } from "@/lib/briefings";
 import { sendWhatsAppNotice } from "@/lib/whatsapp";
-import { FIELDS, MAX_ANSWER_LENGTH, fieldsFor } from "./fields";
+import { FIELDS, MAX_ANSWER_LENGTH, fieldsFor, telefoneValido } from "./fields";
 
 export type SubmitResult = { ok: true } | { ok: false; error: string };
 
@@ -26,6 +26,8 @@ export async function submitBriefingAction(
     (f) => f.required && !answers[f.name],
   );
   if (missing.length > 0) return { ok: false, error: "campos" };
+  if (!telefoneValido(answers.contato ?? ""))
+    return { ok: false, error: "telefone" };
 
   try {
     await createBriefing({

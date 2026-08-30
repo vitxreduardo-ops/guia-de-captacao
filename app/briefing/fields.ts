@@ -8,7 +8,7 @@ export type Field = {
   showWhen?: { field: string; values: string[] };
   label: string;
   hint?: string;
-  type?: "text" | "textarea" | "choice";
+  type?: "text" | "tel" | "textarea" | "choice";
   options?: string[];
   required?: boolean;
 };
@@ -42,7 +42,13 @@ export const STEPS: Step[] = [
     title: "Quem é você",
     fields: [
       { name: "nome", label: "Nome e marca", required: true },
-      { name: "contato", label: "WhatsApp", required: true },
+      {
+        name: "contato",
+        label: "WhatsApp",
+        hint: "Com DDD. É por aqui que eu respondo",
+        type: "tel",
+        required: true,
+      },
       {
         name: "oque_faz",
         label: "O que a marca faz, em uma frase",
@@ -273,6 +279,20 @@ export const STEPS: Step[] = [
     ],
   },
 ];
+
+/**
+ * Telefone brasileiro: DDD mais oito ou nove dígitos, com ou sem o 55 na
+ * frente. Vale no cliente e no servidor — é o único canal de resposta, e um
+ * número errado some sem ninguém dos dois lados perceber.
+ */
+export function apenasDigitos(valor: string): string {
+  return valor.replace(/\D/g, "");
+}
+
+export function telefoneValido(valor: string): boolean {
+  const digitos = apenasDigitos(valor).replace(/^55/, "");
+  return digitos.length === 10 || digitos.length === 11;
+}
 
 export const FIELDS: Field[] = STEPS.flatMap((step) => step.fields);
 
