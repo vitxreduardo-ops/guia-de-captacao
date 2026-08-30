@@ -31,6 +31,13 @@
   --tatu-taupe: #cdc7b8;
   --tatu-beige: #fff6e3;
   --tatu-ink: #2f3b1e;
+  /* Bordas e texto secundário puros (taupe cru, ink a 40-60%) ficam abaixo de
+     3:1 e 4,5:1 contra o creme — medido, não estimado. Estas duas variações
+     são as que passam: borda a 40% de ink sobre o taupe (~3,1:1, letreiro de
+     campo), texto secundário a 70% de ink sobre o creme (~4,6:1, corpo
+     pequeno). */
+  --tatu-border: color-mix(in oklab, var(--tatu-ink) 40%, var(--tatu-taupe));
+  --tatu-muted: color-mix(in oklab, var(--tatu-ink) 70%, transparent);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
