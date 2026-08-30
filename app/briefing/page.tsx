@@ -53,7 +53,7 @@ function BriefingFooter() {
 }
 
 const INPUT =
-  "w-full rounded-md border border-[var(--tatu-border)] bg-white px-3 py-2 text-sm text-[var(--tatu-ink)] transition-colors outline-none focus:border-[var(--tatu-olive)]";
+  "w-full rounded-xl border border-[var(--tatu-border)] bg-white px-3.5 py-2.5 text-sm text-[var(--tatu-ink)] shadow-sm transition-colors outline-none focus:border-[var(--tatu-olive)] focus:ring-4 focus:ring-[var(--tatu-olive)]/10";
 
 const ERROR_MESSAGES: Record<string, string> = {
   campos: "Faltou preencher algum campo obrigatório.",
@@ -189,19 +189,17 @@ export default function BriefingPage() {
     return (
       <>
         <BriefingHeader />
-        <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center bg-[var(--tatu-cream)] px-6 pt-24 pb-32">
+        <main className="flex min-h-screen items-center justify-center bg-[var(--tatu-cream)] px-4 pt-20 pb-20">
           <motion.div
             initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={stepTransition}
+            className="w-full max-w-md rounded-3xl border border-[var(--tatu-border)]/50 bg-white p-8 shadow-xl shadow-black/5 sm:p-10"
           >
-            <h1
-              className="text-3xl tracking-wide text-[var(--tatu-ink)]"
-              style={HEADLINE}
-            >
+            <h1 className="text-3xl text-[var(--tatu-ink)]" style={HEADLINE}>
               Briefing enviado
             </h1>
-            <p className="mt-3 text-sm text-[var(--tatu-muted)]">
+            <p className="mt-3 text-sm leading-relaxed text-[var(--tatu-muted)]">
               Recebi tudo. Suas respostas ficam guardadas por 30 dias e são só
               minhas. Respondo no seu WhatsApp em até 1 dia útil.
             </p>
@@ -215,216 +213,230 @@ export default function BriefingPage() {
   return (
     <>
       <BriefingHeader />
-      <main className="mx-auto flex min-h-screen max-w-xl flex-col bg-[var(--tatu-cream)] px-6 pt-24 pb-32">
-        {/* Antes da escolha do serviço o caminho ainda não existe: mostrar um
-          total que vai crescer de 3 pra 5 promete um formulário mais curto do
-          que o que vem. Até lá, só a barra do passo atual. */}
-        <div className="flex gap-1.5">
-          {(values.servico ? steps : [current]).map((s, i) => (
-            <div
-              key={s.title}
-              className={`h-1 flex-1 rounded-full transition-colors duration-300 ${
-                i <= step ? "bg-[var(--tatu-olive)]" : "bg-[var(--tatu-border)]"
-              }`}
-            />
-          ))}
-        </div>
+      {/* Um cartão de verdade, não texto solto sobre o fundo: superfície
+          branca com borda e sombra (§12 — materiais dão peso), altura
+          travada e rolagem por dentro. Isso substitui o antigo "sticky
+          bottom-20" da página — o rodapé de ações agora é parte do próprio
+          cartão, sempre visível, sem depender de matemática de viewport. */}
+      <main className="flex min-h-screen items-center justify-center bg-[var(--tatu-cream)] px-4 pt-20 pb-20">
+        <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-3xl border border-[var(--tatu-border)]/50 bg-white shadow-xl shadow-black/5">
+          <div className="px-6 pt-6 sm:px-8 sm:pt-8">
+            {/* Antes da escolha do serviço o caminho ainda não existe: mostrar
+              um total que vai crescer de 3 pra 5 promete um formulário mais
+              curto do que o que vem. Até lá, só a barra do passo atual. */}
+            <div className="flex gap-1.5">
+              {(values.servico ? steps : [current]).map((s, i) => (
+                <div
+                  key={s.title}
+                  className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
+                    i <= step
+                      ? "bg-[var(--tatu-olive)]"
+                      : "bg-[var(--tatu-border)]/70"
+                  }`}
+                />
+              ))}
+            </div>
 
-        <p className="mt-8 text-xs font-medium tracking-wide text-[var(--tatu-muted)] uppercase">
-          {values.servico
-            ? `Passo ${step + 1} de ${steps.length}`
-            : `Passo ${step + 1}`}
-        </p>
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            advance();
-          }}
-          className="mt-1 flex flex-1 flex-col"
-        >
-          <AnimatePresence mode="wait" custom={direction} initial={false}>
-            <motion.div
-              key={step}
-              custom={direction}
-              variants={stepVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={stepTransition}
-            >
-              <h1
-                className="text-3xl tracking-wide text-[var(--tatu-ink)]"
-                style={HEADLINE}
-              >
-                {current.title}
-              </h1>
-
-              <div className="mt-8 space-y-5">
-                {visibleFields.map((field, i) => (
-                  <motion.div
-                    key={field.name}
-                    initial={{
-                      opacity: 0,
-                      y: prefersReducedMotion ? 0 : 12,
-                    }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      type: "spring",
-                      bounce: 0,
-                      duration: prefersReducedMotion ? 0.15 : 0.35,
-                    }}
-                  >
-                    <label
-                      htmlFor={field.name}
-                      className={
-                        field.labelHidden
-                          ? "sr-only"
-                          : "mb-1 block text-sm font-medium text-[var(--tatu-ink)]"
-                      }
-                    >
-                      {field.label}
-                      {!field.required && (
-                        <span className="ml-1 font-normal text-[var(--tatu-muted)]">
-                          (opcional)
-                        </span>
-                      )}
-                    </label>
-                    {field.hint && (
-                      <p className="mb-1.5 text-xs text-[var(--tatu-muted)]">
-                        {field.hint}
-                      </p>
-                    )}
-
-                    {field.type === "choice" ? (
-                      <div className="flex flex-wrap gap-2">
-                        {field.options?.map((option) => {
-                          const active = values[field.name] === option;
-                          return (
-                            <motion.button
-                              key={option}
-                              type="button"
-                              whileTap={{ scale: 0.97 }}
-                              transition={{
-                                type: "spring",
-                                bounce: 0.3,
-                                duration: 0.15,
-                              }}
-                              onClick={() =>
-                                setAndMaybeAdvance(field.name, option)
-                              }
-                              className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                                active
-                                  ? `border-[var(--tatu-ink)] ${CTA}`
-                                  : "border-[var(--tatu-border)] text-[var(--tatu-ink)] hover:border-[var(--tatu-olive)]"
-                              }`}
-                            >
-                              {option}
-                            </motion.button>
-                          );
-                        })}
-                      </div>
-                    ) : field.type === "textarea" ? (
-                      <textarea
-                        id={field.name}
-                        rows={3}
-                        value={values[field.name] ?? ""}
-                        onChange={(e) => set(field.name, e.target.value)}
-                        className={INPUT}
-                      />
-                    ) : field.type === "tel" ? (
-                      <input
-                        id={field.name}
-                        type="tel"
-                        inputMode="numeric"
-                        autoComplete="tel-national"
-                        onKeyDown={onEnter}
-                        aria-invalid={contatoRuim || undefined}
-                        aria-describedby={
-                          contatoRuim ? "contato-erro" : undefined
-                        }
-                        value={values[field.name] ?? ""}
-                        onChange={(e) => set(field.name, e.target.value)}
-                        className={`${INPUT} ${contatoRuim ? "border-red-600 focus:border-red-600" : ""}`}
-                      />
-                    ) : (
-                      <input
-                        id={field.name}
-                        type="text"
-                        autoComplete={
-                          field.name === "nome" ? "organization" : undefined
-                        }
-                        value={values[field.name] ?? ""}
-                        onChange={(e) => set(field.name, e.target.value)}
-                        className={INPUT}
-                      />
-                    )}
-
-                    {field.name === "contato" && contatoRuim && (
-                      <p
-                        id="contato-erro"
-                        className="mt-1.5 text-sm text-red-600"
-                      >
-                        Confira o número: precisa ter DDD e 8 ou 9 dígitos.
-                      </p>
-                    )}
-
-                    {i === visibleFields.length - 1 &&
-                      visibleFields.length < current.fields.length &&
-                      !field.required &&
-                      !isAnswered(field.name) && (
-                        <button
-                          type="button"
-                          onClick={skip}
-                          className="mt-1.5 text-sm text-[var(--tatu-muted)] underline-offset-2 transition-colors hover:text-[var(--tatu-ink)] hover:underline"
-                        >
-                          Pular essa
-                        </button>
-                      )}
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          </AnimatePresence>
-
-          {/* Preso à base da viewport, não ao fim da página: com pergunta
-              surgindo aos poucos a tela raramente cresce o bastante pra
-              esconder o botão, mas travar ele aqui garante isso mesmo assim.
-              bottom-20 dá espaço pro rodapé fixo, que no celular quebra em
-              duas linhas e fica mais alto. Fora do bloco que anima entre
-              passos — é o único elemento que nunca deve tremer ou deslizar. */}
-          <div className="sticky bottom-20 mt-6 flex items-center gap-3 border-t border-[var(--tatu-border)] bg-[var(--tatu-cream)]/95 py-3 backdrop-blur">
-            {step > 0 && (
-              <button
-                type="button"
-                onClick={back}
-                disabled={pending}
-                className="rounded-md px-3 py-2 text-sm text-[var(--tatu-muted)] transition-colors active:scale-[0.97] hover:text-[var(--tatu-ink)] disabled:opacity-40"
-              >
-                Voltar
-              </button>
-            )}
-            <motion.button
-              type="submit"
-              disabled={missing.length > 0 || contatoRuim || pending}
-              whileTap={
-                missing.length > 0 || contatoRuim || pending
-                  ? undefined
-                  : { scale: 0.97 }
-              }
-              transition={{ type: "spring", bounce: 0.3, duration: 0.15 }}
-              className={`ml-auto rounded-md px-5 py-2.5 text-sm font-medium disabled:opacity-40 ${CTA}`}
-            >
-              {pending ? "Enviando…" : isLast ? "Enviar briefing" : "Continuar"}
-            </motion.button>
+            <p className="mt-6 text-xs font-medium tracking-wide text-[var(--tatu-muted)] uppercase">
+              {values.servico
+                ? `Passo ${step + 1} de ${steps.length}`
+                : `Passo ${step + 1}`}
+            </p>
           </div>
-        </form>
 
-        {error && (
-          <p className="mt-6 text-sm text-red-600">
-            {ERROR_MESSAGES[error] ?? "Algo deu errado. Tenta de novo."}
-          </p>
-        )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              advance();
+            }}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-2 sm:px-8">
+              <AnimatePresence mode="wait" custom={direction} initial={false}>
+                <motion.div
+                  key={step}
+                  custom={direction}
+                  variants={stepVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={stepTransition}
+                >
+                  <h1
+                    className="text-[2rem] leading-tight text-[var(--tatu-ink)]"
+                    style={HEADLINE}
+                  >
+                    {current.title}
+                  </h1>
+
+                  <div className="mt-7 space-y-6">
+                    {visibleFields.map((field, i) => (
+                      <motion.div
+                        key={field.name}
+                        initial={{
+                          opacity: 0,
+                          y: prefersReducedMotion ? 0 : 12,
+                        }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          type: "spring",
+                          bounce: 0,
+                          duration: prefersReducedMotion ? 0.15 : 0.35,
+                        }}
+                      >
+                        <label
+                          htmlFor={field.name}
+                          className={
+                            field.labelHidden
+                              ? "sr-only"
+                              : "mb-1 block text-sm font-medium text-[var(--tatu-ink)]"
+                          }
+                        >
+                          {field.label}
+                          {!field.required && (
+                            <span className="ml-1 font-normal text-[var(--tatu-muted)]">
+                              (opcional)
+                            </span>
+                          )}
+                        </label>
+                        {field.hint && (
+                          <p className="mb-1.5 text-xs text-[var(--tatu-muted)]">
+                            {field.hint}
+                          </p>
+                        )}
+
+                        {field.type === "choice" ? (
+                          <div className="flex flex-wrap gap-2">
+                            {field.options?.map((option) => {
+                              const active = values[field.name] === option;
+                              return (
+                                <motion.button
+                                  key={option}
+                                  type="button"
+                                  whileTap={{ scale: 0.97 }}
+                                  transition={{
+                                    type: "spring",
+                                    bounce: 0.3,
+                                    duration: 0.15,
+                                  }}
+                                  onClick={() =>
+                                    setAndMaybeAdvance(field.name, option)
+                                  }
+                                  className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+                                    active
+                                      ? `border-[var(--tatu-ink)] ${CTA}`
+                                      : "border-[var(--tatu-border)] text-[var(--tatu-ink)] hover:border-[var(--tatu-olive)]"
+                                  }`}
+                                >
+                                  {option}
+                                </motion.button>
+                              );
+                            })}
+                          </div>
+                        ) : field.type === "textarea" ? (
+                          <textarea
+                            id={field.name}
+                            rows={3}
+                            value={values[field.name] ?? ""}
+                            onChange={(e) => set(field.name, e.target.value)}
+                            className={INPUT}
+                          />
+                        ) : field.type === "tel" ? (
+                          <input
+                            id={field.name}
+                            type="tel"
+                            inputMode="numeric"
+                            autoComplete="tel-national"
+                            onKeyDown={onEnter}
+                            aria-invalid={contatoRuim || undefined}
+                            aria-describedby={
+                              contatoRuim ? "contato-erro" : undefined
+                            }
+                            value={values[field.name] ?? ""}
+                            onChange={(e) => set(field.name, e.target.value)}
+                            className={`${INPUT} ${contatoRuim ? "border-red-600 focus:border-red-600" : ""}`}
+                          />
+                        ) : (
+                          <input
+                            id={field.name}
+                            type="text"
+                            autoComplete={
+                              field.name === "nome" ? "organization" : undefined
+                            }
+                            value={values[field.name] ?? ""}
+                            onChange={(e) => set(field.name, e.target.value)}
+                            className={INPUT}
+                          />
+                        )}
+
+                        {field.name === "contato" && contatoRuim && (
+                          <p
+                            id="contato-erro"
+                            className="mt-1.5 text-sm text-red-600"
+                          >
+                            Confira o número: precisa ter DDD e 8 ou 9 dígitos.
+                          </p>
+                        )}
+
+                        {i === visibleFields.length - 1 &&
+                          visibleFields.length < current.fields.length &&
+                          !field.required &&
+                          !isAnswered(field.name) && (
+                            <button
+                              type="button"
+                              onClick={skip}
+                              className="mt-1.5 text-sm text-[var(--tatu-muted)] underline-offset-2 transition-colors hover:text-[var(--tatu-ink)] hover:underline"
+                            >
+                              Pular essa
+                            </button>
+                          )}
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+
+              {error && (
+                <p className="mt-6 text-sm text-red-600">
+                  {ERROR_MESSAGES[error] ?? "Algo deu errado. Tenta de novo."}
+                </p>
+              )}
+            </div>
+
+            {/* Rodapé do cartão, não da página: sempre visível porque é o
+                próprio cartão que tem altura travada e rolagem por dentro —
+                não depende de a tela caber na viewport. */}
+            <div className="flex items-center gap-3 border-t border-[var(--tatu-border)]/70 px-6 py-4 sm:px-8">
+              {step > 0 && (
+                <button
+                  type="button"
+                  onClick={back}
+                  disabled={pending}
+                  className="rounded-md px-3 py-2 text-sm text-[var(--tatu-muted)] transition-colors hover:text-[var(--tatu-ink)] active:scale-[0.97] disabled:opacity-40"
+                >
+                  Voltar
+                </button>
+              )}
+              <motion.button
+                type="submit"
+                disabled={missing.length > 0 || contatoRuim || pending}
+                whileTap={
+                  missing.length > 0 || contatoRuim || pending
+                    ? undefined
+                    : { scale: 0.97 }
+                }
+                transition={{ type: "spring", bounce: 0.3, duration: 0.15 }}
+                className={`ml-auto rounded-xl px-5 py-2.5 text-sm font-medium shadow-sm disabled:opacity-40 ${CTA}`}
+              >
+                {pending
+                  ? "Enviando…"
+                  : isLast
+                    ? "Enviar briefing"
+                    : "Continuar"}
+              </motion.button>
+            </div>
+          </form>
+        </div>
       </main>
       <BriefingFooter />
     </>
