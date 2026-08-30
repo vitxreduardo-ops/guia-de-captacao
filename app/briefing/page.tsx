@@ -79,7 +79,7 @@ export default function BriefingPage() {
       <p className="mt-8 text-xs font-medium uppercase tracking-wide text-neutral-400">
         {values.servico
           ? `Passo ${step + 1} de ${steps.length}`
-          : "Primeiro passo"}
+          : `Passo ${step + 1}`}
       </p>
       <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900">
         {current.title}
@@ -90,7 +90,11 @@ export default function BriefingPage() {
           <div key={field.name}>
             <label
               htmlFor={field.name}
-              className="mb-1 block text-sm font-medium text-neutral-700"
+              className={
+                field.labelHidden
+                  ? "sr-only"
+                  : "mb-1 block text-sm font-medium text-neutral-700"
+              }
             >
               {field.label}
               {!field.required && (

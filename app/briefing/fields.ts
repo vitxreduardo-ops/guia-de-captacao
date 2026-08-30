@@ -1,5 +1,7 @@
 export type Field = {
   name: string;
+  /** O título do passo já faz a pergunta: o rótulo fica só pra leitor de tela. */
+  labelHidden?: true;
   /** Só aparece quando o serviço escolhido está nesta lista. */
   only?: string[];
   /** Só aparece quando outro campo já foi respondido com um destes valores. */
@@ -47,9 +49,15 @@ export const STEPS: Step[] = [
         type: "textarea",
         required: true,
       },
+    ],
+  },
+  {
+    title: "O que você precisa",
+    fields: [
       {
         name: "servico",
         label: "O que você precisa",
+        labelHidden: true,
         type: "choice",
         options: [...SERVICOS],
         required: true,
@@ -57,7 +65,7 @@ export const STEPS: Step[] = [
     ],
   },
   {
-    title: "O que te trouxe aqui",
+    title: "Sobre esse trabalho",
     fields: [
       {
         name: "motivo",
@@ -71,11 +79,6 @@ export const STEPS: Step[] = [
         label: "O que mais te incomoda hoje",
         type: "textarea",
       },
-    ],
-  },
-  {
-    title: "Sobre esse trabalho",
-    fields: [
       {
         name: "id_tem_marca",
         only: ["Identidade visual"],
