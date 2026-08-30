@@ -1,4 +1,7 @@
+import Link from "next/link";
+import { headers } from "next/headers";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { CopyLinkButton } from "@/components/admin/CopyLinkButton";
 import { Accordion } from "@/components/Accordion";
 import { DeleteButton } from "@/components/admin/DeleteButton";
 import { BRIEFING_RETENTION_DAYS, listBriefings } from "@/lib/briefings";
@@ -20,10 +23,19 @@ function formatDate(value: string) {
 }
 
 export default async function BriefingsDashboard() {
-  const [briefings, username] = await Promise.all([
+  const [briefings, username, requestHeaders] = await Promise.all([
     listBriefings(),
     getCurrentUsername(),
+    headers(),
   ]);
+
+  // Link pronto pra colar no WhatsApp do cliente. Prod e localhost têm host
+  // diferente, então ele é montado a partir do próprio pedido, não fixo.
+  const origin = `https://${requestHeaders.get("host")}`.replace(
+    "https://localhost",
+    "http://localhost",
+  );
+  const formUrl = `${origin}/briefing`;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
@@ -33,9 +45,31 @@ export default async function BriefingsDashboard() {
         username={username}
       />
 
-      <p className="mb-6 text-sm text-neutral-500">
-        Respostas enviadas em /briefing. Ficam guardadas por{" "}
-        {BRIEFING_RETENTION_DAYS} dias e somem sozinhas depois disso.
+      <section className="mb-8 rounded-lg border border-neutral-200 bg-white p-4">
+        <h2 className="font-medium text-neutral-900">Enviar briefing</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Link do formulário pro cliente preencher.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <code className="rounded-md bg-neutral-100 px-2.5 py-1.5 text-sm break-all text-neutral-700">
+            {formUrl}
+          </code>
+          <CopyLinkButton text={formUrl} />
+          <Link
+            href="/briefing"
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 transition-transform hover:border-neutral-500 active:scale-[0.97]"
+          >
+            Abrir
+          </Link>
+        </div>
+      </section>
+
+      <h2 className="mb-3 font-medium text-neutral-900">Briefings recebidos</h2>
+      <p className="mb-4 text-sm text-neutral-500">
+        Ficam guardados por {BRIEFING_RETENTION_DAYS} dias e somem sozinhos
+        depois disso.
       </p>
 
       {briefings.length === 0 ? (
