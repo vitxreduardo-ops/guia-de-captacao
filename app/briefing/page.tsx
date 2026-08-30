@@ -62,8 +62,11 @@ export default function BriefingPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col px-6 py-16">
+      {/* Antes da escolha do serviço o caminho ainda não existe: mostrar um
+          total que vai crescer de 3 pra 5 promete um formulário mais curto do
+          que o que vem. Até lá, só a barra do passo atual. */}
       <div className="flex gap-1.5">
-        {steps.map((s, i) => (
+        {(values.servico ? steps : [current]).map((s, i) => (
           <div
             key={s.title}
             className={`h-1 flex-1 rounded-full transition-colors ${
@@ -74,7 +77,9 @@ export default function BriefingPage() {
       </div>
 
       <p className="mt-8 text-xs font-medium uppercase tracking-wide text-neutral-400">
-        Passo {step + 1} de {steps.length}
+        {values.servico
+          ? `Passo ${step + 1} de ${steps.length}`
+          : "Primeiro passo"}
       </p>
       <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900">
         {current.title}

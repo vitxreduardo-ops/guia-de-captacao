@@ -47,11 +47,6 @@ export const STEPS: Step[] = [
         type: "textarea",
         required: true,
       },
-    ],
-  },
-  {
-    title: "O projeto",
-    fields: [
       {
         name: "servico",
         label: "O que você precisa",
@@ -59,6 +54,11 @@ export const STEPS: Step[] = [
         options: [...SERVICOS],
         required: true,
       },
+    ],
+  },
+  {
+    title: "O que te trouxe aqui",
+    fields: [
       {
         name: "motivo",
         only: DIAGNOSTICO,
@@ -159,6 +159,34 @@ export const STEPS: Step[] = [
         ],
       },
       {
+        name: "site_paginas",
+        only: ["Site"],
+        label: "Quantas páginas e o que cada uma precisa fazer",
+        type: "textarea",
+      },
+      {
+        name: "site_venda",
+        only: ["Site"],
+        label: "Vai vender pelo site?",
+        type: "choice",
+        options: [
+          "Sim, loja completa",
+          "Só encaminha pro WhatsApp",
+          "Não vende",
+        ],
+      },
+      {
+        name: "site_dominio",
+        only: ["Site"],
+        label: "Já tem domínio e hospedagem? Quem atualiza depois",
+        type: "textarea",
+      },
+    ],
+  },
+  {
+    title: "Como vai ser feito",
+    fields: [
+      {
         name: "video_producao",
         only: ["Vídeo"],
         label: "O que entra no trabalho",
@@ -193,29 +221,6 @@ export const STEPS: Step[] = [
         only: ["Vídeo"],
         label: "O que não pode",
         hint: "Rosto que não pode aparecer, concorrente na imagem, música com direitos, palavra proibida pelo setor",
-        type: "textarea",
-      },
-      {
-        name: "site_paginas",
-        only: ["Site"],
-        label: "Quantas páginas e o que cada uma precisa fazer",
-        type: "textarea",
-      },
-      {
-        name: "site_venda",
-        only: ["Site"],
-        label: "Vai vender pelo site?",
-        type: "choice",
-        options: [
-          "Sim, loja completa",
-          "Só encaminha pro WhatsApp",
-          "Não vende",
-        ],
-      },
-      {
-        name: "site_dominio",
-        only: ["Site"],
-        label: "Já tem domínio e hospedagem? Quem atualiza depois",
         type: "textarea",
       },
     ],
