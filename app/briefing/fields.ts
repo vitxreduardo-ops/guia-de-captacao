@@ -45,7 +45,7 @@ export const STEPS: Step[] = [
       {
         name: "contato",
         label: "WhatsApp",
-        hint: "Com DDD. É por aqui que eu respondo",
+        hint: "Com DDD. É por aqui que eu respondo — só eu vejo esse número",
         type: "tel",
         required: true,
       },
@@ -261,6 +261,7 @@ export const STEPS: Step[] = [
       {
         name: "verba",
         label: "Faixa de investimento",
+        hint: "Não é orçamento fechado, só me ajuda a dimensionar o projeto",
         type: "choice",
         options: [
           "até 3k",

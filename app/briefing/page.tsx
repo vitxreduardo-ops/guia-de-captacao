@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { submitBriefingAction } from "./actions";
 import { stepsFor, telefoneValido } from "./fields";
+import { TatuLogo } from "@/components/TatuLogo";
 
 const INPUT =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 transition-colors focus:border-neutral-500 focus:outline-none";
@@ -68,11 +69,13 @@ export default function BriefingPage() {
   if (sent) {
     return (
       <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 py-16">
+        <TatuLogo className="mb-10 h-6 w-auto text-neutral-900" />
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
           Briefing enviado
         </h1>
         <p className="mt-2 text-sm text-neutral-500">
-          Recebi tudo. Respondo no seu WhatsApp em até 1 dia útil.
+          Recebi tudo. Suas respostas ficam guardadas por 30 dias e são só
+          minhas. Respondo no seu WhatsApp em até 1 dia útil.
         </p>
       </main>
     );
@@ -80,6 +83,15 @@ export default function BriefingPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col px-6 py-16">
+      {step === 0 && (
+        <div className="mb-10">
+          <TatuLogo className="mb-4 h-6 w-auto text-neutral-900" />
+          <p className="text-sm text-neutral-500">
+            Leva uns minutos. Suas respostas ficam só comigo.
+          </p>
+        </div>
+      )}
+
       {/* Antes da escolha do serviço o caminho ainda não existe: mostrar um
           total que vai crescer de 3 pra 5 promete um formulário mais curto do
           que o que vem. Até lá, só a barra do passo atual. */}
