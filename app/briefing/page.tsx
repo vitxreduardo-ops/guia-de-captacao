@@ -60,6 +60,10 @@ export default function BriefingPage() {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Quantas perguntas da tela atual já apareceram: começa em 1 e cresce
+  // conforme o cliente responde, pra tela nunca jogar tudo de uma vez.
+  const [revealed, setRevealed] = useState(1);
+  const [revealedStep, setRevealedStep] = useState(0);
 
   // Os passos dependem do serviço escolhido: quem pede site não responde as
   // perguntas de vídeo. Trocar o serviço encurta ou alonga o caminho, então o
@@ -79,8 +83,39 @@ export default function BriefingPage() {
   const contatoRuim =
     contatoNoPasso && contato !== "" && !telefoneValido(contato);
 
+  function isAnswered(name: string) {
+    return (values[name] ?? "").trim() !== "";
+  }
+
+  // Quantos campos, em sequência a partir do primeiro, já têm resposta —
+  // reabrir um passo já preenchido (ex.: apertando Voltar) mostra tudo que
+  // já foi respondido, não só a primeira pergunta de novo.
+  function leadingAnswered(fields: typeof current.fields) {
+    let n = 0;
+    while (n < fields.length && isAnswered(fields[n].name)) n++;
+    return Math.min(n + 1, fields.length);
+  }
+
+  // Troca de passo (avançar ou voltar) reabre com tudo que já foi
+  // respondido visível, não só a primeira pergunta — ajuste feito durante a
+  // renderização, não em efeito, como o React recomenda pra resetar estado
+  // quando uma prop (aqui, o passo) muda.
+  if (revealedStep !== step) {
+    setRevealedStep(step);
+    setRevealed(leadingAnswered(current.fields));
+  }
+
+  const visibleFields = current.fields.slice(0, revealed);
+
   function set(name: string, value: string) {
     setValues((v) => ({ ...v, [name]: value }));
+    setRevealed((r) => Math.max(r, leadingAnswered(current.fields) + 1));
+  }
+
+  // Só pra campo opcional: pula a pergunta sem respondê-la, revelando a
+  // próxima mesmo assim. Campo obrigatório não tem esse botão.
+  function skip() {
+    setRevealed((r) => Math.min(r + 1, current.fields.length));
   }
 
   // Uma tela com uma única pergunta de escolha não precisa de um clique a
@@ -168,7 +203,7 @@ export default function BriefingPage() {
           }}
           className="mt-8 space-y-5"
         >
-          {current.fields.map((field) => (
+          {visibleFields.map((field, i) => (
             <div key={field.name}>
               <label
                 htmlFor={field.name}
@@ -248,10 +283,28 @@ export default function BriefingPage() {
                   Confira o número: precisa ter DDD e 8 ou 9 dígitos.
                 </p>
               )}
+
+              {i === visibleFields.length - 1 &&
+                visibleFields.length < current.fields.length &&
+                !field.required &&
+                !isAnswered(field.name) && (
+                  <button
+                    type="button"
+                    onClick={skip}
+                    className="mt-1.5 text-sm text-neutral-400 underline-offset-2 hover:text-neutral-700 hover:underline"
+                  >
+                    Pular essa
+                  </button>
+                )}
             </div>
           ))}
 
-          <div className="flex items-center gap-3 pt-5">
+          {/* Preso à base da viewport, não ao fim da página: com pergunta
+              surgindo aos poucos a tela raramente cresce o bastante pra
+              esconder o botão, mas travar ele aqui garante isso mesmo assim.
+              bottom-20 dá espaço pro rodapé fixo, que no celular quebra em
+              duas linhas e fica mais alto. */}
+          <div className="sticky bottom-20 mt-6 flex items-center gap-3 border-t border-neutral-200 bg-white/95 py-3 backdrop-blur">
             {step > 0 && (
               <button
                 type="button"
