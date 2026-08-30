@@ -5,6 +5,46 @@ import { submitBriefingAction } from "./actions";
 import { stepsFor, telefoneValido } from "./fields";
 import { TatuLogo } from "@/components/TatuLogo";
 
+const INSTAGRAM = "@tatu.estudiocriativo";
+const WHATSAPP_ESTUDIO = "5577999656195";
+
+function BriefingHeader() {
+  return (
+    <header className="fixed inset-x-0 top-0 z-10 flex justify-center border-b border-neutral-200 bg-white/90 px-6 py-4 backdrop-blur">
+      <TatuLogo className="h-5 w-auto text-neutral-900" />
+    </header>
+  );
+}
+
+function BriefingFooter() {
+  return (
+    <footer
+      className="fixed inset-x-0 bottom-0 z-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-neutral-200 bg-white/90 px-6 py-3 text-xs text-neutral-500 backdrop-blur"
+      style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+    >
+      <span className="font-medium text-neutral-700">
+        Tatú Estúdio Criativo
+      </span>
+      <a
+        href={`https://instagram.com/${INSTAGRAM.slice(1)}`}
+        target="_blank"
+        rel="noreferrer"
+        className="hover:text-neutral-900"
+      >
+        {INSTAGRAM}
+      </a>
+      <a
+        href={`https://wa.me/${WHATSAPP_ESTUDIO}`}
+        target="_blank"
+        rel="noreferrer"
+        className="hover:text-neutral-900"
+      >
+        WhatsApp
+      </a>
+    </footer>
+  );
+}
+
 const INPUT =
   "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 transition-colors focus:border-neutral-500 focus:outline-none";
 
@@ -43,6 +83,16 @@ export default function BriefingPage() {
     setValues((v) => ({ ...v, [name]: value }));
   }
 
+  // Uma tela com uma única pergunta de escolha não precisa de um clique a
+  // mais: escolher já é confirmar. Telas com mais de um campo continuam
+  // exigindo o Continuar, porque aí a escolha ainda não é a resposta inteira.
+  function setAndMaybeAdvance(name: string, value: string) {
+    set(name, value);
+    if (current.fields.length === 1) {
+      setTimeout(() => advance(), 150);
+    }
+  }
+
   function advance() {
     if (contatoRuim) return;
     if (!isLast) {
@@ -68,169 +118,167 @@ export default function BriefingPage() {
 
   if (sent) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 py-16">
-        <TatuLogo className="mb-10 h-6 w-auto text-neutral-900" />
-        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
-          Briefing enviado
-        </h1>
-        <p className="mt-2 text-sm text-neutral-500">
-          Recebi tudo. Suas respostas ficam guardadas por 30 dias e são só
-          minhas. Respondo no seu WhatsApp em até 1 dia útil.
-        </p>
-      </main>
+      <>
+        <BriefingHeader />
+        <main className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-6 pt-24 pb-32">
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
+            Briefing enviado
+          </h1>
+          <p className="mt-2 text-sm text-neutral-500">
+            Recebi tudo. Suas respostas ficam guardadas por 30 dias e são só
+            minhas. Respondo no seu WhatsApp em até 1 dia útil.
+          </p>
+        </main>
+        <BriefingFooter />
+      </>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col px-6 py-16">
-      {step === 0 && (
-        <div className="mb-10">
-          <TatuLogo className="mb-4 h-6 w-auto text-neutral-900" />
-          <p className="text-sm text-neutral-500">
-            Leva uns minutos. Suas respostas ficam só comigo.
-          </p>
-        </div>
-      )}
-
-      {/* Antes da escolha do serviço o caminho ainda não existe: mostrar um
+    <>
+      <BriefingHeader />
+      <main className="mx-auto flex min-h-screen max-w-xl flex-col px-6 pt-24 pb-32">
+        {/* Antes da escolha do serviço o caminho ainda não existe: mostrar um
           total que vai crescer de 3 pra 5 promete um formulário mais curto do
           que o que vem. Até lá, só a barra do passo atual. */}
-      <div className="flex gap-1.5">
-        {(values.servico ? steps : [current]).map((s, i) => (
-          <div
-            key={s.title}
-            className={`h-1 flex-1 rounded-full transition-colors ${
-              i <= step ? "bg-neutral-900" : "bg-neutral-200"
-            }`}
-          />
-        ))}
-      </div>
-
-      <p className="mt-8 text-xs font-medium uppercase tracking-wide text-neutral-400">
-        {values.servico
-          ? `Passo ${step + 1} de ${steps.length}`
-          : `Passo ${step + 1}`}
-      </p>
-      <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900">
-        {current.title}
-      </h1>
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          advance();
-        }}
-        className="mt-8 space-y-5"
-      >
-        {current.fields.map((field) => (
-          <div key={field.name}>
-            <label
-              htmlFor={field.name}
-              className={
-                field.labelHidden
-                  ? "sr-only"
-                  : "mb-1 block text-sm font-medium text-neutral-700"
-              }
-            >
-              {field.label}
-              {!field.required && (
-                <span className="ml-1 font-normal text-neutral-400">
-                  (opcional)
-                </span>
-              )}
-            </label>
-            {field.hint && (
-              <p className="mb-1.5 text-xs text-neutral-400">{field.hint}</p>
-            )}
-
-            {field.type === "choice" ? (
-              <div className="flex flex-wrap gap-2">
-                {field.options?.map((option) => {
-                  const active = values[field.name] === option;
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => set(field.name, option)}
-                      className={`rounded-full border px-3 py-1.5 text-sm transition-transform active:scale-[0.97] ${
-                        active
-                          ? "border-neutral-900 bg-neutral-900 text-white"
-                          : "border-neutral-300 text-neutral-700 hover:border-neutral-500"
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : field.type === "textarea" ? (
-              <textarea
-                id={field.name}
-                rows={3}
-                value={values[field.name] ?? ""}
-                onChange={(e) => set(field.name, e.target.value)}
-                className={INPUT}
-              />
-            ) : field.type === "tel" ? (
-              <input
-                id={field.name}
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel-national"
-                onKeyDown={onEnter}
-                aria-invalid={contatoRuim || undefined}
-                aria-describedby={contatoRuim ? "contato-erro" : undefined}
-                value={values[field.name] ?? ""}
-                onChange={(e) => set(field.name, e.target.value)}
-                className={`${INPUT} ${contatoRuim ? "border-red-500" : ""}`}
-              />
-            ) : (
-              <input
-                id={field.name}
-                type="text"
-                autoComplete={
-                  field.name === "nome" ? "organization" : undefined
-                }
-                value={values[field.name] ?? ""}
-                onChange={(e) => set(field.name, e.target.value)}
-                className={INPUT}
-              />
-            )}
-
-            {field.name === "contato" && contatoRuim && (
-              <p id="contato-erro" className="mt-1.5 text-sm text-red-600">
-                Confira o número: precisa ter DDD e 8 ou 9 dígitos.
-              </p>
-            )}
-          </div>
-        ))}
-
-        <div className="flex items-center gap-3 pt-5">
-          {step > 0 && (
-            <button
-              type="button"
-              onClick={() => setStep((s) => s - 1)}
-              disabled={pending}
-              className="rounded-md px-3 py-2 text-sm text-neutral-500 transition-transform hover:text-neutral-900 active:scale-[0.97] disabled:opacity-40"
-            >
-              Voltar
-            </button>
-          )}
-          <button
-            type="submit"
-            disabled={missing.length > 0 || contatoRuim || pending}
-            className="ml-auto rounded-md bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition-transform active:scale-[0.97] disabled:opacity-40"
-          >
-            {pending ? "Enviando…" : isLast ? "Enviar briefing" : "Continuar"}
-          </button>
+        <div className="flex gap-1.5">
+          {(values.servico ? steps : [current]).map((s, i) => (
+            <div
+              key={s.title}
+              className={`h-1 flex-1 rounded-full transition-colors ${
+                i <= step ? "bg-neutral-900" : "bg-neutral-200"
+              }`}
+            />
+          ))}
         </div>
-      </form>
 
-      {error && (
-        <p className="mt-6 text-sm text-red-600">
-          {ERROR_MESSAGES[error] ?? "Algo deu errado. Tenta de novo."}
+        <p className="mt-8 text-xs font-medium uppercase tracking-wide text-neutral-400">
+          {values.servico
+            ? `Passo ${step + 1} de ${steps.length}`
+            : `Passo ${step + 1}`}
         </p>
-      )}
-    </main>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-neutral-900">
+          {current.title}
+        </h1>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            advance();
+          }}
+          className="mt-8 space-y-5"
+        >
+          {current.fields.map((field) => (
+            <div key={field.name}>
+              <label
+                htmlFor={field.name}
+                className={
+                  field.labelHidden
+                    ? "sr-only"
+                    : "mb-1 block text-sm font-medium text-neutral-700"
+                }
+              >
+                {field.label}
+                {!field.required && (
+                  <span className="ml-1 font-normal text-neutral-400">
+                    (opcional)
+                  </span>
+                )}
+              </label>
+              {field.hint && (
+                <p className="mb-1.5 text-xs text-neutral-400">{field.hint}</p>
+              )}
+
+              {field.type === "choice" ? (
+                <div className="flex flex-wrap gap-2">
+                  {field.options?.map((option) => {
+                    const active = values[field.name] === option;
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setAndMaybeAdvance(field.name, option)}
+                        className={`rounded-full border px-3 py-1.5 text-sm transition-transform active:scale-[0.97] ${
+                          active
+                            ? "border-neutral-900 bg-neutral-900 text-white"
+                            : "border-neutral-300 text-neutral-700 hover:border-neutral-500"
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : field.type === "textarea" ? (
+                <textarea
+                  id={field.name}
+                  rows={3}
+                  value={values[field.name] ?? ""}
+                  onChange={(e) => set(field.name, e.target.value)}
+                  className={INPUT}
+                />
+              ) : field.type === "tel" ? (
+                <input
+                  id={field.name}
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel-national"
+                  onKeyDown={onEnter}
+                  aria-invalid={contatoRuim || undefined}
+                  aria-describedby={contatoRuim ? "contato-erro" : undefined}
+                  value={values[field.name] ?? ""}
+                  onChange={(e) => set(field.name, e.target.value)}
+                  className={`${INPUT} ${contatoRuim ? "border-red-500" : ""}`}
+                />
+              ) : (
+                <input
+                  id={field.name}
+                  type="text"
+                  autoComplete={
+                    field.name === "nome" ? "organization" : undefined
+                  }
+                  value={values[field.name] ?? ""}
+                  onChange={(e) => set(field.name, e.target.value)}
+                  className={INPUT}
+                />
+              )}
+
+              {field.name === "contato" && contatoRuim && (
+                <p id="contato-erro" className="mt-1.5 text-sm text-red-600">
+                  Confira o número: precisa ter DDD e 8 ou 9 dígitos.
+                </p>
+              )}
+            </div>
+          ))}
+
+          <div className="flex items-center gap-3 pt-5">
+            {step > 0 && (
+              <button
+                type="button"
+                onClick={() => setStep((s) => s - 1)}
+                disabled={pending}
+                className="rounded-md px-3 py-2 text-sm text-neutral-500 transition-transform hover:text-neutral-900 active:scale-[0.97] disabled:opacity-40"
+              >
+                Voltar
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={missing.length > 0 || contatoRuim || pending}
+              className="ml-auto rounded-md bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white transition-transform active:scale-[0.97] disabled:opacity-40"
+            >
+              {pending ? "Enviando…" : isLast ? "Enviar briefing" : "Continuar"}
+            </button>
+          </div>
+        </form>
+
+        {error && (
+          <p className="mt-6 text-sm text-red-600">
+            {ERROR_MESSAGES[error] ?? "Algo deu errado. Tenta de novo."}
+          </p>
+        )}
+      </main>
+      <BriefingFooter />
+    </>
   );
 }
