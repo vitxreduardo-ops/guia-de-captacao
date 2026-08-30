@@ -287,6 +287,126 @@ export function LetteringStudio() {
     setFechando(dock);
     setDock(null);
   }, [dock]);
+
+  /** Some sem animação de saída: quem já animou foi o gesto. */
+  const fecharFolhaJa = useCallback(() => {
+    setFechando(null);
+    setDock(null);
+  }, []);
+
+  const folhaRef = useRef<HTMLDivElement | null>(null);
+  const folhaAnimRef = useRef<number | null>(null);
+
+  const moverFolha = useCallback((y: number) => {
+    const el = folhaRef.current;
+    if (!el) return;
+    el.style.transform = y === 0 ? "" : `translateY(${y}px)`;
+  }, []);
+
+  /**
+   * Solta a folha: quem decide se ela fecha é a velocidade, não onde o dedo
+   * parou. Um puxão curto e rápido fecha; arrastar meia tela devagar e parar
+   * volta pro lugar — é o que o gesto disse que a pessoa queria.
+   */
+  const soltarFolha = useCallback(
+    (y: number, v: number) => {
+      const altura = folhaRef.current?.getBoundingClientRect().height ?? 600;
+      const fecha = y + projetar(v) > altura * 0.35;
+      const alvo = fecha ? altura : 0;
+
+      if (semMovimento()) {
+        moverFolha(0);
+        if (fecha) fecharFolhaJa();
+        return;
+      }
+
+      let mola: Mola = { valor: y, velocidade: v };
+      let anterior: number | null = null;
+
+      const passo = (agora: number) => {
+        if (!folhaRef.current) {
+          folhaAnimRef.current = null;
+          return;
+        }
+        const dt = anterior === null ? 1 / 60 : (agora - anterior) / 1000;
+        anterior = agora;
+        mola = passoDaMola(mola, alvo, dt);
+        moverFolha(mola.valor);
+
+        // Fechando, a folha some assim que sai da vista: esperar a mola
+        // assentar lá fora só adiaria o palco voltar.
+        if (fecha && mola.valor >= altura * 0.92) {
+          folhaAnimRef.current = null;
+          fecharFolhaJa();
+          return;
+        }
+        if (molaParada(mola, alvo)) {
+          folhaAnimRef.current = null;
+          moverFolha(0);
+          if (fecha) fecharFolhaJa();
+          return;
+        }
+        folhaAnimRef.current = requestAnimationFrame(passo);
+      };
+
+      folhaAnimRef.current = requestAnimationFrame(passo);
+    },
+    [moverFolha, fecharFolhaJa],
+  );
+
+  /**
+   * Puxar a folha pra baixo pra fechar. O cabeçalho é a alça: no corpo o
+   * mesmo gesto é rolagem, e disputar os dois deixaria os dois ruins.
+   */
+  function onFolhaDown(e: React.PointerEvent) {
+    const el = folhaRef.current;
+    if (!el || (e.pointerType === "mouse" && e.button !== 0)) return;
+
+    if (folhaAnimRef.current !== null) {
+      cancelAnimationFrame(folhaAnimRef.current);
+      folhaAnimRef.current = null;
+    }
+    // A animação de entrada também escreve no transform: enquanto o dedo
+    // manda, ela sai da frente — senão as duas brigam pelo mesmo valor.
+    el.style.animation = "none";
+
+    const t = getComputedStyle(el).transform;
+    const partida = t === "none" ? 0 : new DOMMatrixReadOnly(t).m42;
+    const inicioY = e.clientY;
+    const amostras: Amostra[] = [];
+
+    const mover = (ev: PointerEvent) => {
+      const bruto = partida + (ev.clientY - inicioY);
+      // Pra cima a folha resiste: não há mais folha pra puxar, e parar seco
+      // leria como travamento.
+      const y =
+        bruto >= 0
+          ? bruto
+          : -resistencia(-bruto, el.getBoundingClientRect().height);
+      amostras.push({ valor: y, t: ev.timeStamp });
+      if (amostras.length > 12) amostras.shift();
+      moverFolha(y);
+    };
+
+    const soltar = () => {
+      window.removeEventListener("pointermove", mover);
+      window.removeEventListener("pointerup", soltar);
+      window.removeEventListener("pointercancel", soltar);
+      const y = amostras.length ? amostras[amostras.length - 1].valor : partida;
+      soltarFolha(y, velocidade(amostras));
+    };
+
+    window.addEventListener("pointermove", mover, { passive: true });
+    window.addEventListener("pointerup", soltar);
+    window.addEventListener("pointercancel", soltar);
+  }
+
+  /** Itens saindo da lista, e o que acabou de entrar nela. */
+  const [saindoDaLista, setSaindoDaLista] = useState<string[]>([]);
+  const [destaque, setDestaque] = useState<string | null>(null);
+  const [rolado, setRolado] = useState(false);
+  /** A peça acabou de chegar de um layout salvo: o palco anuncia isso. */
+  const [chegando, setChegando] = useState(false);
   const [layouts, setLayouts] = useState<LayoutSalvo[]>([]);
   const [fontesSalvas, setFontesSalvas] = useState<FonteSalva[]>([]);
   const [nomeDoLayout, setNomeDoLayout] = useState("");
@@ -1781,6 +1901,7 @@ export function LetteringStudio() {
       // sinal de não salvo tem que apagar no mesmo instante.
       const salvo = lista.find((l) => l.name === nome);
       if (salvo) {
+        setDestaque(salvo.id);
         setAberto({
           id: salvo.id,
           nome,
@@ -1821,8 +1942,9 @@ export function LetteringStudio() {
       nome: layout.name,
       assinatura: JSON.stringify(estado.layers),
     });
-    // Abrir um layout fecha a biblioteca pelo mesmo caminho de um toque no
-    // botão: some animando, e não de um quadro pro outro.
+    // A folha desce e a peça chega na mesma janela de tempo, não em
+    // sequência: são duas caras do mesmo ato.
+    setChegando(true);
     fecharDock();
   }
 
@@ -1839,6 +1961,9 @@ export function LetteringStudio() {
     } catch {
       setAviso({ texto: "Não deu pra excluir." });
     } finally {
+      // A marca de saída sai junto: se a exclusão falhou, o item volta
+      // inteiro em vez de ficar encolhido pra sempre.
+      setSaindoDaLista((atual) => atual.filter((x) => x !== id));
       setOcupado(false);
     }
   }
@@ -1893,7 +2018,10 @@ export function LetteringStudio() {
               some o único jeito de girar aquela peça. */}
           <div
             style={{ background: FUNDOS[fundo] }}
-            className="absolute inset-0 overflow-hidden rounded-lg border border-neutral-200"
+            onAnimationEnd={() => setChegando(false)}
+            className={`absolute inset-0 overflow-hidden rounded-lg border border-neutral-200 ${
+              chegando ? "lettering-chegou" : ""
+            }`}
           >
             <canvas
               ref={stageCanvasRef}
@@ -2165,6 +2293,7 @@ export function LetteringStudio() {
             // O botão da dock já se chama "Biblioteca": sem um nome próprio, o
             // leitor de tela anuncia dois alvos com o mesmo nome.
             aria-label="Biblioteca de letterings"
+            ref={folhaRef}
             data-saindo={dock === null}
             onAnimationEnd={(e) => {
               if (e.target === e.currentTarget && dock === null) {
@@ -2173,22 +2302,31 @@ export function LetteringStudio() {
             }}
             className="lettering-folha pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden rounded-[28px] bg-neutral-900 text-neutral-100 shadow-2xl"
           >
-            <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-2">
-              <h2 className="text-lg font-semibold tracking-[-0.01em]">
+            <div
+              onPointerDown={onFolhaDown}
+              className="relative flex touch-none items-center justify-between gap-2 px-4 pt-3 pb-2"
+            >
+              {/* Alça: diz que dá pra puxar a folha pra baixo sem precisar de
+                  uma frase explicando. */}
+              <span
+                aria-hidden="true"
+                className="absolute inset-x-0 top-2 mx-auto h-1 w-10 rounded-full bg-white/25"
+              />
+              <h2 className="mt-2 text-lg font-semibold tracking-[-0.01em]">
                 Biblioteca
               </h2>
               <button
                 type="button"
                 aria-label="Fechar a biblioteca"
                 onClick={fecharDock}
-                className="grid size-10 place-items-center rounded-full bg-white/10 text-neutral-200 transition-transform duration-150 active:scale-95"
+                className="mt-2 grid size-10 place-items-center rounded-full bg-white/10 text-neutral-200 transition-transform duration-150 active:scale-95"
               >
                 <X aria-hidden="true" className="size-5" />
               </button>
             </div>
 
             {carregandoBiblioteca ? (
-              <div className="grid flex-1 place-items-center gap-3 p-6 text-center">
+              <div className="lettering-troca grid flex-1 place-items-center gap-3 p-6 text-center">
                 <div
                   aria-hidden="true"
                   className="lettering-girando size-8 rounded-full border-2 border-white/20 border-t-white/80"
@@ -2201,7 +2339,11 @@ export function LetteringStudio() {
                 </p>
               </div>
             ) : (
-              <div className="min-h-0 flex-1 space-y-4 overflow-auto px-4 pt-2 pb-5">
+              <div
+                onScroll={(e) => setRolado(e.currentTarget.scrollTop > 4)}
+                data-rolado={rolado}
+                className="lettering-troca lettering-corpo min-h-0 flex-1 space-y-4 overflow-auto px-4 pt-2 pb-5"
+              >
               <div className="space-y-1.5">
                 <label className={LABEL_ESCURO} htmlFor="lettering-nome-layout">
                   Salvar esta peça
@@ -2219,6 +2361,12 @@ export function LetteringStudio() {
                     onClick={salvarNaBiblioteca}
                     disabled={!nomeDoLayout.trim() || ocupado}
                   >
+                    {ocupado ? (
+                      <span
+                        aria-hidden="true"
+                        className="lettering-girando size-4 rounded-full border-2 border-neutral-900/25 border-t-neutral-900"
+                      />
+                    ) : null}
                     Salvar
                   </Button>
                 </div>
@@ -2233,10 +2381,30 @@ export function LetteringStudio() {
                   </p>
                 ) : (
                   <ul className="space-y-1">
-                    {layouts.map((layout) => (
+                    {layouts.map((layout, i) => (
                       <li
                         key={layout.id}
-                        className="flex items-center gap-1 rounded-md border border-white/15"
+                        // Entram em cascata, mas só as primeiras: com a
+                        // defasagem correndo até o fim da lista, o último item
+                        // de uma estante cheia chegaria tarde demais.
+                        // A cascata é da entrada. Saindo, a defasagem só
+                        // atrasaria o item a começar a encolher.
+                        style={
+                          saindoDaLista.includes(layout.id)
+                            ? undefined
+                            : { animationDelay: `${Math.min(i, 7) * 25}ms` }
+                        }
+                        onAnimationEnd={(e) => {
+                          if (e.animationName !== "lettering-sai") return;
+                          apagarLayout(layout.id, layout.name);
+                        }}
+                        className={`flex items-center gap-1 overflow-hidden rounded-md border border-white/15 ${
+                          saindoDaLista.includes(layout.id)
+                            ? "lettering-sai"
+                            : destaque === layout.id
+                              ? "lettering-item-novo"
+                              : "lettering-item"
+                        }`}
                       >
                         <button
                           type="button"
@@ -2248,8 +2416,13 @@ export function LetteringStudio() {
                         <button
                           type="button"
                           aria-label={`Excluir ${layout.name}`}
-                          onClick={() => apagarLayout(layout.id, layout.name)}
-                          className="p-3 text-neutral-400"
+                          // O item sai encolhendo primeiro; quem apaga de
+                          // verdade é o fim dessa animação. Sumir no mesmo
+                          // quadro não deixava ver o que saiu da lista.
+                          onClick={() =>
+                            setSaindoDaLista((atual) => [...atual, layout.id])
+                          }
+                          className="p-3 text-neutral-400 transition-transform duration-150 active:scale-90"
                         >
                           <Trash2 aria-hidden="true" className="size-4" />
                         </button>
@@ -2268,10 +2441,15 @@ export function LetteringStudio() {
 
                 {fontesSalvas.length > 0 ? (
                   <ul className="space-y-1">
-                    {fontesSalvas.map((fonte) => (
+                    {fontesSalvas.map((fonte, i) => (
                       <li
                         key={fonte.id}
-                        className="flex items-center gap-1 rounded-md border border-white/15"
+                        style={{ animationDelay: `${Math.min(i, 7) * 25}ms` }}
+                        className={`flex items-center gap-1 rounded-md border border-white/15 ${
+                          destaque === fonte.id
+                            ? "lettering-item-novo"
+                            : "lettering-item"
+                        }`}
                       >
                         <button
                           type="button"
@@ -2297,7 +2475,13 @@ export function LetteringStudio() {
                   action={async (formData: FormData) => {
                     setOcupado(true);
                     try {
-                      setFontesSalvas(await guardarFonteAction(formData));
+                      const lista = await guardarFonteAction(formData);
+                      setFontesSalvas(lista);
+                      const nova = lista.find(
+                        (f) =>
+                          !fontesSalvas.some((antiga) => antiga.id === f.id),
+                      );
+                      if (nova) setDestaque(nova.id);
                       setAviso({ texto: "Fonte guardada na biblioteca" });
                     } catch {
                       setAviso({ texto: "Não deu pra guardar a fonte." });
@@ -2332,7 +2516,15 @@ export function LetteringStudio() {
                     disabled={ocupado}
                     className={`w-full ${BOTAO_CLARO}`}
                   >
-                    <Upload aria-hidden="true" data-icon="inline-start" />
+                    {ocupado ? (
+                      <span
+                        aria-hidden="true"
+                        data-icon="inline-start"
+                        className="lettering-girando size-4 rounded-full border-2 border-neutral-900/25 border-t-neutral-900"
+                      />
+                    ) : (
+                      <Upload aria-hidden="true" data-icon="inline-start" />
+                    )}
                     Guardar fonte
                   </Button>
                 </form>

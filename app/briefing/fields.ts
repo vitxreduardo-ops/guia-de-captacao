@@ -1,15 +1,21 @@
 export type Field = {
   name: string;
+  /** O título do passo já faz a pergunta: o rótulo fica só pra leitor de tela. */
+  labelHidden?: true;
   /** Só aparece quando o serviço escolhido está nesta lista. */
   only?: string[];
+  /** Só aparece quando outro campo já foi respondido com um destes valores. */
+  showWhen?: { field: string; values: string[] };
   label: string;
   hint?: string;
-  type?: "text" | "textarea" | "choice";
+  type?: "text" | "tel" | "textarea" | "choice";
   options?: string[];
   required?: boolean;
 };
 
 export type Step = { title: string; fields: Field[] };
+
+export const MAX_ANSWER_LENGTH = 2000;
 
 export const SERVICOS = [
   "Identidade visual",
@@ -19,14 +25,30 @@ export const SERVICOS = [
   "Ainda não sei",
 ] as const;
 
-export const MAX_ANSWER_LENGTH = 2000;
+const DIAGNOSTICO = ["Identidade visual", "Site", "Ainda não sei"];
+const MARCA = ["Identidade visual", "Conteúdo para redes"];
+const TODOS_MENOS_VIDEO = [
+  "Identidade visual",
+  "Conteúdo para redes",
+  "Site",
+  "Ainda não sei",
+];
+
+/** As duas formas de trabalho que põem alguém gravando em campo. */
+const COM_CAPTACAO = ["Captação completa", "Somente captação"];
 
 export const STEPS: Step[] = [
   {
     title: "Quem é você",
     fields: [
       { name: "nome", label: "Nome e marca", required: true },
-      { name: "contato", label: "WhatsApp", required: true },
+      {
+        name: "contato",
+        label: "WhatsApp",
+        hint: "Com DDD. É por aqui que eu respondo — só eu vejo esse número",
+        type: "tel",
+        required: true,
+      },
       {
         name: "oque_faz",
         label: "O que a marca faz, em uma frase",
@@ -36,26 +58,33 @@ export const STEPS: Step[] = [
     ],
   },
   {
-    title: "O projeto",
+    title: "O que você precisa",
     fields: [
       {
         name: "servico",
         label: "O que você precisa",
+        labelHidden: true,
         type: "choice",
         options: [...SERVICOS],
         required: true,
-      },
-      { name: "motivo", label: "Por que agora? O que motivou", type: "textarea" },
-      {
-        name: "incomodo",
-        label: "Como é hoje — o que te incomoda",
-        type: "textarea",
       },
     ],
   },
   {
     title: "Sobre esse trabalho",
     fields: [
+      {
+        name: "motivo",
+        only: DIAGNOSTICO,
+        label: "O que fez você procurar isso agora",
+        type: "textarea",
+      },
+      {
+        name: "incomodo",
+        only: DIAGNOSTICO,
+        label: "O que mais te incomoda hoje",
+        type: "textarea",
+      },
       {
         name: "id_tem_marca",
         only: ["Identidade visual"],
@@ -66,13 +95,13 @@ export const STEPS: Step[] = [
         name: "id_aplicacoes",
         only: ["Identidade visual"],
         label: "Onde a marca vai aparecer",
-        hint: "Embalagem, fachada, uniforme, rede social, papelaria…",
+        hint: "Embalagem, fachada, uniforme, rede social, papelaria",
         type: "textarea",
       },
       {
         name: "redes_canais",
         only: ["Conteúdo para redes"],
-        label: "Quais redes e com que frequência",
+        label: "Quais redes e quantos posts por semana",
       },
       {
         name: "redes_quem_aparece",
@@ -87,25 +116,56 @@ export const STEPS: Step[] = [
         type: "choice",
         options: ["Sim, organizado", "Sim, bagunçado", "Quase nada"],
       },
+      // Vídeo é encomenda: o que importa é o que tem que existir no fim e o
+      // que não pode entrar. Por isso quase tudo é escolha, não texto livre,
+      // e não passa por "por que agora".
       {
-        name: "video_tipo",
+        name: "video_formato",
         only: ["Vídeo"],
-        label: "Que tipo de vídeo e quanto tempo",
-        hint: "Institucional, anúncio, série de reels, cobertura de evento…",
-        type: "textarea",
+        label: "Que tipo de vídeo",
+        type: "choice",
+        options: [
+          "Institucional",
+          "Anúncio",
+          "Reels ou TikTok",
+          "Motion",
+          "Cobertura de evento",
+          "Depoimento de cliente",
+          "Outro",
+        ],
+      },
+      {
+        name: "video_formato_outro",
+        only: ["Vídeo"],
+        showWhen: { field: "video_formato", values: ["Outro"] },
+        label: "Qual",
+      },
+      {
+        name: "video_quantidade",
+        only: ["Vídeo"],
+        label: "Quantos vídeos",
+        type: "choice",
+        options: ["1", "2 a 3", "4 a 8", "Mais de 8"],
+      },
+      {
+        name: "video_duracao",
+        only: ["Vídeo"],
+        label: "Duração de cada um",
+        type: "choice",
+        options: ["Até 30s", "30s a 1min", "1 a 3min", "Mais de 3min"],
       },
       {
         name: "video_onde_roda",
         only: ["Vídeo"],
         label: "Onde vai rodar",
-        hint: "Feed, anúncio pago, TV, evento, site…",
-      },
-      {
-        name: "video_producao",
-        only: ["Vídeo"],
-        label: "Precisa de captação ou só edição?",
         type: "choice",
-        options: ["Captação e edição", "Só edição", "Não sei ainda"],
+        options: [
+          "Instagram e TikTok",
+          "YouTube",
+          "Anúncio pago",
+          "Site",
+          "Evento ou tela interna",
+        ],
       },
       {
         name: "site_paginas",
@@ -118,7 +178,11 @@ export const STEPS: Step[] = [
         only: ["Site"],
         label: "Vai vender pelo site?",
         type: "choice",
-        options: ["Sim, loja completa", "Só direciona pro WhatsApp", "Não vende"],
+        options: [
+          "Sim, loja completa",
+          "Só encaminha pro WhatsApp",
+          "Não vende",
+        ],
       },
       {
         name: "site_dominio",
@@ -129,18 +193,61 @@ export const STEPS: Step[] = [
     ],
   },
   {
+    title: "Como vai ser feito",
+    fields: [
+      {
+        name: "video_producao",
+        only: ["Vídeo"],
+        label: "O que entra no trabalho",
+        type: "choice",
+        options: ["Captação completa", "Somente edição", "Somente captação"],
+      },
+      {
+        name: "video_aparece",
+        only: ["Vídeo"],
+        label: "Quem e o que aparece",
+        hint: "Pessoas, produto, loja, bastidor",
+        type: "textarea",
+      },
+      {
+        name: "video_quando_onde",
+        only: ["Vídeo"],
+        showWhen: { field: "video_producao", values: COM_CAPTACAO },
+        label: "Quando e onde é a gravação",
+        hint: "Data, cidade, local. Se ainda não sabe, escreva o que já sabe",
+        type: "textarea",
+      },
+      {
+        name: "video_responsavel",
+        only: ["Vídeo"],
+        showWhen: { field: "video_producao", values: COM_CAPTACAO },
+        label: "No dia da captação, quem manda",
+        hint: "Nome e WhatsApp de quem decide no local, se não for você",
+        type: "textarea",
+      },
+      {
+        name: "video_nao_pode",
+        only: ["Vídeo"],
+        label: "O que não pode",
+        hint: "Rosto que não pode aparecer, concorrente na imagem, música com direitos, palavra proibida pelo setor",
+        type: "textarea",
+      },
+    ],
+  },
+  {
     title: "Público e objetivo",
     fields: [
       { name: "publico", label: "Quem é o cliente ideal", type: "textarea" },
       {
         name: "sucesso",
+        only: TODOS_MENOS_VIDEO,
         label: "O que conta como sucesso",
-        hint: "Venda, reconhecimento, entrar em mercado novo…",
+        hint: "Vender mais, ser reconhecido, entrar em um mercado novo",
         type: "textarea",
       },
       {
         name: "referencias",
-        label: "Referências que admira (até 3 links)",
+        label: "Referências que você admira (até 3 links)",
         type: "textarea",
       },
     ],
@@ -148,41 +255,70 @@ export const STEPS: Step[] = [
   {
     title: "Tom e prático",
     fields: [
-      { name: "e", label: "Três palavras que a marca É" },
-      { name: "nao_e", label: "Três palavras que a marca NÃO É" },
-      { name: "prazo", label: "Prazo / data-limite real" },
+      { name: "e", only: MARCA, label: "Três palavras que a marca é" },
+      { name: "nao_e", only: MARCA, label: "Três palavras que a marca não é" },
+      { name: "prazo", label: "Prazo ou data que não dá pra furar" },
       {
         name: "verba",
         label: "Faixa de investimento",
+        hint: "Não é orçamento fechado, só me ajuda a dimensionar o projeto",
         type: "choice",
         options: [
           "até 3k",
-          "3k – 8k",
-          "8k – 20k",
+          "3k a 8k",
+          "8k a 20k",
           "acima de 20k",
           "prefiro conversar",
         ],
       },
       {
         name: "materiais",
-        label: "Links de materiais existentes (logo, fotos, manual)",
+        label: "Links de materiais que você já tem",
+        hint: "Logo, fotos, manual da marca, vídeos antigos",
         type: "textarea",
       },
     ],
   },
 ];
 
+/**
+ * Telefone brasileiro: DDD mais oito ou nove dígitos, com ou sem o 55 na
+ * frente. Vale no cliente e no servidor — é o único canal de resposta, e um
+ * número errado some sem ninguém dos dois lados perceber.
+ */
+export function apenasDigitos(valor: string): string {
+  return valor.replace(/\D/g, "");
+}
+
+export function telefoneValido(valor: string): boolean {
+  const digitos = apenasDigitos(valor).replace(/^55/, "");
+  return digitos.length === 10 || digitos.length === 11;
+}
+
 export const FIELDS: Field[] = STEPS.flatMap((step) => step.fields);
 
-/** Campos que valem pro serviço escolhido — os demais nem são mostrados. */
-export function fieldsFor(fields: Field[], servico: string): Field[] {
-  return fields.filter((field) => !field.only || field.only.includes(servico));
+/**
+ * Campos que valem pras respostas até agora: o serviço escolhido decide o
+ * bloco, e um campo com showWhen só existe depois da resposta que o abre.
+ */
+export function fieldsFor(
+  fields: Field[],
+  answers: Record<string, string>,
+): Field[] {
+  return fields.filter((field) => {
+    if (field.only && !field.only.includes(answers.servico ?? "")) return false;
+    if (field.showWhen) {
+      const answer = answers[field.showWhen.field] ?? "";
+      if (!field.showWhen.values.includes(answer)) return false;
+    }
+    return true;
+  });
 }
 
 /** Passos com ao menos um campo — o passo específico some pra quem não tem. */
-export function stepsFor(servico: string): Step[] {
+export function stepsFor(answers: Record<string, string>): Step[] {
   return STEPS.map((step) => ({
     ...step,
-    fields: fieldsFor(step.fields, servico),
+    fields: fieldsFor(step.fields, answers),
   })).filter((step) => step.fields.length > 0);
 }

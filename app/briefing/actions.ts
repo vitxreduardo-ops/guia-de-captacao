@@ -2,26 +2,32 @@
 
 import { createBriefing } from "@/lib/briefings";
 import { sendWhatsAppNotice } from "@/lib/whatsapp";
-import { FIELDS, MAX_ANSWER_LENGTH, fieldsFor } from "./fields";
+import { FIELDS, MAX_ANSWER_LENGTH, fieldsFor, telefoneValido } from "./fields";
 
 export type SubmitResult = { ok: true } | { ok: false; error: string };
 
 export async function submitBriefingAction(
-  input: Record<string, string>
+  input: Record<string, string>,
 ): Promise<SubmitResult> {
   // O formulário é público: só entram os campos conhecidos, já cortados no
   // tamanho, e a escolha precisa ser uma das opções oferecidas.
-  const servico = String(input?.servico ?? "").trim();
+  // Filtra contra o que já foi aceito, não contra o que chegou: assim um
+  // campo condicional só entra se a resposta que o abre também for válida.
   const answers: Record<string, string> = {};
-  for (const field of fieldsFor(FIELDS, servico)) {
+  for (const field of FIELDS) {
+    if (fieldsFor([field], answers).length === 0) continue;
     const raw = String(input?.[field.name] ?? "").trim();
     if (!raw) continue;
     if (field.type === "choice" && !field.options?.includes(raw)) continue;
     answers[field.name] = raw.slice(0, MAX_ANSWER_LENGTH);
   }
 
-  const missing = fieldsFor(FIELDS, servico).filter((f) => f.required && !answers[f.name]);
+  const missing = fieldsFor(FIELDS, answers).filter(
+    (f) => f.required && !answers[f.name],
+  );
   if (missing.length > 0) return { ok: false, error: "campos" };
+  if (!telefoneValido(answers.contato ?? ""))
+    return { ok: false, error: "telefone" };
 
   try {
     await createBriefing({
@@ -42,7 +48,7 @@ export async function submitBriefingAction(
       `Serviço: ${answers.servico ?? "—"}`,
       `Verba: ${answers.verba ?? "—"}`,
       `Prazo: ${answers.prazo ?? "—"}`,
-    ].join("\n")
+    ].join("\n"),
   );
 
   return { ok: true };

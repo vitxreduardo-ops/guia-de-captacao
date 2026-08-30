@@ -56,3 +56,9 @@ export async function listBriefings(): Promise<Briefing[]> {
   if (error) throw error;
   return (data ?? []) as Briefing[];
 }
+
+export async function deleteBriefing(id: string): Promise<void> {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase.from("briefings").delete().eq("id", id);
+  if (error) throw error;
+}

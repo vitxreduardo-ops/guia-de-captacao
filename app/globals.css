@@ -31,6 +31,13 @@
   --tatu-taupe: #cdc7b8;
   --tatu-beige: #fff6e3;
   --tatu-ink: #2f3b1e;
+  /* Bordas e texto secundário puros (taupe cru, ink a 40-60%) ficam abaixo de
+     3:1 e 4,5:1 contra o creme — medido, não estimado. Estas duas variações
+     são as que passam: borda a 40% de ink sobre o taupe (~3,1:1, letreiro de
+     campo), texto secundário a 70% de ink sobre o creme (~4,6:1, corpo
+     pequeno). */
+  --tatu-border: color-mix(in oklab, var(--tatu-ink) 40%, var(--tatu-taupe));
+  --tatu-muted: color-mix(in oklab, var(--tatu-ink) 70%, transparent);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -125,7 +132,11 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /*
+    A Geist entra pelo layout raiz como --font-geist-sans; Arial fica só como
+    reserva pro intervalo até a fonte carregar.
+  */
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 /*
   ---break---
@@ -388,5 +399,145 @@ body {
   /* A roda continua girando: aqui ela é o próprio aviso de que algo corre. */
   .lettering-girando {
     animation-duration: 1600ms;
+  }
+}
+
+/* Troca de estado dentro da folha: o que entra aparece, não corta. */
+@keyframes lettering-aparece {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.lettering-troca {
+  animation: lettering-aparece 200ms ease-out both;
+}
+
+/*
+  Itens da lista entram de baixo, em cascata. A defasagem vem escrita no
+  elemento, porque depende da posição dele na lista.
+*/
+@keyframes lettering-item-entra {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* O que acabou de ser salvo entra e ainda pisca: é a resposta a "foi pra onde?". */
+@keyframes lettering-item-entra-novo {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+    background-color: rgb(255 255 255 / 0.18);
+  }
+  35% {
+    opacity: 1;
+    transform: none;
+    background-color: rgb(255 255 255 / 0.18);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    background-color: transparent;
+  }
+}
+
+/* Sai encolhendo: a lista se fecha em cima do lugar que era dele. */
+@keyframes lettering-sai {
+  from {
+    opacity: 1;
+    max-height: 4rem;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    max-height: 0;
+    transform: translateX(-8px);
+  }
+}
+
+.lettering-item {
+  animation: lettering-item-entra 280ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.lettering-item-novo {
+  animation: lettering-item-entra-novo 1100ms cubic-bezier(0.32, 0.72, 0, 1)
+    both;
+}
+
+.lettering-sai {
+  animation: lettering-sai 220ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/*
+  Onde o conteúdo passa por baixo do cabeçalho, ele desaparece num degradê em
+  vez de ser cortado por uma linha. Só quando há mesmo o que esconder.
+*/
+.lettering-corpo[data-rolado="true"] {
+  mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+}
+
+/* A peça que chega de um layout salvo: aparece assentando, não do nada. */
+@keyframes lettering-chegou {
+  from {
+    opacity: 0.5;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lettering-chegou {
+  animation: lettering-chegou 240ms cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Sem deslocamento: o que entra e o que sai passa a só aparecer e sumir. */
+  @keyframes lettering-item-entra {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes lettering-item-entra-novo {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes lettering-chegou {
+    from {
+      opacity: 0.5;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .lettering-item,
+  .lettering-item-novo,
+  .lettering-chegou {
+    animation-duration: 140ms;
+  }
+
+  /* A saída continua encolhendo: sem isso a lista daria um salto. */
+  .lettering-sai {
+    animation-duration: 160ms;
   }
 }
