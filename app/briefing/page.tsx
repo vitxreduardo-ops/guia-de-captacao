@@ -278,7 +278,7 @@ export default function BriefingPage() {
             initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={stepTransition}
-            className="w-full max-w-md rounded-3xl border border-[var(--tatu-border)]/50 bg-white p-8 shadow-xl shadow-black/5 sm:p-10"
+            className="w-full max-w-md rounded-3xl border border-[var(--tatu-border)]/50 bg-[var(--tatu-cream)] p-8 shadow-xl shadow-black/10 sm:p-10"
           >
             <h1 className="text-3xl text-[var(--tatu-ink)]" style={HEADLINE}>
               Briefing enviado
@@ -303,7 +303,7 @@ export default function BriefingPage() {
           bottom-20" da página — o rodapé de ações agora é parte do próprio
           cartão, sempre visível, sem depender de matemática de viewport. */}
       <main className="flex min-h-screen items-center justify-center bg-[var(--tatu-olive)] px-4 pt-20 pb-20">
-        <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-3xl border border-[var(--tatu-border)]/50 bg-white shadow-xl shadow-black/5">
+        <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-3xl border border-[var(--tatu-border)]/50 bg-[var(--tatu-cream)] shadow-xl shadow-black/10">
           <div className="px-6 pt-6 sm:px-8 sm:pt-8">
             {/* Antes da escolha do serviço o caminho ainda não existe: os
               círculos prometeriam um total que vai crescer de 3 pra 5. Até
