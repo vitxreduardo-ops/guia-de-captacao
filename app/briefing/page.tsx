@@ -94,8 +94,8 @@ function StepDots({
 
 function BriefingHeader() {
   return (
-    <header className="fixed inset-x-0 top-0 z-10 flex justify-center border-b border-[var(--tatu-border)] bg-[var(--tatu-cream)]/90 px-6 py-4 backdrop-blur">
-      <TatuLogo className="h-5 w-auto text-[var(--tatu-ink)]" />
+    <header className="fixed inset-x-0 top-0 z-10 flex justify-center bg-[var(--tatu-ink)]/95 px-6 py-4 backdrop-blur">
+      <TatuLogo className="h-5 w-auto text-[var(--tatu-cream)]" />
     </header>
   );
 }
@@ -103,17 +103,17 @@ function BriefingHeader() {
 function BriefingFooter() {
   return (
     <footer
-      className="fixed inset-x-0 bottom-0 z-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-[var(--tatu-border)] bg-[var(--tatu-cream)]/90 px-6 py-3 text-xs text-[var(--tatu-muted)] backdrop-blur"
+      className="fixed inset-x-0 bottom-0 z-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 bg-[var(--tatu-ink)]/95 px-6 py-3 text-xs text-[var(--tatu-cream)]/70 backdrop-blur"
       style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
     >
-      <span className="font-medium text-[var(--tatu-ink)]">
+      <span className="font-medium text-[var(--tatu-cream)]">
         Tatú Estúdio Criativo
       </span>
       <a
         href={`https://instagram.com/${INSTAGRAM.slice(1)}`}
         target="_blank"
         rel="noreferrer"
-        className="hover:text-[var(--tatu-ink)]"
+        className="hover:text-[var(--tatu-cream)]"
       >
         {INSTAGRAM}
       </a>
@@ -121,7 +121,7 @@ function BriefingFooter() {
         href={`https://wa.me/${WHATSAPP_ESTUDIO}`}
         target="_blank"
         rel="noreferrer"
-        className="hover:text-[var(--tatu-ink)]"
+        className="hover:text-[var(--tatu-cream)]"
       >
         WhatsApp
       </a>
@@ -273,7 +273,7 @@ export default function BriefingPage() {
     return (
       <>
         <BriefingHeader />
-        <main className="flex min-h-screen items-center justify-center bg-[var(--tatu-cream)] px-4 pt-20 pb-20">
+        <main className="flex min-h-screen items-center justify-center bg-[var(--tatu-olive)] px-4 pt-20 pb-20">
           <motion.div
             initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -302,7 +302,7 @@ export default function BriefingPage() {
           travada e rolagem por dentro. Isso substitui o antigo "sticky
           bottom-20" da página — o rodapé de ações agora é parte do próprio
           cartão, sempre visível, sem depender de matemática de viewport. */}
-      <main className="flex min-h-screen items-center justify-center bg-[var(--tatu-cream)] px-4 pt-20 pb-20">
+      <main className="flex min-h-screen items-center justify-center bg-[var(--tatu-olive)] px-4 pt-20 pb-20">
         <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-3xl border border-[var(--tatu-border)]/50 bg-white shadow-xl shadow-black/5">
           <div className="px-6 pt-6 sm:px-8 sm:pt-8">
             {/* Antes da escolha do serviço o caminho ainda não existe: os
