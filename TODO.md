@@ -90,12 +90,37 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
       lettering: hoje tudo é cinza claro fixo. Fazer só nesta tela deixaria o
       painel inconsistente.
 
-## Login
+- [ ] **A grade não aparece e o encaixe não encaixa.** Os dois interruptores
+      existem no menu de ajustes do palco, mas nenhum dos dois muda o que se
+      vê. O `Encaixe` claramente não é lido: `comImã`
+      (`components/admin/LetteringStudio.tsx`) chama `snap` sempre, sem olhar
+      `encaixeRef`, e sem passar o passo da grade — o parâmetro `grade` de
+      `snap` (`lib/letteringSnap.ts`) fica no padrão zero, que desliga o
+      encaixe na grade. A `Grade` desenha em `pintar` a partir de
+      `gradeRef`; falta descobrir por que não sai na tela.
 
-- [ ] **Mostrar senha e lembrar usuário.** A tela de entrada
-      (`app/admin/login/page.tsx`) tem só os dois campos: falta o botão de
-      olho para revelar a senha e o "lembrar de mim" que traga o usuário
-      preenchido na próxima visita.
+- [ ] **Escolher o peso da fonte.** A camada só guarda a família, e o desenho
+      monta `${size}px ${family}` (`lib/letteringDraw.ts`) — sempre no peso
+      normal. Falta um campo de peso na camada, o seletor no painel de Texto e
+      registrar as variações da família (bold, light) tanto nas fontes do
+      sistema quanto nas carregadas de arquivo, que hoje entram uma por
+      arquivo.
+
+## Orçamento
+
+- [ ] **Seção de logos dos clientes atendidos.** Uma faixa com as marcas com
+      quem já trabalhamos, dentro do orçamento que o cliente vê
+      (`app/orcamento/[slug]/page.tsx`). Falta decidir de onde vêm os
+      arquivos — lista fixa no projeto ou algo administrável — e se a faixa
+      aparece em todo orçamento ou só quando ligada.
+
+## Briefing
+
+- [ ] **Página de briefing pra o cliente responder.** Um formulário aberto,
+      fora do `/admin`, que o cliente preenche sozinho por link — e as
+      respostas chegam pra gente. Falta decidir as perguntas, onde as
+      respostas ficam (tabela nova no Supabase) e como o link é gerado por
+      cliente.
 
 ## Qualidade geral
 
