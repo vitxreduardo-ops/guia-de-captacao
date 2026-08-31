@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, type SVGProps, useState, useTransition } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { submitBriefingAction } from "./actions";
 import { stepsFor, telefoneValido } from "./fields";
@@ -14,6 +14,83 @@ const WHATSAPP_ESTUDIO = "5577999656195";
 // é o mesmo tom escuro que a Tatú já usa no CTA da página de Orçamento.
 const CTA = "bg-[var(--tatu-ink)] text-[var(--tatu-cream)]";
 const HEADLINE = { fontFamily: "Bootzy, sans-serif" };
+
+// Adaptado do Stepper da React Bits: círculo numerado, conector que preenche
+// e check que se desenha — mas na paleta da Tatú, e alimentado pelo estado
+// de passos que o formulário já mantém, não pela lógica própria do pacote
+// (esta tela decide passo, validação e envio; o componente deles não sabe
+// nada disso).
+function CheckIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...props} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <motion.path
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ delay: 0.1, type: "tween", ease: "easeOut", duration: 0.3 }}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M5 13l4 4L19 7"
+      />
+    </svg>
+  );
+}
+
+function StepDots({
+  total,
+  current,
+  onJump,
+}: {
+  total: number;
+  current: number;
+  onJump: (index: number) => void;
+}) {
+  return (
+    <div className="flex items-center">
+      {Array.from({ length: total }, (_, i) => {
+        const status =
+          i === current ? "active" : i < current ? "complete" : "inactive";
+        return (
+          <Fragment key={i}>
+            <motion.button
+              type="button"
+              onClick={() => status !== "inactive" && i !== current && onJump(i)}
+              disabled={status === "inactive"}
+              animate={status}
+              initial={false}
+              variants={{
+                inactive: { scale: 1 },
+                active: { scale: 1.08 },
+                complete: { scale: 1 },
+              }}
+              transition={{ type: "spring", bounce: 0.3, duration: 0.25 }}
+              className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
+                status === "inactive"
+                  ? "border border-[var(--tatu-border)] text-[var(--tatu-muted)]"
+                  : "bg-[var(--tatu-ink)] text-[var(--tatu-cream)]"
+              } ${status !== "inactive" ? "cursor-pointer" : "cursor-default"}`}
+            >
+              {status === "complete" ? (
+                <CheckIcon className="size-3.5" />
+              ) : (
+                i + 1
+              )}
+            </motion.button>
+            {i < total - 1 && (
+              <div className="mx-1 h-0.5 flex-1 overflow-hidden rounded-full bg-[var(--tatu-border)]">
+                <motion.div
+                  className="h-full bg-[var(--tatu-olive)]"
+                  initial={false}
+                  animate={{ width: i < current ? "100%" : "0%" }}
+                  transition={{ type: "spring", bounce: 0, duration: 0.35 }}
+                />
+              </div>
+            )}
+          </Fragment>
+        );
+      })}
+    </div>
+  );
+}
 
 function BriefingHeader() {
   return (
@@ -157,6 +234,13 @@ export default function BriefingPage() {
     setStep((s) => s - 1);
   }
 
+  // Clicar num círculo já respondido pula direto pra ele — só pra trás; um
+  // passo ainda não alcançado nem aceita clique (fica "inactive" no StepDots).
+  function jump(index: number) {
+    setDirection(index > step ? 1 : -1);
+    setStep(index);
+  }
+
   // Enter nos campos de uma linha avança. A submissão implícita do form não é
   // confiável em todo navegador, e textarea continua servindo pra quebrar
   // linha, então o atalho fica só nos inputs.
@@ -221,23 +305,18 @@ export default function BriefingPage() {
       <main className="flex min-h-screen items-center justify-center bg-[var(--tatu-cream)] px-4 pt-20 pb-20">
         <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-3xl border border-[var(--tatu-border)]/50 bg-white shadow-xl shadow-black/5">
           <div className="px-6 pt-6 sm:px-8 sm:pt-8">
-            {/* Antes da escolha do serviço o caminho ainda não existe: mostrar
-              um total que vai crescer de 3 pra 5 promete um formulário mais
-              curto do que o que vem. Até lá, só a barra do passo atual. */}
-            <div className="flex gap-1.5">
-              {(values.servico ? steps : [current]).map((s, i) => (
-                <div
-                  key={s.title}
-                  className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
-                    i <= step
-                      ? "bg-[var(--tatu-olive)]"
-                      : "bg-[var(--tatu-border)]/70"
-                  }`}
-                />
-              ))}
-            </div>
+            {/* Antes da escolha do serviço o caminho ainda não existe: os
+              círculos prometeriam um total que vai crescer de 3 pra 5. Até
+              lá, só um marcador do passo atual. */}
+            {values.servico ? (
+              <StepDots total={steps.length} current={step} onJump={jump} />
+            ) : (
+              <div className="flex size-7 items-center justify-center rounded-full bg-[var(--tatu-ink)] text-xs font-semibold text-[var(--tatu-cream)]">
+                {step + 1}
+              </div>
+            )}
 
-            <p className="mt-6 text-xs font-medium tracking-wide text-[var(--tatu-muted)] uppercase">
+            <p className="mt-4 text-xs font-medium tracking-wide text-[var(--tatu-muted)] uppercase">
               {values.servico
                 ? `Passo ${step + 1} de ${steps.length}`
                 : `Passo ${step + 1}`}
