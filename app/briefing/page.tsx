@@ -268,17 +268,22 @@ export default function BriefingPage() {
     bounce: 0,
     duration: prefersReducedMotion ? 0.15 : 0.35,
   };
+  const layoutTransition = {
+    type: "spring" as const,
+    bounce: 0,
+    duration: prefersReducedMotion ? 0.15 : 0.4,
+  };
 
   if (sent) {
     return (
       <>
         <BriefingHeader />
-        <main className="flex min-h-screen items-center justify-center bg-[var(--tatu-olive)] px-4 pt-20 pb-20">
+        <main className="flex min-h-screen items-center justify-center bg-[var(--tatu-cream)] px-4 pt-20 pb-20">
           <motion.div
             initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={stepTransition}
-            className="w-full max-w-md rounded-3xl border border-[var(--tatu-border)]/50 bg-[var(--tatu-cream)] p-8 shadow-xl shadow-black/10 sm:p-10"
+            className="w-full max-w-md rounded-3xl border border-[var(--tatu-border)] bg-white p-8 shadow-2xl shadow-black/15 sm:p-10"
           >
             <h1 className="text-3xl text-[var(--tatu-ink)]" style={HEADLINE}>
               Briefing enviado
@@ -302,8 +307,16 @@ export default function BriefingPage() {
           travada e rolagem por dentro. Isso substitui o antigo "sticky
           bottom-20" da página — o rodapé de ações agora é parte do próprio
           cartão, sempre visível, sem depender de matemática de viewport. */}
-      <main className="flex min-h-screen items-center justify-center bg-[var(--tatu-olive)] px-4 pt-20 pb-20">
-        <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-3xl border border-[var(--tatu-border)]/50 bg-[var(--tatu-cream)] shadow-xl shadow-black/10">
+      <main className="flex min-h-screen items-center justify-center bg-[var(--tatu-cream)] px-4 pt-20 pb-20">
+        {/* layout: sem isso, o espaço de uma pergunta nova aparecia de uma vez
+            (o cartão pulava pra nova altura) e só o conteúdo dentro fazia
+            fade — lia como bloco surgindo do nada. Com layout, a própria
+            altura do cartão interpola suavemente até o novo tamanho. */}
+        <motion.div
+          layout
+          transition={layoutTransition}
+          className="flex max-h-[80vh] w-full max-w-md flex-col rounded-3xl border border-[var(--tatu-border)] bg-white shadow-2xl shadow-black/15"
+        >
           <div className="px-6 pt-6 sm:px-8 sm:pt-8">
             {/* Antes da escolha do serviço o caminho ainda não existe: os
               círculos prometeriam um total que vai crescer de 3 pra 5. Até
@@ -348,7 +361,7 @@ export default function BriefingPage() {
                     {current.title}
                   </h1>
 
-                  <div className="mt-7 space-y-6">
+                  <motion.div layout transition={layoutTransition} className="mt-7 space-y-6">
                     {visibleFields.map((field, i) => (
                       <motion.div
                         key={field.name}
@@ -471,7 +484,7 @@ export default function BriefingPage() {
                           )}
                       </motion.div>
                     ))}
-                  </div>
+                  </motion.div>
                 </motion.div>
               </AnimatePresence>
 
@@ -515,7 +528,7 @@ export default function BriefingPage() {
               </motion.button>
             </div>
           </form>
-        </div>
+        </motion.div>
       </main>
       <BriefingFooter />
     </>
