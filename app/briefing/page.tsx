@@ -3,7 +3,7 @@
 import { Fragment, type SVGProps, useState, useTransition } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { submitBriefingAction } from "./actions";
-import { stepsFor, telefoneValido } from "./fields";
+import { STEPS, stepsFor, telefoneValido } from "./fields";
 import { TatuLogo } from "@/components/TatuLogo";
 
 const INSTAGRAM = "@tatu.estudiocriativo";
@@ -147,8 +147,10 @@ export default function BriefingPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   // Quantas perguntas da tela atual já apareceram: começa em 1 e cresce
-  // conforme o cliente responde, pra tela nunca jogar tudo de uma vez.
-  const [revealed, setRevealed] = useState(1);
+  // conforme o cliente responde, pra tela nunca jogar tudo de uma vez — exceto
+  // o passo 1, que é curto e leve o bastante pra abrir com as três perguntas
+  // já em cascata, sem esperar resposta.
+  const [revealed, setRevealed] = useState(() => STEPS[0].fields.length);
   const [revealedStep, setRevealedStep] = useState(0);
 
   // Os passos dependem do serviço escolhido: quem pede site não responde as
@@ -185,10 +187,10 @@ export default function BriefingPage() {
   // Troca de passo (avançar ou voltar) reabre com tudo que já foi
   // respondido visível, não só a primeira pergunta — ajuste feito durante a
   // renderização, não em efeito, como o React recomenda pra resetar estado
-  // quando uma prop (aqui, o passo) muda.
+  // quando uma prop (aqui, o passo) muda. O passo 1 sempre abre completo.
   if (revealedStep !== step) {
     setRevealedStep(step);
-    setRevealed(leadingAnswered(current.fields));
+    setRevealed(step === 0 ? current.fields.length : leadingAnswered(current.fields));
   }
 
   const visibleFields = current.fields.slice(0, revealed);
@@ -374,6 +376,11 @@ export default function BriefingPage() {
                           type: "spring",
                           bounce: 0,
                           duration: prefersReducedMotion ? 0.15 : 0.35,
+                          // A cascata do passo 1 (as três perguntas juntas)
+                          // sai desse atraso por posição; nos passos que
+                          // revelam um campo por vez, só o campo novo entra —
+                          // o atraso proporcional some sozinho na prática.
+                          delay: prefersReducedMotion ? 0 : i * 0.08,
                         }}
                       >
                         <label
