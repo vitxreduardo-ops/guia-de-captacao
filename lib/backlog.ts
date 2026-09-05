@@ -52,6 +52,11 @@ function normalizeUuid(value: unknown): string | null {
   return trimmed && trimmed !== "none" ? trimmed : null;
 }
 
+function normalizeText(value: unknown): string | null {
+  const trimmed = String(value ?? "").trim();
+  return trimmed || null;
+}
+
 // ---------------------------------------------------------------- leitura
 
 export async function getBacklogBoard(): Promise<BacklogBoard> {
@@ -188,6 +193,7 @@ export interface BacklogCardInput {
   post_time: string | null;
   sent_whatsapp: boolean;
   tags: string[];
+  backup_location: string | null;
 }
 
 export function readBacklogCardInput(formData: FormData): BacklogCardInput {
@@ -205,6 +211,7 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
     post_time: normalizeTime(formData.get("post_time")),
     sent_whatsapp: formData.get("sent_whatsapp") === "on",
     tags: parseBacklogTags(formData.get("tags")),
+    backup_location: normalizeText(formData.get("backup_location")),
   };
 }
 
@@ -242,6 +249,7 @@ export async function createBacklogCard(
       sent_whatsapp: fields.sent_whatsapp ?? false,
       sent_whatsapp_at: fields.sent_whatsapp ? new Date().toISOString() : null,
       tags: fields.tags ?? [],
+      backup_location: fields.backup_location ?? null,
     })
     .select("*")
     .single();
@@ -305,6 +313,7 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
       sent_whatsapp: fields.sent_whatsapp,
       sent_whatsapp_at: sentAt,
       tags: fields.tags,
+      backup_location: fields.backup_location,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);

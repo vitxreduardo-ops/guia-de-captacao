@@ -412,6 +412,19 @@ export function BacklogCardDrawer({
           </div>
 
           <div>
+            <label className={labelClass} htmlFor="backlog-backup">
+              Onde foi feito o backup
+            </label>
+            <input
+              id="backlog-backup"
+              name="backup_location"
+              defaultValue={card.backup_location ?? ""}
+              placeholder="Ex: HD Samsung T7 / pasta 14Bis"
+              className={inputClass}
+            />
+          </div>
+
+          <div>
             <label className={labelClass} htmlFor="backlog-assignee">
               Responsável
             </label>

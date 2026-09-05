@@ -292,6 +292,15 @@ export async function createDailyTodoChecklistItem(
   if (error) throw error;
 }
 
+export async function renameDailyTodoChecklistItem(id: string, label: string) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("daily_todo_checklist_items")
+    .update({ label: label.trim() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 export async function setDailyTodoChecklistItemDone(id: string, done: boolean) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase
