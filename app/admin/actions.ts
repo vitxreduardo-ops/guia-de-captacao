@@ -6,6 +6,7 @@ import {
   createDailyTodoChecklistItem,
   deleteDailyTodo,
   deleteDailyTodoChecklistItem,
+  renameDailyTodoChecklistItem,
   reorderDailyTodos,
   setDailyTodoAssignees,
   setDailyTodoChecklistItemDone,
@@ -93,6 +94,14 @@ export async function setDailyTodoChecklistItemDoneAction(
   done: boolean
 ) {
   await setDailyTodoChecklistItemDone(id, done);
+  revalidatePath("/admin");
+}
+
+export async function renameDailyTodoChecklistItemAction(
+  id: string,
+  label: string
+) {
+  await renameDailyTodoChecklistItem(id, label);
   revalidatePath("/admin");
 }
 

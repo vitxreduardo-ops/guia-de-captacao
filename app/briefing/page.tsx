@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { Fragment, type SVGProps, useState, useTransition } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { submitBriefingAction } from "./actions";
-import { stepsFor, telefoneValido } from "./fields";
+import { STEPS, stepsFor, telefoneValido } from "./fields";
 import { TatuLogo } from "@/components/TatuLogo";
 
 const INSTAGRAM = "@tatu.estudiocriativo";
@@ -15,10 +15,87 @@ const WHATSAPP_ESTUDIO = "5577999656195";
 const CTA = "bg-[var(--tatu-ink)] text-[var(--tatu-cream)]";
 const HEADLINE = { fontFamily: "Bootzy, sans-serif" };
 
+// Adaptado do Stepper da React Bits: círculo numerado, conector que preenche
+// e check que se desenha — mas na paleta da Tatú, e alimentado pelo estado
+// de passos que o formulário já mantém, não pela lógica própria do pacote
+// (esta tela decide passo, validação e envio; o componente deles não sabe
+// nada disso).
+function CheckIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...props} fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <motion.path
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ delay: 0.1, type: "tween", ease: "easeOut", duration: 0.3 }}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M5 13l4 4L19 7"
+      />
+    </svg>
+  );
+}
+
+function StepDots({
+  total,
+  current,
+  onJump,
+}: {
+  total: number;
+  current: number;
+  onJump: (index: number) => void;
+}) {
+  return (
+    <div className="flex items-center">
+      {Array.from({ length: total }, (_, i) => {
+        const status =
+          i === current ? "active" : i < current ? "complete" : "inactive";
+        return (
+          <Fragment key={i}>
+            <motion.button
+              type="button"
+              onClick={() => status !== "inactive" && i !== current && onJump(i)}
+              disabled={status === "inactive"}
+              animate={status}
+              initial={false}
+              variants={{
+                inactive: { scale: 1 },
+                active: { scale: 1.08 },
+                complete: { scale: 1 },
+              }}
+              transition={{ type: "spring", bounce: 0.3, duration: 0.25 }}
+              className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
+                status === "inactive"
+                  ? "border border-[var(--tatu-border)] text-[var(--tatu-muted)]"
+                  : "bg-[var(--tatu-ink)] text-[var(--tatu-cream)]"
+              } ${status !== "inactive" ? "cursor-pointer" : "cursor-default"}`}
+            >
+              {status === "complete" ? (
+                <CheckIcon className="size-3.5" />
+              ) : (
+                i + 1
+              )}
+            </motion.button>
+            {i < total - 1 && (
+              <div className="mx-1 h-0.5 flex-1 overflow-hidden rounded-full bg-[var(--tatu-border)]">
+                <motion.div
+                  className="h-full bg-[var(--tatu-olive)]"
+                  initial={false}
+                  animate={{ width: i < current ? "100%" : "0%" }}
+                  transition={{ type: "spring", bounce: 0, duration: 0.35 }}
+                />
+              </div>
+            )}
+          </Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
 function BriefingHeader() {
   return (
-    <header className="fixed inset-x-0 top-0 z-10 flex justify-center border-b border-[var(--tatu-border)] bg-[var(--tatu-cream)]/90 px-6 py-4 backdrop-blur">
-      <TatuLogo className="h-5 w-auto text-[var(--tatu-ink)]" />
+    <header className="fixed inset-x-0 top-0 z-10 flex justify-center bg-[var(--tatu-ink)]/95 px-6 py-4 backdrop-blur">
+      <TatuLogo className="h-5 w-auto text-[var(--tatu-cream)]" />
     </header>
   );
 }
@@ -26,17 +103,17 @@ function BriefingHeader() {
 function BriefingFooter() {
   return (
     <footer
-      className="fixed inset-x-0 bottom-0 z-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-[var(--tatu-border)] bg-[var(--tatu-cream)]/90 px-6 py-3 text-xs text-[var(--tatu-muted)] backdrop-blur"
+      className="fixed inset-x-0 bottom-0 z-10 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 bg-[var(--tatu-ink)]/95 px-6 py-3 text-xs text-[var(--tatu-cream)]/70 backdrop-blur"
       style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
     >
-      <span className="font-medium text-[var(--tatu-ink)]">
+      <span className="font-medium text-[var(--tatu-cream)]">
         Tatú Estúdio Criativo
       </span>
       <a
         href={`https://instagram.com/${INSTAGRAM.slice(1)}`}
         target="_blank"
         rel="noreferrer"
-        className="hover:text-[var(--tatu-ink)]"
+        className="hover:text-[var(--tatu-cream)]"
       >
         {INSTAGRAM}
       </a>
@@ -44,7 +121,7 @@ function BriefingFooter() {
         href={`https://wa.me/${WHATSAPP_ESTUDIO}`}
         target="_blank"
         rel="noreferrer"
-        className="hover:text-[var(--tatu-ink)]"
+        className="hover:text-[var(--tatu-cream)]"
       >
         WhatsApp
       </a>
@@ -70,8 +147,10 @@ export default function BriefingPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   // Quantas perguntas da tela atual já apareceram: começa em 1 e cresce
-  // conforme o cliente responde, pra tela nunca jogar tudo de uma vez.
-  const [revealed, setRevealed] = useState(1);
+  // conforme o cliente responde, pra tela nunca jogar tudo de uma vez — exceto
+  // o passo 1, que é curto e leve o bastante pra abrir com as três perguntas
+  // já em cascata, sem esperar resposta.
+  const [revealed, setRevealed] = useState(() => STEPS[0].fields.length);
   const [revealedStep, setRevealedStep] = useState(0);
 
   // Os passos dependem do serviço escolhido: quem pede site não responde as
@@ -108,10 +187,10 @@ export default function BriefingPage() {
   // Troca de passo (avançar ou voltar) reabre com tudo que já foi
   // respondido visível, não só a primeira pergunta — ajuste feito durante a
   // renderização, não em efeito, como o React recomenda pra resetar estado
-  // quando uma prop (aqui, o passo) muda.
+  // quando uma prop (aqui, o passo) muda. O passo 1 sempre abre completo.
   if (revealedStep !== step) {
     setRevealedStep(step);
-    setRevealed(leadingAnswered(current.fields));
+    setRevealed(step === 0 ? current.fields.length : leadingAnswered(current.fields));
   }
 
   const visibleFields = current.fields.slice(0, revealed);
@@ -157,6 +236,13 @@ export default function BriefingPage() {
     setStep((s) => s - 1);
   }
 
+  // Clicar num círculo já respondido pula direto pra ele — só pra trás; um
+  // passo ainda não alcançado nem aceita clique (fica "inactive" no StepDots).
+  function jump(index: number) {
+    setDirection(index > step ? 1 : -1);
+    setStep(index);
+  }
+
   // Enter nos campos de uma linha avança. A submissão implícita do form não é
   // confiável em todo navegador, e textarea continua servindo pra quebrar
   // linha, então o atalho fica só nos inputs.
@@ -184,6 +270,11 @@ export default function BriefingPage() {
     bounce: 0,
     duration: prefersReducedMotion ? 0.15 : 0.35,
   };
+  const layoutTransition = {
+    type: "spring" as const,
+    bounce: 0,
+    duration: prefersReducedMotion ? 0.15 : 0.4,
+  };
 
   if (sent) {
     return (
@@ -194,7 +285,7 @@ export default function BriefingPage() {
             initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={stepTransition}
-            className="w-full max-w-md rounded-3xl border border-[var(--tatu-border)]/50 bg-white p-8 shadow-xl shadow-black/5 sm:p-10"
+            className="w-full max-w-md rounded-3xl border border-[var(--tatu-border)] bg-white p-8 shadow-2xl shadow-black/15 sm:p-10"
           >
             <h1 className="text-3xl text-[var(--tatu-ink)]" style={HEADLINE}>
               Briefing enviado
@@ -219,25 +310,28 @@ export default function BriefingPage() {
           bottom-20" da página — o rodapé de ações agora é parte do próprio
           cartão, sempre visível, sem depender de matemática de viewport. */}
       <main className="flex min-h-screen items-center justify-center bg-[var(--tatu-cream)] px-4 pt-20 pb-20">
-        <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-3xl border border-[var(--tatu-border)]/50 bg-white shadow-xl shadow-black/5">
+        {/* layout: sem isso, o espaço de uma pergunta nova aparecia de uma vez
+            (o cartão pulava pra nova altura) e só o conteúdo dentro fazia
+            fade — lia como bloco surgindo do nada. Com layout, a própria
+            altura do cartão interpola suavemente até o novo tamanho. */}
+        <motion.div
+          layout
+          transition={layoutTransition}
+          className="flex max-h-[80vh] w-full max-w-md flex-col rounded-3xl border border-[var(--tatu-border)] bg-white shadow-2xl shadow-black/15"
+        >
           <div className="px-6 pt-6 sm:px-8 sm:pt-8">
-            {/* Antes da escolha do serviço o caminho ainda não existe: mostrar
-              um total que vai crescer de 3 pra 5 promete um formulário mais
-              curto do que o que vem. Até lá, só a barra do passo atual. */}
-            <div className="flex gap-1.5">
-              {(values.servico ? steps : [current]).map((s, i) => (
-                <div
-                  key={s.title}
-                  className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${
-                    i <= step
-                      ? "bg-[var(--tatu-olive)]"
-                      : "bg-[var(--tatu-border)]/70"
-                  }`}
-                />
-              ))}
-            </div>
+            {/* Antes da escolha do serviço o caminho ainda não existe: os
+              círculos prometeriam um total que vai crescer de 3 pra 5. Até
+              lá, só um marcador do passo atual. */}
+            {values.servico ? (
+              <StepDots total={steps.length} current={step} onJump={jump} />
+            ) : (
+              <div className="flex size-7 items-center justify-center rounded-full bg-[var(--tatu-ink)] text-xs font-semibold text-[var(--tatu-cream)]">
+                {step + 1}
+              </div>
+            )}
 
-            <p className="mt-6 text-xs font-medium tracking-wide text-[var(--tatu-muted)] uppercase">
+            <p className="mt-4 text-xs font-medium tracking-wide text-[var(--tatu-muted)] uppercase">
               {values.servico
                 ? `Passo ${step + 1} de ${steps.length}`
                 : `Passo ${step + 1}`}
@@ -269,7 +363,7 @@ export default function BriefingPage() {
                     {current.title}
                   </h1>
 
-                  <div className="mt-7 space-y-6">
+                  <motion.div layout transition={layoutTransition} className="mt-7 space-y-6">
                     {visibleFields.map((field, i) => (
                       <motion.div
                         key={field.name}
@@ -282,6 +376,11 @@ export default function BriefingPage() {
                           type: "spring",
                           bounce: 0,
                           duration: prefersReducedMotion ? 0.15 : 0.35,
+                          // A cascata do passo 1 (as três perguntas juntas)
+                          // sai desse atraso por posição; nos passos que
+                          // revelam um campo por vez, só o campo novo entra —
+                          // o atraso proporcional some sozinho na prática.
+                          delay: prefersReducedMotion ? 0 : i * 0.08,
                         }}
                       >
                         <label
@@ -392,7 +491,7 @@ export default function BriefingPage() {
                           )}
                       </motion.div>
                     ))}
-                  </div>
+                  </motion.div>
                 </motion.div>
               </AnimatePresence>
 
@@ -436,7 +535,7 @@ export default function BriefingPage() {
               </motion.button>
             </div>
           </form>
-        </div>
+        </motion.div>
       </main>
       <BriefingFooter />
     </>

@@ -12,6 +12,7 @@ import { TodoAssigneeMenu } from "@/components/admin/TodoAssigneeMenu";
 import {
   createDailyTodoChecklistItemAction,
   deleteDailyTodoChecklistItemAction,
+  renameDailyTodoChecklistItemAction,
   setDailyTodoChecklistItemDoneAction,
 } from "@/app/admin/actions";
 import {
@@ -43,8 +44,23 @@ function ChecklistSection({
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [draft, setDraft] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState("");
 
   const done = items.filter((item) => item.done).length;
+
+  function startEdit(item: DailyTodoChecklistItem) {
+    setEditingId(item.id);
+    setEditingLabel(item.label);
+  }
+
+  function saveEdit() {
+    const label = editingLabel.trim();
+    const id = editingId;
+    setEditingId(null);
+    if (!id || !label) return;
+    startTransition(() => renameDailyTodoChecklistItemAction(id, label));
+  }
 
   function addItem() {
     const label = draft.trim();
@@ -86,14 +102,33 @@ function ChecklistSection({
                 }}
                 className="h-4 w-4 shrink-0 accent-emerald-600"
               />
-              {/* Feito fica verde, não riscado: mesma regra da lista de fora. */}
-              <span
-                className={`flex-1 text-sm ${
-                  item.done ? "text-emerald-700" : "text-neutral-800"
-                }`}
-              >
-                {item.label}
-              </span>
+              {editingId === item.id ? (
+                <input
+                  autoFocus
+                  value={editingLabel}
+                  onChange={(event) => setEditingLabel(event.target.value)}
+                  onBlur={saveEdit}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      saveEdit();
+                    } else if (event.key === "Escape") {
+                      setEditingId(null);
+                    }
+                  }}
+                  className="flex-1 rounded border border-neutral-300 px-1 py-0.5 text-sm focus:border-neutral-500 focus:outline-none"
+                />
+              ) : (
+                // Feito fica verde, não riscado: mesma regra da lista de fora.
+                <span
+                  onDoubleClick={() => startEdit(item)}
+                  className={`flex-1 text-sm ${
+                    item.done ? "text-emerald-700" : "text-neutral-800"
+                  }`}
+                >
+                  {item.label}
+                </span>
+              )}
               <button
                 type="button"
                 disabled={pending}

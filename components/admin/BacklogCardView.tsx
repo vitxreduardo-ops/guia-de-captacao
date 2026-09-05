@@ -154,6 +154,10 @@ export function BacklogCardView({
             </Field>
           </div>
 
+          <Field label="Onde foi feito o backup">
+            {card.backup_location ?? "—"}
+          </Field>
+
           <Field label="Guia de captação">{guideTitle ?? "—"}</Field>
 
           <Field label="Link do Drive">

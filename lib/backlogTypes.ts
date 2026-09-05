@@ -47,6 +47,7 @@ export interface BacklogCard {
   post_date: string | null;
   post_time: string | null;
   duration_minutes: number | null;
+  backup_location: string | null;
   sent_whatsapp: boolean;
   sent_whatsapp_at: string | null;
   approved_at: string | null;
