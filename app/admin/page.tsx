@@ -12,6 +12,8 @@ import { listUpcomingPosts } from "@/lib/upcomingPosts";
 import { getCurrentSession, getCurrentUsername } from "@/lib/session";
 import { getUserCalendarAccount } from "@/lib/userCalendars";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminHub() {
   const [session, username, { todos, users }, upcoming] = await Promise.all([
     getCurrentSession(),
