@@ -50,13 +50,6 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
 
 ## Painel
 
-- [ ] **O "agora" envelhece na tela.** O destaque do compromisso em curso é
-      calculado no servidor, na hora do render
-      (`components/admin/TodayAgenda.tsx`). Quem deixa o Painel aberto a manhã
-      inteira continua vendo o selo na reunião das 9h depois do meio-dia. Nada
-      revalida sozinho: precisa recarregar. Um `LiveRefresh` como o das outras
-      telas resolveria, ou mover a decisão do "agora" para o cliente.
-
 - [ ] **O link "Minha Agenda" mora dentro do `<summary>`.** No celular, tocar
       nele navega e ao mesmo tempo alterna o `<details>`. Hoje não incomoda
       porque a navegação leva a pessoa embora, mas voltar pelo histórico pode
@@ -142,12 +135,6 @@ retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
       dependem de rede e de Supabase e pediriam dublês.
 
 ## Desempenho
-
-- [ ] **Consulta de sessão em toda tela do admin.** `getCurrentUsername`
-      agora tem cache curto, o que já tirou ~250ms do caminho crítico. O que
-      sobra é estrutural: cada navegação do admin ainda resolve sessão e
-      permissões por request. Mexer nisso toca a autenticação inteira, então
-      só com aval.
 
 - [ ] **Medir em produção.** Todos os números levantados até aqui são de
       `next dev`, que compila por rota e não faz prefetch de `<Link>`. Vale
