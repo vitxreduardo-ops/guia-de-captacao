@@ -22,6 +22,7 @@ import {
   createBacklogChecklistItemAction,
   createBacklogNoteAction,
   deleteBacklogChecklistItemAction,
+  renameBacklogChecklistItemAction,
   setBacklogChecklistItemDoneAction,
 } from "@/app/admin/backlog/actions";
 
@@ -43,8 +44,23 @@ function ChecklistSection({
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const [draft, setDraft] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState("");
 
   const done = items.filter((item) => item.done).length;
+
+  function startEdit(item: BacklogChecklistItem) {
+    setEditingId(item.id);
+    setEditingLabel(item.label);
+  }
+
+  function saveEdit() {
+    const label = editingLabel.trim();
+    const id = editingId;
+    setEditingId(null);
+    if (!id || !label) return;
+    startTransition(() => renameBacklogChecklistItemAction(id, label));
+  }
 
   function addItem() {
     const label = draft.trim();
@@ -86,15 +102,36 @@ function ChecklistSection({
                 }}
                 className="h-4 w-4 shrink-0"
               />
-              <span
-                className={`flex-1 text-sm ${
-                  item.done
-                    ? "text-neutral-400 line-through"
-                    : "text-neutral-800"
-                }`}
-              >
-                {item.label}
-              </span>
+              {editingId === item.id ? (
+                <input
+                  autoFocus
+                  value={editingLabel}
+                  onChange={(event) => setEditingLabel(event.target.value)}
+                  onBlur={saveEdit}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      saveEdit();
+                    } else if (event.key === "Escape") {
+                      setEditingId(null);
+                    }
+                  }}
+                  className="flex-1 rounded border border-neutral-300 px-1 py-0.5 text-sm focus:border-neutral-500 focus:outline-none"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => startEdit(item)}
+                  disabled={pending}
+                  className={`flex-1 text-left text-sm ${
+                    item.done
+                      ? "text-neutral-400 line-through"
+                      : "text-neutral-800"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              )}
               <button
                 type="button"
                 disabled={pending}
