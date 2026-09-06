@@ -156,7 +156,7 @@ function CardBody({
             </span>
           ) : null}
           {card.unit_price_cents !== null ? (
-            <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[11px] text-white">
+            <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[11px] text-white tabular-nums">
               {card.quantity > 1 ? `${card.quantity}× ` : ""}
               {formatBRL(lineTotalCents(card))}
             </span>

@@ -120,7 +120,7 @@ export default async function FaturamentoPage({
 
         <button
           type="submit"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] pointer-coarse:min-h-11"
         >
           Ver
         </button>
@@ -132,7 +132,7 @@ export default async function FaturamentoPage({
             <h2 className="text-sm font-semibold text-neutral-900">
               {clientName} — {monthLabel(month)}
             </h2>
-            <p className="text-lg font-semibold text-neutral-900">
+            <p className="text-lg font-semibold tracking-[-0.02em] text-neutral-900 tabular-nums">
               {formatBRL(total)}
             </p>
           </div>
@@ -160,10 +160,10 @@ export default async function FaturamentoPage({
                       {delivery.post_date ? ` · ${delivery.post_date}` : ""}
                     </p>
                   </div>
-                  <span className="text-xs text-neutral-500">
+                  <span className="text-xs text-neutral-500 tabular-nums">
                     {delivery.quantity} × {formatBRL(delivery.unit_price_cents)}
                   </span>
-                  <span className="w-24 text-right font-medium text-neutral-900">
+                  <span className="w-24 text-right font-medium text-neutral-900 tabular-nums">
                     {formatBRL(lineTotalCents(delivery))}
                   </span>
                 </li>
@@ -204,7 +204,7 @@ export default async function FaturamentoPage({
                 <button
                   type="submit"
                   disabled={deliveries.length === 0}
-                  className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-40"
+                  className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-40 transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] pointer-coarse:min-h-11"
                 >
                   Fechar mês em {formatBRL(total)}
                 </button>
@@ -239,7 +239,7 @@ export default async function FaturamentoPage({
                 <span className="text-xs text-neutral-500">
                   {monthLabel(item.month)} · {item.items.length} itens
                 </span>
-                <span className="w-24 text-right font-medium text-neutral-900">
+                <span className="w-24 text-right font-medium text-neutral-900 tabular-nums">
                   {formatBRL(item.total_cents)}
                 </span>
               </li>

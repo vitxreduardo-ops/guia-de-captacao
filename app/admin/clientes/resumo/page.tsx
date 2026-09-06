@@ -1,15 +1,11 @@
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ClientTabs } from "@/components/admin/ClientTabs";
+import { YearBarChart } from "@/components/admin/YearBarChart";
 import { getYearTotals, listInvoiceYears } from "@/lib/billing";
 import { getCurrentUsername } from "@/lib/session";
 import { formatBRL } from "@/lib/billingTypes";
 
 export const dynamic = "force-dynamic";
-
-const MONTH_SHORT = [
-  "jan", "fev", "mar", "abr", "mai", "jun",
-  "jul", "ago", "set", "out", "nov", "dez",
-];
 
 export default async function ResumoPage({
   searchParams,
@@ -36,7 +32,6 @@ export default async function ResumoPage({
     rows.reduce((sum, row) => sum + row.byMonth[index], 0)
   );
   const yearTotal = byMonth.reduce((sum, value) => sum + value, 0);
-  const peak = Math.max(...byMonth, 1);
   const deliveries = rows.reduce((sum, row) => sum + row.deliveries, 0);
   const monthsWithValue = byMonth.filter((value) => value > 0).length;
 
@@ -110,7 +105,7 @@ export default async function ResumoPage({
 
         <button
           type="submit"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-transform hover:bg-neutral-800 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] pointer-coarse:min-h-11"
         >
           Filtrar
         </button>
@@ -133,7 +128,7 @@ export default async function ResumoPage({
             className="rounded-lg border border-neutral-200 bg-white p-4"
           >
             <p className="text-xs text-neutral-500">{card.label}</p>
-            <p className="mt-1 text-lg font-semibold text-neutral-900">
+            <p className="mt-1 text-lg font-semibold tracking-[-0.02em] text-neutral-900 tabular-nums">
               {card.value}
             </p>
           </div>
@@ -145,34 +140,7 @@ export default async function ResumoPage({
           Faturamento mês a mês
         </h2>
 
-        {/* Barras em CSS puro: a altura é a fração do maior mês do período.
-            Uma biblioteca de gráfico aqui seria peso sem ganho. */}
-        <div className="flex h-40 items-end gap-1.5">
-          {byMonth.map((value, index) => (
-            <div
-              key={MONTH_SHORT[index]}
-              // `h-full` porque a barra tem altura em porcentagem: sem uma
-              // altura definida no pai, a porcentagem não resolve e a barra
-              // some.
-              className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1"
-            >
-              <span className="text-[10px] text-neutral-500">
-                {value > 0 ? formatBRL(value) : ""}
-              </span>
-              <div
-                role="img"
-                aria-label={`${MONTH_SHORT[index]}: ${formatBRL(value)}`}
-                style={{ height: `${Math.round((value / peak) * 90)}%` }}
-                className={`min-h-[2px] w-full rounded-t ${
-                  value > 0 ? "bg-neutral-900" : "bg-neutral-100"
-                }`}
-              />
-              <span className="text-[10px] text-neutral-500">
-                {MONTH_SHORT[index]}
-              </span>
-            </div>
-          ))}
-        </div>
+        <YearBarChart byMonth={byMonth} />
       </section>
 
       <section>
@@ -192,10 +160,10 @@ export default async function ResumoPage({
                   <span className="min-w-0 flex-1 truncate text-neutral-900">
                     {row.clientName}
                   </span>
-                  <span className="text-xs text-neutral-500">
+                  <span className="text-xs text-neutral-500 tabular-nums">
                     {row.deliveries} entregas
                   </span>
-                  <span className="w-28 text-right font-medium text-neutral-900">
+                  <span className="w-28 text-right font-medium text-neutral-900 tabular-nums">
                     {formatBRL(row.totalCents)}
                   </span>
                 </div>

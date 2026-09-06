@@ -37,14 +37,23 @@ function formatDateTime(iso: string): string {
 function Field({
   label,
   children,
+  numeric = false,
 }: {
   label: string;
   children: React.ReactNode;
+  /** Valores em dinheiro em fonte tabular, pra os dígitos não dançarem. */
+  numeric?: boolean;
 }) {
   return (
     <div>
       <p className="text-xs font-medium text-neutral-500">{label}</p>
-      <div className="mt-0.5 text-sm text-neutral-900">{children}</div>
+      <div
+        className={`mt-0.5 text-sm text-neutral-900 ${
+          numeric ? "tabular-nums" : ""
+        }`}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -160,7 +169,7 @@ export function BacklogCardView({
           </Field>
 
           {card.unit_price_cents !== null ? (
-            <Field label="Cobrança">
+            <Field label="Cobrança" numeric>
               {card.quantity} × {formatBRL(card.unit_price_cents)} ={" "}
               <strong>{formatBRL(lineTotalCents(card))}</strong>
             </Field>
