@@ -129,7 +129,13 @@ export function ServiceCatalog({ services }: { services: Service[] }) {
               <ServiceRow key={service.id} service={service} />
             ))}
           </ul>
-        ) : null}
+        ) : (
+          <p className="border-b border-neutral-100 p-4 text-sm text-neutral-500">
+            Nenhum serviço cadastrado. O que você cadastrar aqui vira a lista de
+            preços sugeridos ao lançar uma entrega — o valor é copiado para a
+            entrega, então mudar o preço depois não mexe no que já foi cobrado.
+          </p>
+        )}
 
         <form
           action={createServiceAction}

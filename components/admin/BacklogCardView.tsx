@@ -73,6 +73,7 @@ export function BacklogCardView({
   guideTitle,
   authorNameById,
   canComment,
+  showBilling = false,
   onClose,
   onEdit,
 }: {
@@ -87,6 +88,8 @@ export function BacklogCardView({
   authorNameById: Map<string, string>;
   /** Comentário só é liberado fora da primeira coluna, como no drawer. */
   canComment: boolean;
+  /** Cobrança e vocabulário de entrega só valem no quadro de clientes. */
+  showBilling?: boolean;
   onClose: () => void;
   onEdit: () => void;
 }) {
@@ -154,7 +157,7 @@ export function BacklogCardView({
             <Field label="Responsável">
               {assigneeName ? `@${assigneeName}` : "—"}
             </Field>
-            <Field label="Data de post">
+            <Field label={showBilling ? "Data da entrega" : "Data de post"}>
               {card.post_date ? formatDate(card.post_date) : "Sem data"}
             </Field>
             <Field label="Horário">

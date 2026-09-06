@@ -82,9 +82,19 @@ function ClientRow({
         {client.name}
       </span>
 
+      {/* Entregas vêm do quadro, faturado vem das notas fechadas. Quando há
+          trabalho e nenhum mês fechado, "R$ 0,00 faturado" lê como erro — o
+          texto precisa dizer que falta fechar, não que não houve receita. */}
       <span className="text-xs text-neutral-500 tabular-nums">
-        {summary.entregasNoAno} entregas no ano ·{" "}
-        {formatBRL(summary.faturadoNoAnoCents)} faturado
+        {summary.entregasNoAno === 0 && summary.faturadoNoAnoCents === 0
+          ? "sem entregas no ano"
+          : summary.faturadoNoAnoCents === 0
+            ? `${summary.entregasNoAno} ${
+                summary.entregasNoAno === 1 ? "entrega" : "entregas"
+              } · nenhum mês fechado`
+            : `${summary.entregasNoAno} ${
+                summary.entregasNoAno === 1 ? "entrega" : "entregas"
+              } · ${formatBRL(summary.faturadoNoAnoCents)} faturado`}
       </span>
 
       {client.status === "published" ? (

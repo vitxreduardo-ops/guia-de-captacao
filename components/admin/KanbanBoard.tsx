@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import {
   DndContext,
   DragOverlay,
@@ -50,6 +59,7 @@ import {
   type BacklogFilter,
 } from "@/lib/backlogTypes";
 import { formatBRL, lineTotalCents } from "@/lib/billingTypes";
+import { BOARD_NOUNS, type BoardNouns } from "@/lib/boardNouns";
 import {
   createBacklogCardAction,
   createBacklogColumnAction,
@@ -63,6 +73,14 @@ import {
 } from "@/app/admin/kanbanActions";
 
 const DROPZONE_PREFIX = "dropzone-";
+
+/**
+ * Vocabulário do quadro. Vive num contexto porque só as folhas da árvore
+ * (formulário de adicionar, estado vazio, aviso de exclusão) precisam dele, e
+ * passar o par de strings por quatro níveis de props não deixaria nada mais
+ * claro. O padrão é o do Instagram, que é o quadro original.
+ */
+const BoardNounsContext = createContext<BoardNouns>(BOARD_NOUNS.instagram);
 
 const inputClass =
   "w-full rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-neutral-500 focus:outline-none";
@@ -297,6 +315,7 @@ function BoardSettingsMenu({ boardKind }: { boardKind: BacklogBoardKind }) {
 function QuickAddCard({ columnId }: { columnId: string }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
+  const nouns = useContext(BoardNounsContext);
 
   return (
     <form
@@ -315,14 +334,14 @@ function QuickAddCard({ columnId }: { columnId: string }) {
       <input type="hidden" name="column_id" value={columnId} />
       <input
         name="title"
-        placeholder="Novo material"
+        placeholder={nouns.novo}
         disabled={pending}
         className="min-w-0 flex-1 rounded-md border border-dashed border-neutral-300 bg-white/60 px-2.5 py-1.5 text-sm placeholder:text-neutral-400 focus:border-neutral-500 focus:outline-none disabled:opacity-50"
       />
       <button
         type="submit"
         disabled={pending}
-        aria-label="Adicionar material"
+        aria-label={nouns.novo}
         className="shrink-0 rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
       >
         +
@@ -342,6 +361,7 @@ function ColumnHeader({
 }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
+  const nouns = useContext(BoardNounsContext);
 
   if (editing) {
     return (
@@ -405,7 +425,7 @@ function ColumnHeader({
             onClick={() => {
               if (
                 !window.confirm(
-                  `Excluir a coluna "${column.name}"? Os ${count} materiais dela também serão excluídos.`
+                  `Excluir a coluna "${column.name}"? ${nouns.contagemExcluida(count)} junto.`
                 )
               ) {
                 return;
@@ -436,11 +456,11 @@ function ColumnHeader({
       </p>
       <span className="text-xs text-neutral-400">{count}</span>
       {column.billable ? (
-        <span
-          title="Entra na nota do mês"
-          className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700"
-        >
-          nota
+        // `title` é tooltip de mouse e não existe no celular, que é onde o
+        // fechamento do mês costuma ser conferido — então o rótulo precisa se
+        // explicar sozinho.
+        <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700">
+          entra na nota
         </span>
       ) : null}
       <button
@@ -471,6 +491,7 @@ function SortableColumn({
   draggable: boolean;
   onOpenCard: (id: string) => void;
 }) {
+  const nouns = useContext(BoardNounsContext);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
       id: column.id,
@@ -518,7 +539,7 @@ function SortableColumn({
         >
           {cards.length === 0 ? (
             <p className="rounded-md border border-dashed border-neutral-300 px-3 py-6 text-center text-xs text-neutral-400">
-              Nenhum material
+              {nouns.nenhum}
             </p>
           ) : null}
 
@@ -742,7 +763,7 @@ export function KanbanBoard({
   const interacting = Boolean(activeCardId || openCardId || editingCardId);
 
   return (
-    <>
+    <BoardNounsContext.Provider value={BOARD_NOUNS[board.board]}>
       {interacting ? <span hidden data-live-pause /> : null}
       <BacklogToaster />
 
@@ -897,6 +918,7 @@ export function KanbanBoard({
           }
           authorNameById={assigneeNameById}
           canComment={columns[0]?.id !== openCard.column_id}
+          showBilling={board.board === "entregas"}
           onClose={() => setOpenCardId(null)}
           onEdit={() => setEditingCardId(openCard.id)}
         />
@@ -925,6 +947,6 @@ export function KanbanBoard({
           }}
         />
       ) : null}
-    </>
+    </BoardNounsContext.Provider>
   );
 }

@@ -350,8 +350,8 @@ function BillingFields({
       </div>
 
       <p className="mt-1.5 text-xs text-neutral-500">
-        Entra na nota do mês quando o card estiver numa coluna de entrega
-        concluída, pela data de entrega.
+        Entra na nota do mês pela data da entrega, quando esta entrega estiver
+        numa coluna marcada como &quot;entra na nota&quot;.
       </p>
     </div>
   );
@@ -463,7 +463,9 @@ export function BacklogCardDrawer({
             </div>
             <div>
               <label className={labelClass} htmlFor="backlog-post-date">
-                Data de post
+                {/* No quadro de entregas esta data decide o mês da nota
+                    fiscal, então ela não pode continuar se chamando "post". */}
+                {showBilling ? "Data da entrega" : "Data de post"}
               </label>
               <input
                 id="backlog-post-date"

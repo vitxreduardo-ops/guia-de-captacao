@@ -13,7 +13,7 @@ import {
   recentMonths,
   sumCents,
 } from "@/lib/billingTypes";
-import { closeMonthAction, reopenInvoiceAction } from "./actions";
+import { CloseMonthForm } from "@/components/admin/CloseMonthForm";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +34,10 @@ export default async function FaturamentoPage({
 }) {
   const params = await searchParams;
   const months = recentMonths();
-  const month = params.mes ? monthKey(params.mes) : months[0];
+  // Sem mês na URL, abre no anterior: quem entra aqui está fechando o mês que
+  // acabou, não o que está correndo. Abrir no corrente mostrava R$ 0,00 e dava
+  // a impressão de que os dados tinham sumido.
+  const month = params.mes ? monthKey(params.mes) : months[1] ?? months[0];
 
   const [clients, services, invoices, username] = await Promise.all([
     listClients(),
@@ -128,23 +131,33 @@ export default async function FaturamentoPage({
 
       {clientId ? (
         <section className="mb-8 rounded-lg border border-neutral-200 bg-white">
-          <div className="flex items-baseline justify-between border-b border-neutral-100 p-4">
-            <h2 className="text-sm font-semibold text-neutral-900">
-              {clientName} — {monthLabel(month)}
-            </h2>
-            <p className="text-lg font-semibold tracking-[-0.02em] text-neutral-900 tabular-nums">
-              {formatBRL(total)}
+          <div className="border-b border-neutral-100 p-4">
+            <div className="flex items-baseline justify-between gap-3">
+              <h2 className="text-sm font-semibold text-neutral-900">
+                {clientName} — {monthLabel(month)}
+              </h2>
+              <p className="text-lg font-semibold tracking-[-0.02em] text-neutral-900 tabular-nums">
+                {formatBRL(total)}
+              </p>
+            </div>
+            {/* A regra do total precisa ficar à vista sempre, não só quando o
+                mês está vazio: é ela que explica por que um card entregue não
+                apareceu aqui. */}
+            <p className="mt-1 text-xs text-neutral-500">
+              Soma as entregas com data em {monthLabel(month)} que estão numa
+              coluna marcada como &quot;entra na nota&quot; no quadro de{" "}
+              <Link href="/admin/clientes/entregas" className="underline">
+                Entregas
+              </Link>
+              .
             </p>
           </div>
 
           {deliveries.length === 0 ? (
             <p className="p-4 text-sm text-neutral-500">
-              Nenhuma entrega concluída neste mês. Os cards entram aqui quando
-              estão numa coluna marcada como entrega no quadro de{" "}
-              <Link href="/admin/clientes/entregas" className="underline">
-                Entregas
-              </Link>
-              , com data dentro do mês.
+              Nenhuma entrega concluída em {monthLabel(month)}. Se o trabalho já
+              saiu, confira a data e a coluna da entrega no quadro — ou troque o
+              mês aí em cima.
             </p>
           ) : (
             <ul className="divide-y divide-neutral-100">
@@ -157,7 +170,13 @@ export default async function FaturamentoPage({
                     <p className="truncate text-neutral-900">{delivery.title}</p>
                     <p className="text-xs text-neutral-500">
                       {delivery.service_name ?? "Sem serviço"}
-                      {delivery.post_date ? ` · ${delivery.post_date}` : ""}
+                      {delivery.post_date
+                        ? ` · entregue ${delivery.post_date
+                            .slice(5)
+                            .split("-")
+                            .reverse()
+                            .join("/")}`
+                        : ""}
                     </p>
                   </div>
                   <span className="text-xs text-neutral-500 tabular-nums">
@@ -172,44 +191,19 @@ export default async function FaturamentoPage({
           )}
 
           <div className="border-t border-neutral-100 p-4">
-            {invoice ? (
-              <div className="flex flex-wrap items-center gap-3">
-                <p className="text-sm text-emerald-700">
-                  Mês fechado em{" "}
-                  {new Date(invoice.closed_at).toLocaleDateString("pt-BR")} —{" "}
-                  <strong>{formatBRL(invoice.total_cents)}</strong> na nota.
-                </p>
-                <form action={reopenInvoiceAction} className="ml-auto">
-                  <input type="hidden" name="id" value={invoice.id} />
-                  <button
-                    type="submit"
-                    className="text-xs text-red-500 hover:text-red-700"
-                  >
-                    Reabrir mês
-                  </button>
-                </form>
-              </div>
-            ) : (
-              <form
-                action={closeMonthAction}
-                className="flex flex-wrap items-center gap-2"
-              >
-                <input type="hidden" name="client_id" value={clientId} />
-                <input type="hidden" name="month" value={month} />
-                <input
-                  name="notes"
-                  placeholder="Observação da nota (opcional)"
-                  className="min-w-0 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm"
-                />
-                <button
-                  type="submit"
-                  disabled={deliveries.length === 0}
-                  className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-40 transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] pointer-coarse:min-h-11"
-                >
-                  Fechar mês em {formatBRL(total)}
-                </button>
-              </form>
-            )}
+            <CloseMonthForm
+              clientId={clientId}
+              clientName={clientName}
+              month={month}
+              monthLabel={monthLabel(month)}
+              totalCents={total}
+              itemCount={deliveries.length}
+              zeroPriceCount={
+                deliveries.filter((delivery) => delivery.unit_price_cents === 0)
+                  .length
+              }
+              invoice={invoice}
+            />
           </div>
         </section>
       ) : (
