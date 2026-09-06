@@ -76,7 +76,9 @@ export async function AdminHeader({
   }
 
   return (
-    <header className="mb-8">
+    // Sem título visível a trilha é a última linha do cabeçalho, e a folga
+    // de baixo pode ser menor sem o conteúdo colar nela.
+    <header className={trail?.length ? "mb-6" : "mb-8"}>
       {/* Todo o admin fica montado sob este header, então é daqui que sai a
           sincronização com o que os outros usuários estão fazendo. */}
       <LiveRefresh />

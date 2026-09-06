@@ -1,7 +1,6 @@
 "use client";
 
 import { useSyncExternalStore, type ReactNode } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 const STORAGE_KEY = "agenda:lateral";
 
@@ -18,7 +17,13 @@ const listeners = new Set<() => void>();
 function isHidden(): boolean {
   if (hidden === null) {
     try {
-      hidden = window.localStorage.getItem(STORAGE_KEY) === "escondida";
+      const saved = window.localStorage.getItem(STORAGE_KEY);
+      // Sem escolha guardada, a lateral começa escondida no celular e no
+      // tablet: aberta ali ela ocupa a tela inteira e a grade — que é o
+      // motivo da página — só aparece depois de rolar.
+      hidden = saved
+        ? saved === "escondida"
+        : !window.matchMedia("(min-width: 1024px)").matches;
     } catch {
       // Navegador com armazenamento bloqueado: segue com a lateral aberta.
       hidden = false;
@@ -32,24 +37,6 @@ function subscribe(onChange: () => void) {
   return () => {
     listeners.delete(onChange);
   };
-}
-
-/** Largura da lateral aberta, em pixels — o mesmo `w-56` do conteúdo. */
-const SIDEBAR_WIDTH = 224;
-
-/**
- * A lateral colapsa na largura no desktop e na altura no celular, onde ela
- * fica acima da grade. Motion não enxerga breakpoint, então o layout é lido
- * aqui.
- */
-function subscribeToWide(onChange: () => void) {
-  const query = window.matchMedia("(min-width: 1024px)");
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
-}
-
-function isWide(): boolean {
-  return window.matchMedia("(min-width: 1024px)").matches;
 }
 
 function setHidden(next: boolean) {
@@ -80,38 +67,25 @@ export function AgendaFrame({
   children: ReactNode;
 }) {
   const open = !useSyncExternalStore(subscribe, isHidden, () => false);
-  const wide = useSyncExternalStore(subscribeToWide, isWide, () => true);
-  const prefersReducedMotion = useReducedMotion();
-
-  // Fechada e aberta descrevem o mesmo caminho, só que ao contrário: a
-  // lateral sai por onde entrou (§ caminho simétrico).
-  const closed = wide
-    ? { width: 0, opacity: 0 }
-    : { height: 0, opacity: 0, marginBottom: 0 };
-  const shown = wide
-    ? { width: SIDEBAR_WIDTH, opacity: 1 }
-    : { height: "auto" as const, opacity: 1, marginBottom: 20 };
-  const transition = prefersReducedMotion
-    ? { duration: 0.12 }
-    : { type: "spring" as const, bounce: 0, duration: 0.3 };
-
   return (
     <div className="lg:flex lg:gap-6">
-      <AnimatePresence initial={false}>
-        {open ? (
-          <motion.div
-            key="lateral"
-            initial={closed}
-            animate={shown}
-            exit={closed}
-            transition={transition}
-            // Sem isto o conteúdo vaza enquanto a largura anima.
-            className="overflow-hidden lg:shrink-0"
-          >
-            {sidebar}
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+      {/* Colapso em CSS, não em JS: a lateral encolhe na altura enquanto
+          fica acima da grade e na largura quando vira coluna, e o próprio
+          breakpoint decide qual eixo — ler a largura da janela no cliente
+          deixava a lateral com a medida do outro layout. */}
+      <div
+        // Escondida ela sai também do foco e do leitor de tela: sem isto o
+        // Tab entrava num bloco de altura zero.
+        inert={!open}
+        className={`grid overflow-hidden transition-[grid-template-rows,width,opacity,margin] duration-300 ease-out motion-reduce:duration-100 lg:shrink-0 ${
+          open
+            ? "mb-5 grid-rows-[1fr] opacity-100 lg:mb-0 lg:w-56"
+            : "mb-0 grid-rows-[0fr] opacity-0 lg:w-0"
+        }`}
+      >
+        {/* O filho precisa poder encolher a zero pro `0fr` valer. */}
+        <div className="min-h-0 overflow-hidden">{sidebar}</div>
+      </div>
 
       <div className="min-w-0 flex-1">
         <div className="mb-3 flex flex-wrap items-center gap-3">

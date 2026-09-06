@@ -127,9 +127,10 @@ export function CalendarSidebar({
   }
 
   return (
-    // Sempre à vista: no celular ela fica acima da grade, em vez de
-    // escondida atrás de um botão.
-    <aside className="w-full space-y-5 sm:max-w-xs lg:w-56 lg:max-w-none">
+    // Acima da grade enquanto não cabe uma coluna ao lado. Lá o mini
+    // calendário e a lista ficam lado a lado: empilhados eles deixavam meia
+    // tela vazia à direita e empurravam a grade para baixo da dobra.
+    <aside className="grid w-full gap-5 sm:grid-cols-[16rem_minmax(0,1fr)] sm:gap-8 lg:block lg:w-56 lg:space-y-5">
       <div>
         <div className="mb-2 flex items-center gap-1">
           <h2 className="flex-1 text-sm text-neutral-800 first-letter:uppercase">
