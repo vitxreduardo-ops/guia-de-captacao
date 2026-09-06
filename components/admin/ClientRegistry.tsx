@@ -77,8 +77,11 @@ function ClientRow({
   }
 
   return (
+    // O nome ocupa a linha inteira no celular: dividindo espaço com as
+    // métricas, "LoopFilmes - Rede Câmara" virava "L…" — o dado principal
+    // reduzido a uma letra. No desktop os dois voltam para a mesma linha.
     <li className="group flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
-      <span className="min-w-0 flex-1 truncate font-medium text-neutral-900">
+      <span className="w-full truncate font-medium text-neutral-900 sm:w-auto sm:min-w-0 sm:flex-1">
         {client.name}
       </span>
 
@@ -98,25 +101,25 @@ function ClientRow({
       </span>
 
       {client.status === "published" ? (
-        <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] text-emerald-700">
+        <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-700">
           galeria no ar
         </span>
       ) : (
-        <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] text-neutral-500">
+        <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">
           rascunho
         </span>
       )}
 
       <Link
         href={`/admin/galerias/${client.id}`}
-        className="text-xs text-neutral-500 underline hover:text-neutral-800"
+        className="rounded-md text-xs text-neutral-500 underline hover:text-neutral-800 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center pointer-coarse:px-2"
       >
         Galeria
       </Link>
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="text-xs text-neutral-400 opacity-0 transition-opacity hover:text-neutral-800 focus-visible:opacity-100 group-hover:opacity-100"
+        className="text-xs text-neutral-500 opacity-0 transition-opacity hover:text-neutral-800 focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 pointer-coarse:min-h-11 pointer-coarse:px-2 pointer-coarse:inline-flex pointer-coarse:items-center focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none rounded-md"
       >
         Editar
       </button>

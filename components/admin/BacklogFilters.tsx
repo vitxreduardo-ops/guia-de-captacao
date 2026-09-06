@@ -102,7 +102,9 @@ export function BacklogFilters({
             desmontar o nó, senão não haveria transição. */}
         <div
           className={`overflow-hidden transition-[max-width,margin,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
-            count > 0 ? "ml-2 max-w-10 opacity-100" : "ml-0 max-w-0 opacity-0"
+            count > 0
+              ? "ml-2 max-w-10 opacity-100 pointer-coarse:max-w-12"
+              : "ml-0 max-w-0 opacity-0"
           }`}
         >
           <button
@@ -110,7 +112,7 @@ export function BacklogFilters({
             onClick={() => onChange(EMPTY_BACKLOG_FILTER)}
             aria-label="Limpar filtro"
             tabIndex={count > 0 ? 0 : -1}
-            className={`flex size-8 items-center justify-center rounded-md bg-neutral-900 text-sm text-white transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-neutral-700 motion-reduce:transition-none ${
+            className={`flex size-8 items-center justify-center rounded-md bg-neutral-900 text-sm text-white transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-neutral-700 motion-reduce:transition-none pointer-coarse:size-11 ${
               count > 0 ? "scale-100" : "scale-75"
             }`}
           >

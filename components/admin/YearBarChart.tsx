@@ -49,7 +49,10 @@ export function YearBarChart({ byMonth }: { byMonth: number[] }) {
             // definida no pai, a porcentagem não resolve e a barra some.
             className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1"
           >
-            <span className="text-[10px] text-neutral-500 tabular-nums">
+            {/* Doze valores não cabem legíveis num celular; a leitura fina
+                fica pro desktop, e no mobile o número vive no aria-label do
+                gráfico e na lista "Por cliente" logo abaixo. */}
+            <span className="hidden text-[11px] text-neutral-500 tabular-nums sm:block">
               {value > 0 ? formatBRL(value) : ""}
             </span>
             {/* A altura final já vem no `style`; a entrada é só uma escala
@@ -81,7 +84,7 @@ export function YearBarChart({ byMonth }: { byMonth: number[] }) {
                 value > 0 ? "bg-neutral-900" : "bg-neutral-100"
               }`}
             />
-            <span className="text-[10px] text-neutral-500">
+            <span className="text-[11px] text-neutral-500">
               {MONTH_SHORT[index]}
             </span>
           </div>

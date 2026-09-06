@@ -271,7 +271,7 @@ function BoardSettingsMenu({ boardKind }: { boardKind: BacklogBoardKind }) {
           <button
             type="button"
             aria-label="Configurações do quadro"
-            className="flex size-9 items-center justify-center rounded-md border border-neutral-300 text-neutral-600 hover:bg-neutral-50"
+            className="flex size-9 items-center justify-center rounded-md border border-neutral-300 text-neutral-600 hover:bg-neutral-50 pointer-coarse:size-11"
           >
             ⚙
           </button>
@@ -342,7 +342,7 @@ function QuickAddCard({ columnId }: { columnId: string }) {
         type="submit"
         disabled={pending}
         aria-label={nouns.novo}
-        className="shrink-0 rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+        className="shrink-0 rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50 disabled:opacity-50 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
       >
         +
       </button>
@@ -466,7 +466,7 @@ function ColumnHeader({
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="ml-auto text-xs text-neutral-400 opacity-0 transition-opacity hover:text-neutral-800 focus-visible:opacity-100 group-hover/header:opacity-100"
+        className="ml-auto rounded-md text-xs text-neutral-500 opacity-0 transition-opacity hover:text-neutral-800 focus-visible:opacity-100 group-hover/header:opacity-100 pointer-coarse:opacity-100 pointer-coarse:min-h-11 pointer-coarse:px-2 pointer-coarse:inline-flex pointer-coarse:items-center focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
         Editar
       </button>
