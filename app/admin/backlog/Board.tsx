@@ -44,10 +44,12 @@ import {
   formatBacklogDateShort,
   type BacklogBoard,
   type BacklogCard,
+  type BacklogBoardKind,
   type BacklogChecklistItem,
   type BacklogColumn,
   type BacklogFilter,
 } from "@/lib/backlogTypes";
+import { formatBRL, lineTotalCents } from "@/lib/billingTypes";
 import {
   createBacklogCardAction,
   createBacklogColumnAction,
@@ -153,6 +155,12 @@ function CardBody({
               {formatBacklogDateShort(card.post_date)}
             </span>
           ) : null}
+          {card.unit_price_cents !== null ? (
+            <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[11px] text-white">
+              {card.quantity > 1 ? `${card.quantity}× ` : ""}
+              {formatBRL(lineTotalCents(card))}
+            </span>
+          ) : null}
           {card.sent_whatsapp ? (
             <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] text-emerald-700">
               WhatsApp ✓
@@ -237,7 +245,7 @@ function SortableCard({
 }
 
 /** Ações do quadro que não são do dia a dia — hoje, criar coluna. */
-function BoardSettingsMenu() {
+function BoardSettingsMenu({ boardKind }: { boardKind: BacklogBoardKind }) {
   return (
     <Popover>
       <PopoverTrigger
@@ -254,6 +262,7 @@ function BoardSettingsMenu() {
       <PopoverContent align="end" className="w-64">
         <p className="text-sm font-semibold text-neutral-900">Nova coluna</p>
         <form action={createBacklogColumnAction} className="flex flex-col gap-2">
+          <input type="hidden" name="board" value={boardKind} />
           <input
             name="name"
             placeholder="Nome da coluna"
@@ -361,6 +370,21 @@ function ColumnHeader({
             </option>
           ))}
         </select>
+        {column.board === "entregas" ? (
+          <label className="flex items-center gap-2 text-xs text-neutral-600">
+            {/* Campo-sentinela: sem ele um checkbox desmarcado sumiria do
+                FormData e a ação não saberia diferenciar "desmarcou" de
+                "esse quadro não tem o campo". */}
+            <input type="hidden" name="billable_present" value="1" />
+            <input
+              type="checkbox"
+              name="billable"
+              defaultChecked={column.billable}
+              className="size-3.5"
+            />
+            Conta como entrega na nota do mês
+          </label>
+        ) : null}
         <div className="flex items-center gap-3">
           <button
             type="submit"
@@ -411,6 +435,14 @@ function ColumnHeader({
         {column.name}
       </p>
       <span className="text-xs text-neutral-400">{count}</span>
+      {column.billable ? (
+        <span
+          title="Entra na nota do mês"
+          className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700"
+        >
+          nota
+        </span>
+      ) : null}
       <button
         type="button"
         onClick={() => setEditing(true)}
@@ -720,7 +752,7 @@ export function Board({
             users={board.users}
             align="end"
           />
-          <BoardSettingsMenu />
+          <BoardSettingsMenu boardKind={board.board} />
         </div>
       </div>
 
@@ -873,6 +905,8 @@ export function Board({
           clients={board.clients}
           guides={board.guides}
           users={board.users}
+          services={board.services}
+          showBilling={board.board === "entregas"}
           onClose={() => {
             setEditingCardId(null);
             setOpenCardId(null);

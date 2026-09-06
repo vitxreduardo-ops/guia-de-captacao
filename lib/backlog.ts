@@ -5,8 +5,10 @@ import {
   normalizeBacklogFormat,
   parseBacklogTags,
   shouldAskBackupQuestion,
+  normalizeBacklogBoard,
   type BacklogActivity,
   type BacklogBoard,
+  type BacklogBoardKind,
   type BacklogCard,
   type BacklogChecklistItem,
   type BacklogClientOption,
@@ -14,11 +16,14 @@ import {
   type BacklogFormat,
   type BacklogGuideOption,
   type BacklogUserOption,
+  type ServiceOption,
 } from "@/lib/backlogTypes";
+import { parseBRLToCents } from "@/lib/billingTypes";
 
 export type {
   BacklogActivity,
   BacklogBoard,
+  BacklogBoardKind,
   BacklogCard,
   BacklogChecklistItem,
   BacklogClientOption,
@@ -26,6 +31,7 @@ export type {
   BacklogFormat,
   BacklogGuideOption,
   BacklogUserOption,
+  ServiceOption,
 };
 
 function normalizeUrl(value: unknown): string | null {
@@ -52,6 +58,18 @@ function normalizeUuid(value: unknown): string | null {
   return trimmed && trimmed !== "none" ? trimmed : null;
 }
 
+/** Campo vazio = sem valor lançado, que é diferente de entrega de graça. */
+function normalizePrice(value: unknown): number | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  return parseBRLToCents(raw);
+}
+
+function normalizeQuantity(value: unknown): number {
+  const parsed = Math.floor(Number(String(value ?? "").trim()));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
 function normalizeText(value: unknown): string | null {
   const trimmed = String(value ?? "").trim();
   return trimmed || null;
@@ -59,54 +77,109 @@ function normalizeText(value: unknown): string | null {
 
 // ---------------------------------------------------------------- leitura
 
-export async function getBacklogBoard(): Promise<BacklogBoard> {
+export async function getBacklogBoard(
+  board: BacklogBoardKind = "instagram"
+): Promise<BacklogBoard> {
   const supabase = getSupabaseServerClient();
 
+  // Os cards vêm filtrados pelas colunas do quadro pedido, então o kanban de
+  // entregas nunca carrega o backlog do Instagram (e vice-versa).
+  const { data: columnRows, error: columnsError } = await supabase
+    .from("backlog_columns")
+    .select("*")
+    .eq("board", board)
+    .order("position");
+  if (columnsError) throw columnsError;
+
+  const columns = (columnRows ?? []) as BacklogColumn[];
+  const columnIds = columns.map((column) => column.id);
+
+  if (columnIds.length === 0) {
+    const [clientsResult, guidesResult, usersResult, servicesResult] =
+      await Promise.all([
+        supabase.from("gallery_clients").select("id, name").order("name"),
+        supabase.from("guides").select("id, title").order("title"),
+        supabase.from("users").select("id, username").order("username"),
+        supabase
+          .from("services")
+          .select("id, name, price_cents")
+          .eq("active", true)
+          .order("position"),
+      ]);
+    return {
+      board,
+      columns,
+      cards: [],
+      checklist: [],
+      activity: [],
+      clients: (clientsResult.data ?? []) as BacklogClientOption[],
+      guides: (guidesResult.data ?? []) as BacklogGuideOption[],
+      users: (usersResult.data ?? []) as BacklogUserOption[],
+      services: (servicesResult.data ?? []) as ServiceOption[],
+    };
+  }
+
+  const { data: cardRows, error: cardsError } = await supabase
+    .from("backlog_cards")
+    .select("*")
+    .in("column_id", columnIds)
+    .order("column_id")
+    .order("position");
+  if (cardsError) throw cardsError;
+
+  const cards = (cardRows ?? []) as BacklogCard[];
+  const cardIds = cards.map((card) => card.id);
+
   const [
-    columnsResult,
-    cardsResult,
     checklistResult,
     activityResult,
     clientsResult,
     guidesResult,
     usersResult,
+    servicesResult,
   ] = await Promise.all([
-    supabase.from("backlog_columns").select("*").order("position"),
-    supabase
-      .from("backlog_cards")
-      .select("*")
-      .order("column_id")
-      .order("position"),
-    supabase
-      .from("backlog_checklist_items")
-      .select("*")
-      .order("card_id")
-      .order("position"),
-    supabase
-      .from("backlog_card_activity")
-      .select("*")
-      .order("created_at", { ascending: false }),
+    cardIds.length
+      ? supabase
+          .from("backlog_checklist_items")
+          .select("*")
+          .in("card_id", cardIds)
+          .order("card_id")
+          .order("position")
+      : Promise.resolve({ data: [], error: null }),
+    cardIds.length
+      ? supabase
+          .from("backlog_card_activity")
+          .select("*")
+          .in("card_id", cardIds)
+          .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
     supabase.from("gallery_clients").select("id, name").order("name"),
     supabase.from("guides").select("id, title").order("title"),
     supabase.from("users").select("id, username").order("username"),
+    supabase
+      .from("services")
+      .select("id, name, price_cents")
+      .eq("active", true)
+      .order("position"),
   ]);
 
-  if (columnsResult.error) throw columnsResult.error;
-  if (cardsResult.error) throw cardsResult.error;
   if (checklistResult.error) throw checklistResult.error;
   if (activityResult.error) throw activityResult.error;
   if (clientsResult.error) throw clientsResult.error;
   if (guidesResult.error) throw guidesResult.error;
   if (usersResult.error) throw usersResult.error;
+  if (servicesResult.error) throw servicesResult.error;
 
   return {
-    columns: (columnsResult.data ?? []) as BacklogColumn[],
-    cards: (cardsResult.data ?? []) as BacklogCard[],
+    board,
+    columns,
+    cards,
     checklist: (checklistResult.data ?? []) as BacklogChecklistItem[],
     activity: (activityResult.data ?? []) as BacklogActivity[],
     clients: (clientsResult.data ?? []) as BacklogClientOption[],
     guides: (guidesResult.data ?? []) as BacklogGuideOption[],
     users: (usersResult.data ?? []) as BacklogUserOption[],
+    services: (servicesResult.data ?? []) as ServiceOption[],
   };
 }
 
@@ -115,12 +188,15 @@ export async function getBacklogBoard(): Promise<BacklogBoard> {
 export async function createBacklogColumn(fields: {
   name: string;
   color: string;
+  board?: BacklogBoardKind;
 }): Promise<BacklogColumn> {
   const supabase = getSupabaseServerClient();
+  const board = normalizeBacklogBoard(fields.board);
 
   const { data: last, error: lastError } = await supabase
     .from("backlog_columns")
     .select("position")
+    .eq("board", board)
     .order("position", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -131,6 +207,7 @@ export async function createBacklogColumn(fields: {
     .insert({
       name: fields.name.trim() || "Nova coluna",
       color: fields.color || "#6b7280",
+      board,
       position: (last?.position ?? -1) + 1,
     })
     .select("*")
@@ -142,12 +219,13 @@ export async function createBacklogColumn(fields: {
 
 export async function updateBacklogColumn(
   id: string,
-  fields: { name?: string; color?: string }
+  fields: { name?: string; color?: string; billable?: boolean }
 ) {
   const supabase = getSupabaseServerClient();
-  const patch: Record<string, string> = {};
+  const patch: Record<string, string | boolean> = {};
   if (fields.name !== undefined) patch.name = fields.name.trim() || "Sem nome";
   if (fields.color !== undefined) patch.color = fields.color;
+  if (fields.billable !== undefined) patch.billable = fields.billable;
   if (Object.keys(patch).length === 0) return;
 
   const { error } = await supabase
@@ -194,6 +272,9 @@ export interface BacklogCardInput {
   sent_whatsapp: boolean;
   tags: string[];
   backup_location: string | null;
+  service_id: string | null;
+  quantity: number;
+  unit_price_cents: number | null;
 }
 
 export function readBacklogCardInput(formData: FormData): BacklogCardInput {
@@ -212,6 +293,9 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
     sent_whatsapp: formData.get("sent_whatsapp") === "on",
     tags: parseBacklogTags(formData.get("tags")),
     backup_location: normalizeText(formData.get("backup_location")),
+    service_id: normalizeUuid(formData.get("service_id")),
+    quantity: normalizeQuantity(formData.get("quantity")),
+    unit_price_cents: normalizePrice(formData.get("unit_price_cents")),
   };
 }
 
@@ -250,6 +334,9 @@ export async function createBacklogCard(
       sent_whatsapp_at: fields.sent_whatsapp ? new Date().toISOString() : null,
       tags: fields.tags ?? [],
       backup_location: fields.backup_location ?? null,
+      service_id: fields.service_id ?? null,
+      quantity: fields.quantity ?? 1,
+      unit_price_cents: fields.unit_price_cents ?? null,
     })
     .select("*")
     .single();
@@ -314,6 +401,9 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
       sent_whatsapp_at: sentAt,
       tags: fields.tags,
       backup_location: fields.backup_location,
+      service_id: fields.service_id,
+      quantity: fields.quantity,
+      unit_price_cents: fields.unit_price_cents,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);

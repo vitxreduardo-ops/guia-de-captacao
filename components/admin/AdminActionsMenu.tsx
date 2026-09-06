@@ -2,6 +2,7 @@
 
 import {
   CalendarClock,
+  Calculator,
   Clapperboard,
   ClipboardList,
   Images,
@@ -9,6 +10,7 @@ import {
   Library,
   PenLine,
   Receipt,
+  Truck,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -22,6 +24,8 @@ const ACTIONS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/admin/biblioteca", label: "Biblioteca", icon: Library },
   { href: "/admin/galerias", label: "Galeria", icon: Images },
   { href: "/admin/backlog", label: "Backlog", icon: Kanban },
+  { href: "/admin/entregas", label: "Entregas", icon: Truck },
+  { href: "/admin/faturamento", label: "Faturamento", icon: Calculator },
   { href: "/admin/agenda", label: "Agenda", icon: CalendarClock },
   { href: "/admin/lettering", label: "Lettering", icon: PenLine },
 ];

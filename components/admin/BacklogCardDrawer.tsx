@@ -17,7 +17,9 @@ import {
   type BacklogClientOption,
   type BacklogGuideOption,
   type BacklogUserOption,
+  type ServiceOption,
 } from "@/lib/backlogTypes";
+import { formatBRL } from "@/lib/billingTypes";
 import {
   createBacklogChecklistItemAction,
   createBacklogNoteAction,
@@ -283,6 +285,78 @@ function ActivitySection({
   );
 }
 
+/**
+ * Cobrança da entrega. Escolher um serviço só preenche o valor sugerido — o
+ * preço fica gravado no card, então mexer no catálogo depois não altera o que
+ * já foi lançado.
+ */
+function BillingFields({
+  card,
+  services,
+}: {
+  card: BacklogCard;
+  services: ServiceOption[];
+}) {
+  const [price, setPrice] = useState(
+    card.unit_price_cents === null
+      ? ""
+      : (card.unit_price_cents / 100).toFixed(2).replace(".", ",")
+  );
+
+  return (
+    <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+      <p className={labelClass}>Cobrança</p>
+
+      <div className="grid grid-cols-[1fr_5rem_7rem] gap-2">
+        <select
+          name="service_id"
+          aria-label="Serviço"
+          defaultValue={card.service_id ?? "none"}
+          onChange={(event) => {
+            const service = services.find((item) => item.id === event.target.value);
+            if (service) {
+              setPrice((service.price_cents / 100).toFixed(2).replace(".", ","));
+            }
+          }}
+          className={inputClass}
+        >
+          <option value="none">Sem serviço</option>
+          {services.map((service) => (
+            <option key={service.id} value={service.id}>
+              {service.name} — {formatBRL(service.price_cents)}
+            </option>
+          ))}
+        </select>
+
+        <input
+          name="quantity"
+          type="number"
+          min={1}
+          step={1}
+          aria-label="Quantidade"
+          defaultValue={card.quantity ?? 1}
+          className={inputClass}
+        />
+
+        <input
+          name="unit_price_cents"
+          inputMode="decimal"
+          aria-label="Valor unitário"
+          placeholder="R$ 0,00"
+          value={price}
+          onChange={(event) => setPrice(event.target.value)}
+          className={inputClass}
+        />
+      </div>
+
+      <p className="mt-1.5 text-xs text-neutral-500">
+        Entra na nota do mês quando o card estiver numa coluna de entrega
+        concluída, pela data de entrega.
+      </p>
+    </div>
+  );
+}
+
 export function BacklogCardDrawer({
   card,
   checklist,
@@ -291,6 +365,8 @@ export function BacklogCardDrawer({
   clients,
   guides,
   users,
+  services = [],
+  showBilling = false,
   onClose,
   onSave,
   onDelete,
@@ -303,6 +379,9 @@ export function BacklogCardDrawer({
   clients: BacklogClientOption[];
   guides: BacklogGuideOption[];
   users: BacklogUserOption[];
+  services?: ServiceOption[];
+  /** Cobrança só aparece no quadro de entregas. */
+  showBilling?: boolean;
   onClose: () => void;
   onSave: (formData: FormData) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -442,6 +521,10 @@ export function BacklogCardDrawer({
               ))}
             </select>
           </div>
+
+          {showBilling ? (
+            <BillingFields card={card} services={services} />
+          ) : null}
 
           <div>
             <label className={labelClass} htmlFor="backlog-client">

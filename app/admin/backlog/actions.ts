@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentSession } from "@/lib/session";
-import { BACKUP_QUESTION } from "@/lib/backlogTypes";
+import { BACKUP_QUESTION, normalizeBacklogBoard } from "@/lib/backlogTypes";
 import {
   createBacklogActivity,
   createBacklogCard,
@@ -29,7 +29,12 @@ import {
   syncBacklogCardToCalendar,
 } from "@/lib/googleCalendar";
 
-const BACKLOG_PATHS = ["/admin/backlog", "/admin/backlog/calendario"];
+const BACKLOG_PATHS = [
+  "/admin/backlog",
+  "/admin/backlog/calendario",
+  "/admin/entregas",
+  "/admin/faturamento",
+];
 
 function revalidateBacklog() {
   for (const path of BACKLOG_PATHS) revalidatePath(path);
@@ -55,6 +60,7 @@ export async function createBacklogColumnAction(formData: FormData) {
   await createBacklogColumn({
     name: String(formData.get("name") ?? ""),
     color: String(formData.get("color") ?? "#6b7280"),
+    board: normalizeBacklogBoard(formData.get("board")),
   });
   revalidateBacklog();
 }
@@ -63,6 +69,11 @@ export async function updateBacklogColumnAction(formData: FormData) {
   await updateBacklogColumn(String(formData.get("id")), {
     name: String(formData.get("name") ?? ""),
     color: String(formData.get("color") ?? "#6b7280"),
+    // O checkbox só existe no quadro de entregas; nos outros o campo some do
+    // FormData e a flag fica como está.
+    billable: formData.has("billable_present")
+      ? formData.get("billable") === "on"
+      : undefined,
   });
   revalidateBacklog();
 }
