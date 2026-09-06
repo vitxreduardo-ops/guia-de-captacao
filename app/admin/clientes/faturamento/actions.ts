@@ -11,8 +11,9 @@ import {
 import { getCurrentSession } from "@/lib/session";
 
 function revalidateBilling() {
-  revalidatePath("/admin/faturamento");
-  revalidatePath("/admin/entregas");
+  revalidatePath("/admin/clientes/faturamento");
+  revalidatePath("/admin/clientes/entregas");
+  revalidatePath("/admin/clientes/resumo");
 }
 
 // -------------------------------------------------------------- catálogo

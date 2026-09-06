@@ -17,7 +17,8 @@ import {
   type BacklogCard,
   type BacklogChecklistItem,
 } from "@/lib/backlogTypes";
-import { createBacklogNoteAction } from "@/app/admin/backlog/actions";
+import { formatBRL, lineTotalCents } from "@/lib/billingTypes";
+import { createBacklogNoteAction } from "@/app/admin/kanbanActions";
 
 function formatDate(iso: string): string {
   const [year, month, day] = iso.split("-");
@@ -157,6 +158,13 @@ export function BacklogCardView({
           <Field label="Onde foi feito o backup">
             {card.backup_location ?? "—"}
           </Field>
+
+          {card.unit_price_cents !== null ? (
+            <Field label="Cobrança">
+              {card.quantity} × {formatBRL(card.unit_price_cents)} ={" "}
+              <strong>{formatBRL(lineTotalCents(card))}</strong>
+            </Field>
+          ) : null}
 
           <Field label="Guia de captação">{guideTitle ?? "—"}</Field>
 

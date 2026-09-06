@@ -239,3 +239,96 @@ function toInvoiceWithItems(row: Record<string, unknown>): MonthlyInvoiceWithIte
     items,
   };
 }
+
+// ------------------------------------------------------------ ano / resumo
+
+export interface YearClientTotals {
+  clientId: string;
+  clientName: string;
+  /** Fechado por mês (índice 0 = janeiro), em centavos. */
+  byMonth: number[];
+  totalCents: number;
+  deliveries: number;
+}
+
+/**
+ * Consolidado do ano por cliente. O dinheiro vem das notas fechadas (o valor
+ * que de fato foi cobrado), e a contagem de entregas vem do quadro — meses
+ * ainda abertos aparecem no número de entregas mas não no total faturado.
+ */
+export async function getYearTotals(year: number): Promise<YearClientTotals[]> {
+  const supabase = getSupabaseServerClient();
+  const from = `${year}-01-01`;
+  const to = `${year + 1}-01-01`;
+
+  const [clientsResult, invoicesResult, columnsResult] = await Promise.all([
+    supabase.from("gallery_clients").select("id, name").order("name"),
+    supabase
+      .from("monthly_invoices")
+      .select("client_id, month, total_cents")
+      .gte("month", from)
+      .lt("month", to),
+    supabase
+      .from("backlog_columns")
+      .select("id")
+      .eq("board", "entregas")
+      .eq("billable", true),
+  ]);
+
+  if (clientsResult.error) throw clientsResult.error;
+  if (invoicesResult.error) throw invoicesResult.error;
+  if (columnsResult.error) throw columnsResult.error;
+
+  const columnIds = (columnsResult.data ?? []).map((column) => column.id as string);
+  const cardsResult = columnIds.length
+    ? await supabase
+        .from("backlog_cards")
+        .select("client_id")
+        .in("column_id", columnIds)
+        .gte("post_date", from)
+        .lt("post_date", to)
+    : { data: [], error: null };
+  if (cardsResult.error) throw cardsResult.error;
+
+  const totals = new Map<string, YearClientTotals>(
+    (clientsResult.data ?? []).map((client) => [
+      client.id as string,
+      {
+        clientId: client.id as string,
+        clientName: client.name as string,
+        byMonth: Array(12).fill(0),
+        totalCents: 0,
+        deliveries: 0,
+      },
+    ])
+  );
+
+  for (const invoice of invoicesResult.data ?? []) {
+    const row = totals.get(invoice.client_id as string);
+    if (!row) continue;
+    const index = Number(String(invoice.month).slice(5, 7)) - 1;
+    row.byMonth[index] += (invoice.total_cents as number) ?? 0;
+    row.totalCents += (invoice.total_cents as number) ?? 0;
+  }
+
+  for (const card of cardsResult.data ?? []) {
+    const row = totals.get(card.client_id as string);
+    if (row) row.deliveries += 1;
+  }
+
+  return [...totals.values()];
+}
+
+/** Anos que já têm nota fechada, do mais novo pro mais velho. */
+export async function listInvoiceYears(): Promise<number[]> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("monthly_invoices")
+    .select("month")
+    .order("month", { ascending: false });
+  if (error) throw error;
+
+  const years = new Set<number>((data ?? []).map((row) => Number(String(row.month).slice(0, 4))));
+  years.add(new Date().getFullYear());
+  return [...years].sort((a, b) => b - a);
+}

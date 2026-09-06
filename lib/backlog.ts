@@ -351,18 +351,31 @@ export async function createBacklogCard(
  */
 export async function getBacklogCardBrief(
   id: string
-): Promise<{ title: string; assigneeId: string | null }> {
+): Promise<{ title: string; assigneeId: string | null; board: BacklogBoardKind }> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("backlog_cards")
-    .select("title, assignee_id")
+    .select("title, assignee_id, backlog_columns(board)")
     .eq("id", id)
     .single();
   if (error) throw error;
+
+  const column = data?.backlog_columns as
+    | { board: string }
+    | { board: string }[]
+    | null;
+  const board = Array.isArray(column) ? column[0]?.board : column?.board;
+
   return {
     title: (data?.title as string) ?? "",
     assigneeId: (data?.assignee_id as string | null) ?? null,
+    board: normalizeBacklogBoard(board),
   };
+}
+
+/** Onde o card mora — o destino dos avisos da campainha. */
+export function backlogBoardPath(board: BacklogBoardKind): string {
+  return board === "entregas" ? "/admin/clientes/entregas" : "/admin/backlog";
 }
 
 export async function updateBacklogCard(id: string, fields: BacklogCardInput) {

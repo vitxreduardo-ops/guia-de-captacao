@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { getBacklogBoard } from "@/lib/backlog";
 import { getCurrentUsername } from "@/lib/session";
-import { Board } from "./Board";
+import { KanbanBoard } from "@/components/admin/KanbanBoard";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,7 @@ export default async function BacklogPage() {
       {/* flex-1 pra as colunas ocuparem a altura da tela e o slider encostar
           no fim da página. */}
       <div className="flex min-h-0 flex-1 flex-col">
-        <Board
+        <KanbanBoard
           board={board}
           tabs={
             <div className="flex items-center gap-2 text-sm">

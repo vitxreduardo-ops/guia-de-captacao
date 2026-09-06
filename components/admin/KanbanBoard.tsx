@@ -60,7 +60,7 @@ import {
   setBacklogCardApprovedAction,
   updateBacklogCardAction,
   updateBacklogColumnAction,
-} from "./actions";
+} from "@/app/admin/kanbanActions";
 
 const DROPZONE_PREFIX = "dropzone-";
 
@@ -554,7 +554,13 @@ function SortableColumn({
 
 // ----------------------------------------------------------------- board
 
-export function Board({
+/**
+ * Kanban compartilhado pelos dois quadros — o backlog do Instagram e as
+ * entregas de cliente. O que muda entre eles vem de `board.board`: quais
+ * colunas existem, se o card tem cobrança e para onde vão as colunas novas.
+ */
+
+export function KanbanBoard({
   board,
   tabs,
 }: {

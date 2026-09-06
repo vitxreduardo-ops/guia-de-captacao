@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { ClientTabs } from "@/components/admin/ClientTabs";
 import { ServiceCatalog } from "@/components/admin/ServiceCatalog";
 import { getInvoice, getMonthDeliveries, listInvoices, listServices } from "@/lib/billing";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -56,21 +57,17 @@ export default async function FaturamentoPage({
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
       <AdminHeader
-        title="Faturamento"
-        trail={[{ label: "Admin", href: "/admin" }, { label: "Faturamento" }]}
+        title="Clientes"
+        trail={[
+          { label: "Admin", href: "/admin" },
+          { label: "Clientes", href: "/admin/clientes" },
+          { label: "Faturamento" },
+        ]}
         username={username}
       />
 
-      <div className="mb-6 flex items-center gap-2 text-sm">
-        <Link
-          href="/admin/entregas"
-          className="rounded-md border border-neutral-300 px-3 py-1.5 text-neutral-700 hover:bg-neutral-50"
-        >
-          Entregas
-        </Link>
-        <span className="rounded-md bg-neutral-900 px-3 py-1.5 font-medium text-white">
-          Faturamento
-        </span>
+      <div className="mb-6">
+        <ClientTabs />
       </div>
 
       {/* Seletor por GET: o link do mês fica compartilhável e a página é
@@ -144,7 +141,7 @@ export default async function FaturamentoPage({
             <p className="p-4 text-sm text-neutral-500">
               Nenhuma entrega concluída neste mês. Os cards entram aqui quando
               estão numa coluna marcada como entrega no quadro de{" "}
-              <Link href="/admin/entregas" className="underline">
+              <Link href="/admin/clientes/entregas" className="underline">
                 Entregas
               </Link>
               , com data dentro do mês.

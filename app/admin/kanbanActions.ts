@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentSession } from "@/lib/session";
 import { BACKUP_QUESTION, normalizeBacklogBoard } from "@/lib/backlogTypes";
 import {
+  backlogBoardPath,
   createBacklogActivity,
   createBacklogCard,
   createBacklogChecklistItem,
@@ -29,15 +30,16 @@ import {
   syncBacklogCardToCalendar,
 } from "@/lib/googleCalendar";
 
-const BACKLOG_PATHS = [
+const KANBAN_PATHS = [
   "/admin/backlog",
   "/admin/backlog/calendario",
-  "/admin/entregas",
-  "/admin/faturamento",
+  "/admin/clientes/entregas",
+  "/admin/clientes/faturamento",
+  "/admin/clientes/resumo",
 ];
 
 function revalidateBacklog() {
-  for (const path of BACKLOG_PATHS) revalidatePath(path);
+  for (const path of KANBAN_PATHS) revalidatePath(path);
 }
 
 /**
@@ -95,13 +97,14 @@ export async function createBacklogCardAction(formData: FormData) {
   const input = readBacklogCardInput(formData);
   const session = await getCurrentSession();
   const card = await createBacklogCard(columnId, input);
+  const { board } = await getBacklogCardBrief(card.id);
   await notifyUser({
     userId: input.assignee_id,
     actorId: session?.userId ?? null,
     kind: "card_assigned",
     title: "Novo material atribuído a você",
     body: card.title,
-    link: "/admin/backlog",
+    link: backlogBoardPath(board),
     entityId: card.id,
   });
   await syncCalendar(card.id);
@@ -113,7 +116,7 @@ export async function updateBacklogCardAction(formData: FormData) {
   const input = readBacklogCardInput(formData);
   // Só avisa quando o responsável muda — salvar o card de novo com a mesma
   // pessoa não deve reaparecer como novidade na campainha.
-  const { assigneeId: previousAssigneeId } = await getBacklogCardBrief(id);
+  const { assigneeId: previousAssigneeId, board } = await getBacklogCardBrief(id);
   await updateBacklogCard(id, input);
   if (input.assignee_id !== previousAssigneeId) {
     const session = await getCurrentSession();
@@ -123,7 +126,7 @@ export async function updateBacklogCardAction(formData: FormData) {
       kind: "card_assigned",
       title: "Material atribuído a você",
       body: input.title || "Novo material",
-      link: "/admin/backlog",
+      link: backlogBoardPath(board),
       entityId: id,
     });
   }
@@ -142,13 +145,14 @@ export async function moveBacklogCardAction(params: {
     authorId: session?.userId ?? null,
   });
   if (result.moved) {
+    const { board } = await getBacklogCardBrief(params.cardId);
     await notifyUser({
       userId: result.moved.assigneeId,
       actorId: session?.userId ?? null,
       kind: "card_moved",
       title: `Material movido para "${result.moved.toName}"`,
       body: result.moved.title,
-      link: "/admin/backlog",
+      link: backlogBoardPath(board),
       entityId: params.cardId,
     });
   }
@@ -179,7 +183,7 @@ export async function setBacklogCardApprovedAction(
     kind: "card_approved",
     title: approved ? "Material aprovado" : "Aprovação removida",
     body: brief.title,
-    link: "/admin/backlog",
+    link: backlogBoardPath(brief.board),
     entityId: cardId,
   });
   revalidateBacklog();

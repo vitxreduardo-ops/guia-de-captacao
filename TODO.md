@@ -115,37 +115,6 @@ retomar sem reconstruir a investigação. Última revisão: 06/09/2026.
       respostas ficam (tabela nova no Supabase) e como o link é gerado por
       cliente.
 
-## Clientes (próxima sprint)
-
-A tela nova se chama **Clientes** e é independente do Backlog: backlog é o
-Instagram da Tatu, Clientes é o trabalho de cliente. Hoje as duas partes já
-existem soltas (`/admin/entregas` e `/admin/faturamento`, criadas em
-06/09/2026) e vão ser unificadas ali dentro, por etapas:
-
-- [ ] **Unificar entregas e faturamento em `/admin/clientes`.** As duas telas
-      viram abas da mesma seção, com os atalhos do painel apontando pra lá.
-      O kanban de entregas continua sendo o mesmo componente
-      (`app/admin/backlog/Board.tsx` com `board="entregas"`), mas o caminho
-      e o vocabulário passam a ser de Clientes — hoje ele ainda mora dentro
-      de `app/admin/backlog/`, o que mistura as duas coisas.
-
-- [ ] **Aba de criar e editar clientes.** Hoje o cadastro só existe dentro de
-      Galerias (`gallery_clients`), então criar um cliente pra faturar exige
-      passar por uma tela de outra função. Falta decidir se o cadastro migra
-      pra Clientes com a Galeria só consumindo, ou se as duas telas editam a
-      mesma tabela.
-
-- [ ] **Faturamento somado com filtros e dashboards.** Total por cliente ao
-      longo do ano, comparação entre meses e entre clientes, a partir de
-      `monthly_invoices`/`monthly_invoice_items` — que já guardam o valor
-      congelado de cada mês fechado. Falta decidir os cortes (ano, cliente,
-      serviço) e o formato dos gráficos.
-
-- [ ] **Separar o quadro de entregas do módulo de backlog.** Enquanto os dois
-      quadros compartilham `app/admin/backlog/actions.ts` e o `Board`, mexer
-      num arrisca o outro. Quando Clientes ganhar tela própria, mover o que é
-      de entrega pra lá e deixar o backlog só com o Instagram.
-
 ## Qualidade geral
 
 - [ ] **Erro de lint pré-existente:** `components/admin/DriveSyncForm.tsx:51`
