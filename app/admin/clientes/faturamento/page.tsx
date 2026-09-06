@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { Accordion } from "@/components/Accordion";
 import { ClientTabs } from "@/components/admin/ClientTabs";
 import { ServiceCatalog } from "@/components/admin/ServiceCatalog";
 import { getInvoice, getMonthDeliveries, listInvoices, listServices } from "@/lib/billing";
@@ -136,7 +137,7 @@ export default async function FaturamentoPage({
               <h2 className="text-sm font-semibold text-neutral-900">
                 {clientName} — {monthLabel(month)}
               </h2>
-              <p className="text-lg font-semibold tracking-[-0.02em] text-neutral-900 tabular-nums">
+              <p className="text-2xl font-semibold tracking-[-0.02em] text-neutral-900 tabular-nums">
                 {formatBRL(total)}
               </p>
             </div>
@@ -164,9 +165,11 @@ export default async function FaturamentoPage({
               {deliveries.map((delivery) => (
                 <li
                   key={delivery.card_id}
-                  className="flex items-center gap-3 px-4 py-2.5 text-sm"
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm"
                 >
-                  <div className="min-w-0 flex-1">
+                  {/* No celular o título fica com a linha inteira: dividindo
+                      com quantidade e total, ele virava reticências. */}
+                  <div className="w-full min-w-0 sm:w-auto sm:flex-1">
                     <p className="truncate text-neutral-900">{delivery.title}</p>
                     <p className="text-xs text-neutral-500">
                       {delivery.service_name ?? "Sem serviço"}
@@ -212,22 +215,48 @@ export default async function FaturamentoPage({
         </p>
       )}
 
-      <ServiceCatalog services={services} />
+      {/* Catálogo e histórico são consulta, não a tarefa: recolhidos, param de
+          competir com o fechamento do mês, que é o motivo de abrir esta tela. */}
+      <Accordion
+        summary={
+          <span className="text-sm font-semibold text-neutral-900">
+            Produtos e serviços
+            <span className="ml-2 font-normal text-neutral-500">
+              {services.length}
+            </span>
+          </span>
+        }
+        className="rounded-lg border border-neutral-200 bg-white"
+        buttonClassName="p-4"
+      >
+        <div className="border-t border-neutral-100 p-4 pt-3">
+          <ServiceCatalog services={services} />
+        </div>
+      </Accordion>
 
-      <section className="mt-8">
-        <h2 className="mb-2 text-sm font-semibold text-neutral-900">
-          Notas fechadas
-        </h2>
+      <Accordion
+        summary={
+          <span className="text-sm font-semibold text-neutral-900">
+            Notas fechadas
+            <span className="ml-2 font-normal text-neutral-500">
+              {invoices.length}
+            </span>
+          </span>
+        }
+        className="mt-4 rounded-lg border border-neutral-200 bg-white"
+        buttonClassName="p-4"
+      >
+        <div className="border-t border-neutral-100 p-4 pt-3">
         {invoices.length === 0 ? (
           <p className="text-sm text-neutral-500">Nenhum mês fechado ainda.</p>
         ) : (
-          <ul className="divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-white">
+          <ul className="divide-y divide-neutral-100">
             {invoices.map((item) => (
               <li
                 key={item.id}
-                className="flex items-center gap-3 px-4 py-2.5 text-sm"
+                className="flex flex-wrap items-center gap-x-3 gap-y-0.5 py-2.5 text-sm"
               >
-                <span className="min-w-0 flex-1 truncate text-neutral-900">
+                <span className="w-full truncate text-neutral-900 sm:w-auto sm:min-w-0 sm:flex-1">
                   {item.client_name}
                 </span>
                 <span className="text-xs text-neutral-500">
@@ -240,7 +269,8 @@ export default async function FaturamentoPage({
             ))}
           </ul>
         )}
-      </section>
+        </div>
+      </Accordion>
     </div>
   );
 }

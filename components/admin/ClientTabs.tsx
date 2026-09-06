@@ -7,7 +7,7 @@ import { motion, useReducedMotion } from "motion/react";
 const TABS = [
   { href: "/admin/clientes/entregas", label: "Entregas" },
   { href: "/admin/clientes/faturamento", label: "Faturamento" },
-  { href: "/admin/clientes/resumo", label: "Resumo do ano" },
+  { href: "/admin/clientes/resumo", label: "Resumo" },
   { href: "/admin/clientes/cadastro", label: "Cadastro" },
 ];
 
@@ -26,7 +26,10 @@ export function ClientTabs() {
   return (
     <nav
       aria-label="Seções de clientes"
-      className="flex flex-wrap items-center gap-1 rounded-lg border border-neutral-200 bg-white/90 p-1 backdrop-blur-md"
+      // No celular as quatro abas não cabem numa linha e quebrando custavam
+      // uma faixa inteira de altura antes do conteúdo: viram uma faixa que
+      // rola. No desktop cabem e ficam todas à vista.
+      className="flex items-center gap-1 overflow-x-auto rounded-lg border border-neutral-200 bg-white/90 p-1 backdrop-blur-md [scrollbar-width:none] sm:flex-wrap sm:overflow-visible"
     >
       {TABS.map((tab) => {
         const current = pathname === tab.href;
@@ -35,7 +38,7 @@ export function ClientTabs() {
             key={tab.href}
             href={tab.href}
             aria-current={current ? "page" : undefined}
-            className={`relative rounded-md px-3 py-1.5 text-sm transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] pointer-coarse:min-h-11 pointer-coarse:flex pointer-coarse:items-center ${
+            className={`relative shrink-0 rounded-md px-3 py-1.5 text-sm transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] pointer-coarse:min-h-11 pointer-coarse:flex pointer-coarse:items-center ${
               current
                 ? "font-medium text-white"
                 : "text-neutral-600 hover:text-neutral-900"

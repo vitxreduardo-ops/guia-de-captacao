@@ -117,11 +117,9 @@ function ServiceRow({ service }: { service: Service }) {
  */
 export function ServiceCatalog({ services }: { services: Service[] }) {
   return (
-    <section>
-      <h2 className="mb-2 text-sm font-semibold text-neutral-900">
-        Produtos e serviços
-      </h2>
-
+    // O título vem do cabeçalho do accordion que envolve esta seção; repetir
+    // aqui daria dois rótulos para a mesma coisa.
+    <section aria-label="Produtos e serviços">
       <div className="rounded-lg border border-neutral-200 bg-white">
         {services.length > 0 ? (
           <ul className="divide-y divide-neutral-100">
