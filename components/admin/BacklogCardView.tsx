@@ -17,7 +17,8 @@ import {
   type BacklogCard,
   type BacklogChecklistItem,
 } from "@/lib/backlogTypes";
-import { createBacklogNoteAction } from "@/app/admin/backlog/actions";
+import { formatBRL, lineTotalCents } from "@/lib/billingTypes";
+import { createBacklogNoteAction } from "@/app/admin/kanbanActions";
 
 function formatDate(iso: string): string {
   const [year, month, day] = iso.split("-");
@@ -36,14 +37,23 @@ function formatDateTime(iso: string): string {
 function Field({
   label,
   children,
+  numeric = false,
 }: {
   label: string;
   children: React.ReactNode;
+  /** Valores em dinheiro em fonte tabular, pra os dígitos não dançarem. */
+  numeric?: boolean;
 }) {
   return (
     <div>
       <p className="text-xs font-medium text-neutral-500">{label}</p>
-      <div className="mt-0.5 text-sm text-neutral-900">{children}</div>
+      <div
+        className={`mt-0.5 text-sm text-neutral-900 ${
+          numeric ? "tabular-nums" : ""
+        }`}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -63,6 +73,7 @@ export function BacklogCardView({
   guideTitle,
   authorNameById,
   canComment,
+  showBilling = false,
   onClose,
   onEdit,
 }: {
@@ -77,6 +88,8 @@ export function BacklogCardView({
   authorNameById: Map<string, string>;
   /** Comentário só é liberado fora da primeira coluna, como no drawer. */
   canComment: boolean;
+  /** Cobrança e vocabulário de entrega só valem no quadro de clientes. */
+  showBilling?: boolean;
   onClose: () => void;
   onEdit: () => void;
 }) {
@@ -144,7 +157,7 @@ export function BacklogCardView({
             <Field label="Responsável">
               {assigneeName ? `@${assigneeName}` : "—"}
             </Field>
-            <Field label="Data de post">
+            <Field label={showBilling ? "Data da entrega" : "Data de post"}>
               {card.post_date ? formatDate(card.post_date) : "Sem data"}
             </Field>
             <Field label="Horário">
@@ -157,6 +170,13 @@ export function BacklogCardView({
           <Field label="Onde foi feito o backup">
             {card.backup_location ?? "—"}
           </Field>
+
+          {card.unit_price_cents !== null ? (
+            <Field label="Cobrança" numeric>
+              {card.quantity} × {formatBRL(card.unit_price_cents)} ={" "}
+              <strong>{formatBRL(lineTotalCents(card))}</strong>
+            </Field>
+          ) : null}
 
           <Field label="Guia de captação">{guideTitle ?? "—"}</Field>
 

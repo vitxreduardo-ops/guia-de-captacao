@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import {
   DndContext,
   DragOverlay,
@@ -44,10 +53,13 @@ import {
   formatBacklogDateShort,
   type BacklogBoard,
   type BacklogCard,
+  type BacklogBoardKind,
   type BacklogChecklistItem,
   type BacklogColumn,
   type BacklogFilter,
 } from "@/lib/backlogTypes";
+import { formatBRL, lineTotalCents } from "@/lib/billingTypes";
+import { BOARD_NOUNS, type BoardNouns } from "@/lib/boardNouns";
 import {
   createBacklogCardAction,
   createBacklogColumnAction,
@@ -58,9 +70,17 @@ import {
   setBacklogCardApprovedAction,
   updateBacklogCardAction,
   updateBacklogColumnAction,
-} from "./actions";
+} from "@/app/admin/kanbanActions";
 
 const DROPZONE_PREFIX = "dropzone-";
+
+/**
+ * Vocabulário do quadro. Vive num contexto porque só as folhas da árvore
+ * (formulário de adicionar, estado vazio, aviso de exclusão) precisam dele, e
+ * passar o par de strings por quatro níveis de props não deixaria nada mais
+ * claro. O padrão é o do Instagram, que é o quadro original.
+ */
+const BoardNounsContext = createContext<BoardNouns>(BOARD_NOUNS.instagram);
 
 const inputClass =
   "w-full rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm focus:border-neutral-500 focus:outline-none";
@@ -153,6 +173,12 @@ function CardBody({
               {formatBacklogDateShort(card.post_date)}
             </span>
           ) : null}
+          {card.unit_price_cents !== null ? (
+            <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[11px] text-white tabular-nums">
+              {card.quantity > 1 ? `${card.quantity}× ` : ""}
+              {formatBRL(lineTotalCents(card))}
+            </span>
+          ) : null}
           {card.sent_whatsapp ? (
             <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] text-emerald-700">
               WhatsApp ✓
@@ -237,7 +263,7 @@ function SortableCard({
 }
 
 /** Ações do quadro que não são do dia a dia — hoje, criar coluna. */
-function BoardSettingsMenu() {
+function BoardSettingsMenu({ boardKind }: { boardKind: BacklogBoardKind }) {
   return (
     <Popover>
       <PopoverTrigger
@@ -245,7 +271,7 @@ function BoardSettingsMenu() {
           <button
             type="button"
             aria-label="Configurações do quadro"
-            className="flex size-9 items-center justify-center rounded-md border border-neutral-300 text-neutral-600 hover:bg-neutral-50"
+            className="flex size-9 items-center justify-center rounded-md border border-neutral-300 text-neutral-600 hover:bg-neutral-50 pointer-coarse:size-11"
           >
             ⚙
           </button>
@@ -254,6 +280,7 @@ function BoardSettingsMenu() {
       <PopoverContent align="end" className="w-64">
         <p className="text-sm font-semibold text-neutral-900">Nova coluna</p>
         <form action={createBacklogColumnAction} className="flex flex-col gap-2">
+          <input type="hidden" name="board" value={boardKind} />
           <input
             name="name"
             placeholder="Nome da coluna"
@@ -288,6 +315,7 @@ function BoardSettingsMenu() {
 function QuickAddCard({ columnId }: { columnId: string }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [pending, startTransition] = useTransition();
+  const nouns = useContext(BoardNounsContext);
 
   return (
     <form
@@ -306,15 +334,15 @@ function QuickAddCard({ columnId }: { columnId: string }) {
       <input type="hidden" name="column_id" value={columnId} />
       <input
         name="title"
-        placeholder="Novo material"
+        placeholder={nouns.novo}
         disabled={pending}
         className="min-w-0 flex-1 rounded-md border border-dashed border-neutral-300 bg-white/60 px-2.5 py-1.5 text-sm placeholder:text-neutral-400 focus:border-neutral-500 focus:outline-none disabled:opacity-50"
       />
       <button
         type="submit"
         disabled={pending}
-        aria-label="Adicionar material"
-        className="shrink-0 rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50 disabled:opacity-50"
+        aria-label={nouns.novo}
+        className="shrink-0 rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm text-neutral-600 hover:bg-neutral-50 disabled:opacity-50 pointer-coarse:min-h-11 pointer-coarse:min-w-11"
       >
         +
       </button>
@@ -333,6 +361,7 @@ function ColumnHeader({
 }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
+  const nouns = useContext(BoardNounsContext);
 
   if (editing) {
     return (
@@ -361,6 +390,21 @@ function ColumnHeader({
             </option>
           ))}
         </select>
+        {column.board === "entregas" ? (
+          <label className="flex items-center gap-2 text-xs text-neutral-600">
+            {/* Campo-sentinela: sem ele um checkbox desmarcado sumiria do
+                FormData e a ação não saberia diferenciar "desmarcou" de
+                "esse quadro não tem o campo". */}
+            <input type="hidden" name="billable_present" value="1" />
+            <input
+              type="checkbox"
+              name="billable"
+              defaultChecked={column.billable}
+              className="size-3.5"
+            />
+            Conta como entrega na nota do mês
+          </label>
+        ) : null}
         <div className="flex items-center gap-3">
           <button
             type="submit"
@@ -381,7 +425,7 @@ function ColumnHeader({
             onClick={() => {
               if (
                 !window.confirm(
-                  `Excluir a coluna "${column.name}"? Os ${count} materiais dela também serão excluídos.`
+                  `Excluir a coluna "${column.name}"? ${nouns.contagemExcluida(count)} junto.`
                 )
               ) {
                 return;
@@ -411,10 +455,18 @@ function ColumnHeader({
         {column.name}
       </p>
       <span className="text-xs text-neutral-400">{count}</span>
+      {column.billable ? (
+        // `title` é tooltip de mouse e não existe no celular, que é onde o
+        // fechamento do mês costuma ser conferido — então o rótulo precisa se
+        // explicar sozinho.
+        <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700">
+          entra na nota
+        </span>
+      ) : null}
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="ml-auto text-xs text-neutral-400 opacity-0 transition-opacity hover:text-neutral-800 focus-visible:opacity-100 group-hover/header:opacity-100"
+        className="ml-auto rounded-md text-xs text-neutral-500 opacity-0 transition-opacity hover:text-neutral-800 focus-visible:opacity-100 group-hover/header:opacity-100 pointer-coarse:opacity-100 pointer-coarse:min-h-11 pointer-coarse:px-2 pointer-coarse:inline-flex pointer-coarse:items-center focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
         Editar
       </button>
@@ -439,6 +491,7 @@ function SortableColumn({
   draggable: boolean;
   onOpenCard: (id: string) => void;
 }) {
+  const nouns = useContext(BoardNounsContext);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
       id: column.id,
@@ -486,7 +539,7 @@ function SortableColumn({
         >
           {cards.length === 0 ? (
             <p className="rounded-md border border-dashed border-neutral-300 px-3 py-6 text-center text-xs text-neutral-400">
-              Nenhum material
+              {nouns.nenhum}
             </p>
           ) : null}
 
@@ -522,7 +575,13 @@ function SortableColumn({
 
 // ----------------------------------------------------------------- board
 
-export function Board({
+/**
+ * Kanban compartilhado pelos dois quadros — o backlog do Instagram e as
+ * entregas de cliente. O que muda entre eles vem de `board.board`: quais
+ * colunas existem, se o card tem cobrança e para onde vão as colunas novas.
+ */
+
+export function KanbanBoard({
   board,
   tabs,
 }: {
@@ -704,7 +763,7 @@ export function Board({
   const interacting = Boolean(activeCardId || openCardId || editingCardId);
 
   return (
-    <>
+    <BoardNounsContext.Provider value={BOARD_NOUNS[board.board]}>
       {interacting ? <span hidden data-live-pause /> : null}
       <BacklogToaster />
 
@@ -720,7 +779,7 @@ export function Board({
             users={board.users}
             align="end"
           />
-          <BoardSettingsMenu />
+          <BoardSettingsMenu boardKind={board.board} />
         </div>
       </div>
 
@@ -859,6 +918,7 @@ export function Board({
           }
           authorNameById={assigneeNameById}
           canComment={columns[0]?.id !== openCard.column_id}
+          showBilling={board.board === "entregas"}
           onClose={() => setOpenCardId(null)}
           onEdit={() => setEditingCardId(openCard.id)}
         />
@@ -873,6 +933,8 @@ export function Board({
           clients={board.clients}
           guides={board.guides}
           users={board.users}
+          services={board.services}
+          showBilling={board.board === "entregas"}
           onClose={() => {
             setEditingCardId(null);
             setOpenCardId(null);
@@ -885,6 +947,6 @@ export function Board({
           }}
         />
       ) : null}
-    </>
+    </BoardNounsContext.Provider>
   );
 }

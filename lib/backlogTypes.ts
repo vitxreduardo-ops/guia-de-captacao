@@ -2,6 +2,10 @@
 // `lib/backlog.ts` porque aquele é "server-only" (acessa o Supabase com a
 // service role) e não pode ser importado por componentes de cliente.
 
+import type { ServiceOption } from "@/lib/billingTypes";
+
+export type { ServiceOption };
+
 export const BACKLOG_FORMATS = ["reel", "carrossel", "foto", "story"] as const;
 export type BacklogFormat = (typeof BACKLOG_FORMATS)[number];
 
@@ -23,11 +27,25 @@ export const BACKLOG_COLUMN_COLORS = [
   "#ec4899",
 ] as const;
 
+/**
+ * O mesmo kanban serve dois quadros: os materiais do Instagram da Tatu e as
+ * entregas de cliente que viram nota fiscal. Cada coluna pertence a um deles.
+ */
+export const BACKLOG_BOARDS = ["instagram", "entregas"] as const;
+export type BacklogBoardKind = (typeof BACKLOG_BOARDS)[number];
+
+export function normalizeBacklogBoard(value: unknown): BacklogBoardKind {
+  return value === "entregas" ? "entregas" : "instagram";
+}
+
 export interface BacklogColumn {
   id: string;
   name: string;
   color: string;
   position: number;
+  board: BacklogBoardKind;
+  /** Coluna que representa entrega concluída — o que entra na nota do mês. */
+  billable: boolean;
   created_at: string;
 }
 
@@ -52,6 +70,10 @@ export interface BacklogCard {
   sent_whatsapp_at: string | null;
   approved_at: string | null;
   approved_by: string | null;
+  /** Cobrança — só usada no quadro de entregas. */
+  service_id: string | null;
+  quantity: number;
+  unit_price_cents: number | null;
   tags: string[];
   created_at: string;
   updated_at: string;
@@ -129,6 +151,7 @@ export interface BacklogUserOption {
 }
 
 export interface BacklogBoard {
+  board: BacklogBoardKind;
   columns: BacklogColumn[];
   cards: BacklogCard[];
   checklist: BacklogChecklistItem[];
@@ -136,6 +159,8 @@ export interface BacklogBoard {
   clients: BacklogClientOption[];
   guides: BacklogGuideOption[];
   users: BacklogUserOption[];
+  /** Catálogo de preços, pra preencher a cobrança do card. */
+  services: ServiceOption[];
 }
 
 // ------------------------------------------------------------------ filtro

@@ -1,7 +1,7 @@
 # Pendências
 
 Coisas conhecidas que ficaram para depois, com contexto suficiente para
-retomar sem reconstruir a investigação. Última revisão: 26/08/2026.
+retomar sem reconstruir a investigação. Última revisão: 06/09/2026.
 
 ## Minha Agenda
 

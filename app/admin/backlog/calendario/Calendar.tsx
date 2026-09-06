@@ -36,7 +36,7 @@ import {
   deleteBacklogCardAction,
   setBacklogCardScheduleAction,
   updateBacklogCardAction,
-} from "../actions";
+} from "@/app/admin/kanbanActions";
 
 const DAY_PREFIX = "day-";
 const SLOT_PREFIX = "slot-";

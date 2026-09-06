@@ -76,55 +76,24 @@ export async function AdminHeader({
   }
 
   return (
-    <header className="mb-8">
+    // Sem título visível a trilha é a última linha do cabeçalho, e a folga
+    // de baixo pode ser menor sem o conteúdo colar nela.
+    <header className={trail?.length ? "mb-6" : "mb-8"}>
       {/* Todo o admin fica montado sob este header, então é daqui que sai a
           sincronização com o que os outros usuários estão fazendo. */}
       <LiveRefresh />
-      {/* O logo é a volta pro Painel de qualquer página — é onde todo mundo
-          clica esperando ir pra home. */}
-      <Link
-        href="/admin"
-        aria-label="Ir para o Painel"
-        className={`mx-auto mb-4 block w-fit rounded ${FOCUS_RING}`}
-      >
-        <TatuLogo className="block h-[30px] w-auto text-black" />
-      </Link>
-
-      {/* Trilha e ações ficam na chrome, acima da linha; o título respira
-          embaixo dela. */}
+      {/* Logo e ações na chrome, acima da linha. */}
       <div className="flex items-center justify-between gap-4 border-b border-neutral-200 pb-3">
-        <div className="min-w-0">
-          {trail?.length ? (
-            <nav aria-label="Breadcrumb">
-              <ol className="flex flex-wrap items-center gap-1 text-[13px]">
-                {trail.map((item, index) => (
-                  <li key={item.label} className="flex items-center gap-1">
-                    {index > 0 ? (
-                      <ChevronRight
-                        aria-hidden="true"
-                        className="size-3.5 text-neutral-500"
-                      />
-                    ) : null}
-                    {item.href ? (
-                      <Link
-                        href={item.href}
-                        className={`flex items-center rounded-md bg-neutral-100 px-2.5 text-neutral-600 transition-transform hover:bg-neutral-200 active:scale-[0.97] pointer-coarse:min-h-11 py-1 ${FOCUS_RING}`}
-                      >
-                        {item.label}
-                      </Link>
-                    ) : (
-                      <span
-                        aria-current="page"
-                        className="flex items-center rounded-md bg-neutral-100 px-2.5 py-1 font-medium text-neutral-900 pointer-coarse:min-h-11"
-                      >
-                        {item.label}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </nav>
-          ) : null}
+        <div className="flex min-w-0 items-center gap-3">
+          {/* O logo é a volta pro Painel de qualquer página — é onde todo
+              mundo clica esperando ir pra home. */}
+          <Link
+            href="/admin"
+            aria-label="Ir para o Painel"
+            className={`block shrink-0 rounded ${FOCUS_RING}`}
+          >
+            <TatuLogo className="block h-[26px] w-auto text-black" />
+          </Link>
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
@@ -152,7 +121,49 @@ export async function AdminHeader({
         </div>
       </div>
 
-      <h1 className="mt-5 text-xl leading-tight font-semibold tracking-tight text-neutral-900">
+      {/* Trilha abaixo da linha, colada no título: ela nomeia onde a pessoa
+          está, então fica junto do nome da tela e não na faixa do logo. */}
+      {trail?.length ? (
+        <nav aria-label="Breadcrumb" className="mt-4">
+          <ol className="flex flex-wrap items-center gap-1 text-[13px]">
+            {trail.map((item, index) => (
+              <li key={item.label} className="flex items-center gap-1">
+                {index > 0 ? (
+                  <ChevronRight
+                    aria-hidden="true"
+                    className="size-3.5 text-neutral-500"
+                  />
+                ) : null}
+                {item.href ? (
+                  <Link
+                    href={item.href}
+                    className={`flex items-center rounded-md bg-neutral-100 px-2.5 text-neutral-600 transition-transform hover:bg-neutral-200 active:scale-[0.97] pointer-coarse:min-h-11 py-1 ${FOCUS_RING}`}
+                  >
+                    {item.label}
+                  </Link>
+                ) : (
+                  <span
+                    aria-current="page"
+                    className="flex items-center rounded-md bg-neutral-100 px-2.5 py-1 font-medium text-neutral-900 pointer-coarse:min-h-11"
+                  >
+                    {item.label}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ol>
+        </nav>
+      ) : null}
+
+      {/* Com trilha, o último item já nomeia a tela — o título visível seria
+          a mesma palavra duas vezes. Some da tela, fica pro leitor. */}
+      <h1
+        className={
+          trail?.length
+            ? "sr-only"
+            : "mt-2 text-xl leading-tight font-semibold tracking-tight text-neutral-900"
+        }
+      >
         {title}
       </h1>
     </header>

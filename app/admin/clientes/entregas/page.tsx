@@ -1,24 +1,25 @@
-import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { ClientTabs } from "@/components/admin/ClientTabs";
 import { getBacklogBoard } from "@/lib/backlog";
 import { getCurrentUsername } from "@/lib/session";
 import { KanbanBoard } from "@/components/admin/KanbanBoard";
 
 export const dynamic = "force-dynamic";
 
-export default async function BacklogPage() {
+export default async function EntregasPage() {
   const [board, username] = await Promise.all([
-    getBacklogBoard(),
+    getBacklogBoard("entregas"),
     getCurrentUsername(),
   ]);
 
   return (
     <div className="mx-auto flex min-h-svh w-full max-w-[100rem] flex-col px-4 py-10 sm:px-6 lg:px-8">
       <AdminHeader
-        title="Backlog do Instagram"
+        title="Clientes"
         trail={[
           { label: "Admin", href: "/admin" },
-          { label: "Backlog" },
+          { label: "Clientes", href: "/admin/clientes" },
+          { label: "Entregas" },
         ]}
         username={username}
       />
@@ -26,22 +27,7 @@ export default async function BacklogPage() {
       {/* flex-1 pra as colunas ocuparem a altura da tela e o slider encostar
           no fim da página. */}
       <div className="flex min-h-0 flex-1 flex-col">
-        <KanbanBoard
-          board={board}
-          tabs={
-            <div className="flex items-center gap-2 text-sm">
-              <span className="rounded-md bg-neutral-900 px-3 py-1.5 font-medium text-white">
-                Kanban
-              </span>
-              <Link
-                href="/admin/backlog/calendario"
-                className="rounded-md border border-neutral-300 px-3 py-1.5 text-neutral-700 hover:bg-neutral-50"
-              >
-                Calendário
-              </Link>
-            </div>
-          }
-        />
+        <KanbanBoard board={board} tabs={<ClientTabs />} />
       </div>
     </div>
   );

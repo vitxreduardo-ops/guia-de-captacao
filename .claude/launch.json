@@ -4,9 +4,25 @@
     {
       "name": "guia-de-captacao-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "guia-de-captacao-lan",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "next",
+        "dev",
+        "-H",
+        "0.0.0.0",
+        "-p",
+        "3210"
+      ],
+      "port": 3210
     }
   ]
 }

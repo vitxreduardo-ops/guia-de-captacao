@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { answerBackupQuestionAction } from "@/app/admin/backlog/actions";
+import { answerBackupQuestionAction } from "@/app/admin/kanbanActions";
 
 interface PendingQuestion {
   question: string;
