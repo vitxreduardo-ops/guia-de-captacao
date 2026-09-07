@@ -39,6 +39,7 @@ import { Slider } from "@/components/ui/slider";
 import { BacklogCardDrawer } from "@/components/admin/BacklogCardDrawer";
 import { BacklogCardView } from "@/components/admin/BacklogCardView";
 import { BacklogFilters } from "@/components/admin/BacklogFilters";
+import { ClientGroup } from "@/components/admin/ClientGroup";
 import {
   BacklogToaster,
   askBacklogQuestion,
@@ -368,7 +369,28 @@ function SortableCard({
 }
 
 /** Ações do quadro que não são do dia a dia — hoje, criar coluna. */
-function BoardSettingsMenu({ boardKind }: { boardKind: BacklogBoardKind }) {
+function BoardSettingsMenu({
+  boardKind,
+  columns,
+  onReorder,
+}: {
+  boardKind: BacklogBoardKind;
+  columns: BacklogColumn[];
+  onReorder: (orderedIds: string[]) => void;
+}) {
+  /**
+   * Reordenar por setas, e não só arrastando a coluna: o arraste existe, mas
+   * depende de uma alça fina que ninguém acha, e no celular quase não há como
+   * pegá-la.
+   */
+  function move(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= columns.length) return;
+    const ordered = columns.map((column) => column.id);
+    [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
+    onReorder(ordered);
+  }
+
   return (
     <Popover>
       <PopoverTrigger
@@ -382,7 +404,7 @@ function BoardSettingsMenu({ boardKind }: { boardKind: BacklogBoardKind }) {
           </button>
         }
       />
-      <PopoverContent align="end" className="w-64">
+      <PopoverContent align="end" className="max-h-[70vh] w-72 overflow-y-auto">
         <p className="text-sm font-semibold text-neutral-900">Nova coluna</p>
         <form action={createBacklogColumnAction} className="flex flex-col gap-2">
           <input type="hidden" name="board" value={boardKind} />
@@ -405,11 +427,50 @@ function BoardSettingsMenu({ boardKind }: { boardKind: BacklogBoardKind }) {
           </select>
           <button
             type="submit"
-            className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+            className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 pointer-coarse:min-h-11"
           >
             Adicionar
           </button>
         </form>
+
+        <p className="mt-4 text-sm font-semibold text-neutral-900">
+          Ordem das colunas
+        </p>
+        <ul className="mt-1 flex flex-col gap-1">
+          {columns.map((column, index) => (
+            <li
+              key={column.id}
+              className="flex items-center gap-2 rounded-md border border-neutral-200 px-2 py-1.5"
+            >
+              <span
+                aria-hidden
+                className="size-2 shrink-0 rounded-full"
+                style={{ backgroundColor: column.color }}
+              />
+              <span className="min-w-0 flex-1 truncate text-sm text-neutral-700">
+                {column.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => move(index, -1)}
+                disabled={index === 0}
+                aria-label={`Mover "${column.name}" para a esquerda`}
+                className="grid size-7 place-items-center rounded text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-30 pointer-coarse:size-11"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                onClick={() => move(index, 1)}
+                disabled={index === columns.length - 1}
+                aria-label={`Mover "${column.name}" para a direita`}
+                className="grid size-7 place-items-center rounded text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-30 pointer-coarse:size-11"
+              >
+                ↓
+              </button>
+            </li>
+          ))}
+        </ul>
       </PopoverContent>
     </Popover>
   );
@@ -675,28 +736,11 @@ function SortableColumn({
             </p>
           ) : null}
 
-          {groups.map((group) => (
-            <div key={group.name} className="mb-2 last:mb-0">
-              {agrupar ? (
-                <div className="mb-1 flex items-baseline justify-between gap-2 px-0.5">
-                  <span className="truncate text-xs font-semibold text-neutral-700">
-                    {group.name}
-                  </span>
-                  <span className="shrink-0 text-[11px] text-neutral-500 tabular-nums">
-                    {group.cards.length} ·{" "}
-                    {formatBRL(
-                      group.cards.reduce(
-                        (total, card) => total + lineTotalCents(card),
-                        0
-                      )
-                    )}
-                  </span>
-                </div>
-              ) : null}
-
+          {groups.map((group) => {
+            const lista = (
               <ul className="flex flex-col gap-2">
-                {group.cards.map((card) => (
-                  <SortableCard
+              {group.cards.map((card) => (
+                <SortableCard
                     key={card.id}
                     card={card}
                     clientName={
@@ -714,8 +758,27 @@ function SortableColumn({
                   />
                 ))}
               </ul>
-            </div>
-          ))}
+            );
+
+            if (!agrupar) return <div key={group.name}>{lista}</div>;
+
+            return (
+              <ClientGroup
+                key={group.name}
+                columnId={column.id}
+                clientName={group.name}
+                count={group.cards.length}
+                total={formatBRL(
+                  group.cards.reduce(
+                    (soma, card) => soma + lineTotalCents(card),
+                    0
+                  )
+                )}
+              >
+                {lista}
+              </ClientGroup>
+            );
+          })}
         </SortableContext>
       </div>
 
@@ -814,6 +877,16 @@ export function KanbanBoard({
     if (event.active.data.current?.type === "card") {
       setActiveCardId(String(event.active.id));
     }
+  }
+
+  /** Ordem escolhida pelas setas do menu; o arraste tem caminho próprio. */
+  function handleReorderColumns(orderedIds: string[]) {
+    const byId = new Map(columns.map((column) => [column.id, column]));
+    const next = orderedIds
+      .map((id) => byId.get(id))
+      .filter((column): column is BacklogColumn => Boolean(column));
+    setColumns(next);
+    void reorderBacklogColumnsAction(orderedIds);
   }
 
   /**
@@ -939,7 +1012,11 @@ export function KanbanBoard({
             users={board.users}
             align="end"
           />
-          <BoardSettingsMenu boardKind={board.board} />
+          <BoardSettingsMenu
+            boardKind={board.board}
+            columns={columns}
+            onReorder={handleReorderColumns}
+          />
         </div>
       </div>
 
