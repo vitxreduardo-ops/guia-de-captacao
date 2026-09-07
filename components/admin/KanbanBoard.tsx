@@ -29,6 +29,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Copy } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -38,6 +39,7 @@ import { Slider } from "@/components/ui/slider";
 import { BacklogCardDrawer } from "@/components/admin/BacklogCardDrawer";
 import { BacklogCardView } from "@/components/admin/BacklogCardView";
 import { BacklogFilters } from "@/components/admin/BacklogFilters";
+import { ClientGroup } from "@/components/admin/ClientGroup";
 import {
   BacklogToaster,
   askBacklogQuestion,
@@ -50,20 +52,30 @@ import {
   countBacklogFilters,
   isApprovalColumn,
   filterBacklogCards,
+  dueDateOf,
   formatBacklogDateShort,
+  CONTRACT_TYPE_LABELS,
+  PAYMENT_METHOD_LABELS,
   type BacklogBoard,
   type BacklogCard,
   type BacklogBoardKind,
   type BacklogChecklistItem,
+  type BacklogClientOption,
   type BacklogColumn,
   type BacklogFilter,
 } from "@/lib/backlogTypes";
-import { formatBRL, lineTotalCents } from "@/lib/billingTypes";
+import {
+  formatBRL,
+  lineTotalCents,
+  monthKey,
+  monthLabel,
+} from "@/lib/billingTypes";
 import { BOARD_NOUNS, type BoardNouns } from "@/lib/boardNouns";
 import {
   createBacklogCardAction,
   createBacklogColumnAction,
   deleteBacklogCardAction,
+  duplicateBacklogCardAction,
   deleteBacklogColumnAction,
   moveBacklogCardAction,
   reorderBacklogColumnsAction,
@@ -73,6 +85,113 @@ import {
 } from "@/app/admin/kanbanActions";
 
 const DROPZONE_PREFIX = "dropzone-";
+
+/**
+ * Agrupa os cards por cliente mantendo a ordem em que aparecem. A lista final
+ * continua linear — é a mesma que alimenta o `SortableContext` —, então o
+ * arraste segue funcionando; o que muda é que os cards do mesmo cliente ficam
+ * vizinhos e ganham um cabeçalho.
+ */
+function groupByClient(
+  cards: BacklogCard[],
+  clients: BacklogClientOption[]
+): {
+  name: string;
+  cards: BacklogCard[];
+  months: ClientMonth[];
+  paymentDay: number | null;
+}[] {
+  const byId = new Map(clients.map((client) => [client.id, client]));
+  const groups = new Map<string, BacklogCard[]>();
+
+  for (const card of cards) {
+    const name =
+      (card.client_id ? byId.get(card.client_id)?.name : null) ?? "Sem cliente";
+    const list = groups.get(name);
+    if (list) list.push(card);
+    else groups.set(name, [card]);
+  }
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  return [...groups.entries()].map(([name, list]) => {
+    const paymentDay =
+      (list[0].client_id ? byId.get(list[0].client_id)?.payment_day : null) ??
+      null;
+
+    const months = splitByMonth(list).map((month) => {
+      if (!paymentDay || month.key === "sem-data") return month;
+      const due = dueDateOf(month.key, paymentDay);
+      const dia = `${String(due.getDate()).padStart(2, "0")}/${String(
+        due.getMonth() + 1
+      ).padStart(2, "0")}`;
+      const overdue = due < hoje;
+      return {
+        ...month,
+        dueLabel: overdue ? `venceu ${dia}` : `vence ${dia}`,
+        overdue,
+      };
+    });
+
+    return {
+      name,
+      cards: months.flatMap((month) => month.cards),
+      months,
+      paymentDay,
+    };
+  });
+}
+
+interface ClientMonth {
+  key: string;
+  label: string;
+  cards: BacklogCard[];
+  /** "vence 10/09" ou "venceu 10/08" — vazio quando o cliente não tem dia. */
+  dueLabel: string;
+  overdue: boolean;
+}
+
+/**
+ * Dentro do cliente, separa por mês de competência — a mesma data que decide a
+ * nota. Entre o dia 1 e o vencimento, a coluna carrega dois ciclos ao mesmo
+ * tempo: o mês que está fechando e o que acabou de começar. Sem essa divisão,
+ * os dois viram uma pilha só e a cobrança do mês anterior se perde no meio.
+ *
+ * O mais antigo vem primeiro: é o que vence antes.
+ */
+function splitByMonth(cards: BacklogCard[]): ClientMonth[] {
+  const months = new Map<string, BacklogCard[]>();
+
+  for (const card of cards) {
+    const key = card.post_date ? monthKey(card.post_date) : "";
+    const list = months.get(key);
+    if (list) list.push(card);
+    else months.set(key, [card]);
+  }
+
+  return [...months.entries()]
+    .sort(([a], [b]) => {
+      // Cards sem data vão para o fim: não dá para cobrar o que não tem mês.
+      if (!a) return 1;
+      if (!b) return -1;
+      return a.localeCompare(b);
+    })
+    .map(([key, list]) => ({
+      key: key || "sem-data",
+      label: key ? monthLabel(key) : "Sem data",
+      cards: list,
+      dueLabel: "",
+      overdue: false,
+    }));
+}
+
+/** Ids de responsáveis viram nomes; quem foi excluído some da lista. */
+function namesOf(ids: string[], nameById: Map<string, string>): string[] {
+  return ids
+    .map((id) => nameById.get(id))
+    .filter((name): name is string => Boolean(name));
+}
 
 /**
  * Vocabulário do quadro. Vive num contexto porque só as folhas da árvore
@@ -90,24 +209,34 @@ const inputClass =
 function CardBody({
   card,
   clientName,
-  assigneeName,
+  assigneeNames,
   checklist,
   showApproval = false,
+  compact = false,
   onOpen,
+  onDuplicate,
 }: {
   card: BacklogCard;
   clientName: string | null;
-  assigneeName: string | null;
+  assigneeNames: string[];
   checklist: { done: number; total: number } | null;
   /** Só na coluna de aprovação o material pode ser marcado como aprovado. */
   showApproval?: boolean;
+  /**
+   * Quadro de entregas: o card mostra quem, o quê, quando e o tipo de
+   * contrato. Valor, Drive e WhatsApp continuam no card aberto — no quadro
+   * eles só disputavam atenção com o que se procura de relance.
+   */
+  compact?: boolean;
   onOpen?: () => void;
+  /** Duplicar só faz sentido no quadro, não no card fantasma do arraste. */
+  onDuplicate?: () => void;
 }) {
   const approved = Boolean(card.approved_at);
 
   return (
     <div
-      className={`rounded-md border bg-white shadow-sm ${
+      className={`group/card relative rounded-md border bg-white shadow-sm ${
         approved ? "border-emerald-300" : "border-neutral-200"
       }`}
     >
@@ -121,8 +250,26 @@ function CardBody({
           className="h-24 w-full rounded-t-md object-cover"
         />
       ) : null}
+      {onDuplicate ? (
+        <button
+          type="button"
+          // `stopPropagation` porque o card inteiro é a alça de arraste.
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDuplicate();
+          }}
+          aria-label={`Duplicar "${card.title}"`}
+          className="absolute top-1 right-1 z-10 grid size-7 place-items-center rounded-md text-neutral-400 opacity-0 transition-opacity hover:bg-neutral-100 hover:text-neutral-800 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none group-hover/card:opacity-100 pointer-coarse:opacity-100"
+        >
+          <Copy className="size-3.5" aria-hidden />
+        </button>
+      ) : null}
+
       <div className="p-2.5">
-        <div className="flex items-start gap-2">
+        {/* `pr-7` reserva a área do botão de duplicar: sem isso ele cobria a
+            última palavra dos títulos que quebram em duas linhas. */}
+        <div className={`flex items-start gap-2 ${onDuplicate ? "pr-7" : ""}`}>
           {showApproval ? (
             <button
               type="button"
@@ -143,43 +290,79 @@ function CardBody({
               ✓
             </button>
           ) : null}
+          {/* Quem é o cliente vem antes do título: é o que se procura ao
+              bater o olho num quadro cheio. */}
           <button
             type="button"
             onClick={onOpen}
-            className={`block flex-1 text-left text-sm font-medium hover:underline ${
+            className={`block flex-1 text-left text-sm hover:underline ${
               approved ? "text-neutral-500 line-through" : "text-neutral-900"
             }`}
           >
-            {card.title}
+            {clientName ? (
+              <span className="mr-1.5 rounded bg-sky-50 px-1.5 py-0.5 align-[0.05em] text-[11px] font-medium text-sky-700">
+                {clientName}
+              </span>
+            ) : null}
+            <span className="font-medium">{card.title}</span>
           </button>
         </div>
 
-        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+        {/* No desktop os detalhes só aparecem com o mouse em cima: o quadro
+            cheio fica legível de longe, e quem quer o detalhe se aproxima.
+            Onde não existe hover (dedo), continuam sempre visíveis. */}
+        <div
+          className={`mt-1.5 flex-wrap items-center gap-1 ${
+            compact
+              ? "hidden group-hover/card:flex group-focus-within/card:flex pointer-coarse:flex"
+              : "flex"
+          }`}
+        >
           <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] text-neutral-600">
             {BACKLOG_FORMAT_LABELS[card.format]}
           </span>
-          {clientName ? (
-            <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[11px] text-sky-700">
-              {clientName}
+          {card.contract_type ? (
+            <span
+              className={`rounded px-1.5 py-0.5 text-[11px] ${
+                card.contract_type === "mensal"
+                  ? "bg-indigo-50 text-indigo-700"
+                  : "bg-orange-50 text-orange-700"
+              }`}
+            >
+              {CONTRACT_TYPE_LABELS[card.contract_type]}
             </span>
           ) : null}
-          {assigneeName ? (
-            <span className="rounded bg-violet-50 px-1.5 py-0.5 text-[11px] text-violet-700">
-              @{assigneeName}
+          {assigneeNames.map((name) => (
+            <span
+              key={name}
+              className="rounded bg-violet-50 px-1.5 py-0.5 text-[11px] text-violet-700"
+            >
+              @{name}
             </span>
-          ) : null}
+          ))}
           {card.post_date ? (
             <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-700">
               {formatBacklogDateShort(card.post_date)}
             </span>
           ) : null}
-          {card.unit_price_cents !== null ? (
+          {card.unit_price_cents !== null && !compact ? (
             <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[11px] text-white tabular-nums">
               {card.quantity > 1 ? `${card.quantity}× ` : ""}
               {formatBRL(lineTotalCents(card))}
             </span>
           ) : null}
-          {card.sent_whatsapp ? (
+          {/* Basta a data para o selo aparecer: uma entrega paga sem forma
+              anotada continua sendo uma entrega paga. */}
+          {card.paid_at || card.payment_method ? (
+            <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] text-emerald-700">
+              Pago
+              {card.paid_at ? ` ${formatBacklogDateShort(card.paid_at)}` : ""}
+              {card.payment_method
+                ? ` · ${PAYMENT_METHOD_LABELS[card.payment_method]}`
+                : ""}
+            </span>
+          ) : null}
+          {card.sent_whatsapp && !compact ? (
             <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] text-emerald-700">
               WhatsApp ✓
             </span>
@@ -197,13 +380,13 @@ function CardBody({
           ) : null}
         </div>
 
-        {card.tags.length > 0 ? (
+        {card.tags.length > 0 && !compact ? (
           <p className="mt-1 truncate text-[11px] text-neutral-400">
             {card.tags.map((tag) => `#${tag}`).join(" ")}
           </p>
         ) : null}
 
-        {card.drive_url ? (
+        {card.drive_url && !compact ? (
           <a
             href={card.drive_url}
             target="_blank"
@@ -221,19 +404,23 @@ function CardBody({
 function SortableCard({
   card,
   clientName,
-  assigneeName,
+  assigneeNames,
   checklist,
   showApproval,
+  compact,
   draggable,
   onOpen,
+  onDuplicate,
 }: {
   card: BacklogCard;
   clientName: string | null;
-  assigneeName: string | null;
+  assigneeNames: string[];
   checklist: { done: number; total: number } | null;
   showApproval: boolean;
+  compact: boolean;
   draggable: boolean;
   onOpen: () => void;
+  onDuplicate: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
@@ -253,17 +440,40 @@ function SortableCard({
       <CardBody
         card={card}
         clientName={clientName}
-        assigneeName={assigneeName}
+        assigneeNames={assigneeNames}
         checklist={checklist}
         showApproval={showApproval}
+        compact={compact}
         onOpen={onOpen}
+        onDuplicate={onDuplicate}
       />
     </li>
   );
 }
 
 /** Ações do quadro que não são do dia a dia — hoje, criar coluna. */
-function BoardSettingsMenu({ boardKind }: { boardKind: BacklogBoardKind }) {
+function BoardSettingsMenu({
+  boardKind,
+  columns,
+  onReorder,
+}: {
+  boardKind: BacklogBoardKind;
+  columns: BacklogColumn[];
+  onReorder: (orderedIds: string[]) => void;
+}) {
+  /**
+   * Reordenar por setas, e não só arrastando a coluna: o arraste existe, mas
+   * depende de uma alça fina que ninguém acha, e no celular quase não há como
+   * pegá-la.
+   */
+  function move(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= columns.length) return;
+    const ordered = columns.map((column) => column.id);
+    [ordered[index], ordered[target]] = [ordered[target], ordered[index]];
+    onReorder(ordered);
+  }
+
   return (
     <Popover>
       <PopoverTrigger
@@ -277,7 +487,7 @@ function BoardSettingsMenu({ boardKind }: { boardKind: BacklogBoardKind }) {
           </button>
         }
       />
-      <PopoverContent align="end" className="w-64">
+      <PopoverContent align="end" className="max-h-[70vh] w-72 overflow-y-auto">
         <p className="text-sm font-semibold text-neutral-900">Nova coluna</p>
         <form action={createBacklogColumnAction} className="flex flex-col gap-2">
           <input type="hidden" name="board" value={boardKind} />
@@ -300,11 +510,50 @@ function BoardSettingsMenu({ boardKind }: { boardKind: BacklogBoardKind }) {
           </select>
           <button
             type="submit"
-            className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+            className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 pointer-coarse:min-h-11"
           >
             Adicionar
           </button>
         </form>
+
+        <p className="mt-4 text-sm font-semibold text-neutral-900">
+          Ordem das colunas
+        </p>
+        <ul className="mt-1 flex flex-col gap-1">
+          {columns.map((column, index) => (
+            <li
+              key={column.id}
+              className="flex items-center gap-2 rounded-md border border-neutral-200 px-2 py-1.5"
+            >
+              <span
+                aria-hidden
+                className="size-2 shrink-0 rounded-full"
+                style={{ backgroundColor: column.color }}
+              />
+              <span className="min-w-0 flex-1 truncate text-sm text-neutral-700">
+                {column.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => move(index, -1)}
+                disabled={index === 0}
+                aria-label={`Mover "${column.name}" para a esquerda`}
+                className="grid size-7 place-items-center rounded text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-30 pointer-coarse:size-11"
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                onClick={() => move(index, 1)}
+                disabled={index === columns.length - 1}
+                aria-label={`Mover "${column.name}" para a direita`}
+                className="grid size-7 place-items-center rounded text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-30 pointer-coarse:size-11"
+              >
+                ↓
+              </button>
+            </li>
+          ))}
+        </ul>
       </PopoverContent>
     </Popover>
   );
@@ -391,19 +640,30 @@ function ColumnHeader({
           ))}
         </select>
         {column.board === "entregas" ? (
-          <label className="flex items-center gap-2 text-xs text-neutral-600">
+          <div className="flex flex-col gap-1.5">
             {/* Campo-sentinela: sem ele um checkbox desmarcado sumiria do
                 FormData e a ação não saberia diferenciar "desmarcou" de
                 "esse quadro não tem o campo". */}
             <input type="hidden" name="billable_present" value="1" />
-            <input
-              type="checkbox"
-              name="billable"
-              defaultChecked={column.billable}
-              className="size-3.5"
-            />
-            Conta como entrega na nota do mês
-          </label>
+            <label className="flex items-center gap-2 text-xs text-neutral-600">
+              <input
+                type="checkbox"
+                name="billable"
+                defaultChecked={column.billable}
+                className="size-3.5"
+              />
+              Conta como entrega na nota do mês
+            </label>
+            <label className="flex items-center gap-2 text-xs text-neutral-600">
+              <input
+                type="checkbox"
+                name="paid"
+                defaultChecked={column.paid}
+                className="size-3.5"
+              />
+              O pagamento já entrou
+            </label>
+          </div>
         ) : null}
         <div className="flex items-center gap-3">
           <button
@@ -455,13 +715,19 @@ function ColumnHeader({
         {column.name}
       </p>
       <span className="text-xs text-neutral-400">{count}</span>
+      {/* `title` é tooltip de mouse e não existe no celular, que é onde o
+          fechamento do mês costuma ser conferido — então o rótulo precisa se
+          explicar sozinho. */}
       {column.billable ? (
-        // `title` é tooltip de mouse e não existe no celular, que é onde o
-        // fechamento do mês costuma ser conferido — então o rótulo precisa se
-        // explicar sozinho.
-        <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700">
-          entra na nota
-        </span>
+        column.paid ? (
+          <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700">
+            na nota · pago
+          </span>
+        ) : (
+          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700">
+            na nota · a receber
+          </span>
+        )
       ) : null}
       <button
         type="button"
@@ -477,21 +743,34 @@ function ColumnHeader({
 function SortableColumn({
   column,
   cards,
+  clients,
   clientNameById,
   assigneeNameById,
   checklistItems,
   draggable,
   onOpenCard,
+  onDuplicateCard,
 }: {
   column: BacklogColumn;
   cards: BacklogCard[];
+  /** A lista inteira, e não só os nomes: o agrupamento usa o vencimento. */
+  clients: BacklogClientOption[];
   clientNameById: Map<string, string>;
   assigneeNameById: Map<string, string>;
   checklistItems: BacklogChecklistItem[];
   draggable: boolean;
   onOpenCard: (id: string) => void;
+  onDuplicateCard: (id: string) => void;
 }) {
   const nouns = useContext(BoardNounsContext);
+  const compact = column.board === "entregas";
+  // A coluna de quem já entregou e ainda não recebeu é a que enche: agrupada
+  // por cliente, ela responde "quanto o fulano me deve" de relance.
+  const agrupar = column.board === "entregas" && column.billable && !column.paid;
+  const groups = agrupar
+    ? groupByClient(cards, clients)
+    : [{ name: "", cards, months: [] as ClientMonth[], paymentDay: null }];
+  const orderedCards = groups.flatMap((group) => group.cards);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
       id: column.id,
@@ -534,7 +813,7 @@ function SortableColumn({
         className={`min-h-16 rounded-md ${isOver ? "bg-neutral-200/60" : ""}`}
       >
         <SortableContext
-          items={cards.map((card) => card.id)}
+          items={orderedCards.map((card) => card.id)}
           strategy={verticalListSortingStrategy}
         >
           {cards.length === 0 ? (
@@ -543,28 +822,85 @@ function SortableColumn({
             </p>
           ) : null}
 
-          <ul className="flex flex-col gap-2">
-            {cards.map((card) => (
-              <SortableCard
-                key={card.id}
-                card={card}
-                clientName={
-                  card.client_id
-                    ? clientNameById.get(card.client_id) ?? null
-                    : null
-                }
-                assigneeName={
-                  card.assignee_id
-                    ? assigneeNameById.get(card.assignee_id) ?? null
-                    : null
-                }
-                checklist={checklistProgress(card.id, checklistItems)}
-                showApproval={isApprovalColumn(column.name)}
-                draggable={draggable}
-                onOpen={() => onOpenCard(card.id)}
-              />
-            ))}
-          </ul>
+          {groups.map((group) => {
+            const cardsDe = (lista: BacklogCard[]) => (
+              <ul className="flex flex-col gap-2">
+                {lista.map((card) => (
+                  <SortableCard
+                    key={card.id}
+                    card={card}
+                    clientName={
+                      card.client_id
+                        ? clientNameById.get(card.client_id) ?? null
+                        : null
+                    }
+                    assigneeNames={namesOf(card.assignee_ids, assigneeNameById)}
+                    compact={compact}
+                    onDuplicate={() => onDuplicateCard(card.id)}
+                    checklist={checklistProgress(card.id, checklistItems)}
+                    showApproval={isApprovalColumn(column.name)}
+                    draggable={draggable}
+                    onOpen={() => onOpenCard(card.id)}
+                  />
+                ))}
+              </ul>
+            );
+
+            if (!agrupar) {
+              return <div key={group.name}>{cardsDe(group.cards)}</div>;
+            }
+
+            return (
+              <ClientGroup
+                key={group.name}
+                columnId={column.id}
+                clientName={group.name}
+                count={group.cards.length}
+                total={formatBRL(
+                  group.cards.reduce(
+                    (soma, card) => soma + lineTotalCents(card),
+                    0
+                  )
+                )}
+              >
+                {group.months.map((month) => (
+                  <div key={month.key} className="mb-2 last:mb-0">
+                    {/* Um mês só não precisa de subtítulo: ele seria o mesmo
+                        recorte do grupo inteiro, dito duas vezes. */}
+                    {group.months.length > 1 || month.dueLabel ? (
+                      <div className="mb-1 flex items-baseline justify-between gap-2 border-l-2 border-neutral-200 pl-2">
+                        <span className="truncate text-[11px] text-neutral-500">
+                          {month.label}
+                          {month.dueLabel ? (
+                            <span
+                              className={
+                                month.overdue
+                                  ? " font-medium text-red-600"
+                                  : " text-neutral-400"
+                              }
+                            >
+                              {" "}
+                              · {month.dueLabel}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="shrink-0 text-[11px] text-neutral-500 tabular-nums">
+                          {formatBRL(
+                            month.cards.reduce(
+                              (soma, card) => soma + lineTotalCents(card),
+                              0
+                            )
+                          )}
+                        </span>
+                      </div>
+                    ) : null}
+
+                    {cardsDe(month.cards)}
+                  </div>
+                ))}
+              </ClientGroup>
+            );
+          })}
         </SortableContext>
       </div>
 
@@ -665,6 +1001,25 @@ export function KanbanBoard({
     }
   }
 
+  /** Ordem escolhida pelas setas do menu; o arraste tem caminho próprio. */
+  function handleReorderColumns(orderedIds: string[]) {
+    const byId = new Map(columns.map((column) => [column.id, column]));
+    const next = orderedIds
+      .map((id) => byId.get(id))
+      .filter((column): column is BacklogColumn => Boolean(column));
+    setColumns(next);
+    void reorderBacklogColumnsAction(orderedIds);
+  }
+
+  /**
+   * A cópia entra no fim da mesma coluna. Não há estado otimista aqui: o card
+   * novo vem do banco com id próprio, e inventar um id no cliente só criaria
+   * um fantasma para reconciliar depois.
+   */
+  function handleDuplicate(cardId: string) {
+    void duplicateBacklogCardAction(cardId);
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     setActiveCardId(null);
     const { active, over } = event;
@@ -738,8 +1093,8 @@ export function KanbanBoard({
       orderedIdsByColumn,
     }).then((result) => {
       // Automação: a transição casou com a regra, então pergunta na hora.
-      if (result?.question) {
-        askBacklogQuestion(result.question, {
+      if (result?.prompt) {
+        askBacklogQuestion(result.prompt, {
           cardId: card.id,
           cardTitle: card.title,
         });
@@ -779,7 +1134,11 @@ export function KanbanBoard({
             users={board.users}
             align="end"
           />
-          <BoardSettingsMenu boardKind={board.board} />
+          <BoardSettingsMenu
+            boardKind={board.board}
+            columns={columns}
+            onReorder={handleReorderColumns}
+          />
         </div>
       </div>
 
@@ -833,11 +1192,13 @@ export function KanbanBoard({
                   key={column.id}
                   column={column}
                   cards={columnCards(column.id, visibleCards)}
+                  clients={board.clients}
                   clientNameById={clientNameById}
                   assigneeNameById={assigneeNameById}
                   checklistItems={board.checklist}
                   draggable={!filtering}
                   onOpenCard={setOpenCardId}
+                  onDuplicateCard={handleDuplicate}
                 />
               ))}
             </div>
@@ -853,11 +1214,11 @@ export function KanbanBoard({
                   ? clientNameById.get(activeCard.client_id) ?? null
                   : null
               }
-              assigneeName={
-                activeCard.assignee_id
-                  ? assigneeNameById.get(activeCard.assignee_id) ?? null
-                  : null
-              }
+              assigneeNames={namesOf(
+                activeCard.assignee_ids,
+                assigneeNameById
+              )}
+              compact={board.board === "entregas"}
               checklist={checklistProgress(activeCard.id, board.checklist)}
               showApproval={false}
             />
@@ -907,11 +1268,7 @@ export function KanbanBoard({
               ? clientNameById.get(openCard.client_id) ?? null
               : null
           }
-          assigneeName={
-            openCard.assignee_id
-              ? assigneeNameById.get(openCard.assignee_id) ?? null
-              : null
-          }
+          assigneeNames={namesOf(openCard.assignee_ids, assigneeNameById)}
           guideTitle={
             board.guides.find((guide) => guide.id === openCard.guide_id)
               ?.title ?? null

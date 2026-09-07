@@ -18,6 +18,11 @@ import {
   type BacklogChecklistItem,
 } from "@/lib/backlogTypes";
 import { formatBRL, lineTotalCents } from "@/lib/billingTypes";
+import {
+  CONTRACT_TYPE_LABELS,
+  PAYMENT_METHOD_LABELS,
+  formatBacklogDateShort,
+} from "@/lib/backlogTypes";
 import { createBacklogNoteAction } from "@/app/admin/kanbanActions";
 
 function formatDate(iso: string): string {
@@ -69,7 +74,7 @@ export function BacklogCardView({
   columnName,
   columnColor,
   clientName,
-  assigneeName,
+  assigneeNames,
   guideTitle,
   authorNameById,
   canComment,
@@ -83,7 +88,7 @@ export function BacklogCardView({
   columnName: string;
   columnColor: string;
   clientName: string | null;
-  assigneeName: string | null;
+  assigneeNames: string[];
   guideTitle: string | null;
   authorNameById: Map<string, string>;
   /** Comentário só é liberado fora da primeira coluna, como no drawer. */
@@ -154,8 +159,10 @@ export function BacklogCardView({
           <div className="flex flex-col gap-4 sm:min-h-0 sm:overflow-y-auto sm:pr-2">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Cliente">{clientName ?? "—"}</Field>
-            <Field label="Responsável">
-              {assigneeName ? `@${assigneeName}` : "—"}
+            <Field label={assigneeNames.length > 1 ? "Responsáveis" : "Responsável"}>
+              {assigneeNames.length > 0
+                ? assigneeNames.map((name) => `@${name}`).join(", ")
+                : "—"}
             </Field>
             <Field label={showBilling ? "Data da entrega" : "Data de post"}>
               {card.post_date ? formatDate(card.post_date) : "Sem data"}
@@ -175,6 +182,29 @@ export function BacklogCardView({
             <Field label="Cobrança" numeric>
               {card.quantity} × {formatBRL(card.unit_price_cents)} ={" "}
               <strong>{formatBRL(lineTotalCents(card))}</strong>
+            </Field>
+          ) : null}
+
+          {showBilling && card.contract_type ? (
+            <Field label="Contrato">
+              {CONTRACT_TYPE_LABELS[card.contract_type]}
+            </Field>
+          ) : null}
+
+          {showBilling ? (
+            <Field label="Pagamento">
+              {card.paid_at || card.payment_method
+                ? [
+                    card.paid_at
+                      ? `Pago em ${formatBacklogDateShort(card.paid_at)}`
+                      : "Pago",
+                    card.payment_method
+                      ? PAYMENT_METHOD_LABELS[card.payment_method]
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : "Ainda não recebido"}
             </Field>
           ) : null}
 

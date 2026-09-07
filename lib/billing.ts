@@ -1,6 +1,8 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { dueDateOf } from "@/lib/backlogTypes";
 import {
+  lineTotalCents,
   monthKey,
   nextMonthKey,
   parseBRLToCents,
@@ -88,19 +90,26 @@ export async function getMonthDeliveries(
   const from = monthKey(month);
   const to = nextMonthKey(from);
 
+  // Toda coluna faturável entra: a entrega feita já é da nota do mês, paga ou
+  // não. A coluna diz qual das duas.
   const { data: columns, error: columnsError } = await supabase
     .from("backlog_columns")
-    .select("id")
+    .select("id, paid")
     .eq("board", "entregas")
     .eq("billable", true);
   if (columnsError) throw columnsError;
 
-  const columnIds = (columns ?? []).map((column) => column.id as string);
+  const paidByColumn = new Map(
+    (columns ?? []).map((column) => [column.id as string, Boolean(column.paid)])
+  );
+  const columnIds = [...paidByColumn.keys()];
   if (columnIds.length === 0) return [];
 
   const { data, error } = await supabase
     .from("backlog_cards")
-    .select("id, title, post_date, quantity, unit_price_cents, services(name)")
+    .select(
+      "id, column_id, title, post_date, quantity, unit_price_cents, paid_at, payment_method, custom_service, services(name)"
+    )
     .eq("client_id", clientId)
     .in("column_id", columnIds)
     .gte("post_date", from)
@@ -112,7 +121,10 @@ export async function getMonthDeliveries(
     // O join do PostgREST vem como objeto ou array dependendo da cardinalidade
     // inferida, então normaliza os dois casos.
     const service = row.services as { name: string } | { name: string }[] | null;
-    const serviceName = Array.isArray(service) ? service[0]?.name : service?.name;
+    const catalogName = Array.isArray(service) ? service[0]?.name : service?.name;
+    // O produto escrito à mão manda na nota: ele existe justamente para os
+    // casos em que o preço foi negociado fora da tabela.
+    const serviceName = (row.custom_service as string | null) || catalogName;
     return {
       card_id: row.id as string,
       title: (row.title as string) ?? "",
@@ -120,6 +132,9 @@ export async function getMonthDeliveries(
       post_date: (row.post_date as string | null) ?? null,
       quantity: (row.quantity as number) ?? 1,
       unit_price_cents: (row.unit_price_cents as number | null) ?? 0,
+      paid: paidByColumn.get(row.column_id as string) ?? false,
+      paid_at: (row.paid_at as string | null) ?? null,
+      payment_method: (row.payment_method as string | null) ?? null,
     } satisfies MonthDelivery;
   });
 }
@@ -179,6 +194,9 @@ export async function closeMonth(params: {
           quantity: delivery.quantity,
           unit_price_cents: delivery.unit_price_cents,
           position: index,
+          paid: delivery.paid,
+          paid_at: delivery.paid_at,
+          payment_method: delivery.payment_method,
         }))
       );
     if (itemsError) throw itemsError;
@@ -317,6 +335,132 @@ export async function getYearTotals(year: number): Promise<YearClientTotals[]> {
   }
 
   return [...totals.values()];
+}
+
+export interface OverdueClient {
+  clientId: string;
+  clientName: string;
+  cents: number;
+  /** Meses de competência já vencidos, do mais antigo ao mais novo. */
+  months: string[];
+}
+
+/**
+ * O que já passou da data de pagamento: entregas faturáveis ainda não pagas
+ * cujo vencimento (dia do cliente, no mês seguinte ao da entrega) ficou para
+ * trás. Cliente sem dia de vencimento cadastrado não entra — sem combinado não
+ * há atraso.
+ */
+export async function getOverdueByClient(): Promise<OverdueClient[]> {
+  const supabase = getSupabaseServerClient();
+
+  const [clientsResult, columnsResult] = await Promise.all([
+    supabase
+      .from("gallery_clients")
+      .select("id, name, payment_day")
+      .not("payment_day", "is", null)
+      .is("archived_at", null),
+    supabase
+      .from("backlog_columns")
+      .select("id")
+      .eq("board", "entregas")
+      .eq("billable", true)
+      .eq("paid", false),
+  ]);
+  if (clientsResult.error) throw clientsResult.error;
+  if (columnsResult.error) throw columnsResult.error;
+
+  const clients = clientsResult.data ?? [];
+  const columnIds = (columnsResult.data ?? []).map((column) => column.id as string);
+  if (clients.length === 0 || columnIds.length === 0) return [];
+
+  const { data: cards, error } = await supabase
+    .from("backlog_cards")
+    .select("client_id, post_date, quantity, unit_price_cents")
+    .in("column_id", columnIds)
+    .in(
+      "client_id",
+      clients.map((client) => client.id as string)
+    )
+    .not("post_date", "is", null);
+  if (error) throw error;
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const porCliente = new Map<string, OverdueClient>();
+
+  for (const card of cards ?? []) {
+    const client = clients.find((item) => item.id === card.client_id);
+    if (!client) continue;
+
+    const month = monthKey(card.post_date as string);
+    if (dueDateOf(month, client.payment_day as number) >= hoje) continue;
+
+    const atual = porCliente.get(client.id as string) ?? {
+      clientId: client.id as string,
+      clientName: client.name as string,
+      cents: 0,
+      months: [] as string[],
+    };
+    atual.cents += lineTotalCents({
+      quantity: (card.quantity as number) ?? 1,
+      unit_price_cents: (card.unit_price_cents as number | null) ?? 0,
+    });
+    if (!atual.months.includes(month)) atual.months.push(month);
+    porCliente.set(client.id as string, atual);
+  }
+
+  return [...porCliente.values()]
+    .map((row) => ({ ...row, months: row.months.sort() }))
+    .filter((row) => row.cents > 0)
+    .sort((a, b) => b.cents - a.cents);
+}
+
+/**
+ * Meses em que este cliente teve movimento: entrega faturável lançada ou nota
+ * já fechada. A linha do tempo só mostra estes — meses vazios no meio do
+ * caminho são ruído, não navegação.
+ */
+export async function listClientMonths(clientId: string): Promise<string[]> {
+  const supabase = getSupabaseServerClient();
+
+  const { data: columns, error: columnsError } = await supabase
+    .from("backlog_columns")
+    .select("id")
+    .eq("board", "entregas")
+    .eq("billable", true);
+  if (columnsError) throw columnsError;
+
+  const columnIds = (columns ?? []).map((column) => column.id as string);
+
+  const [cardsResult, invoicesResult] = await Promise.all([
+    columnIds.length
+      ? supabase
+          .from("backlog_cards")
+          .select("post_date")
+          .eq("client_id", clientId)
+          .in("column_id", columnIds)
+          .not("post_date", "is", null)
+      : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("monthly_invoices")
+      .select("month")
+      .eq("client_id", clientId),
+  ]);
+
+  if (cardsResult.error) throw cardsResult.error;
+  if (invoicesResult.error) throw invoicesResult.error;
+
+  const months = new Set<string>();
+  for (const row of cardsResult.data ?? []) {
+    months.add(monthKey(row.post_date as string));
+  }
+  for (const row of invoicesResult.data ?? []) {
+    months.add(monthKey(row.month as string));
+  }
+
+  return [...months].sort().reverse();
 }
 
 /** Anos que já têm nota fechada, do mais novo pro mais velho. */

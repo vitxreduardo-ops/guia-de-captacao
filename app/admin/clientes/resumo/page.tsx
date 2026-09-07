@@ -1,7 +1,11 @@
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ClientTabs } from "@/components/admin/ClientTabs";
 import { YearBarChart } from "@/components/admin/YearBarChart";
-import { getYearTotals, listInvoiceYears } from "@/lib/billing";
+import {
+  getOverdueByClient,
+  getYearTotals,
+  listInvoiceYears,
+} from "@/lib/billing";
 import { getCurrentUsername } from "@/lib/session";
 import { formatBRL } from "@/lib/billingTypes";
 
@@ -13,8 +17,9 @@ export default async function ResumoPage({
   searchParams: Promise<{ ano?: string; cliente?: string }>;
 }) {
   const params = await searchParams;
-  const [years, username] = await Promise.all([
+  const [years, overdue, username] = await Promise.all([
     listInvoiceYears(),
+    getOverdueByClient(),
     getCurrentUsername(),
   ]);
 
@@ -34,6 +39,16 @@ export default async function ResumoPage({
   const yearTotal = byMonth.reduce((sum, value) => sum + value, 0);
   const deliveries = rows.reduce((sum, row) => sum + row.deliveries, 0);
   const monthsWithValue = byMonth.filter((value) => value > 0).length;
+
+  // O vencido não depende do ano escolhido: é dívida de hoje, e some da tela
+  // se o filtro de cliente estiver em outro.
+  const overdueRows = selected
+    ? overdue.filter((row) => row.clientId === selected)
+    : overdue;
+  const overdueCents = overdueRows.reduce((sum, row) => sum + row.cents, 0);
+  const overdueByClient = new Map(
+    overdue.map((row) => [row.clientId, row.cents])
+  );
 
   const ranking = [...rows]
     .filter((row) => row.totalCents > 0 || row.deliveries > 0)
@@ -111,7 +126,7 @@ export default async function ResumoPage({
         </button>
       </form>
 
-      <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <section className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {[
           { label: `Faturado em ${year}`, value: formatBRL(yearTotal) },
           { label: "Entregas no ano", value: String(deliveries) },
@@ -122,13 +137,22 @@ export default async function ResumoPage({
               monthsWithValue > 0 ? Math.round(yearTotal / monthsWithValue) : 0
             ),
           },
+          {
+            label: "Vencido hoje",
+            value: formatBRL(overdueCents),
+            alert: overdueCents > 0,
+          },
         ].map((card) => (
           <div
             key={card.label}
             className="rounded-lg border border-neutral-200 bg-white p-4"
           >
             <p className="text-xs text-neutral-500">{card.label}</p>
-            <p className="mt-1 text-lg font-semibold tracking-[-0.02em] text-neutral-900 tabular-nums">
+            <p
+              className={`mt-1 text-lg font-semibold tracking-[-0.02em] tabular-nums ${
+                card.alert ? "text-red-600" : "text-neutral-900"
+              }`}
+            >
               {card.value}
             </p>
           </div>
@@ -160,6 +184,11 @@ export default async function ResumoPage({
                   <span className="min-w-0 flex-1 truncate text-neutral-900">
                     {row.clientName}
                   </span>
+                  {overdueByClient.get(row.clientId) ? (
+                    <span className="rounded bg-red-50 px-1.5 py-0.5 text-xs font-medium text-red-700 tabular-nums">
+                      {formatBRL(overdueByClient.get(row.clientId) ?? 0)} vencido
+                    </span>
+                  ) : null}
                   <span className="text-xs text-neutral-500 tabular-nums">
                     {row.deliveries} entregas
                   </span>

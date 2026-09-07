@@ -6,7 +6,13 @@ import {
   parseBacklogTags,
   shouldAskBackupQuestion,
   normalizeBacklogBoard,
+  normalizeContractType,
+  normalizePaymentMethod,
+  PAYMENT_QUESTION,
   type BacklogActivity,
+  type BacklogPrompt,
+  type ContractType,
+  type PaymentMethod,
   type BacklogBoard,
   type BacklogBoardKind,
   type BacklogCard,
@@ -97,7 +103,10 @@ export async function getBacklogBoard(
   if (columnIds.length === 0) {
     const [clientsResult, guidesResult, usersResult, servicesResult] =
       await Promise.all([
-        supabase.from("gallery_clients").select("id, name").order("name"),
+        supabase
+      .from("gallery_clients")
+      .select("id, name, payment_day")
+      .order("name"),
         supabase.from("guides").select("id, title").order("title"),
         supabase.from("users").select("id, username").order("username"),
         supabase
@@ -127,8 +136,29 @@ export async function getBacklogBoard(
     .order("position");
   if (cardsError) throw cardsError;
 
-  const cards = (cardRows ?? []) as BacklogCard[];
-  const cardIds = cards.map((card) => card.id);
+  const rawCards = (cardRows ?? []) as Omit<BacklogCard, "assignee_ids">[];
+  const cardIds = rawCards.map((card) => card.id);
+
+  const { data: assigneeRows, error: assigneesError } = cardIds.length
+    ? await supabase
+        .from("backlog_card_assignees")
+        .select("card_id, user_id")
+        .in("card_id", cardIds)
+    : { data: [], error: null };
+  if (assigneesError) throw assigneesError;
+
+  const assigneesByCard = new Map<string, string[]>();
+  for (const row of assigneeRows ?? []) {
+    const cardId = row.card_id as string;
+    const list = assigneesByCard.get(cardId);
+    if (list) list.push(row.user_id as string);
+    else assigneesByCard.set(cardId, [row.user_id as string]);
+  }
+
+  const cards: BacklogCard[] = rawCards.map((card) => ({
+    ...card,
+    assignee_ids: assigneesByCard.get(card.id) ?? [],
+  }));
 
   const [
     checklistResult,
@@ -153,7 +183,10 @@ export async function getBacklogBoard(
           .in("card_id", cardIds)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [], error: null }),
-    supabase.from("gallery_clients").select("id, name").order("name"),
+    supabase
+      .from("gallery_clients")
+      .select("id, name, payment_day")
+      .order("name"),
     supabase.from("guides").select("id, title").order("title"),
     supabase.from("users").select("id, username").order("username"),
     supabase
@@ -219,13 +252,14 @@ export async function createBacklogColumn(fields: {
 
 export async function updateBacklogColumn(
   id: string,
-  fields: { name?: string; color?: string; billable?: boolean }
+  fields: { name?: string; color?: string; billable?: boolean; paid?: boolean }
 ) {
   const supabase = getSupabaseServerClient();
   const patch: Record<string, string | boolean> = {};
   if (fields.name !== undefined) patch.name = fields.name.trim() || "Sem nome";
   if (fields.color !== undefined) patch.color = fields.color;
   if (fields.billable !== undefined) patch.billable = fields.billable;
+  if (fields.paid !== undefined) patch.paid = fields.paid;
   if (Object.keys(patch).length === 0) return;
 
   const { error } = await supabase
@@ -263,7 +297,7 @@ export interface BacklogCardInput {
   format: BacklogFormat;
   client_id: string | null;
   guide_id: string | null;
-  assignee_id: string | null;
+  assignee_ids: string[];
   drive_url: string | null;
   cover_url: string | null;
   caption: string;
@@ -272,9 +306,13 @@ export interface BacklogCardInput {
   sent_whatsapp: boolean;
   tags: string[];
   backup_location: string | null;
+  contract_type: ContractType | null;
+  custom_service: string | null;
   service_id: string | null;
   quantity: number;
   unit_price_cents: number | null;
+  paid_at: string | null;
+  payment_method: PaymentMethod | null;
 }
 
 export function readBacklogCardInput(formData: FormData): BacklogCardInput {
@@ -284,7 +322,10 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
     format: normalizeBacklogFormat(formData.get("format")),
     client_id: normalizeUuid(formData.get("client_id")),
     guide_id: normalizeUuid(formData.get("guide_id")),
-    assignee_id: normalizeUuid(formData.get("assignee_id")),
+    assignee_ids: formData
+      .getAll("assignee_ids")
+      .map((value) => normalizeUuid(value))
+      .filter((value): value is string => Boolean(value)),
     drive_url: normalizeUrl(formData.get("drive_url")),
     cover_url: normalizeUrl(formData.get("cover_url")),
     caption: String(formData.get("caption") ?? "").trim(),
@@ -293,9 +334,13 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
     sent_whatsapp: formData.get("sent_whatsapp") === "on",
     tags: parseBacklogTags(formData.get("tags")),
     backup_location: normalizeText(formData.get("backup_location")),
+    contract_type: normalizeContractType(formData.get("contract_type")),
+    custom_service: normalizeText(formData.get("custom_service")),
     service_id: normalizeUuid(formData.get("service_id")),
     quantity: normalizeQuantity(formData.get("quantity")),
     unit_price_cents: normalizePrice(formData.get("unit_price_cents")),
+    paid_at: normalizeDate(formData.get("paid_at")),
+    payment_method: normalizePaymentMethod(formData.get("payment_method")),
   };
 }
 
@@ -324,7 +369,7 @@ export async function createBacklogCard(
       format: fields.format ?? "reel",
       client_id: fields.client_id ?? null,
       guide_id: fields.guide_id ?? null,
-      assignee_id: fields.assignee_id ?? null,
+
       drive_url: fields.drive_url ?? null,
       cover_url: fields.cover_url ?? null,
       caption: fields.caption ?? "",
@@ -334,15 +379,47 @@ export async function createBacklogCard(
       sent_whatsapp_at: fields.sent_whatsapp ? new Date().toISOString() : null,
       tags: fields.tags ?? [],
       backup_location: fields.backup_location ?? null,
+      contract_type: fields.contract_type ?? null,
+      custom_service: fields.custom_service ?? null,
       service_id: fields.service_id ?? null,
       quantity: fields.quantity ?? 1,
       unit_price_cents: fields.unit_price_cents ?? null,
+      paid_at: fields.paid_at ?? null,
+      payment_method: fields.payment_method ?? null,
     })
     .select("*")
     .single();
 
   if (error) throw error;
-  return data as BacklogCard;
+
+  const assigneeIds = fields.assignee_ids ?? [];
+  const card = { ...data, assignee_ids: assigneeIds } as unknown as BacklogCard;
+  await setBacklogCardAssignees(card.id, assigneeIds);
+  return card;
+}
+
+/**
+ * Reescreve a lista de responsáveis do card. Apagar e inserir é mais simples
+ * (e menos código) do que calcular a diferença, e a tabela é minúscula.
+ */
+export async function setBacklogCardAssignees(
+  cardId: string,
+  userIds: string[]
+) {
+  const supabase = getSupabaseServerClient();
+
+  const { error: clearError } = await supabase
+    .from("backlog_card_assignees")
+    .delete()
+    .eq("card_id", cardId);
+  if (clearError) throw clearError;
+
+  if (userIds.length === 0) return;
+
+  const { error } = await supabase
+    .from("backlog_card_assignees")
+    .insert(userIds.map((userId) => ({ card_id: cardId, user_id: userId })));
+  if (error) throw error;
 }
 
 /**
@@ -351,14 +428,22 @@ export async function createBacklogCard(
  */
 export async function getBacklogCardBrief(
   id: string
-): Promise<{ title: string; assigneeId: string | null; board: BacklogBoardKind }> {
+): Promise<{ title: string; assigneeIds: string[]; board: BacklogBoardKind }> {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("backlog_cards")
-    .select("title, assignee_id, backlog_columns(board)")
-    .eq("id", id)
-    .single();
+  const [{ data, error }, { data: assignees, error: assigneesError }] =
+    await Promise.all([
+      supabase
+        .from("backlog_cards")
+        .select("title, backlog_columns(board)")
+        .eq("id", id)
+        .single(),
+      supabase
+        .from("backlog_card_assignees")
+        .select("user_id")
+        .eq("card_id", id),
+    ]);
   if (error) throw error;
+  if (assigneesError) throw assigneesError;
 
   const column = data?.backlog_columns as
     | { board: string }
@@ -368,7 +453,7 @@ export async function getBacklogCardBrief(
 
   return {
     title: (data?.title as string) ?? "",
-    assigneeId: (data?.assignee_id as string | null) ?? null,
+    assigneeIds: (assignees ?? []).map((row) => row.user_id as string),
     board: normalizeBacklogBoard(board),
   };
 }
@@ -404,7 +489,7 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
       format: fields.format,
       client_id: fields.client_id,
       guide_id: fields.guide_id,
-      assignee_id: fields.assignee_id,
+
       drive_url: fields.drive_url,
       cover_url: fields.cover_url,
       caption: fields.caption,
@@ -414,14 +499,20 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
       sent_whatsapp_at: sentAt,
       tags: fields.tags,
       backup_location: fields.backup_location,
+      contract_type: fields.contract_type,
+      custom_service: fields.custom_service,
       service_id: fields.service_id,
       quantity: fields.quantity,
       unit_price_cents: fields.unit_price_cents,
+      paid_at: fields.paid_at,
+      payment_method: fields.payment_method,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
 
   if (error) throw error;
+
+  await setBacklogCardAssignees(id, fields.assignee_ids);
 }
 
 /** Agenda do calendário: data, hora e duração num toque só. */
@@ -459,6 +550,137 @@ export async function setBacklogCardPostDate(
   if (error) throw error;
 }
 
+/**
+ * Copia um card logo abaixo do original, na mesma coluna. Entrega recorrente
+ * (o mensal de um cliente) muda pouco de um mês para o outro: o que se quer é
+ * o mesmo card com outra data.
+ *
+ * Vêm junto os responsáveis e o checklist — este último desmarcado, porque a
+ * cópia é trabalho a fazer, não trabalho feito. Não vêm a atividade, a
+ * aprovação, o pagamento nem o evento do Google Agenda: são história do card
+ * original.
+ */
+export async function duplicateBacklogCard(id: string): Promise<BacklogCard> {
+  const supabase = getSupabaseServerClient();
+
+  const [{ data: original, error }, { data: assignees }, { data: checklist }] =
+    await Promise.all([
+      supabase.from("backlog_cards").select("*").eq("id", id).single(),
+      supabase
+        .from("backlog_card_assignees")
+        .select("user_id")
+        .eq("card_id", id),
+      supabase
+        .from("backlog_checklist_items")
+        .select("label, position")
+        .eq("card_id", id)
+        .order("position"),
+    ]);
+  if (error) throw error;
+
+  const {
+    id: _id,
+    created_at: _createdAt,
+    updated_at: _updatedAt,
+    approved_at: _approvedAt,
+    approved_by: _approvedBy,
+    sent_whatsapp_at: _sentAt,
+    google_event_id: _eventId,
+    paid_at: _paidAt,
+    payment_method: _paymentMethod,
+    position: _position,
+    ...rest
+  } = original as Record<string, unknown>;
+
+  const { data: last } = await supabase
+    .from("backlog_cards")
+    .select("position")
+    .eq("column_id", rest.column_id as string)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: copy, error: copyError } = await supabase
+    .from("backlog_cards")
+    .insert({
+      ...rest,
+      title: `${rest.title as string} (cópia)`,
+      sent_whatsapp: false,
+      position: (last?.position ?? -1) + 1,
+    })
+    .select("*")
+    .single();
+  if (copyError) throw copyError;
+
+  const copyId = copy.id as string;
+  const assigneeIds = (assignees ?? []).map((row) => row.user_id as string);
+
+  await Promise.all([
+    setBacklogCardAssignees(copyId, assigneeIds),
+    (checklist ?? []).length > 0
+      ? supabase.from("backlog_checklist_items").insert(
+          (checklist ?? []).map((item, index) => ({
+            card_id: copyId,
+            label: item.label as string,
+            position: index,
+            done: false,
+          }))
+        )
+      : Promise.resolve(),
+  ]);
+
+  return { ...copy, assignee_ids: assigneeIds } as unknown as BacklogCard;
+}
+
+/**
+ * Move um card para o fim de outra coluna. O arraste tem seu próprio caminho
+ * (`moveBacklogCard`, que reordena as duas colunas); isto é para quando quem
+ * decide o destino é o sistema, não o dedo.
+ */
+export async function setBacklogCardColumn(params: {
+  cardId: string;
+  columnId: string;
+}) {
+  const supabase = getSupabaseServerClient();
+
+  const { data: last, error: lastError } = await supabase
+    .from("backlog_cards")
+    .select("position")
+    .eq("column_id", params.columnId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (lastError) throw lastError;
+
+  const { error } = await supabase
+    .from("backlog_cards")
+    .update({
+      column_id: params.columnId,
+      position: (last?.position ?? -1) + 1,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", params.cardId);
+  if (error) throw error;
+}
+
+/** Resposta do diálogo de pagamento: carimba (ou limpa) data e forma. */
+export async function setBacklogCardPayment(params: {
+  cardId: string;
+  paidAt: string | null;
+  paymentMethod: PaymentMethod | null;
+}) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("backlog_cards")
+    .update({
+      paid_at: normalizeDate(params.paidAt),
+      payment_method: normalizePaymentMethod(params.paymentMethod),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", params.cardId);
+  if (error) throw error;
+}
+
 // -------------------------------------------------------------- atividade
 
 export async function createBacklogActivity(params: {
@@ -477,10 +699,43 @@ export async function createBacklogActivity(params: {
   if (error) throw error;
 }
 
+/**
+ * Chegar na coluna de dinheiro recebido dispara a pergunta de pagamento, que
+ * decide onde o card fica: em "Entregue" se já pagaram, na coluna de espera se
+ * ainda não. Só existe onde há uma espera configurada — sem ela a pergunta não
+ * teria resposta possível.
+ */
+function buildMovePrompt(params: {
+  columns: BacklogColumn[];
+  toColumnId: string;
+  fromName: string;
+  toName: string;
+}): BacklogPrompt | null {
+  const target = params.columns.find((column) => column.id === params.toColumnId);
+
+  if (target?.board === "entregas" && target.billable && target.paid) {
+    const waiting = params.columns.find(
+      (column) =>
+        column.board === "entregas" && column.billable && !column.paid
+    );
+    if (waiting) {
+      return {
+        kind: "payment",
+        question: PAYMENT_QUESTION,
+        waitingColumnId: waiting.id,
+      };
+    }
+  }
+
+  return shouldAskBackupQuestion(params.fromName, params.toName)
+    ? { kind: "text", question: BACKUP_QUESTION }
+    : null;
+}
+
 export interface MoveBacklogCardResult {
-  question: string | null;
+  prompt: BacklogPrompt | null;
   /** Nulo quando o card só mudou de posição dentro da mesma coluna. */
-  moved: { title: string; assigneeId: string | null; toName: string } | null;
+  moved: { title: string; assigneeIds: string[]; toName: string } | null;
 }
 
 /**
@@ -500,10 +755,10 @@ export async function moveBacklogCard(params: {
   const [{ data: card }, { data: columns }] = await Promise.all([
     supabase
       .from("backlog_cards")
-      .select("column_id, title, assignee_id")
+      .select("column_id, title")
       .eq("id", params.cardId)
       .single(),
-    supabase.from("backlog_columns").select("id, name"),
+    supabase.from("backlog_columns").select("id, name, board, billable, paid"),
   ]);
 
   const nameById = new Map(
@@ -533,7 +788,7 @@ export async function moveBacklogCard(params: {
     )
   );
 
-  if (!changedColumn) return { question: null, moved: null };
+  if (!changedColumn) return { prompt: null, moved: null };
 
   await createBacklogActivity({
     cardId: params.cardId,
@@ -543,10 +798,15 @@ export async function moveBacklogCard(params: {
   });
 
   return {
-    question: shouldAskBackupQuestion(fromName, toName) ? BACKUP_QUESTION : null,
+    prompt: buildMovePrompt({
+      columns: (columns ?? []) as BacklogColumn[],
+      toColumnId: params.toColumnId,
+      fromName,
+      toName,
+    }),
     moved: {
       title: (card!.title as string) ?? "",
-      assigneeId: (card!.assignee_id as string | null) ?? null,
+      assigneeIds: (await getBacklogCardBrief(params.cardId)).assigneeIds,
       toName,
     },
   };

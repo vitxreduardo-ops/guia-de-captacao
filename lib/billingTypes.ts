@@ -31,6 +31,10 @@ export interface MonthDelivery {
   post_date: string | null;
   quantity: number;
   unit_price_cents: number;
+  /** Entrega feita e dinheiro recebido são coisas diferentes. */
+  paid: boolean;
+  paid_at: string | null;
+  payment_method: string | null;
 }
 
 export interface MonthlyInvoiceItem {
@@ -41,6 +45,9 @@ export interface MonthlyInvoiceItem {
   quantity: number;
   unit_price_cents: number;
   position: number;
+  paid: boolean;
+  paid_at: string | null;
+  payment_method: string | null;
 }
 
 export interface MonthlyInvoice {
@@ -116,6 +123,23 @@ export function sumCents(
   lines: { quantity: number; unit_price_cents: number | null }[]
 ): number {
   return lines.reduce((total, line) => total + lineTotalCents(line), 0);
+}
+
+/**
+ * O mês tem dois números: o que já entrou e o que ainda vai entrar. A nota
+ * soma os dois — o que muda é quando o dinheiro chega.
+ */
+export function splitPaidCents(
+  lines: {
+    quantity: number;
+    unit_price_cents: number | null;
+    paid: boolean;
+  }[]
+): { paidCents: number; unpaidCents: number } {
+  return {
+    paidCents: sumCents(lines.filter((line) => line.paid)),
+    unpaidCents: sumCents(lines.filter((line) => !line.paid)),
+  };
 }
 
 // ---------------------------------------------------------------------- mês

@@ -658,10 +658,12 @@ export function Calendar({ board }: { board: BacklogBoard }) {
     return card.client_id ? clientNameById.get(card.client_id) ?? null : null;
   }
 
+  /** Vários responsáveis viram uma linha só; o calendário tem pouco espaço. */
   function assigneeOf(card: BacklogCard) {
-    return card.assignee_id
-      ? assigneeNameById.get(card.assignee_id) ?? null
-      : null;
+    const names = card.assignee_ids
+      .map((id) => assigneeNameById.get(id))
+      .filter((name): name is string => Boolean(name));
+    return names.length > 0 ? names.join(", ") : null;
   }
 
   function columnNameOf(card: BacklogCard) {
@@ -992,7 +994,9 @@ export function Calendar({ board }: { board: BacklogBoard }) {
           columnName={columnNameOf(openCard)}
           columnColor={colorOf(openCard)}
           clientName={clientOf(openCard)}
-          assigneeName={assigneeOf(openCard)}
+          assigneeNames={
+            assigneeOf(openCard) ? assigneeOf(openCard)!.split(", ") : []
+          }
           guideTitle={
             board.guides.find((guide) => guide.id === openCard.guide_id)
               ?.title ?? null

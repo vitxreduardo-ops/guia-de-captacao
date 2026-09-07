@@ -3,7 +3,13 @@ import { AdminHeader } from "@/components/admin/AdminHeader";
 import { Accordion } from "@/components/Accordion";
 import { ClientTabs } from "@/components/admin/ClientTabs";
 import { ServiceCatalog } from "@/components/admin/ServiceCatalog";
-import { getInvoice, getMonthDeliveries, listInvoices, listServices } from "@/lib/billing";
+import {
+  getInvoice,
+  getMonthDeliveries,
+  listClientMonths,
+  listInvoices,
+  listServices,
+} from "@/lib/billing";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUsername } from "@/lib/session";
 import {
@@ -11,10 +17,17 @@ import {
   lineTotalCents,
   monthKey,
   monthLabel,
-  recentMonths,
+  splitPaidCents,
   sumCents,
 } from "@/lib/billingTypes";
+import {
+  PAYMENT_METHOD_LABELS,
+  formatBacklogDateShort,
+  type PaymentMethod,
+} from "@/lib/backlogTypes";
 import { CloseMonthForm } from "@/components/admin/CloseMonthForm";
+import { ClientSelect } from "@/components/admin/ClientSelect";
+import { MonthTimeline } from "@/components/admin/MonthTimeline";
 
 export const dynamic = "force-dynamic";
 
@@ -34,11 +47,6 @@ export default async function FaturamentoPage({
   searchParams: Promise<{ cliente?: string; mes?: string }>;
 }) {
   const params = await searchParams;
-  const months = recentMonths();
-  // Sem mês na URL, abre no anterior: quem entra aqui está fechando o mês que
-  // acabou, não o que está correndo. Abrir no corrente mostrava R$ 0,00 e dava
-  // a impressão de que os dados tinham sumido.
-  const month = params.mes ? monthKey(params.mes) : months[1] ?? months[0];
 
   const [clients, services, invoices, username] = await Promise.all([
     listClients(),
@@ -48,6 +56,19 @@ export default async function FaturamentoPage({
   ]);
 
   const clientId = params.cliente || clients[0]?.id || null;
+
+  // A faixa mostra só os meses com movimento deste cliente. O mês aberto entra
+  // sempre, senão a própria seleção sumiria da linha do tempo.
+  const clientMonths = clientId ? await listClientMonths(clientId) : [];
+  const months = [...new Set([...clientMonths, monthKey(new Date())])]
+    .sort()
+    .reverse();
+
+  // Sem mês na URL, abre no anterior: quem entra aqui está fechando o mês que
+  // acabou, não o que está correndo. Abrir no corrente mostrava R$ 0,00 e dava
+  // a impressão de que os dados tinham sumido.
+  const month = params.mes ? monthKey(params.mes) : months[1] ?? months[0];
+  const timelineMonths = [...new Set([...months, month])].sort().reverse();
   const [deliveries, invoice] = clientId
     ? await Promise.all([
         getMonthDeliveries(clientId, month),
@@ -56,6 +77,7 @@ export default async function FaturamentoPage({
     : [[], null];
 
   const total = sumCents(deliveries);
+  const { paidCents, unpaidCents } = splitPaidCents(deliveries);
   const clientName = clients.find((client) => client.id === clientId)?.name ?? "";
 
   return (
@@ -74,61 +96,21 @@ export default async function FaturamentoPage({
         <ClientTabs />
       </div>
 
-      {/* Seletor por GET: o link do mês fica compartilhável e a página é
-          renderizada no servidor sem estado de cliente. */}
-      <form
-        method="get"
-        className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-neutral-200 bg-white p-4"
-      >
-        <div>
-          <label
-            className="mb-1 block text-xs font-medium text-neutral-600"
-            htmlFor="faturamento-cliente"
-          >
-            Cliente
-          </label>
-          <select
-            id="faturamento-cliente"
-            name="cliente"
-            defaultValue={clientId ?? ""}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
-          >
-            {clients.map((client) => (
-              <option key={client.id} value={client.id}>
-                {client.name}
-              </option>
-            ))}
-          </select>
+      {clientId ? (
+        <div className="mb-6 rounded-lg border border-neutral-200 bg-white p-4">
+          <ClientSelect clients={clients} current={clientId} />
         </div>
+      ) : null}
 
-        <div>
-          <label
-            className="mb-1 block text-xs font-medium text-neutral-600"
-            htmlFor="faturamento-mes"
-          >
-            Mês
-          </label>
-          <select
-            id="faturamento-mes"
-            name="mes"
-            defaultValue={month}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
-          >
-            {months.map((option) => (
-              <option key={option} value={option}>
-                {monthLabel(option)}
-              </option>
-            ))}
-          </select>
+      {clientId ? (
+        <div className="mb-6">
+          <MonthTimeline
+            months={timelineMonths}
+            current={month}
+            clientId={clientId}
+          />
         </div>
-
-        <button
-          type="submit"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] pointer-coarse:min-h-11"
-        >
-          Ver
-        </button>
-      </form>
+      ) : null}
 
       {clientId ? (
         <section className="mb-8 rounded-lg border border-neutral-200 bg-white">
@@ -144,7 +126,18 @@ export default async function FaturamentoPage({
             {/* A regra do total precisa ficar à vista sempre, não só quando o
                 mês está vazio: é ela que explica por que um card entregue não
                 apareceu aqui. */}
-            <p className="mt-1 text-xs text-neutral-500">
+            {/* Dois números, um total: a nota é o que foi entregue; o
+                pagamento é quando o dinheiro chega. */}
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+              <span className="text-emerald-700 tabular-nums">
+                {formatBRL(paidCents)} pago
+              </span>
+              <span className="text-amber-700 tabular-nums">
+                {formatBRL(unpaidCents)} a receber
+              </span>
+            </div>
+
+            <p className="mt-1.5 text-xs text-neutral-500">
               Soma as entregas com data em {monthLabel(month)} que estão numa
               coluna marcada como &quot;entra na nota&quot; no quadro de{" "}
               <Link href="/admin/clientes/entregas" className="underline">
@@ -174,13 +167,28 @@ export default async function FaturamentoPage({
                     <p className="text-xs text-neutral-500">
                       {delivery.service_name ?? "Sem serviço"}
                       {delivery.post_date
-                        ? ` · entregue ${delivery.post_date
-                            .slice(5)
-                            .split("-")
-                            .reverse()
-                            .join("/")}`
+                        ? ` · entregue ${formatBacklogDateShort(
+                            delivery.post_date
+                          )}`
                         : ""}
                     </p>
+                    {delivery.paid ? (
+                      <p className="text-xs text-emerald-700">
+                        Pago
+                        {delivery.payment_method
+                          ? ` · ${
+                              PAYMENT_METHOD_LABELS[
+                                delivery.payment_method as PaymentMethod
+                              ] ?? delivery.payment_method
+                            }`
+                          : ""}
+                        {delivery.paid_at
+                          ? ` · ${formatBacklogDateShort(delivery.paid_at)}`
+                          : ""}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-amber-700">A receber</p>
+                    )}
                   </div>
                   <span className="text-xs text-neutral-500 tabular-nums">
                     {delivery.quantity} × {formatBRL(delivery.unit_price_cents)}
@@ -260,7 +268,8 @@ export default async function FaturamentoPage({
                   {item.client_name}
                 </span>
                 <span className="text-xs text-neutral-500">
-                  {monthLabel(item.month)} · {item.items.length} itens
+                  {monthLabel(item.month)} · {item.items.length} itens ·{" "}
+                  {formatBRL(splitPaidCents(item.items).unpaidCents)} a receber
                 </span>
                 <span className="w-24 text-right font-medium text-neutral-900 tabular-nums">
                   {formatBRL(item.total_cents)}

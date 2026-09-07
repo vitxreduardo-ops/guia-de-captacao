@@ -287,7 +287,6 @@ create table if not exists backlog_cards (
   column_id uuid not null references backlog_columns(id) on delete cascade,
   client_id uuid references gallery_clients(id) on delete set null,
   guide_id uuid references guides(id) on delete set null,
-  assignee_id uuid references users(id) on delete set null,
   position integer not null default 0,
   title text not null default '',
   description text not null default '',
@@ -312,7 +311,6 @@ create table if not exists backlog_cards (
 
 create index if not exists backlog_cards_column_id_idx on backlog_cards(column_id);
 create index if not exists backlog_cards_client_id_idx on backlog_cards(client_id);
-create index if not exists backlog_cards_assignee_id_idx on backlog_cards(assignee_id);
 create index if not exists backlog_cards_post_date_idx on backlog_cards(post_date);
 create index if not exists backlog_cards_tags_idx on backlog_cards using gin (tags);
 
@@ -470,3 +468,69 @@ create index if not exists monthly_invoice_items_invoice_id_idx
 
 alter table monthly_invoices enable row level security;
 alter table monthly_invoice_items enable row level security;
+
+-- Aguardando pagamento: entrega feita e dinheiro recebido são estados
+-- diferentes (ver supabase/migrations/0042_add_payment_column.sql).
+
+alter table backlog_columns
+  add column if not exists paid boolean not null default false;
+
+alter table backlog_cards
+  add column if not exists paid_at date;
+alter table backlog_cards
+  add column if not exists payment_method text
+    check (payment_method in ('pix', 'transferencia', 'boleto', 'dinheiro', 'cartao', 'outro'));
+
+alter table monthly_invoice_items
+  add column if not exists paid boolean not null default false;
+alter table monthly_invoice_items
+  add column if not exists paid_at date;
+alter table monthly_invoice_items
+  add column if not exists payment_method text;
+
+-- Vários responsáveis por card, tipo de contrato e produto escrito à mão (ver
+-- supabase/migrations/0043_card_assignees_and_contract.sql).
+
+create table if not exists backlog_card_assignees (
+  card_id uuid not null references backlog_cards(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (card_id, user_id)
+);
+
+create index if not exists backlog_card_assignees_user_id_idx
+  on backlog_card_assignees(user_id);
+
+alter table backlog_card_assignees enable row level security;
+
+alter table backlog_cards
+  add column if not exists contract_type text
+    check (contract_type in ('mensal', 'freela'));
+alter table backlog_cards
+  add column if not exists custom_service text;
+
+-- Dados de cobrança do cliente (ver
+-- supabase/migrations/0044_client_billing_details.sql).
+
+alter table gallery_clients
+  add column if not exists company_name text;
+alter table gallery_clients
+  add column if not exists contact_name text;
+alter table gallery_clients
+  add column if not exists phone text;
+alter table gallery_clients
+  add column if not exists email text;
+alter table gallery_clients
+  add column if not exists document text;
+alter table gallery_clients
+  add column if not exists address text;
+alter table gallery_clients
+  add column if not exists notes text;
+alter table gallery_clients
+  add column if not exists payment_day integer
+    check (payment_day between 1 and 31);
+
+-- Arquivar cliente sem perder o histórico (ver
+-- supabase/migrations/0045_archive_clients.sql).
+alter table gallery_clients
+  add column if not exists archived_at timestamptz;
