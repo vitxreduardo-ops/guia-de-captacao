@@ -62,7 +62,12 @@ import {
   type BacklogColumn,
   type BacklogFilter,
 } from "@/lib/backlogTypes";
-import { formatBRL, lineTotalCents } from "@/lib/billingTypes";
+import {
+  formatBRL,
+  lineTotalCents,
+  monthKey,
+  monthLabel,
+} from "@/lib/billingTypes";
 import { BOARD_NOUNS, type BoardNouns } from "@/lib/boardNouns";
 import {
   createBacklogCardAction,
@@ -88,7 +93,7 @@ const DROPZONE_PREFIX = "dropzone-";
 function groupByClient(
   cards: BacklogCard[],
   clientNameById: Map<string, string>
-): { name: string; cards: BacklogCard[] }[] {
+): { name: string; cards: BacklogCard[]; months: ClientMonth[] }[] {
   const groups = new Map<string, BacklogCard[]>();
 
   for (const card of cards) {
@@ -100,7 +105,49 @@ function groupByClient(
     else groups.set(name, [card]);
   }
 
-  return [...groups.entries()].map(([name, list]) => ({ name, cards: list }));
+  return [...groups.entries()].map(([name, list]) => ({
+    name,
+    cards: splitByMonth(list).flatMap((month) => month.cards),
+    months: splitByMonth(list),
+  }));
+}
+
+interface ClientMonth {
+  key: string;
+  label: string;
+  cards: BacklogCard[];
+}
+
+/**
+ * Dentro do cliente, separa por mês de competência — a mesma data que decide a
+ * nota. Entre o dia 1 e o vencimento, a coluna carrega dois ciclos ao mesmo
+ * tempo: o mês que está fechando e o que acabou de começar. Sem essa divisão,
+ * os dois viram uma pilha só e a cobrança do mês anterior se perde no meio.
+ *
+ * O mais antigo vem primeiro: é o que vence antes.
+ */
+function splitByMonth(cards: BacklogCard[]): ClientMonth[] {
+  const months = new Map<string, BacklogCard[]>();
+
+  for (const card of cards) {
+    const key = card.post_date ? monthKey(card.post_date) : "";
+    const list = months.get(key);
+    if (list) list.push(card);
+    else months.set(key, [card]);
+  }
+
+  return [...months.entries()]
+    .sort(([a], [b]) => {
+      // Cards sem data vão para o fim: não dá para cobrar o que não tem mês.
+      if (!a) return 1;
+      if (!b) return -1;
+      return a.localeCompare(b);
+    })
+    .map(([key, list]) => ({
+      key: key || "sem-data",
+      label: key ? monthLabel(key) : "Sem data",
+      cards: list,
+    }));
 }
 
 /** Ids de responsáveis viram nomes; quem foi excluído some da lista. */
@@ -683,7 +730,7 @@ function SortableColumn({
   const agrupar = column.board === "entregas" && column.billable && !column.paid;
   const groups = agrupar
     ? groupByClient(cards, clientNameById)
-    : [{ name: "", cards }];
+    : [{ name: "", cards, months: [] as ClientMonth[] }];
   const orderedCards = groups.flatMap((group) => group.cards);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
@@ -737,10 +784,10 @@ function SortableColumn({
           ) : null}
 
           {groups.map((group) => {
-            const lista = (
+            const cardsDe = (lista: BacklogCard[]) => (
               <ul className="flex flex-col gap-2">
-              {group.cards.map((card) => (
-                <SortableCard
+                {lista.map((card) => (
+                  <SortableCard
                     key={card.id}
                     card={card}
                     clientName={
@@ -760,7 +807,9 @@ function SortableColumn({
               </ul>
             );
 
-            if (!agrupar) return <div key={group.name}>{lista}</div>;
+            if (!agrupar) {
+              return <div key={group.name}>{cardsDe(group.cards)}</div>;
+            }
 
             return (
               <ClientGroup
@@ -775,7 +824,29 @@ function SortableColumn({
                   )
                 )}
               >
-                {lista}
+                {group.months.map((month) => (
+                  <div key={month.key} className="mb-2 last:mb-0">
+                    {/* Um mês só não precisa de subtítulo: ele seria o mesmo
+                        recorte do grupo inteiro, dito duas vezes. */}
+                    {group.months.length > 1 ? (
+                      <div className="mb-1 flex items-baseline justify-between gap-2 border-l-2 border-neutral-200 pl-2">
+                        <span className="truncate text-[11px] text-neutral-500">
+                          {month.label}
+                        </span>
+                        <span className="shrink-0 text-[11px] text-neutral-500 tabular-nums">
+                          {formatBRL(
+                            month.cards.reduce(
+                              (soma, card) => soma + lineTotalCents(card),
+                              0
+                            )
+                          )}
+                        </span>
+                      </div>
+                    ) : null}
+
+                    {cardsDe(month.cards)}
+                  </div>
+                ))}
               </ClientGroup>
             );
           })}
