@@ -18,6 +18,10 @@ import {
   type BacklogChecklistItem,
 } from "@/lib/backlogTypes";
 import { formatBRL, lineTotalCents } from "@/lib/billingTypes";
+import {
+  PAYMENT_METHOD_LABELS,
+  formatBacklogDateShort,
+} from "@/lib/backlogTypes";
 import { createBacklogNoteAction } from "@/app/admin/kanbanActions";
 
 function formatDate(iso: string): string {
@@ -175,6 +179,18 @@ export function BacklogCardView({
             <Field label="Cobrança" numeric>
               {card.quantity} × {formatBRL(card.unit_price_cents)} ={" "}
               <strong>{formatBRL(lineTotalCents(card))}</strong>
+            </Field>
+          ) : null}
+
+          {showBilling ? (
+            <Field label="Pagamento">
+              {card.payment_method
+                ? `${PAYMENT_METHOD_LABELS[card.payment_method]}${
+                    card.paid_at
+                      ? ` · ${formatBacklogDateShort(card.paid_at)}`
+                      : ""
+                  }`
+                : "Ainda não recebido"}
             </Field>
           ) : null}
 

@@ -88,19 +88,26 @@ export async function getMonthDeliveries(
   const from = monthKey(month);
   const to = nextMonthKey(from);
 
+  // Toda coluna faturável entra: a entrega feita já é da nota do mês, paga ou
+  // não. A coluna diz qual das duas.
   const { data: columns, error: columnsError } = await supabase
     .from("backlog_columns")
-    .select("id")
+    .select("id, paid")
     .eq("board", "entregas")
     .eq("billable", true);
   if (columnsError) throw columnsError;
 
-  const columnIds = (columns ?? []).map((column) => column.id as string);
+  const paidByColumn = new Map(
+    (columns ?? []).map((column) => [column.id as string, Boolean(column.paid)])
+  );
+  const columnIds = [...paidByColumn.keys()];
   if (columnIds.length === 0) return [];
 
   const { data, error } = await supabase
     .from("backlog_cards")
-    .select("id, title, post_date, quantity, unit_price_cents, services(name)")
+    .select(
+      "id, column_id, title, post_date, quantity, unit_price_cents, paid_at, payment_method, services(name)"
+    )
     .eq("client_id", clientId)
     .in("column_id", columnIds)
     .gte("post_date", from)
@@ -120,6 +127,9 @@ export async function getMonthDeliveries(
       post_date: (row.post_date as string | null) ?? null,
       quantity: (row.quantity as number) ?? 1,
       unit_price_cents: (row.unit_price_cents as number | null) ?? 0,
+      paid: paidByColumn.get(row.column_id as string) ?? false,
+      paid_at: (row.paid_at as string | null) ?? null,
+      payment_method: (row.payment_method as string | null) ?? null,
     } satisfies MonthDelivery;
   });
 }
@@ -179,6 +189,9 @@ export async function closeMonth(params: {
           quantity: delivery.quantity,
           unit_price_cents: delivery.unit_price_cents,
           position: index,
+          paid: delivery.paid,
+          paid_at: delivery.paid_at,
+          payment_method: delivery.payment_method,
         }))
       );
     if (itemsError) throw itemsError;

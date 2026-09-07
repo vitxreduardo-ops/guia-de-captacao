@@ -51,6 +51,7 @@ import {
   isApprovalColumn,
   filterBacklogCards,
   formatBacklogDateShort,
+  PAYMENT_METHOD_LABELS,
   type BacklogBoard,
   type BacklogCard,
   type BacklogBoardKind,
@@ -177,6 +178,12 @@ function CardBody({
             <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[11px] text-white tabular-nums">
               {card.quantity > 1 ? `${card.quantity}× ` : ""}
               {formatBRL(lineTotalCents(card))}
+            </span>
+          ) : null}
+          {card.payment_method ? (
+            <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] text-emerald-700">
+              {PAYMENT_METHOD_LABELS[card.payment_method]}
+              {card.paid_at ? ` ${formatBacklogDateShort(card.paid_at)}` : ""}
             </span>
           ) : null}
           {card.sent_whatsapp ? (
@@ -391,19 +398,30 @@ function ColumnHeader({
           ))}
         </select>
         {column.board === "entregas" ? (
-          <label className="flex items-center gap-2 text-xs text-neutral-600">
+          <div className="flex flex-col gap-1.5">
             {/* Campo-sentinela: sem ele um checkbox desmarcado sumiria do
                 FormData e a ação não saberia diferenciar "desmarcou" de
                 "esse quadro não tem o campo". */}
             <input type="hidden" name="billable_present" value="1" />
-            <input
-              type="checkbox"
-              name="billable"
-              defaultChecked={column.billable}
-              className="size-3.5"
-            />
-            Conta como entrega na nota do mês
-          </label>
+            <label className="flex items-center gap-2 text-xs text-neutral-600">
+              <input
+                type="checkbox"
+                name="billable"
+                defaultChecked={column.billable}
+                className="size-3.5"
+              />
+              Conta como entrega na nota do mês
+            </label>
+            <label className="flex items-center gap-2 text-xs text-neutral-600">
+              <input
+                type="checkbox"
+                name="paid"
+                defaultChecked={column.paid}
+                className="size-3.5"
+              />
+              O pagamento já entrou
+            </label>
+          </div>
         ) : null}
         <div className="flex items-center gap-3">
           <button
@@ -455,13 +473,19 @@ function ColumnHeader({
         {column.name}
       </p>
       <span className="text-xs text-neutral-400">{count}</span>
+      {/* `title` é tooltip de mouse e não existe no celular, que é onde o
+          fechamento do mês costuma ser conferido — então o rótulo precisa se
+          explicar sozinho. */}
       {column.billable ? (
-        // `title` é tooltip de mouse e não existe no celular, que é onde o
-        // fechamento do mês costuma ser conferido — então o rótulo precisa se
-        // explicar sozinho.
-        <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700">
-          entra na nota
-        </span>
+        column.paid ? (
+          <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700">
+            na nota · pago
+          </span>
+        ) : (
+          <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700">
+            na nota · a receber
+          </span>
+        )
       ) : null}
       <button
         type="button"
@@ -738,8 +762,8 @@ export function KanbanBoard({
       orderedIdsByColumn,
     }).then((result) => {
       // Automação: a transição casou com a regra, então pergunta na hora.
-      if (result?.question) {
-        askBacklogQuestion(result.question, {
+      if (result?.prompt) {
+        askBacklogQuestion(result.prompt, {
           cardId: card.id,
           cardTitle: card.title,
         });

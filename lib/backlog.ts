@@ -6,7 +6,11 @@ import {
   parseBacklogTags,
   shouldAskBackupQuestion,
   normalizeBacklogBoard,
+  normalizePaymentMethod,
+  PAYMENT_QUESTION,
   type BacklogActivity,
+  type BacklogPrompt,
+  type PaymentMethod,
   type BacklogBoard,
   type BacklogBoardKind,
   type BacklogCard,
@@ -219,13 +223,14 @@ export async function createBacklogColumn(fields: {
 
 export async function updateBacklogColumn(
   id: string,
-  fields: { name?: string; color?: string; billable?: boolean }
+  fields: { name?: string; color?: string; billable?: boolean; paid?: boolean }
 ) {
   const supabase = getSupabaseServerClient();
   const patch: Record<string, string | boolean> = {};
   if (fields.name !== undefined) patch.name = fields.name.trim() || "Sem nome";
   if (fields.color !== undefined) patch.color = fields.color;
   if (fields.billable !== undefined) patch.billable = fields.billable;
+  if (fields.paid !== undefined) patch.paid = fields.paid;
   if (Object.keys(patch).length === 0) return;
 
   const { error } = await supabase
@@ -275,6 +280,8 @@ export interface BacklogCardInput {
   service_id: string | null;
   quantity: number;
   unit_price_cents: number | null;
+  paid_at: string | null;
+  payment_method: PaymentMethod | null;
 }
 
 export function readBacklogCardInput(formData: FormData): BacklogCardInput {
@@ -296,6 +303,8 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
     service_id: normalizeUuid(formData.get("service_id")),
     quantity: normalizeQuantity(formData.get("quantity")),
     unit_price_cents: normalizePrice(formData.get("unit_price_cents")),
+    paid_at: normalizeDate(formData.get("paid_at")),
+    payment_method: normalizePaymentMethod(formData.get("payment_method")),
   };
 }
 
@@ -337,6 +346,8 @@ export async function createBacklogCard(
       service_id: fields.service_id ?? null,
       quantity: fields.quantity ?? 1,
       unit_price_cents: fields.unit_price_cents ?? null,
+      paid_at: fields.paid_at ?? null,
+      payment_method: fields.payment_method ?? null,
     })
     .select("*")
     .single();
@@ -417,6 +428,8 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
       service_id: fields.service_id,
       quantity: fields.quantity,
       unit_price_cents: fields.unit_price_cents,
+      paid_at: fields.paid_at,
+      payment_method: fields.payment_method,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
@@ -459,6 +472,55 @@ export async function setBacklogCardPostDate(
   if (error) throw error;
 }
 
+/**
+ * Move um card para o fim de outra coluna. O arraste tem seu próprio caminho
+ * (`moveBacklogCard`, que reordena as duas colunas); isto é para quando quem
+ * decide o destino é o sistema, não o dedo.
+ */
+export async function setBacklogCardColumn(params: {
+  cardId: string;
+  columnId: string;
+}) {
+  const supabase = getSupabaseServerClient();
+
+  const { data: last, error: lastError } = await supabase
+    .from("backlog_cards")
+    .select("position")
+    .eq("column_id", params.columnId)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (lastError) throw lastError;
+
+  const { error } = await supabase
+    .from("backlog_cards")
+    .update({
+      column_id: params.columnId,
+      position: (last?.position ?? -1) + 1,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", params.cardId);
+  if (error) throw error;
+}
+
+/** Resposta do diálogo de pagamento: carimba (ou limpa) data e forma. */
+export async function setBacklogCardPayment(params: {
+  cardId: string;
+  paidAt: string | null;
+  paymentMethod: PaymentMethod | null;
+}) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("backlog_cards")
+    .update({
+      paid_at: normalizeDate(params.paidAt),
+      payment_method: normalizePaymentMethod(params.paymentMethod),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", params.cardId);
+  if (error) throw error;
+}
+
 // -------------------------------------------------------------- atividade
 
 export async function createBacklogActivity(params: {
@@ -477,8 +539,41 @@ export async function createBacklogActivity(params: {
   if (error) throw error;
 }
 
+/**
+ * Chegar na coluna de dinheiro recebido dispara a pergunta de pagamento, que
+ * decide onde o card fica: em "Entregue" se já pagaram, na coluna de espera se
+ * ainda não. Só existe onde há uma espera configurada — sem ela a pergunta não
+ * teria resposta possível.
+ */
+function buildMovePrompt(params: {
+  columns: BacklogColumn[];
+  toColumnId: string;
+  fromName: string;
+  toName: string;
+}): BacklogPrompt | null {
+  const target = params.columns.find((column) => column.id === params.toColumnId);
+
+  if (target?.board === "entregas" && target.billable && target.paid) {
+    const waiting = params.columns.find(
+      (column) =>
+        column.board === "entregas" && column.billable && !column.paid
+    );
+    if (waiting) {
+      return {
+        kind: "payment",
+        question: PAYMENT_QUESTION,
+        waitingColumnId: waiting.id,
+      };
+    }
+  }
+
+  return shouldAskBackupQuestion(params.fromName, params.toName)
+    ? { kind: "text", question: BACKUP_QUESTION }
+    : null;
+}
+
 export interface MoveBacklogCardResult {
-  question: string | null;
+  prompt: BacklogPrompt | null;
   /** Nulo quando o card só mudou de posição dentro da mesma coluna. */
   moved: { title: string; assigneeId: string | null; toName: string } | null;
 }
@@ -503,7 +598,7 @@ export async function moveBacklogCard(params: {
       .select("column_id, title, assignee_id")
       .eq("id", params.cardId)
       .single(),
-    supabase.from("backlog_columns").select("id, name"),
+    supabase.from("backlog_columns").select("id, name, board, billable, paid"),
   ]);
 
   const nameById = new Map(
@@ -533,7 +628,7 @@ export async function moveBacklogCard(params: {
     )
   );
 
-  if (!changedColumn) return { question: null, moved: null };
+  if (!changedColumn) return { prompt: null, moved: null };
 
   await createBacklogActivity({
     cardId: params.cardId,
@@ -543,7 +638,12 @@ export async function moveBacklogCard(params: {
   });
 
   return {
-    question: shouldAskBackupQuestion(fromName, toName) ? BACKUP_QUESTION : null,
+    prompt: buildMovePrompt({
+      columns: (columns ?? []) as BacklogColumn[],
+      toColumnId: params.toColumnId,
+      fromName,
+      toName,
+    }),
     moved: {
       title: (card!.title as string) ?? "",
       assigneeId: (card!.assignee_id as string | null) ?? null,

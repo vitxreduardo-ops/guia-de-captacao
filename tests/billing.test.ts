@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   lineTotalCents,
+  splitPaidCents,
   monthKey,
   nextMonthKey,
   parseBRLToCents,
   recentMonths,
   sumCents,
 } from "@/lib/billingTypes";
+import { normalizePaymentMethod } from "@/lib/backlogTypes";
 
 describe("parseBRLToCents", () => {
   it("lê os formatos que a gente digita", () => {
@@ -48,6 +50,49 @@ describe("totais", () => {
         { quantity: 1, unit_price_cents: null },
       ])
     ).toBe(112550);
+  });
+});
+
+describe("pago e a receber", () => {
+  const linhas = [
+    { quantity: 2, unit_price_cents: 50000, paid: true },
+    { quantity: 1, unit_price_cents: 30000, paid: false },
+    { quantity: 1, unit_price_cents: 12550, paid: true },
+  ];
+
+  it("separa o que entrou do que falta entrar", () => {
+    expect(splitPaidCents(linhas)).toEqual({
+      paidCents: 112550,
+      unpaidCents: 30000,
+    });
+  });
+
+  it("os dois somados continuam sendo a nota do mês", () => {
+    const { paidCents, unpaidCents } = splitPaidCents(linhas);
+    expect(paidCents + unpaidCents).toBe(sumCents(linhas));
+  });
+
+  it("tudo pago deixa nada a receber", () => {
+    expect(
+      splitPaidCents([{ quantity: 1, unit_price_cents: 90000, paid: true }])
+    ).toEqual({ paidCents: 90000, unpaidCents: 0 });
+  });
+
+  it("mês sem entrega dá zero nos dois", () => {
+    expect(splitPaidCents([])).toEqual({ paidCents: 0, unpaidCents: 0 });
+  });
+});
+
+describe("normalizePaymentMethod", () => {
+  it("aceita as formas conhecidas", () => {
+    expect(normalizePaymentMethod("pix")).toBe("pix");
+    expect(normalizePaymentMethod("transferencia")).toBe("transferencia");
+  });
+
+  it("recusa o que não está na lista, em vez de chutar", () => {
+    expect(normalizePaymentMethod("bitcoin")).toBeNull();
+    expect(normalizePaymentMethod("")).toBeNull();
+    expect(normalizePaymentMethod(undefined)).toBeNull();
   });
 });
 

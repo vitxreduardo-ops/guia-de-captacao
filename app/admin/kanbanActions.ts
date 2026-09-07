@@ -2,7 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentSession } from "@/lib/session";
-import { BACKUP_QUESTION, normalizeBacklogBoard } from "@/lib/backlogTypes";
+import {
+  BACKUP_QUESTION,
+  PAYMENT_METHOD_LABELS,
+  PAYMENT_QUESTION,
+  formatBacklogDateShort,
+  normalizeBacklogBoard,
+  normalizePaymentMethod,
+  type BacklogPrompt,
+} from "@/lib/backlogTypes";
 import {
   backlogBoardPath,
   createBacklogActivity,
@@ -19,6 +27,8 @@ import {
   readBacklogCardInput,
   reorderBacklogColumns,
   setBacklogCardApproved,
+  setBacklogCardColumn,
+  setBacklogCardPayment,
   setBacklogCardPostDate,
   setBacklogCardSchedule,
   updateBacklogCard,
@@ -75,6 +85,9 @@ export async function updateBacklogColumnAction(formData: FormData) {
     // FormData e a flag fica como está.
     billable: formData.has("billable_present")
       ? formData.get("billable") === "on"
+      : undefined,
+    paid: formData.has("billable_present")
+      ? formData.get("paid") === "on"
       : undefined,
   });
   revalidateBacklog();
@@ -138,7 +151,7 @@ export async function moveBacklogCardAction(params: {
   cardId: string;
   toColumnId: string;
   orderedIdsByColumn: Record<string, string[]>;
-}): Promise<{ question: string | null }> {
+}): Promise<{ prompt: BacklogPrompt | null }> {
   const session = await getCurrentSession();
   const result = await moveBacklogCard({
     ...params,
@@ -157,7 +170,49 @@ export async function moveBacklogCardAction(params: {
     });
   }
   revalidateBacklog();
-  return { question: result.question };
+  return { prompt: result.prompt };
+}
+
+/**
+ * Resposta da pergunta de pagamento. Pago: carimba data e forma e o card fica
+ * onde foi solto. Não pago: limpa o carimbo e devolve o card para a coluna de
+ * espera — quem entrega antes de receber não pode ficar contando como recebido.
+ */
+export async function answerPaymentQuestionAction(params: {
+  cardId: string;
+  paid: boolean;
+  waitingColumnId: string;
+  paidAt: string | null;
+  paymentMethod: string | null;
+}) {
+  const session = await getCurrentSession();
+  const method = normalizePaymentMethod(params.paymentMethod);
+
+  await setBacklogCardPayment({
+    cardId: params.cardId,
+    paidAt: params.paid ? params.paidAt : null,
+    paymentMethod: params.paid ? method : null,
+  });
+
+  if (!params.paid) {
+    await setBacklogCardColumn({
+      cardId: params.cardId,
+      columnId: params.waitingColumnId,
+    });
+  }
+
+  await createBacklogActivity({
+    cardId: params.cardId,
+    authorId: session?.userId ?? null,
+    kind: "answer",
+    message: params.paid
+      ? `${PAYMENT_QUESTION} Sim${
+          method ? ` — ${PAYMENT_METHOD_LABELS[method]}` : ""
+        }${params.paidAt ? `, em ${formatBacklogDateShort(params.paidAt)}` : ""}`
+      : `${PAYMENT_QUESTION} Ainda não`,
+  });
+
+  revalidateBacklog();
 }
 
 export async function setBacklogCardApprovedAction(

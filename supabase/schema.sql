@@ -470,3 +470,22 @@ create index if not exists monthly_invoice_items_invoice_id_idx
 
 alter table monthly_invoices enable row level security;
 alter table monthly_invoice_items enable row level security;
+
+-- Aguardando pagamento: entrega feita e dinheiro recebido são estados
+-- diferentes (ver supabase/migrations/0042_add_payment_column.sql).
+
+alter table backlog_columns
+  add column if not exists paid boolean not null default false;
+
+alter table backlog_cards
+  add column if not exists paid_at date;
+alter table backlog_cards
+  add column if not exists payment_method text
+    check (payment_method in ('pix', 'transferencia', 'boleto', 'dinheiro', 'cartao', 'outro'));
+
+alter table monthly_invoice_items
+  add column if not exists paid boolean not null default false;
+alter table monthly_invoice_items
+  add column if not exists paid_at date;
+alter table monthly_invoice_items
+  add column if not exists payment_method text;

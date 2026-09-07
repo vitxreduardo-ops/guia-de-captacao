@@ -46,6 +46,8 @@ export interface BacklogColumn {
   board: BacklogBoardKind;
   /** Coluna que representa entrega concluída — o que entra na nota do mês. */
   billable: boolean;
+  /** Entre as faturáveis, a que significa dinheiro já recebido. */
+  paid: boolean;
   created_at: string;
 }
 
@@ -74,6 +76,8 @@ export interface BacklogCard {
   service_id: string | null;
   quantity: number;
   unit_price_cents: number | null;
+  paid_at: string | null;
+  payment_method: PaymentMethod | null;
   tags: string[];
   created_at: string;
   updated_at: string;
@@ -108,6 +112,43 @@ export interface BacklogActivity {
  * trocaria os ids. `matchesColumnName` normaliza acento e caixa.
  */
 export const BACKUP_QUESTION = "Onde foi feito o backup?";
+export const PAYMENT_QUESTION = "O pagamento já foi feito?";
+
+export const PAYMENT_METHODS = [
+  "pix",
+  "transferencia",
+  "boleto",
+  "dinheiro",
+  "cartao",
+  "outro",
+] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  pix: "Pix",
+  transferencia: "Transferência",
+  boleto: "Boleto",
+  dinheiro: "Dinheiro",
+  cartao: "Cartão",
+  outro: "Outro",
+};
+
+/** Fora da lista vira null: a forma de pagamento é opcional, não um palpite. */
+export function normalizePaymentMethod(value: unknown): PaymentMethod | null {
+  const raw = String(value ?? "").trim();
+  return (PAYMENT_METHODS as readonly string[]).includes(raw)
+    ? (raw as PaymentMethod)
+    : null;
+}
+
+/**
+ * O que o quadro pergunta depois de um arraste. O de texto vira uma linha na
+ * atividade; o de pagamento decide onde o card pousa, então carrega o id da
+ * coluna de espera para o caso de "ainda não".
+ */
+export type BacklogPrompt =
+  | { kind: "text"; question: string }
+  | { kind: "payment"; question: string; waitingColumnId: string };
 
 function normalizeName(value: string): string {
   return value

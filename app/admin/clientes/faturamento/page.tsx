@@ -12,8 +12,14 @@ import {
   monthKey,
   monthLabel,
   recentMonths,
+  splitPaidCents,
   sumCents,
 } from "@/lib/billingTypes";
+import {
+  PAYMENT_METHOD_LABELS,
+  formatBacklogDateShort,
+  type PaymentMethod,
+} from "@/lib/backlogTypes";
 import { CloseMonthForm } from "@/components/admin/CloseMonthForm";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +62,7 @@ export default async function FaturamentoPage({
     : [[], null];
 
   const total = sumCents(deliveries);
+  const { paidCents, unpaidCents } = splitPaidCents(deliveries);
   const clientName = clients.find((client) => client.id === clientId)?.name ?? "";
 
   return (
@@ -144,7 +151,18 @@ export default async function FaturamentoPage({
             {/* A regra do total precisa ficar à vista sempre, não só quando o
                 mês está vazio: é ela que explica por que um card entregue não
                 apareceu aqui. */}
-            <p className="mt-1 text-xs text-neutral-500">
+            {/* Dois números, um total: a nota é o que foi entregue; o
+                pagamento é quando o dinheiro chega. */}
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+              <span className="text-emerald-700 tabular-nums">
+                {formatBRL(paidCents)} pago
+              </span>
+              <span className="text-amber-700 tabular-nums">
+                {formatBRL(unpaidCents)} a receber
+              </span>
+            </div>
+
+            <p className="mt-1.5 text-xs text-neutral-500">
               Soma as entregas com data em {monthLabel(month)} que estão numa
               coluna marcada como &quot;entra na nota&quot; no quadro de{" "}
               <Link href="/admin/clientes/entregas" className="underline">
@@ -174,13 +192,28 @@ export default async function FaturamentoPage({
                     <p className="text-xs text-neutral-500">
                       {delivery.service_name ?? "Sem serviço"}
                       {delivery.post_date
-                        ? ` · entregue ${delivery.post_date
-                            .slice(5)
-                            .split("-")
-                            .reverse()
-                            .join("/")}`
+                        ? ` · entregue ${formatBacklogDateShort(
+                            delivery.post_date
+                          )}`
                         : ""}
                     </p>
+                    {delivery.paid ? (
+                      <p className="text-xs text-emerald-700">
+                        Pago
+                        {delivery.payment_method
+                          ? ` · ${
+                              PAYMENT_METHOD_LABELS[
+                                delivery.payment_method as PaymentMethod
+                              ] ?? delivery.payment_method
+                            }`
+                          : ""}
+                        {delivery.paid_at
+                          ? ` · ${formatBacklogDateShort(delivery.paid_at)}`
+                          : ""}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-amber-700">A receber</p>
+                    )}
                   </div>
                   <span className="text-xs text-neutral-500 tabular-nums">
                     {delivery.quantity} × {formatBRL(delivery.unit_price_cents)}
@@ -260,7 +293,8 @@ export default async function FaturamentoPage({
                   {item.client_name}
                 </span>
                 <span className="text-xs text-neutral-500">
-                  {monthLabel(item.month)} · {item.items.length} itens
+                  {monthLabel(item.month)} · {item.items.length} itens ·{" "}
+                  {formatBRL(splitPaidCents(item.items).unpaidCents)} a receber
                 </span>
                 <span className="w-24 text-right font-medium text-neutral-900 tabular-nums">
                   {formatBRL(item.total_cents)}

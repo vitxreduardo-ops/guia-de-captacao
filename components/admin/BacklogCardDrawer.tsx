@@ -11,6 +11,8 @@ import {
 import {
   BACKLOG_FORMATS,
   BACKLOG_FORMAT_LABELS,
+  PAYMENT_METHODS,
+  PAYMENT_METHOD_LABELS,
   type BacklogCard,
   type BacklogActivity,
   type BacklogChecklistItem,
@@ -347,6 +349,35 @@ function BillingFields({
           onChange={(event) => setPrice(event.target.value)}
           className={inputClass}
         />
+      </div>
+
+      {/* Data e forma normalmente vêm do diálogo que aparece ao arrastar para
+          Entregue; aqui elas existem para corrigir sem mover o card de novo. */}
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <label className="text-xs font-medium text-neutral-600">
+          Pago em
+          <input
+            type="date"
+            name="paid_at"
+            defaultValue={card.paid_at ?? ""}
+            className={`mt-1 ${inputClass}`}
+          />
+        </label>
+        <label className="text-xs font-medium text-neutral-600">
+          Forma
+          <select
+            name="payment_method"
+            defaultValue={card.payment_method ?? "none"}
+            className={`mt-1 ${inputClass}`}
+          >
+            <option value="none">Não informada</option>
+            {PAYMENT_METHODS.map((option) => (
+              <option key={option} value={option}>
+                {PAYMENT_METHOD_LABELS[option]}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <p className="mt-1.5 text-xs text-neutral-500">
