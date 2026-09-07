@@ -78,6 +78,30 @@ import {
 
 const DROPZONE_PREFIX = "dropzone-";
 
+/**
+ * Agrupa os cards por cliente mantendo a ordem em que aparecem. A lista final
+ * continua linear — é a mesma que alimenta o `SortableContext` —, então o
+ * arraste segue funcionando; o que muda é que os cards do mesmo cliente ficam
+ * vizinhos e ganham um cabeçalho.
+ */
+function groupByClient(
+  cards: BacklogCard[],
+  clientNameById: Map<string, string>
+): { name: string; cards: BacklogCard[] }[] {
+  const groups = new Map<string, BacklogCard[]>();
+
+  for (const card of cards) {
+    const name =
+      (card.client_id ? clientNameById.get(card.client_id) : null) ??
+      "Sem cliente";
+    const list = groups.get(name);
+    if (list) list.push(card);
+    else groups.set(name, [card]);
+  }
+
+  return [...groups.entries()].map(([name, list]) => ({ name, cards: list }));
+}
+
 /** Ids de responsáveis viram nomes; quem foi excluído some da lista. */
 function namesOf(ids: string[], nameById: Map<string, string>): string[] {
   return ids
@@ -159,7 +183,9 @@ function CardBody({
       ) : null}
 
       <div className="p-2.5">
-        <div className="flex items-start gap-2">
+        {/* `pr-7` reserva a área do botão de duplicar: sem isso ele cobria a
+            última palavra dos títulos que quebram em duas linhas. */}
+        <div className={`flex items-start gap-2 ${onDuplicate ? "pr-7" : ""}`}>
           {showApproval ? (
             <button
               type="button"
@@ -591,6 +617,13 @@ function SortableColumn({
 }) {
   const nouns = useContext(BoardNounsContext);
   const compact = column.board === "entregas";
+  // A coluna de quem já entregou e ainda não recebeu é a que enche: agrupada
+  // por cliente, ela responde "quanto o fulano me deve" de relance.
+  const agrupar = column.board === "entregas" && column.billable && !column.paid;
+  const groups = agrupar
+    ? groupByClient(cards, clientNameById)
+    : [{ name: "", cards }];
+  const orderedCards = groups.flatMap((group) => group.cards);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
       id: column.id,
@@ -633,7 +666,7 @@ function SortableColumn({
         className={`min-h-16 rounded-md ${isOver ? "bg-neutral-200/60" : ""}`}
       >
         <SortableContext
-          items={cards.map((card) => card.id)}
+          items={orderedCards.map((card) => card.id)}
           strategy={verticalListSortingStrategy}
         >
           {cards.length === 0 ? (
@@ -642,26 +675,47 @@ function SortableColumn({
             </p>
           ) : null}
 
-          <ul className="flex flex-col gap-2">
-            {cards.map((card) => (
-              <SortableCard
-                key={card.id}
-                card={card}
-                clientName={
-                  card.client_id
-                    ? clientNameById.get(card.client_id) ?? null
-                    : null
-                }
-                assigneeNames={namesOf(card.assignee_ids, assigneeNameById)}
-                compact={compact}
-                onDuplicate={() => onDuplicateCard(card.id)}
-                checklist={checklistProgress(card.id, checklistItems)}
-                showApproval={isApprovalColumn(column.name)}
-                draggable={draggable}
-                onOpen={() => onOpenCard(card.id)}
-              />
-            ))}
-          </ul>
+          {groups.map((group) => (
+            <div key={group.name} className="mb-2 last:mb-0">
+              {agrupar ? (
+                <div className="mb-1 flex items-baseline justify-between gap-2 px-0.5">
+                  <span className="truncate text-xs font-semibold text-neutral-700">
+                    {group.name}
+                  </span>
+                  <span className="shrink-0 text-[11px] text-neutral-500 tabular-nums">
+                    {group.cards.length} ·{" "}
+                    {formatBRL(
+                      group.cards.reduce(
+                        (total, card) => total + lineTotalCents(card),
+                        0
+                      )
+                    )}
+                  </span>
+                </div>
+              ) : null}
+
+              <ul className="flex flex-col gap-2">
+                {group.cards.map((card) => (
+                  <SortableCard
+                    key={card.id}
+                    card={card}
+                    clientName={
+                      card.client_id
+                        ? clientNameById.get(card.client_id) ?? null
+                        : null
+                    }
+                    assigneeNames={namesOf(card.assignee_ids, assigneeNameById)}
+                    compact={compact}
+                    onDuplicate={() => onDuplicateCard(card.id)}
+                    checklist={checklistProgress(card.id, checklistItems)}
+                    showApproval={isApprovalColumn(column.name)}
+                    draggable={draggable}
+                    onOpen={() => onOpenCard(card.id)}
+                  />
+                ))}
+              </ul>
+            </div>
+          ))}
         </SortableContext>
       </div>
 
