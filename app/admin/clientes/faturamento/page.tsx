@@ -26,6 +26,7 @@ import {
   type PaymentMethod,
 } from "@/lib/backlogTypes";
 import { CloseMonthForm } from "@/components/admin/CloseMonthForm";
+import { ClientSelect } from "@/components/admin/ClientSelect";
 import { MonthTimeline } from "@/components/admin/MonthTimeline";
 
 export const dynamic = "force-dynamic";
@@ -95,40 +96,11 @@ export default async function FaturamentoPage({
         <ClientTabs />
       </div>
 
-      {/* Seletor por GET: o link do mês fica compartilhável e a página é
-          renderizada no servidor sem estado de cliente. */}
-      <form
-        method="get"
-        className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-neutral-200 bg-white p-4"
-      >
-        <div>
-          <label
-            className="mb-1 block text-xs font-medium text-neutral-600"
-            htmlFor="faturamento-cliente"
-          >
-            Cliente
-          </label>
-          <select
-            id="faturamento-cliente"
-            name="cliente"
-            defaultValue={clientId ?? ""}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
-          >
-            {clients.map((client) => (
-              <option key={client.id} value={client.id}>
-                {client.name}
-              </option>
-            ))}
-          </select>
+      {clientId ? (
+        <div className="mb-6 rounded-lg border border-neutral-200 bg-white p-4">
+          <ClientSelect clients={clients} current={clientId} />
         </div>
-
-        <button
-          type="submit"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] pointer-coarse:min-h-11"
-        >
-          Ver cliente
-        </button>
-      </form>
+      ) : null}
 
       {clientId ? (
         <div className="mb-6">

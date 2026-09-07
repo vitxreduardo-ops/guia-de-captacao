@@ -545,6 +545,88 @@ export async function setBacklogCardPostDate(
 }
 
 /**
+ * Copia um card logo abaixo do original, na mesma coluna. Entrega recorrente
+ * (o mensal de um cliente) muda pouco de um mês para o outro: o que se quer é
+ * o mesmo card com outra data.
+ *
+ * Vêm junto os responsáveis e o checklist — este último desmarcado, porque a
+ * cópia é trabalho a fazer, não trabalho feito. Não vêm a atividade, a
+ * aprovação, o pagamento nem o evento do Google Agenda: são história do card
+ * original.
+ */
+export async function duplicateBacklogCard(id: string): Promise<BacklogCard> {
+  const supabase = getSupabaseServerClient();
+
+  const [{ data: original, error }, { data: assignees }, { data: checklist }] =
+    await Promise.all([
+      supabase.from("backlog_cards").select("*").eq("id", id).single(),
+      supabase
+        .from("backlog_card_assignees")
+        .select("user_id")
+        .eq("card_id", id),
+      supabase
+        .from("backlog_checklist_items")
+        .select("label, position")
+        .eq("card_id", id)
+        .order("position"),
+    ]);
+  if (error) throw error;
+
+  const {
+    id: _id,
+    created_at: _createdAt,
+    updated_at: _updatedAt,
+    approved_at: _approvedAt,
+    approved_by: _approvedBy,
+    sent_whatsapp_at: _sentAt,
+    google_event_id: _eventId,
+    paid_at: _paidAt,
+    payment_method: _paymentMethod,
+    position: _position,
+    ...rest
+  } = original as Record<string, unknown>;
+
+  const { data: last } = await supabase
+    .from("backlog_cards")
+    .select("position")
+    .eq("column_id", rest.column_id as string)
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { data: copy, error: copyError } = await supabase
+    .from("backlog_cards")
+    .insert({
+      ...rest,
+      title: `${rest.title as string} (cópia)`,
+      sent_whatsapp: false,
+      position: (last?.position ?? -1) + 1,
+    })
+    .select("*")
+    .single();
+  if (copyError) throw copyError;
+
+  const copyId = copy.id as string;
+  const assigneeIds = (assignees ?? []).map((row) => row.user_id as string);
+
+  await Promise.all([
+    setBacklogCardAssignees(copyId, assigneeIds),
+    (checklist ?? []).length > 0
+      ? supabase.from("backlog_checklist_items").insert(
+          (checklist ?? []).map((item, index) => ({
+            card_id: copyId,
+            label: item.label as string,
+            position: index,
+            done: false,
+          }))
+        )
+      : Promise.resolve(),
+  ]);
+
+  return { ...copy, assignee_ids: assigneeIds } as unknown as BacklogCard;
+}
+
+/**
  * Move um card para o fim de outra coluna. O arraste tem seu próprio caminho
  * (`moveBacklogCard`, que reordena as duas colunas); isto é para quando quem
  * decide o destino é o sistema, não o dedo.

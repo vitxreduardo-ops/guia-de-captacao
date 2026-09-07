@@ -29,6 +29,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { Copy } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -66,6 +67,7 @@ import {
   createBacklogCardAction,
   createBacklogColumnAction,
   deleteBacklogCardAction,
+  duplicateBacklogCardAction,
   deleteBacklogColumnAction,
   moveBacklogCardAction,
   reorderBacklogColumnsAction,
@@ -104,6 +106,7 @@ function CardBody({
   showApproval = false,
   compact = false,
   onOpen,
+  onDuplicate,
 }: {
   card: BacklogCard;
   clientName: string | null;
@@ -118,12 +121,14 @@ function CardBody({
    */
   compact?: boolean;
   onOpen?: () => void;
+  /** Duplicar só faz sentido no quadro, não no card fantasma do arraste. */
+  onDuplicate?: () => void;
 }) {
   const approved = Boolean(card.approved_at);
 
   return (
     <div
-      className={`rounded-md border bg-white shadow-sm ${
+      className={`group/card relative rounded-md border bg-white shadow-sm ${
         approved ? "border-emerald-300" : "border-neutral-200"
       }`}
     >
@@ -137,6 +142,22 @@ function CardBody({
           className="h-24 w-full rounded-t-md object-cover"
         />
       ) : null}
+      {onDuplicate ? (
+        <button
+          type="button"
+          // `stopPropagation` porque o card inteiro é a alça de arraste.
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDuplicate();
+          }}
+          aria-label={`Duplicar "${card.title}"`}
+          className="absolute top-1 right-1 z-10 grid size-7 place-items-center rounded-md text-neutral-400 opacity-0 transition-opacity hover:bg-neutral-100 hover:text-neutral-800 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none group-hover/card:opacity-100 pointer-coarse:opacity-100"
+        >
+          <Copy className="size-3.5" aria-hidden />
+        </button>
+      ) : null}
+
       <div className="p-2.5">
         <div className="flex items-start gap-2">
           {showApproval ? (
@@ -177,7 +198,16 @@ function CardBody({
           </button>
         </div>
 
-        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+        {/* No desktop os detalhes só aparecem com o mouse em cima: o quadro
+            cheio fica legível de longe, e quem quer o detalhe se aproxima.
+            Onde não existe hover (dedo), continuam sempre visíveis. */}
+        <div
+          className={`mt-1.5 flex-wrap items-center gap-1 ${
+            compact
+              ? "hidden group-hover/card:flex group-focus-within/card:flex pointer-coarse:flex"
+              : "flex"
+          }`}
+        >
           <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] text-neutral-600">
             {BACKLOG_FORMAT_LABELS[card.format]}
           </span>
@@ -270,6 +300,7 @@ function SortableCard({
   compact,
   draggable,
   onOpen,
+  onDuplicate,
 }: {
   card: BacklogCard;
   clientName: string | null;
@@ -279,6 +310,7 @@ function SortableCard({
   compact: boolean;
   draggable: boolean;
   onOpen: () => void;
+  onDuplicate: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
@@ -303,6 +335,7 @@ function SortableCard({
         showApproval={showApproval}
         compact={compact}
         onOpen={onOpen}
+        onDuplicate={onDuplicate}
       />
     </li>
   );
@@ -545,6 +578,7 @@ function SortableColumn({
   checklistItems,
   draggable,
   onOpenCard,
+  onDuplicateCard,
 }: {
   column: BacklogColumn;
   cards: BacklogCard[];
@@ -553,6 +587,7 @@ function SortableColumn({
   checklistItems: BacklogChecklistItem[];
   draggable: boolean;
   onOpenCard: (id: string) => void;
+  onDuplicateCard: (id: string) => void;
 }) {
   const nouns = useContext(BoardNounsContext);
   const compact = column.board === "entregas";
@@ -619,6 +654,7 @@ function SortableColumn({
                 }
                 assigneeNames={namesOf(card.assignee_ids, assigneeNameById)}
                 compact={compact}
+                onDuplicate={() => onDuplicateCard(card.id)}
                 checklist={checklistProgress(card.id, checklistItems)}
                 showApproval={isApprovalColumn(column.name)}
                 draggable={draggable}
@@ -724,6 +760,15 @@ export function KanbanBoard({
     if (event.active.data.current?.type === "card") {
       setActiveCardId(String(event.active.id));
     }
+  }
+
+  /**
+   * A cópia entra no fim da mesma coluna. Não há estado otimista aqui: o card
+   * novo vem do banco com id próprio, e inventar um id no cliente só criaria
+   * um fantasma para reconciliar depois.
+   */
+  function handleDuplicate(cardId: string) {
+    void duplicateBacklogCardAction(cardId);
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -899,6 +944,7 @@ export function KanbanBoard({
                   checklistItems={board.checklist}
                   draggable={!filtering}
                   onOpenCard={setOpenCardId}
+                  onDuplicateCard={handleDuplicate}
                 />
               ))}
             </div>

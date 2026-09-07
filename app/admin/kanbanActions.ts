@@ -20,6 +20,7 @@ import {
   deleteBacklogCard,
   deleteBacklogChecklistItem,
   deleteBacklogColumn,
+  duplicateBacklogCard,
   getBacklogCardBrief,
   renameBacklogChecklistItem,
   setBacklogChecklistItemDone,
@@ -240,6 +241,12 @@ export async function answerPaymentQuestionAction(params: {
       : `${PAYMENT_QUESTION} Ainda não`,
   });
 
+  revalidateBacklog();
+}
+
+export async function duplicateBacklogCardAction(cardId: string) {
+  const copy = await duplicateBacklogCard(cardId);
+  await syncCalendar(copy.id);
   revalidateBacklog();
 }
 
