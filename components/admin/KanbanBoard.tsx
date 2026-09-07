@@ -52,6 +52,7 @@ import {
   countBacklogFilters,
   isApprovalColumn,
   filterBacklogCards,
+  dueDateOf,
   formatBacklogDateShort,
   CONTRACT_TYPE_LABELS,
   PAYMENT_METHOD_LABELS,
@@ -59,6 +60,7 @@ import {
   type BacklogCard,
   type BacklogBoardKind,
   type BacklogChecklistItem,
+  type BacklogClientOption,
   type BacklogColumn,
   type BacklogFilter,
 } from "@/lib/backlogTypes";
@@ -92,30 +94,62 @@ const DROPZONE_PREFIX = "dropzone-";
  */
 function groupByClient(
   cards: BacklogCard[],
-  clientNameById: Map<string, string>
-): { name: string; cards: BacklogCard[]; months: ClientMonth[] }[] {
+  clients: BacklogClientOption[]
+): {
+  name: string;
+  cards: BacklogCard[];
+  months: ClientMonth[];
+  paymentDay: number | null;
+}[] {
+  const byId = new Map(clients.map((client) => [client.id, client]));
   const groups = new Map<string, BacklogCard[]>();
 
   for (const card of cards) {
     const name =
-      (card.client_id ? clientNameById.get(card.client_id) : null) ??
-      "Sem cliente";
+      (card.client_id ? byId.get(card.client_id)?.name : null) ?? "Sem cliente";
     const list = groups.get(name);
     if (list) list.push(card);
     else groups.set(name, [card]);
   }
 
-  return [...groups.entries()].map(([name, list]) => ({
-    name,
-    cards: splitByMonth(list).flatMap((month) => month.cards),
-    months: splitByMonth(list),
-  }));
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  return [...groups.entries()].map(([name, list]) => {
+    const paymentDay =
+      (list[0].client_id ? byId.get(list[0].client_id)?.payment_day : null) ??
+      null;
+
+    const months = splitByMonth(list).map((month) => {
+      if (!paymentDay || month.key === "sem-data") return month;
+      const due = dueDateOf(month.key, paymentDay);
+      const dia = `${String(due.getDate()).padStart(2, "0")}/${String(
+        due.getMonth() + 1
+      ).padStart(2, "0")}`;
+      const overdue = due < hoje;
+      return {
+        ...month,
+        dueLabel: overdue ? `venceu ${dia}` : `vence ${dia}`,
+        overdue,
+      };
+    });
+
+    return {
+      name,
+      cards: months.flatMap((month) => month.cards),
+      months,
+      paymentDay,
+    };
+  });
 }
 
 interface ClientMonth {
   key: string;
   label: string;
   cards: BacklogCard[];
+  /** "vence 10/09" ou "venceu 10/08" — vazio quando o cliente não tem dia. */
+  dueLabel: string;
+  overdue: boolean;
 }
 
 /**
@@ -147,6 +181,8 @@ function splitByMonth(cards: BacklogCard[]): ClientMonth[] {
       key: key || "sem-data",
       label: key ? monthLabel(key) : "Sem data",
       cards: list,
+      dueLabel: "",
+      overdue: false,
     }));
 }
 
@@ -707,6 +743,7 @@ function ColumnHeader({
 function SortableColumn({
   column,
   cards,
+  clients,
   clientNameById,
   assigneeNameById,
   checklistItems,
@@ -716,6 +753,8 @@ function SortableColumn({
 }: {
   column: BacklogColumn;
   cards: BacklogCard[];
+  /** A lista inteira, e não só os nomes: o agrupamento usa o vencimento. */
+  clients: BacklogClientOption[];
   clientNameById: Map<string, string>;
   assigneeNameById: Map<string, string>;
   checklistItems: BacklogChecklistItem[];
@@ -729,8 +768,8 @@ function SortableColumn({
   // por cliente, ela responde "quanto o fulano me deve" de relance.
   const agrupar = column.board === "entregas" && column.billable && !column.paid;
   const groups = agrupar
-    ? groupByClient(cards, clientNameById)
-    : [{ name: "", cards, months: [] as ClientMonth[] }];
+    ? groupByClient(cards, clients)
+    : [{ name: "", cards, months: [] as ClientMonth[], paymentDay: null }];
   const orderedCards = groups.flatMap((group) => group.cards);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
@@ -828,10 +867,22 @@ function SortableColumn({
                   <div key={month.key} className="mb-2 last:mb-0">
                     {/* Um mês só não precisa de subtítulo: ele seria o mesmo
                         recorte do grupo inteiro, dito duas vezes. */}
-                    {group.months.length > 1 ? (
+                    {group.months.length > 1 || month.dueLabel ? (
                       <div className="mb-1 flex items-baseline justify-between gap-2 border-l-2 border-neutral-200 pl-2">
                         <span className="truncate text-[11px] text-neutral-500">
                           {month.label}
+                          {month.dueLabel ? (
+                            <span
+                              className={
+                                month.overdue
+                                  ? " font-medium text-red-600"
+                                  : " text-neutral-400"
+                              }
+                            >
+                              {" "}
+                              · {month.dueLabel}
+                            </span>
+                          ) : null}
                         </span>
                         <span className="shrink-0 text-[11px] text-neutral-500 tabular-nums">
                           {formatBRL(
@@ -1141,6 +1192,7 @@ export function KanbanBoard({
                   key={column.id}
                   column={column}
                   cards={columnCards(column.id, visibleCards)}
+                  clients={board.clients}
                   clientNameById={clientNameById}
                   assigneeNameById={assigneeNameById}
                   checklistItems={board.checklist}

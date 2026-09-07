@@ -508,3 +508,24 @@ alter table backlog_cards
     check (contract_type in ('mensal', 'freela'));
 alter table backlog_cards
   add column if not exists custom_service text;
+
+-- Dados de cobrança do cliente (ver
+-- supabase/migrations/0044_client_billing_details.sql).
+
+alter table gallery_clients
+  add column if not exists company_name text;
+alter table gallery_clients
+  add column if not exists contact_name text;
+alter table gallery_clients
+  add column if not exists phone text;
+alter table gallery_clients
+  add column if not exists email text;
+alter table gallery_clients
+  add column if not exists document text;
+alter table gallery_clients
+  add column if not exists address text;
+alter table gallery_clients
+  add column if not exists notes text;
+alter table gallery_clients
+  add column if not exists payment_day integer
+    check (payment_day between 1 and 31);

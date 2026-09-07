@@ -10,7 +10,34 @@ import {
 } from "@/app/admin/clientes/cadastro/actions";
 
 const inputClass =
-  "rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none";
+  "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none";
+const PRESS =
+  "transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] pointer-coarse:min-h-11";
+
+/** Rótulo em cima, dica embaixo: o formulário do cliente tem campo demais. */
+function Campo({
+  label,
+  hint,
+  className = "",
+  children,
+}: {
+  label: string;
+  hint?: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="mb-1 block text-xs font-medium text-neutral-600">
+        {label}
+      </span>
+      {children}
+      {hint ? (
+        <span className="mt-0.5 block text-[11px] text-neutral-400">{hint}</span>
+      ) : null}
+    </label>
+  );
+}
 
 export interface ClientSummary {
   entregasNoAno: number;
@@ -39,16 +66,97 @@ function ClientRow({
               setEditing(false);
             });
           }}
-          className="flex flex-wrap items-center gap-2"
+          className="grid gap-3 sm:grid-cols-2"
         >
           <input type="hidden" name="id" value={client.id} />
-          <input
-            name="name"
-            defaultValue={client.name}
-            autoFocus
-            className={`${inputClass} min-w-0 flex-1`}
-          />
-          <label className="flex items-center gap-1.5 text-xs text-neutral-600">
+
+          <Campo label="Nome curto" hint="O que aparece nos cards e na galeria">
+            <input
+              name="name"
+              defaultValue={client.name}
+              required
+              autoFocus
+              className={inputClass}
+            />
+          </Campo>
+
+          <Campo label="Empresa" hint="Razão social, como sai na nota">
+            <input
+              name="company_name"
+              defaultValue={client.company_name ?? ""}
+              className={inputClass}
+            />
+          </Campo>
+
+          <Campo label="Responsável">
+            <input
+              name="contact_name"
+              defaultValue={client.contact_name ?? ""}
+              placeholder="Quem aprova e recebe a cobrança"
+              className={inputClass}
+            />
+          </Campo>
+
+          <Campo label="Telefone">
+            <input
+              name="phone"
+              type="tel"
+              inputMode="tel"
+              defaultValue={client.phone ?? ""}
+              placeholder="(00) 00000-0000"
+              className={inputClass}
+            />
+          </Campo>
+
+          <Campo label="E-mail" hint="Para onde a nota é enviada">
+            <input
+              name="email"
+              type="email"
+              defaultValue={client.email ?? ""}
+              className={inputClass}
+            />
+          </Campo>
+
+          <Campo label="CNPJ ou CPF">
+            <input
+              name="document"
+              inputMode="numeric"
+              defaultValue={client.document ?? ""}
+              className={inputClass}
+            />
+          </Campo>
+
+          <Campo label="Dia de vencimento" hint="Do mês seguinte ao da entrega">
+            <input
+              name="payment_day"
+              type="number"
+              min={1}
+              max={31}
+              defaultValue={client.payment_day ?? ""}
+              placeholder="10"
+              className={inputClass}
+            />
+          </Campo>
+
+          <Campo label="Endereço" className="sm:col-span-2">
+            <input
+              name="address"
+              defaultValue={client.address ?? ""}
+              className={inputClass}
+            />
+          </Campo>
+
+          <Campo label="Observações" className="sm:col-span-2">
+            <textarea
+              name="notes"
+              defaultValue={client.notes ?? ""}
+              rows={2}
+              placeholder="Combinados de pagamento, particularidades do cliente"
+              className={inputClass}
+            />
+          </Campo>
+
+          <label className="flex items-center gap-1.5 text-xs text-neutral-600 sm:col-span-2">
             <input
               type="checkbox"
               name="published"
@@ -57,20 +165,23 @@ function ClientRow({
             />
             Galeria publicada
           </label>
-          <button
-            type="submit"
-            disabled={pending}
-            className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50 transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] pointer-coarse:min-h-11"
-          >
-            Salvar
-          </button>
-          <button
-            type="button"
-            onClick={() => setEditing(false)}
-            className="text-xs text-neutral-500 hover:text-neutral-800"
-          >
-            Cancelar
-          </button>
+
+          <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+            <button
+              type="submit"
+              disabled={pending}
+              className={`rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50 ${PRESS}`}
+            >
+              {pending ? "Salvando..." : "Salvar"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="text-xs text-neutral-500 hover:text-neutral-800"
+            >
+              Cancelar
+            </button>
+          </div>
         </form>
       </li>
     );
@@ -83,7 +194,18 @@ function ClientRow({
     <li className="group flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
       <span className="w-full truncate font-medium text-neutral-900 sm:w-auto sm:min-w-0 sm:flex-1">
         {client.name}
+        {client.contact_name ? (
+          <span className="ml-2 text-xs font-normal text-neutral-500">
+            {client.contact_name}
+          </span>
+        ) : null}
       </span>
+
+      {client.payment_day ? (
+        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700 tabular-nums">
+          vence dia {client.payment_day}
+        </span>
+      ) : null}
 
       {/* Entregas vêm do quadro, faturado vem das notas fechadas. Quando há
           trabalho e nenhum mês fechado, "R$ 0,00 faturado" lê como erro — o

@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import {
   createGalleryClient,
+  readGalleryClientDetails,
   setGalleryClientStatus,
-  updateGalleryClientName,
+  updateGalleryClientDetails,
 } from "@/lib/galleries";
 
 /**
@@ -26,11 +27,11 @@ export async function createClientAction(formData: FormData) {
 
 export async function updateClientAction(formData: FormData) {
   const id = String(formData.get("id"));
-  const name = String(formData.get("name") ?? "").trim();
-  if (name) await updateGalleryClientName(id, name);
+  await updateGalleryClientDetails(id, readGalleryClientDetails(formData));
   await setGalleryClientStatus(
     id,
     formData.get("published") === "on" ? "published" : "draft"
   );
   revalidateClients();
+  revalidatePath("/admin/clientes/entregas");
 }

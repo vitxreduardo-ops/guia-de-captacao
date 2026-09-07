@@ -103,7 +103,10 @@ export async function getBacklogBoard(
   if (columnIds.length === 0) {
     const [clientsResult, guidesResult, usersResult, servicesResult] =
       await Promise.all([
-        supabase.from("gallery_clients").select("id, name").order("name"),
+        supabase
+      .from("gallery_clients")
+      .select("id, name, payment_day")
+      .order("name"),
         supabase.from("guides").select("id, title").order("title"),
         supabase.from("users").select("id, username").order("username"),
         supabase
@@ -180,7 +183,10 @@ export async function getBacklogBoard(
           .in("card_id", cardIds)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [], error: null }),
-    supabase.from("gallery_clients").select("id, name").order("name"),
+    supabase
+      .from("gallery_clients")
+      .select("id, name, payment_day")
+      .order("name"),
     supabase.from("guides").select("id, title").order("title"),
     supabase.from("users").select("id, username").order("username"),
     supabase

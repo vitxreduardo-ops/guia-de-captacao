@@ -8,8 +8,19 @@ export type GalleryClientStatus = "draft" | "published";
 export interface GalleryClient {
   id: string;
   slug: string;
+  /** Nome curto, o que aparece nos cards e na galeria. */
   name: string;
   status: GalleryClientStatus;
+  company_name: string | null;
+  contact_name: string | null;
+  phone: string | null;
+  email: string | null;
+  /** CNPJ ou CPF de quem contrata. */
+  document: string | null;
+  address: string | null;
+  notes: string | null;
+  /** Dia do mês em que costuma pagar; vale para o mês seguinte ao da entrega. */
+  payment_day: number | null;
   drive_folder_id: string | null;
   drive_synced_at: string | null;
   created_at: string;
@@ -331,6 +342,56 @@ export async function updateGalleryClientName(id: string, name: string) {
   const { error } = await supabase
     .from("gallery_clients")
     .update({ name, updated_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
+export interface GalleryClientDetails {
+  name: string;
+  company_name: string | null;
+  contact_name: string | null;
+  phone: string | null;
+  email: string | null;
+  document: string | null;
+  address: string | null;
+  notes: string | null;
+  payment_day: number | null;
+}
+
+/** Campo em branco vira null: string vazia esconde a falta do dado. */
+function textOrNull(value: unknown): string | null {
+  const trimmed = String(value ?? "").trim();
+  return trimmed || null;
+}
+
+export function readGalleryClientDetails(
+  formData: FormData
+): GalleryClientDetails {
+  const day = Number(String(formData.get("payment_day") ?? "").trim());
+
+  return {
+    name: String(formData.get("name") ?? "").trim() || "Novo cliente",
+    company_name: textOrNull(formData.get("company_name")),
+    contact_name: textOrNull(formData.get("contact_name")),
+    phone: textOrNull(formData.get("phone")),
+    email: textOrNull(formData.get("email")),
+    document: textOrNull(formData.get("document")),
+    address: textOrNull(formData.get("address")),
+    notes: textOrNull(formData.get("notes")),
+    payment_day:
+      Number.isInteger(day) && day >= 1 && day <= 31 ? day : null,
+  };
+}
+
+export async function updateGalleryClientDetails(
+  id: string,
+  fields: GalleryClientDetails
+) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("gallery_clients")
+    .update({ ...fields, updated_at: new Date().toISOString() })
     .eq("id", id);
 
   if (error) throw error;

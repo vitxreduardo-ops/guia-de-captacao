@@ -197,6 +197,20 @@ export function shouldAskBackupQuestion(
 export interface BacklogClientOption {
   id: string;
   name: string;
+  /** Dia de vencimento, para marcar o que já passou da data no quadro. */
+  payment_day: number | null;
+}
+
+/**
+ * Vencimento de um mês de competência: o combinado é pagar no mês seguinte
+ * ao da entrega — entrega de agosto com vencimento 10 é cobrada até 10/09.
+ * Dia 31 num mês de 30 cai no último dia, que é como banco e boleto tratam.
+ */
+export function dueDateOf(month: string, paymentDay: number): Date {
+  const year = Number(month.slice(0, 4));
+  const index = Number(month.slice(5, 7)); // mês seguinte, já em base 0
+  const ultimoDia = new Date(year, index + 1, 0).getDate();
+  return new Date(year, index, Math.min(paymentDay, ultimoDia));
 }
 
 export interface BacklogGuideOption {
