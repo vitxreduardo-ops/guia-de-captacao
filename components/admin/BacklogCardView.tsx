@@ -184,12 +184,17 @@ export function BacklogCardView({
 
           {showBilling ? (
             <Field label="Pagamento">
-              {card.payment_method
-                ? `${PAYMENT_METHOD_LABELS[card.payment_method]}${
+              {card.paid_at || card.payment_method
+                ? [
                     card.paid_at
-                      ? ` · ${formatBacklogDateShort(card.paid_at)}`
-                      : ""
-                  }`
+                      ? `Pago em ${formatBacklogDateShort(card.paid_at)}`
+                      : "Pago",
+                    card.payment_method
+                      ? PAYMENT_METHOD_LABELS[card.payment_method]
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
                 : "Ainda não recebido"}
             </Field>
           ) : null}

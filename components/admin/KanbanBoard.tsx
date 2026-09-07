@@ -180,10 +180,15 @@ function CardBody({
               {formatBRL(lineTotalCents(card))}
             </span>
           ) : null}
-          {card.payment_method ? (
+          {/* Basta a data para o selo aparecer: uma entrega paga sem forma
+              anotada continua sendo uma entrega paga. */}
+          {card.paid_at || card.payment_method ? (
             <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] text-emerald-700">
-              {PAYMENT_METHOD_LABELS[card.payment_method]}
+              Pago
               {card.paid_at ? ` ${formatBacklogDateShort(card.paid_at)}` : ""}
+              {card.payment_method
+                ? ` · ${PAYMENT_METHOD_LABELS[card.payment_method]}`
+                : ""}
             </span>
           ) : null}
           {card.sent_whatsapp ? (
