@@ -529,3 +529,8 @@ alter table gallery_clients
 alter table gallery_clients
   add column if not exists payment_day integer
     check (payment_day between 1 and 31);
+
+-- Arquivar cliente sem perder o histórico (ver
+-- supabase/migrations/0045_archive_clients.sql).
+alter table gallery_clients
+  add column if not exists archived_at timestamptz;

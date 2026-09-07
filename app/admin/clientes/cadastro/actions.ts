@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import {
   createGalleryClient,
+  deleteGalleryClient,
   readGalleryClientDetails,
+  setGalleryClientArchived,
   setGalleryClientStatus,
   updateGalleryClientDetails,
 } from "@/lib/galleries";
@@ -34,4 +36,26 @@ export async function updateClientAction(formData: FormData) {
   );
   revalidateClients();
   revalidatePath("/admin/clientes/entregas");
+}
+
+export async function setClientArchivedAction(formData: FormData) {
+  await setGalleryClientArchived(
+    String(formData.get("id")),
+    formData.get("archived") === "true"
+  );
+  revalidateClients();
+  revalidatePath("/admin/clientes/entregas");
+  revalidatePath("/admin/clientes/resumo");
+}
+
+/**
+ * Excluir leva junto entregas, notas fechadas e a galeria — o banco apaga em
+ * cascata. Quem só quer o cliente fora da frente deve arquivar; a tela diz
+ * isso antes, e aqui não há volta.
+ */
+export async function deleteClientAction(formData: FormData) {
+  await deleteGalleryClient(String(formData.get("id")));
+  revalidateClients();
+  revalidatePath("/admin/clientes/entregas");
+  revalidatePath("/admin/clientes/resumo");
 }

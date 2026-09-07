@@ -1,6 +1,8 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { dueDateOf } from "@/lib/backlogTypes";
 import {
+  lineTotalCents,
   monthKey,
   nextMonthKey,
   parseBRLToCents,
@@ -333,6 +335,86 @@ export async function getYearTotals(year: number): Promise<YearClientTotals[]> {
   }
 
   return [...totals.values()];
+}
+
+export interface OverdueClient {
+  clientId: string;
+  clientName: string;
+  cents: number;
+  /** Meses de competência já vencidos, do mais antigo ao mais novo. */
+  months: string[];
+}
+
+/**
+ * O que já passou da data de pagamento: entregas faturáveis ainda não pagas
+ * cujo vencimento (dia do cliente, no mês seguinte ao da entrega) ficou para
+ * trás. Cliente sem dia de vencimento cadastrado não entra — sem combinado não
+ * há atraso.
+ */
+export async function getOverdueByClient(): Promise<OverdueClient[]> {
+  const supabase = getSupabaseServerClient();
+
+  const [clientsResult, columnsResult] = await Promise.all([
+    supabase
+      .from("gallery_clients")
+      .select("id, name, payment_day")
+      .not("payment_day", "is", null)
+      .is("archived_at", null),
+    supabase
+      .from("backlog_columns")
+      .select("id")
+      .eq("board", "entregas")
+      .eq("billable", true)
+      .eq("paid", false),
+  ]);
+  if (clientsResult.error) throw clientsResult.error;
+  if (columnsResult.error) throw columnsResult.error;
+
+  const clients = clientsResult.data ?? [];
+  const columnIds = (columnsResult.data ?? []).map((column) => column.id as string);
+  if (clients.length === 0 || columnIds.length === 0) return [];
+
+  const { data: cards, error } = await supabase
+    .from("backlog_cards")
+    .select("client_id, post_date, quantity, unit_price_cents")
+    .in("column_id", columnIds)
+    .in(
+      "client_id",
+      clients.map((client) => client.id as string)
+    )
+    .not("post_date", "is", null);
+  if (error) throw error;
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  const porCliente = new Map<string, OverdueClient>();
+
+  for (const card of cards ?? []) {
+    const client = clients.find((item) => item.id === card.client_id);
+    if (!client) continue;
+
+    const month = monthKey(card.post_date as string);
+    if (dueDateOf(month, client.payment_day as number) >= hoje) continue;
+
+    const atual = porCliente.get(client.id as string) ?? {
+      clientId: client.id as string,
+      clientName: client.name as string,
+      cents: 0,
+      months: [] as string[],
+    };
+    atual.cents += lineTotalCents({
+      quantity: (card.quantity as number) ?? 1,
+      unit_price_cents: (card.unit_price_cents as number | null) ?? 0,
+    });
+    if (!atual.months.includes(month)) atual.months.push(month);
+    porCliente.set(client.id as string, atual);
+  }
+
+  return [...porCliente.values()]
+    .map((row) => ({ ...row, months: row.months.sort() }))
+    .filter((row) => row.cents > 0)
+    .sort((a, b) => b.cents - a.cents);
 }
 
 /**

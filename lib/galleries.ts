@@ -21,6 +21,8 @@ export interface GalleryClient {
   notes: string | null;
   /** Dia do mês em que costuma pagar; vale para o mês seguinte ao da entrega. */
   payment_day: number | null;
+  /** Cliente fora de atividade: sai das listas, mantém o histórico. */
+  archived_at: string | null;
   drive_folder_id: string | null;
   drive_synced_at: string | null;
   created_at: string;
@@ -233,15 +235,62 @@ async function generateUniqueSlug(name: string) {
   }
 }
 
-export async function listGalleryClients(): Promise<GalleryClient[]> {
+export async function listGalleryClients(
+  options: { includeArchived?: boolean } = {}
+): Promise<GalleryClient[]> {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("gallery_clients")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const query = supabase.from("gallery_clients").select("*");
+  // Arquivado só aparece quem pede: as telas do dia a dia mostram quem está
+  // ativo, e o cadastro lista os arquivados numa seção à parte.
+  if (!options.includeArchived) query.is("archived_at", null);
+
+  const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) throw error;
   return data ?? [];
+}
+
+export async function setGalleryClientArchived(id: string, archived: boolean) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("gallery_clients")
+    .update({
+      archived_at: archived ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+
+  if (error) throw error;
+  clearKnownDriveFileCache();
+}
+
+/** O que se perde ao excluir: serve para a pergunta antes do clique. */
+export async function getGalleryClientImpact(id: string): Promise<{
+  deliveries: number;
+  invoices: number;
+  images: number;
+}> {
+  const supabase = getSupabaseServerClient();
+  const [cards, invoices, images] = await Promise.all([
+    supabase
+      .from("backlog_cards")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", id),
+    supabase
+      .from("monthly_invoices")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", id),
+    supabase
+      .from("gallery_images")
+      .select("id", { count: "exact", head: true })
+      .eq("client_id", id),
+  ]);
+
+  return {
+    deliveries: cards.count ?? 0,
+    invoices: invoices.count ?? 0,
+    images: images.count ?? 0,
+  };
 }
 
 async function attachImages(

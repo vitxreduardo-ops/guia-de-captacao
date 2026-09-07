@@ -9,11 +9,14 @@ export const dynamic = "force-dynamic";
 
 export default async function ClientesCadastroPage() {
   const year = new Date().getFullYear();
-  const [clients, totals, username] = await Promise.all([
-    listGalleryClients(),
+  const [todos, totals, username] = await Promise.all([
+    listGalleryClients({ includeArchived: true }),
     getYearTotals(year),
     getCurrentUsername(),
   ]);
+
+  const clients = todos.filter((client) => !client.archived_at);
+  const archived = todos.filter((client) => client.archived_at);
 
   const summaries: Record<string, ClientSummary> = {};
   for (const row of totals) {
@@ -39,7 +42,12 @@ export default async function ClientesCadastroPage() {
         <ClientTabs />
       </div>
 
-      <ClientRegistry clients={clients} summaries={summaries} year={year} />
+      <ClientRegistry
+        clients={clients}
+        archived={archived}
+        summaries={summaries}
+        year={year}
+      />
     </div>
   );
 }

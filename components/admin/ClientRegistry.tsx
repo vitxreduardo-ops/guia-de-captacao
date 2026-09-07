@@ -6,6 +6,8 @@ import { formatBRL } from "@/lib/billingTypes";
 import type { GalleryClient } from "@/lib/galleries";
 import {
   createClientAction,
+  deleteClientAction,
+  setClientArchivedAction,
   updateClientAction,
 } from "@/app/admin/clientes/cadastro/actions";
 
@@ -181,6 +183,44 @@ function ClientRow({
             >
               Cancelar
             </button>
+
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                startTransition(() => {
+                  const dados = new FormData();
+                  dados.set("id", client.id);
+                  dados.set("archived", "true");
+                  return setClientArchivedAction(dados);
+                })
+              }
+              className="ml-auto text-xs text-neutral-500 hover:text-neutral-800 disabled:opacity-50"
+            >
+              Arquivar
+            </button>
+
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                // A pergunta nomeia o que vai junto: entregas e notas somem em
+                // cascata, e é isso que separa excluir de arquivar.
+                if (
+                  !window.confirm(
+                    `Excluir "${client.name}" e tudo que está pendurado nele — entregas, notas fechadas e a galeria?\n\nNão dá para desfazer. Se a ideia é só tirar da frente, use Arquivar.`
+                  )
+                ) {
+                  return;
+                }
+                const dados = new FormData();
+                dados.set("id", client.id);
+                startTransition(() => deleteClientAction(dados));
+              }}
+              className="text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
+            >
+              Excluir
+            </button>
           </div>
         </form>
       </li>
@@ -253,12 +293,45 @@ function ClientRow({
  * Cadastro de clientes. Só nome e visibilidade da galeria — excluir continua
  * sendo feito em Galerias, onde dá pra ver o que vai junto.
  */
+function ArchivedRow({ client }: { client: GalleryClient }) {
+  const [pending, startTransition] = useTransition();
+
+  return (
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm">
+      <span className="min-w-0 flex-1 truncate text-neutral-500">
+        {client.name}
+      </span>
+      <span className="text-xs text-neutral-400">
+        arquivado em{" "}
+        {new Date(client.archived_at ?? "").toLocaleDateString("pt-BR")}
+      </span>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() =>
+          startTransition(() => {
+            const dados = new FormData();
+            dados.set("id", client.id);
+            dados.set("archived", "false");
+            return setClientArchivedAction(dados);
+          })
+        }
+        className={`text-xs text-neutral-600 underline hover:text-neutral-900 disabled:opacity-50 ${PRESS}`}
+      >
+        Reativar
+      </button>
+    </li>
+  );
+}
+
 export function ClientRegistry({
   clients,
+  archived,
   summaries,
   year,
 }: {
   clients: GalleryClient[];
+  archived: GalleryClient[];
   summaries: Record<string, ClientSummary>;
   year: number;
 }) {
@@ -304,6 +377,19 @@ export function ClientRegistry({
           </button>
         </form>
       </div>
+
+      {archived.length > 0 ? (
+        <div className="mt-6">
+          <h3 className="mb-2 text-xs font-semibold text-neutral-500 uppercase">
+            Arquivados
+          </h3>
+          <ul className="divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-neutral-50">
+            {archived.map((client) => (
+              <ArchivedRow key={client.id} client={client} />
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </section>
   );
 }
