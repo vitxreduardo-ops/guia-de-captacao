@@ -335,6 +335,52 @@ export async function getYearTotals(year: number): Promise<YearClientTotals[]> {
   return [...totals.values()];
 }
 
+/**
+ * Meses em que este cliente teve movimento: entrega faturável lançada ou nota
+ * já fechada. A linha do tempo só mostra estes — meses vazios no meio do
+ * caminho são ruído, não navegação.
+ */
+export async function listClientMonths(clientId: string): Promise<string[]> {
+  const supabase = getSupabaseServerClient();
+
+  const { data: columns, error: columnsError } = await supabase
+    .from("backlog_columns")
+    .select("id")
+    .eq("board", "entregas")
+    .eq("billable", true);
+  if (columnsError) throw columnsError;
+
+  const columnIds = (columns ?? []).map((column) => column.id as string);
+
+  const [cardsResult, invoicesResult] = await Promise.all([
+    columnIds.length
+      ? supabase
+          .from("backlog_cards")
+          .select("post_date")
+          .eq("client_id", clientId)
+          .in("column_id", columnIds)
+          .not("post_date", "is", null)
+      : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("monthly_invoices")
+      .select("month")
+      .eq("client_id", clientId),
+  ]);
+
+  if (cardsResult.error) throw cardsResult.error;
+  if (invoicesResult.error) throw invoicesResult.error;
+
+  const months = new Set<string>();
+  for (const row of cardsResult.data ?? []) {
+    months.add(monthKey(row.post_date as string));
+  }
+  for (const row of invoicesResult.data ?? []) {
+    months.add(monthKey(row.month as string));
+  }
+
+  return [...months].sort().reverse();
+}
+
 /** Anos que já têm nota fechada, do mais novo pro mais velho. */
 export async function listInvoiceYears(): Promise<number[]> {
   const supabase = getSupabaseServerClient();

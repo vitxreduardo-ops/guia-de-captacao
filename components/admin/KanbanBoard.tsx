@@ -169,9 +169,8 @@ function CardBody({
             }`}
           >
             {clientName ? (
-              <span className="font-semibold text-sky-700">
+              <span className="mr-1.5 rounded bg-sky-50 px-1.5 py-0.5 align-[0.05em] text-[11px] font-medium text-sky-700">
                 {clientName}
-                <span className="text-neutral-300"> · </span>
               </span>
             ) : null}
             <span className="font-medium">{card.title}</span>
@@ -241,7 +240,7 @@ function CardBody({
           ) : null}
         </div>
 
-        {card.tags.length > 0 ? (
+        {card.tags.length > 0 && !compact ? (
           <p className="mt-1 truncate text-[11px] text-neutral-400">
             {card.tags.map((tag) => `#${tag}`).join(" ")}
           </p>

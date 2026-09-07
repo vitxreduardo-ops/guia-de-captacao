@@ -3,7 +3,13 @@ import { AdminHeader } from "@/components/admin/AdminHeader";
 import { Accordion } from "@/components/Accordion";
 import { ClientTabs } from "@/components/admin/ClientTabs";
 import { ServiceCatalog } from "@/components/admin/ServiceCatalog";
-import { getInvoice, getMonthDeliveries, listInvoices, listServices } from "@/lib/billing";
+import {
+  getInvoice,
+  getMonthDeliveries,
+  listClientMonths,
+  listInvoices,
+  listServices,
+} from "@/lib/billing";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getCurrentUsername } from "@/lib/session";
 import {
@@ -11,7 +17,6 @@ import {
   lineTotalCents,
   monthKey,
   monthLabel,
-  recentMonths,
   splitPaidCents,
   sumCents,
 } from "@/lib/billingTypes";
@@ -41,11 +46,6 @@ export default async function FaturamentoPage({
   searchParams: Promise<{ cliente?: string; mes?: string }>;
 }) {
   const params = await searchParams;
-  const months = recentMonths();
-  // Sem mês na URL, abre no anterior: quem entra aqui está fechando o mês que
-  // acabou, não o que está correndo. Abrir no corrente mostrava R$ 0,00 e dava
-  // a impressão de que os dados tinham sumido.
-  const month = params.mes ? monthKey(params.mes) : months[1] ?? months[0];
 
   const [clients, services, invoices, username] = await Promise.all([
     listClients(),
@@ -55,6 +55,19 @@ export default async function FaturamentoPage({
   ]);
 
   const clientId = params.cliente || clients[0]?.id || null;
+
+  // A faixa mostra só os meses com movimento deste cliente. O mês aberto entra
+  // sempre, senão a própria seleção sumiria da linha do tempo.
+  const clientMonths = clientId ? await listClientMonths(clientId) : [];
+  const months = [...new Set([...clientMonths, monthKey(new Date())])]
+    .sort()
+    .reverse();
+
+  // Sem mês na URL, abre no anterior: quem entra aqui está fechando o mês que
+  // acabou, não o que está correndo. Abrir no corrente mostrava R$ 0,00 e dava
+  // a impressão de que os dados tinham sumido.
+  const month = params.mes ? monthKey(params.mes) : months[1] ?? months[0];
+  const timelineMonths = [...new Set([...months, month])].sort().reverse();
   const [deliveries, invoice] = clientId
     ? await Promise.all([
         getMonthDeliveries(clientId, month),
@@ -119,7 +132,11 @@ export default async function FaturamentoPage({
 
       {clientId ? (
         <div className="mb-6">
-          <MonthTimeline months={months} current={month} clientId={clientId} />
+          <MonthTimeline
+            months={timelineMonths}
+            current={month}
+            clientId={clientId}
+          />
         </div>
       ) : null}
 
