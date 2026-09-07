@@ -51,6 +51,7 @@ import {
   isApprovalColumn,
   filterBacklogCards,
   formatBacklogDateShort,
+  CONTRACT_TYPE_LABELS,
   PAYMENT_METHOD_LABELS,
   type BacklogBoard,
   type BacklogCard,
@@ -75,6 +76,13 @@ import {
 
 const DROPZONE_PREFIX = "dropzone-";
 
+/** Ids de responsáveis viram nomes; quem foi excluído some da lista. */
+function namesOf(ids: string[], nameById: Map<string, string>): string[] {
+  return ids
+    .map((id) => nameById.get(id))
+    .filter((name): name is string => Boolean(name));
+}
+
 /**
  * Vocabulário do quadro. Vive num contexto porque só as folhas da árvore
  * (formulário de adicionar, estado vazio, aviso de exclusão) precisam dele, e
@@ -91,17 +99,24 @@ const inputClass =
 function CardBody({
   card,
   clientName,
-  assigneeName,
+  assigneeNames,
   checklist,
   showApproval = false,
+  compact = false,
   onOpen,
 }: {
   card: BacklogCard;
   clientName: string | null;
-  assigneeName: string | null;
+  assigneeNames: string[];
   checklist: { done: number; total: number } | null;
   /** Só na coluna de aprovação o material pode ser marcado como aprovado. */
   showApproval?: boolean;
+  /**
+   * Quadro de entregas: o card mostra quem, o quê, quando e o tipo de
+   * contrato. Valor, Drive e WhatsApp continuam no card aberto — no quadro
+   * eles só disputavam atenção com o que se procura de relance.
+   */
+  compact?: boolean;
   onOpen?: () => void;
 }) {
   const approved = Boolean(card.approved_at);
@@ -144,14 +159,22 @@ function CardBody({
               ✓
             </button>
           ) : null}
+          {/* Quem é o cliente vem antes do título: é o que se procura ao
+              bater o olho num quadro cheio. */}
           <button
             type="button"
             onClick={onOpen}
-            className={`block flex-1 text-left text-sm font-medium hover:underline ${
+            className={`block flex-1 text-left text-sm hover:underline ${
               approved ? "text-neutral-500 line-through" : "text-neutral-900"
             }`}
           >
-            {card.title}
+            {clientName ? (
+              <span className="font-semibold text-sky-700">
+                {clientName}
+                <span className="text-neutral-300"> · </span>
+              </span>
+            ) : null}
+            <span className="font-medium">{card.title}</span>
           </button>
         </div>
 
@@ -159,22 +182,31 @@ function CardBody({
           <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[11px] text-neutral-600">
             {BACKLOG_FORMAT_LABELS[card.format]}
           </span>
-          {clientName ? (
-            <span className="rounded bg-sky-50 px-1.5 py-0.5 text-[11px] text-sky-700">
-              {clientName}
+          {card.contract_type ? (
+            <span
+              className={`rounded px-1.5 py-0.5 text-[11px] ${
+                card.contract_type === "mensal"
+                  ? "bg-indigo-50 text-indigo-700"
+                  : "bg-orange-50 text-orange-700"
+              }`}
+            >
+              {CONTRACT_TYPE_LABELS[card.contract_type]}
             </span>
           ) : null}
-          {assigneeName ? (
-            <span className="rounded bg-violet-50 px-1.5 py-0.5 text-[11px] text-violet-700">
-              @{assigneeName}
+          {assigneeNames.map((name) => (
+            <span
+              key={name}
+              className="rounded bg-violet-50 px-1.5 py-0.5 text-[11px] text-violet-700"
+            >
+              @{name}
             </span>
-          ) : null}
+          ))}
           {card.post_date ? (
             <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] text-amber-700">
               {formatBacklogDateShort(card.post_date)}
             </span>
           ) : null}
-          {card.unit_price_cents !== null ? (
+          {card.unit_price_cents !== null && !compact ? (
             <span className="rounded bg-neutral-900 px-1.5 py-0.5 text-[11px] text-white tabular-nums">
               {card.quantity > 1 ? `${card.quantity}× ` : ""}
               {formatBRL(lineTotalCents(card))}
@@ -191,7 +223,7 @@ function CardBody({
                 : ""}
             </span>
           ) : null}
-          {card.sent_whatsapp ? (
+          {card.sent_whatsapp && !compact ? (
             <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] text-emerald-700">
               WhatsApp ✓
             </span>
@@ -215,7 +247,7 @@ function CardBody({
           </p>
         ) : null}
 
-        {card.drive_url ? (
+        {card.drive_url && !compact ? (
           <a
             href={card.drive_url}
             target="_blank"
@@ -233,17 +265,19 @@ function CardBody({
 function SortableCard({
   card,
   clientName,
-  assigneeName,
+  assigneeNames,
   checklist,
   showApproval,
+  compact,
   draggable,
   onOpen,
 }: {
   card: BacklogCard;
   clientName: string | null;
-  assigneeName: string | null;
+  assigneeNames: string[];
   checklist: { done: number; total: number } | null;
   showApproval: boolean;
+  compact: boolean;
   draggable: boolean;
   onOpen: () => void;
 }) {
@@ -265,9 +299,10 @@ function SortableCard({
       <CardBody
         card={card}
         clientName={clientName}
-        assigneeName={assigneeName}
+        assigneeNames={assigneeNames}
         checklist={checklist}
         showApproval={showApproval}
+        compact={compact}
         onOpen={onOpen}
       />
     </li>
@@ -521,6 +556,7 @@ function SortableColumn({
   onOpenCard: (id: string) => void;
 }) {
   const nouns = useContext(BoardNounsContext);
+  const compact = column.board === "entregas";
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
       id: column.id,
@@ -582,11 +618,8 @@ function SortableColumn({
                     ? clientNameById.get(card.client_id) ?? null
                     : null
                 }
-                assigneeName={
-                  card.assignee_id
-                    ? assigneeNameById.get(card.assignee_id) ?? null
-                    : null
-                }
+                assigneeNames={namesOf(card.assignee_ids, assigneeNameById)}
+                compact={compact}
                 checklist={checklistProgress(card.id, checklistItems)}
                 showApproval={isApprovalColumn(column.name)}
                 draggable={draggable}
@@ -882,11 +915,11 @@ export function KanbanBoard({
                   ? clientNameById.get(activeCard.client_id) ?? null
                   : null
               }
-              assigneeName={
-                activeCard.assignee_id
-                  ? assigneeNameById.get(activeCard.assignee_id) ?? null
-                  : null
-              }
+              assigneeNames={namesOf(
+                activeCard.assignee_ids,
+                assigneeNameById
+              )}
+              compact={board.board === "entregas"}
               checklist={checklistProgress(activeCard.id, board.checklist)}
               showApproval={false}
             />
@@ -936,11 +969,7 @@ export function KanbanBoard({
               ? clientNameById.get(openCard.client_id) ?? null
               : null
           }
-          assigneeName={
-            openCard.assignee_id
-              ? assigneeNameById.get(openCard.assignee_id) ?? null
-              : null
-          }
+          assigneeNames={namesOf(openCard.assignee_ids, assigneeNameById)}
           guideTitle={
             board.guides.find((guide) => guide.id === openCard.guide_id)
               ?.title ?? null

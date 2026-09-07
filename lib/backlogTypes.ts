@@ -56,7 +56,8 @@ export interface BacklogCard {
   column_id: string;
   client_id: string | null;
   guide_id: string | null;
-  assignee_id: string | null;
+  /** Responsáveis vêm da tabela de junção; um card aceita mais de um. */
+  assignee_ids: string[];
   position: number;
   title: string;
   description: string;
@@ -73,6 +74,9 @@ export interface BacklogCard {
   approved_at: string | null;
   approved_by: string | null;
   /** Cobrança — só usada no quadro de entregas. */
+  contract_type: ContractType | null;
+  /** Produto escrito à mão: vale só neste card, não entra no catálogo. */
+  custom_service: string | null;
   service_id: string | null;
   quantity: number;
   unit_price_cents: number | null;
@@ -113,6 +117,21 @@ export interface BacklogActivity {
  */
 export const BACKUP_QUESTION = "Onde foi feito o backup?";
 export const PAYMENT_QUESTION = "O pagamento já foi feito?";
+
+export const CONTRACT_TYPES = ["mensal", "freela"] as const;
+export type ContractType = (typeof CONTRACT_TYPES)[number];
+
+export const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
+  mensal: "Mensal",
+  freela: "Freela",
+};
+
+export function normalizeContractType(value: unknown): ContractType | null {
+  const raw = String(value ?? "").trim();
+  return (CONTRACT_TYPES as readonly string[]).includes(raw)
+    ? (raw as ContractType)
+    : null;
+}
 
 export const PAYMENT_METHODS = [
   "pix",
@@ -333,8 +352,10 @@ export function filterBacklogCards(
     if (!matchesKeyword(card, filter.keyword)) return false;
 
     if (filter.assignees.length > 0) {
-      const key = card.assignee_id ?? "none";
-      if (!filter.assignees.includes(key)) return false;
+      // Card sem responsável casa com "sem responsável"; com vários, basta um
+      // deles estar no filtro.
+      const keys = card.assignee_ids.length > 0 ? card.assignee_ids : ["none"];
+      if (!keys.some((key) => filter.assignees.includes(key))) return false;
     }
 
     if (filter.clients.length > 0) {

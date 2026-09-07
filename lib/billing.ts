@@ -106,7 +106,7 @@ export async function getMonthDeliveries(
   const { data, error } = await supabase
     .from("backlog_cards")
     .select(
-      "id, column_id, title, post_date, quantity, unit_price_cents, paid_at, payment_method, services(name)"
+      "id, column_id, title, post_date, quantity, unit_price_cents, paid_at, payment_method, custom_service, services(name)"
     )
     .eq("client_id", clientId)
     .in("column_id", columnIds)
@@ -119,7 +119,10 @@ export async function getMonthDeliveries(
     // O join do PostgREST vem como objeto ou array dependendo da cardinalidade
     // inferida, então normaliza os dois casos.
     const service = row.services as { name: string } | { name: string }[] | null;
-    const serviceName = Array.isArray(service) ? service[0]?.name : service?.name;
+    const catalogName = Array.isArray(service) ? service[0]?.name : service?.name;
+    // O produto escrito à mão manda na nota: ele existe justamente para os
+    // casos em que o preço foi negociado fora da tabela.
+    const serviceName = (row.custom_service as string | null) || catalogName;
     return {
       card_id: row.id as string,
       title: (row.title as string) ?? "",

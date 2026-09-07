@@ -11,6 +11,8 @@ import {
 import {
   BACKLOG_FORMATS,
   BACKLOG_FORMAT_LABELS,
+  CONTRACT_TYPES,
+  CONTRACT_TYPE_LABELS,
   PAYMENT_METHODS,
   PAYMENT_METHOD_LABELS,
   type BacklogCard,
@@ -309,6 +311,13 @@ function BillingFields({
     <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
       <p className={labelClass}>Cobrança</p>
 
+      <input
+        name="custom_service"
+        defaultValue={card.custom_service ?? ""}
+        placeholder="Produto personalizado (opcional)"
+        className={`${inputClass} mb-2`}
+      />
+
       <div className="grid grid-cols-[1fr_5rem_7rem] gap-2">
         <select
           name="service_id"
@@ -381,7 +390,8 @@ function BillingFields({
       </div>
 
       <p className="mt-1.5 text-xs text-neutral-500">
-        Entra na nota do mês pela data da entrega, quando esta entrega estiver
+        Escrito no produto personalizado, é esse nome que aparece na nota — o
+        catálogo continua intacto. Entra na nota do mês pela data da entrega, quando esta entrega estiver
         numa coluna marcada como &quot;entra na nota&quot;.
       </p>
     </div>
@@ -537,23 +547,63 @@ export function BacklogCardDrawer({
           </div>
 
           <div>
-            <label className={labelClass} htmlFor="backlog-assignee">
-              Responsável
-            </label>
-            <select
-              id="backlog-assignee"
-              name="assignee_id"
-              defaultValue={card.assignee_id ?? "none"}
-              className={inputClass}
-            >
-              <option value="none">Sem responsável</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.username}
-                </option>
-              ))}
-            </select>
+            <p className={labelClass}>Responsáveis</p>
+            {/* Caixas em vez de select múltiplo: dá pra ver quem está marcado
+                sem abrir nada, e funciona no toque. */}
+            <div className="flex flex-wrap gap-1.5">
+              {users.map((user) => {
+                const marcado = card.assignee_ids.includes(user.id);
+                return (
+                  <label
+                    key={user.id}
+                    className="flex cursor-pointer items-center gap-1.5 rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm text-neutral-700 has-checked:border-neutral-900 has-checked:bg-neutral-900 has-checked:text-white pointer-coarse:min-h-11"
+                  >
+                    <input
+                      type="checkbox"
+                      name="assignee_ids"
+                      value={user.id}
+                      defaultChecked={marcado}
+                      className="sr-only"
+                    />
+                    @{user.username}
+                  </label>
+                );
+              })}
+            </div>
           </div>
+
+          {showBilling ? (
+            <div>
+              <p className={labelClass}>Tipo de contrato</p>
+              <div className="flex flex-wrap gap-1.5">
+                {CONTRACT_TYPES.map((option) => (
+                  <label
+                    key={option}
+                    className="flex cursor-pointer items-center gap-1.5 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 has-checked:border-neutral-900 has-checked:bg-neutral-900 has-checked:text-white pointer-coarse:min-h-11"
+                  >
+                    <input
+                      type="radio"
+                      name="contract_type"
+                      value={option}
+                      defaultChecked={card.contract_type === option}
+                      className="sr-only"
+                    />
+                    {CONTRACT_TYPE_LABELS[option]}
+                  </label>
+                ))}
+                <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-500 has-checked:border-neutral-900 has-checked:bg-neutral-900 has-checked:text-white pointer-coarse:min-h-11">
+                  <input
+                    type="radio"
+                    name="contract_type"
+                    value="none"
+                    defaultChecked={!card.contract_type}
+                    className="sr-only"
+                  />
+                  Não definido
+                </label>
+              </div>
+            </div>
+          ) : null}
 
           {showBilling ? (
             <BillingFields card={card} services={services} />

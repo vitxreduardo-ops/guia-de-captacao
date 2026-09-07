@@ -6,10 +6,12 @@ import {
   parseBacklogTags,
   shouldAskBackupQuestion,
   normalizeBacklogBoard,
+  normalizeContractType,
   normalizePaymentMethod,
   PAYMENT_QUESTION,
   type BacklogActivity,
   type BacklogPrompt,
+  type ContractType,
   type PaymentMethod,
   type BacklogBoard,
   type BacklogBoardKind,
@@ -131,8 +133,29 @@ export async function getBacklogBoard(
     .order("position");
   if (cardsError) throw cardsError;
 
-  const cards = (cardRows ?? []) as BacklogCard[];
-  const cardIds = cards.map((card) => card.id);
+  const rawCards = (cardRows ?? []) as Omit<BacklogCard, "assignee_ids">[];
+  const cardIds = rawCards.map((card) => card.id);
+
+  const { data: assigneeRows, error: assigneesError } = cardIds.length
+    ? await supabase
+        .from("backlog_card_assignees")
+        .select("card_id, user_id")
+        .in("card_id", cardIds)
+    : { data: [], error: null };
+  if (assigneesError) throw assigneesError;
+
+  const assigneesByCard = new Map<string, string[]>();
+  for (const row of assigneeRows ?? []) {
+    const cardId = row.card_id as string;
+    const list = assigneesByCard.get(cardId);
+    if (list) list.push(row.user_id as string);
+    else assigneesByCard.set(cardId, [row.user_id as string]);
+  }
+
+  const cards: BacklogCard[] = rawCards.map((card) => ({
+    ...card,
+    assignee_ids: assigneesByCard.get(card.id) ?? [],
+  }));
 
   const [
     checklistResult,
@@ -268,7 +291,7 @@ export interface BacklogCardInput {
   format: BacklogFormat;
   client_id: string | null;
   guide_id: string | null;
-  assignee_id: string | null;
+  assignee_ids: string[];
   drive_url: string | null;
   cover_url: string | null;
   caption: string;
@@ -277,6 +300,8 @@ export interface BacklogCardInput {
   sent_whatsapp: boolean;
   tags: string[];
   backup_location: string | null;
+  contract_type: ContractType | null;
+  custom_service: string | null;
   service_id: string | null;
   quantity: number;
   unit_price_cents: number | null;
@@ -291,7 +316,10 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
     format: normalizeBacklogFormat(formData.get("format")),
     client_id: normalizeUuid(formData.get("client_id")),
     guide_id: normalizeUuid(formData.get("guide_id")),
-    assignee_id: normalizeUuid(formData.get("assignee_id")),
+    assignee_ids: formData
+      .getAll("assignee_ids")
+      .map((value) => normalizeUuid(value))
+      .filter((value): value is string => Boolean(value)),
     drive_url: normalizeUrl(formData.get("drive_url")),
     cover_url: normalizeUrl(formData.get("cover_url")),
     caption: String(formData.get("caption") ?? "").trim(),
@@ -300,6 +328,8 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
     sent_whatsapp: formData.get("sent_whatsapp") === "on",
     tags: parseBacklogTags(formData.get("tags")),
     backup_location: normalizeText(formData.get("backup_location")),
+    contract_type: normalizeContractType(formData.get("contract_type")),
+    custom_service: normalizeText(formData.get("custom_service")),
     service_id: normalizeUuid(formData.get("service_id")),
     quantity: normalizeQuantity(formData.get("quantity")),
     unit_price_cents: normalizePrice(formData.get("unit_price_cents")),
@@ -333,7 +363,7 @@ export async function createBacklogCard(
       format: fields.format ?? "reel",
       client_id: fields.client_id ?? null,
       guide_id: fields.guide_id ?? null,
-      assignee_id: fields.assignee_id ?? null,
+
       drive_url: fields.drive_url ?? null,
       cover_url: fields.cover_url ?? null,
       caption: fields.caption ?? "",
@@ -343,6 +373,8 @@ export async function createBacklogCard(
       sent_whatsapp_at: fields.sent_whatsapp ? new Date().toISOString() : null,
       tags: fields.tags ?? [],
       backup_location: fields.backup_location ?? null,
+      contract_type: fields.contract_type ?? null,
+      custom_service: fields.custom_service ?? null,
       service_id: fields.service_id ?? null,
       quantity: fields.quantity ?? 1,
       unit_price_cents: fields.unit_price_cents ?? null,
@@ -353,7 +385,35 @@ export async function createBacklogCard(
     .single();
 
   if (error) throw error;
-  return data as BacklogCard;
+
+  const assigneeIds = fields.assignee_ids ?? [];
+  const card = { ...data, assignee_ids: assigneeIds } as unknown as BacklogCard;
+  await setBacklogCardAssignees(card.id, assigneeIds);
+  return card;
+}
+
+/**
+ * Reescreve a lista de responsáveis do card. Apagar e inserir é mais simples
+ * (e menos código) do que calcular a diferença, e a tabela é minúscula.
+ */
+export async function setBacklogCardAssignees(
+  cardId: string,
+  userIds: string[]
+) {
+  const supabase = getSupabaseServerClient();
+
+  const { error: clearError } = await supabase
+    .from("backlog_card_assignees")
+    .delete()
+    .eq("card_id", cardId);
+  if (clearError) throw clearError;
+
+  if (userIds.length === 0) return;
+
+  const { error } = await supabase
+    .from("backlog_card_assignees")
+    .insert(userIds.map((userId) => ({ card_id: cardId, user_id: userId })));
+  if (error) throw error;
 }
 
 /**
@@ -362,14 +422,22 @@ export async function createBacklogCard(
  */
 export async function getBacklogCardBrief(
   id: string
-): Promise<{ title: string; assigneeId: string | null; board: BacklogBoardKind }> {
+): Promise<{ title: string; assigneeIds: string[]; board: BacklogBoardKind }> {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("backlog_cards")
-    .select("title, assignee_id, backlog_columns(board)")
-    .eq("id", id)
-    .single();
+  const [{ data, error }, { data: assignees, error: assigneesError }] =
+    await Promise.all([
+      supabase
+        .from("backlog_cards")
+        .select("title, backlog_columns(board)")
+        .eq("id", id)
+        .single(),
+      supabase
+        .from("backlog_card_assignees")
+        .select("user_id")
+        .eq("card_id", id),
+    ]);
   if (error) throw error;
+  if (assigneesError) throw assigneesError;
 
   const column = data?.backlog_columns as
     | { board: string }
@@ -379,7 +447,7 @@ export async function getBacklogCardBrief(
 
   return {
     title: (data?.title as string) ?? "",
-    assigneeId: (data?.assignee_id as string | null) ?? null,
+    assigneeIds: (assignees ?? []).map((row) => row.user_id as string),
     board: normalizeBacklogBoard(board),
   };
 }
@@ -415,7 +483,7 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
       format: fields.format,
       client_id: fields.client_id,
       guide_id: fields.guide_id,
-      assignee_id: fields.assignee_id,
+
       drive_url: fields.drive_url,
       cover_url: fields.cover_url,
       caption: fields.caption,
@@ -425,6 +493,8 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
       sent_whatsapp_at: sentAt,
       tags: fields.tags,
       backup_location: fields.backup_location,
+      contract_type: fields.contract_type,
+      custom_service: fields.custom_service,
       service_id: fields.service_id,
       quantity: fields.quantity,
       unit_price_cents: fields.unit_price_cents,
@@ -435,6 +505,8 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
     .eq("id", id);
 
   if (error) throw error;
+
+  await setBacklogCardAssignees(id, fields.assignee_ids);
 }
 
 /** Agenda do calendário: data, hora e duração num toque só. */
@@ -575,7 +647,7 @@ function buildMovePrompt(params: {
 export interface MoveBacklogCardResult {
   prompt: BacklogPrompt | null;
   /** Nulo quando o card só mudou de posição dentro da mesma coluna. */
-  moved: { title: string; assigneeId: string | null; toName: string } | null;
+  moved: { title: string; assigneeIds: string[]; toName: string } | null;
 }
 
 /**
@@ -595,7 +667,7 @@ export async function moveBacklogCard(params: {
   const [{ data: card }, { data: columns }] = await Promise.all([
     supabase
       .from("backlog_cards")
-      .select("column_id, title, assignee_id")
+      .select("column_id, title")
       .eq("id", params.cardId)
       .single(),
     supabase.from("backlog_columns").select("id, name, board, billable, paid"),
@@ -646,7 +718,7 @@ export async function moveBacklogCard(params: {
     }),
     moved: {
       title: (card!.title as string) ?? "",
-      assigneeId: (card!.assignee_id as string | null) ?? null,
+      assigneeIds: (await getBacklogCardBrief(params.cardId)).assigneeIds,
       toName,
     },
   };

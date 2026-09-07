@@ -21,6 +21,7 @@ import {
   type PaymentMethod,
 } from "@/lib/backlogTypes";
 import { CloseMonthForm } from "@/components/admin/CloseMonthForm";
+import { MonthTimeline } from "@/components/admin/MonthTimeline";
 
 export const dynamic = "force-dynamic";
 
@@ -108,34 +109,19 @@ export default async function FaturamentoPage({
           </select>
         </div>
 
-        <div>
-          <label
-            className="mb-1 block text-xs font-medium text-neutral-600"
-            htmlFor="faturamento-mes"
-          >
-            Mês
-          </label>
-          <select
-            id="faturamento-mes"
-            name="mes"
-            defaultValue={month}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
-          >
-            {months.map((option) => (
-              <option key={option} value={option}>
-                {monthLabel(option)}
-              </option>
-            ))}
-          </select>
-        </div>
-
         <button
           type="submit"
           className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] pointer-coarse:min-h-11"
         >
-          Ver
+          Ver cliente
         </button>
       </form>
+
+      {clientId ? (
+        <div className="mb-6">
+          <MonthTimeline months={months} current={month} clientId={clientId} />
+        </div>
+      ) : null}
 
       {clientId ? (
         <section className="mb-8 rounded-lg border border-neutral-200 bg-white">
