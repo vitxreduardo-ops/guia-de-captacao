@@ -49,8 +49,17 @@ export function CloseMonthForm({
           </strong>{" "}
           na nota. Editar as entregas agora não muda mais esse valor.
         </p>
+        {/* Baixar vem antes de reabrir: mandar o relatório junto com a nota é
+            o que se faz todo mês; reabrir é a exceção que apaga a nota. */}
+        <a
+          href={`/admin/clientes/faturamento/pdf?cliente=${encodeURIComponent(
+            clientId
+          )}&mes=${encodeURIComponent(month)}`}
+          className={`ml-auto rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 ${PRESS}`}
+        >
+          Baixar PDF
+        </a>
         <form
-          className="ml-auto"
           onSubmit={(event) => {
             event.preventDefault();
             const formData = new FormData(event.currentTarget);
