@@ -1,0 +1,44 @@
+import { describe, expect, it } from "vitest";
+import { isLikelyImageUrl } from "@/lib/references";
+
+describe("isLikelyImageUrl", () => {
+  it("aceita extensão no caminho", () => {
+    expect(isLikelyImageUrl("https://exemplo.com/foto.JPG")).toBe(true);
+  });
+
+  it("aceita formato na query (CDN do Cosmos)", () => {
+    expect(
+      isLikelyImageUrl(
+        "https://cdn.cosmos.so/0753f93d-12ee-4414-928e-9518826ef53c?format=webp&w=2048"
+      )
+    ).toBe(true);
+  });
+
+  it("aceita thumbnail do Drive", () => {
+    expect(
+      isLikelyImageUrl("https://drive.google.com/thumbnail?id=abc123&sz=w2000")
+    ).toBe(true);
+  });
+
+  it("aceita URL pública do storage do Supabase", () => {
+    expect(
+      isLikelyImageUrl(
+        "https://xyz.supabase.co/storage/v1/object/public/references/abc"
+      )
+    ).toBe(true);
+  });
+
+  it("recusa link de post do Instagram", () => {
+    expect(isLikelyImageUrl("https://www.instagram.com/p/ABC123/")).toBe(false);
+  });
+
+  it("recusa página do Drive que não é thumbnail", () => {
+    expect(
+      isLikelyImageUrl("https://drive.google.com/file/d/abc123/view")
+    ).toBe(false);
+  });
+
+  it("recusa URL inválida", () => {
+    expect(isLikelyImageUrl("nao-e-url")).toBe(false);
+  });
+});
