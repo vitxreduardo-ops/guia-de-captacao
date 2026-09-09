@@ -181,3 +181,17 @@ export function recentMonths(today = new Date(), count = 12): string[] {
   }
   return months;
 }
+
+// ------------------------------------------------------------------ relatório
+
+/**
+ * Fecho padrão do relatório de entregas em PDF. Fica aqui, e não no documento,
+ * pra caber no textarea que o formulário de download abre — o componente do
+ * PDF é servidor, e arrastar o `@react-pdf/renderer` pro navegador só pra ler
+ * duas frases não paga.
+ *
+ * Linha em branco separa parágrafo.
+ */
+export const DEFAULT_INVOICE_CLOSING = `Obrigado pela parceria neste mês!
+
+Qualquer dúvida sobre algum item desta lista, ou se precisarem de ajuste em alguma peça, é só chamar a gente. Estamos por aqui!`;

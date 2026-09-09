@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { formatBRL } from "@/lib/billingTypes";
+import { DEFAULT_INVOICE_CLOSING, formatBRL } from "@/lib/billingTypes";
 import {
   closeMonthAction,
   reopenInvoiceAction,
@@ -50,15 +50,49 @@ export function CloseMonthForm({
           na nota. Editar as entregas agora não muda mais esse valor.
         </p>
         {/* Baixar vem antes de reabrir: mandar o relatório junto com a nota é
-            o que se faz todo mês; reabrir é a exceção que apaga a nota. */}
-        <a
-          href={`/admin/clientes/faturamento/pdf?cliente=${encodeURIComponent(
-            clientId
-          )}&mes=${encodeURIComponent(month)}`}
-          className={`ml-auto rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 ${PRESS}`}
-        >
-          Baixar PDF
-        </a>
+            o que se faz todo mês; reabrir é a exceção que apaga a nota.
+
+            O recado do fim do relatório muda de cliente pra cliente, então o
+            botão abre o texto pra revisar antes de gerar o arquivo. Form GET
+            comum: o próprio navegador monta a URL da rota, sem estado nem
+            requisição extra. Apagar tudo é uma escolha — sai sem recado. */}
+        <details className="ml-auto w-full sm:w-auto sm:open:w-full">
+          <summary
+            className={`inline-flex cursor-pointer list-none rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 hover:text-neutral-900 ${PRESS}`}
+          >
+            Baixar PDF
+          </summary>
+          <form
+            action="/admin/clientes/faturamento/pdf"
+            className="mt-2 rounded-md border border-neutral-200 bg-neutral-50 p-3"
+          >
+            <input type="hidden" name="cliente" value={clientId} />
+            <input type="hidden" name="mes" value={month} />
+            <label
+              htmlFor={`fecho-${month}`}
+              className="block text-xs font-medium text-neutral-700"
+            >
+              Recado no fim do relatório
+            </label>
+            <textarea
+              id={`fecho-${month}`}
+              name="texto"
+              rows={5}
+              defaultValue={DEFAULT_INVOICE_CLOSING}
+              className="mt-1.5 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none sm:w-96"
+            />
+            <p className="mt-1 text-xs text-neutral-500">
+              Linha em branco separa parágrafo. Campo vazio gera o relatório sem
+              recado.
+            </p>
+            <button
+              type="submit"
+              className={`mt-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 ${PRESS}`}
+            >
+              Baixar PDF
+            </button>
+          </form>
+        </details>
         <form
           onSubmit={(event) => {
             event.preventDefault();

@@ -122,9 +122,20 @@ export function deliveryTitle(description: string) {
   return separator === -1 ? description : description.slice(separator + 3);
 }
 
-function InvoicePdfDocument({ invoice }: { invoice: MonthlyInvoiceWithItems }) {
+function InvoicePdfDocument({
+  invoice,
+  closing,
+}: {
+  invoice: MonthlyInvoiceWithItems;
+  closing: string;
+}) {
   const label = monthLabel(invoice.month);
   const items = [...invoice.items].sort((a, b) => a.position - b.position);
+  // Linha em branco separa parágrafo, que é como se escreve num textarea.
+  const paragraphs = closing
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
 
   return (
     <Document
@@ -177,13 +188,15 @@ function InvoicePdfDocument({ invoice }: { invoice: MonthlyInvoiceWithItems }) {
           <Text style={styles.notes}>{invoice.notes}</Text>
         ) : null}
 
-        <View style={styles.closing}>
-          <Text>Obrigado pela parceria neste mês!</Text>
-          <Text style={{ marginTop: 6 }}>
-            Qualquer dúvida sobre algum item desta lista, ou se precisarem de
-            ajuste em alguma peça, é só chamar a gente. Estamos por aqui!
-          </Text>
-        </View>
+        {paragraphs.length > 0 ? (
+          <View style={styles.closing}>
+            {paragraphs.map((paragraph, index) => (
+              <Text key={paragraph} style={index > 0 ? { marginTop: 6 } : undefined}>
+                {paragraph}
+              </Text>
+            ))}
+          </View>
+        ) : null}
 
         <View style={styles.payment} fixed>
           <Text style={styles.paymentTitle}>Dados para pagamento</Text>
@@ -206,6 +219,9 @@ function InvoicePdfDocument({ invoice }: { invoice: MonthlyInvoiceWithItems }) {
   );
 }
 
-export async function renderInvoicePdfBuffer(invoice: MonthlyInvoiceWithItems) {
-  return renderToBuffer(<InvoicePdfDocument invoice={invoice} />);
+export async function renderInvoicePdfBuffer(
+  invoice: MonthlyInvoiceWithItems,
+  closing: string
+) {
+  return renderToBuffer(<InvoicePdfDocument invoice={invoice} closing={closing} />);
 }
