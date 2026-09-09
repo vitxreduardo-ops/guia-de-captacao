@@ -11,6 +11,7 @@ import {
 } from "@/lib/galleries";
 import { fetchOgImage, isLikelyImageUrl, resolveDriveImageUrl } from "@/lib/references";
 import { extractDriveFolderId, listDriveFolderMediaRecursive } from "@/lib/googleDrive";
+import { mirrorRemoteImage } from "@/lib/storage";
 
 function revalidateClient(id: string, slug?: string | null) {
   revalidatePath(`/admin/galerias/${id}`);
@@ -37,7 +38,10 @@ async function resolveGalleryImage(
 
   const ogImage = await fetchOgImage(urlInput);
   if (ogImage) {
-    return { image_url: ogImage, source_url: urlInput };
+    // A og:image do Instagram/Facebook é assinada e expira; guardamos uma
+    // cópia nossa pra referência não sumir depois.
+    const mirrored = await mirrorRemoteImage("mirrors", ogImage);
+    return { image_url: mirrored ?? ogImage, source_url: urlInput };
   }
 
   return { image_url: urlInput, source_url: null };

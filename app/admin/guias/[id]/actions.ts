@@ -28,7 +28,7 @@ import {
   type ChecklistCategory,
 } from "@/lib/guides";
 import { fetchOgImage, isLikelyImageUrl } from "@/lib/references";
-import { uploadReferenceImage } from "@/lib/storage";
+import { mirrorRemoteImage, uploadReferenceImage } from "@/lib/storage";
 
 function revalidateGuide(id: string, slug?: string | null) {
   revalidatePath(`/admin/guias/${id}`);
@@ -51,7 +51,10 @@ async function resolveReferenceImage(
 
   const ogImage = await fetchOgImage(urlInput);
   if (ogImage) {
-    return { image_url: ogImage, source_url: urlInput };
+    // A og:image do Instagram/Facebook é assinada e expira; guardamos uma
+    // cópia nossa pra referência não sumir depois.
+    const mirrored = await mirrorRemoteImage("mirrors", ogImage);
+    return { image_url: mirrored ?? ogImage, source_url: urlInput };
   }
 
   return { image_url: urlInput, source_url: null };
