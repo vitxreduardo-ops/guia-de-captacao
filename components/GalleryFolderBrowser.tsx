@@ -42,7 +42,7 @@ function SortMenu({
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs text-neutral-700 hover:border-neutral-400"
+        className="flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md border border-neutral-300 bg-white px-3 text-xs text-neutral-700 hover:border-neutral-400"
       >
         Ordenar: {current.label}
         <span
@@ -391,6 +391,51 @@ export function GalleryFolderBrowser({
     setTimeout(() => setOneByOneDone(null), 4000);
   }
 
+  /**
+   * Baixa os arquivos e entrega pra folha de compartilhamento do sistema.
+   * O Safari exige que `share()` saia de um toque; depois do `await` do
+   * download essa permissão pode ter expirado — nesse caso os arquivos ficam
+   * guardados e o segundo toque no botão compartilha na hora.
+   */
+  async function shareToPhotos(items: GalleryDisplayItem[]) {
+    let files = readyFiles;
+
+    if (!files) {
+      setSharing(0);
+      try {
+        files = [];
+        for (const [index, item] of items.entries()) {
+          const response = await fetch(item.downloadSrc);
+          if (!response.ok) continue;
+          const blob = await response.blob();
+          files.push(
+            new File([blob], item.caption || `arquivo-${item.id}`, {
+              type: blob.type || "application/octet-stream",
+            })
+          );
+          setSharing(index + 1);
+        }
+      } catch {
+        setSharing(null);
+        return;
+      }
+      setReadyFiles(files);
+    }
+
+    setSharing(null);
+    if (files.length === 0) return;
+
+    try {
+      await navigator.share({ files });
+      setReadyFiles(null);
+    } catch (error) {
+      // Cancelar a folha é normal — só não é motivo pra refazer o download.
+      if ((error as DOMException)?.name === "AbortError") {
+        setReadyFiles(null);
+      }
+    }
+  }
+
   function toggleIds(ids: string[], nextSelected: boolean) {
     setSelectedIds((current) => {
       if (nextSelected) {
@@ -402,6 +447,27 @@ export function GalleryFolderBrowser({
       return current.filter((id) => !removed.has(id));
     });
   }
+
+  /**
+   * iOS não deixa página web escrever na biblioteca de Fotos. O caminho é a
+   * folha de compartilhamento: `navigator.share` com os arquivos abre o menu
+   * do sistema com "Salvar N imagens", que joga tudo direto no app Fotos.
+   * Onde isso não existe (desktop, Android antigo) o botão continua sendo o
+   * .zip normal.
+   */
+  const [canShareFiles, setCanShareFiles] = useState(false);
+  const [sharing, setSharing] = useState<number | null>(null);
+  const [readyFiles, setReadyFiles] = useState<File[] | null>(null);
+
+  useEffect(() => {
+    const probe = new File([new Uint8Array(1)], "a.jpg", { type: "image/jpeg" });
+    setCanShareFiles(Boolean(navigator.canShare?.({ files: [probe] })));
+  }, []);
+
+  /** Tudo que está na pasta aberta, incluindo subpastas — é o que o botão
+   * "Baixar todas" leva no zip. */
+  const allHere = useMemo(() => allItemsOf(current), [current]);
+  const allIdsHere = useMemo(() => allHere.map((item) => item.id), [allHere]);
 
   const visibleIds = useMemo(
     () => sortedItems.map((item) => item.id),
@@ -450,7 +516,7 @@ export function GalleryFolderBrowser({
   }, [sortedItems, columnCount]);
 
   return (
-    <div>
+    <div className="pb-20">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <nav className="flex flex-wrap items-center gap-1 text-sm text-neutral-500">
           <button
@@ -486,7 +552,7 @@ export function GalleryFolderBrowser({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar..."
-            className="w-32 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-500 focus:outline-none sm:w-48"
+            className="h-8 w-32 rounded-md border border-neutral-300 bg-white px-3 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-500 focus:outline-none sm:w-48"
           />
           <SortMenu value={sortKey} onChange={setSortKey} />
           <button
@@ -495,7 +561,7 @@ export function GalleryFolderBrowser({
               setSelecting((value) => !value);
               setSelectedIds([]);
             }}
-            className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+            className={`h-8 whitespace-nowrap rounded-md border px-3 text-xs transition-colors ${
               selecting
                 ? "border-neutral-900 bg-neutral-900 text-white"
                 : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400"
@@ -651,6 +717,53 @@ export function GalleryFolderBrowser({
           ) : null}
         </motion.div>
       </AnimatePresence>
+
+      {!selecting && allIdsHere.length > 0 ? (
+        <div className="fixed inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-4">
+          {canShareFiles ? (
+            <button
+              type="button"
+              onClick={() => shareToPhotos(allHere)}
+              disabled={sharing !== null}
+              className="inline-flex items-center gap-2 rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white shadow-lg hover:bg-neutral-800 disabled:opacity-80"
+            >
+              {sharing !== null ? (
+                <>
+                  <span
+                    aria-hidden
+                    className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                  />
+                  Preparando {sharing} de {allHere.length}
+                </>
+              ) : readyFiles ? (
+                "Salvar nas Fotos"
+              ) : (
+                `Baixar todas (${allIdsHere.length})`
+              )}
+            </button>
+          ) : (
+            <form
+              action={`/api/galeria/${slug}/zip`}
+              method="post"
+              onSubmit={() => setDownloadStarted(true)}
+            >
+              <input type="hidden" name="ids" value={allIdsHere.join(",")} />
+              <button
+                type="submit"
+                className="inline-flex items-center gap-2 rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white shadow-lg hover:bg-neutral-800"
+              >
+                {downloadStarted ? (
+                  <span
+                    aria-hidden
+                    className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                  />
+                ) : null}
+                Baixar todas ({allIdsHere.length})
+              </button>
+            </form>
+          )}
+        </div>
+      ) : null}
 
       <AnimatePresence>
         {selecting && selectedIds.length > 0 ? (

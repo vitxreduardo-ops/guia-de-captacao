@@ -40,13 +40,57 @@ export function resolveDriveImageUrl(url: string): string | null {
   return null;
 }
 
+// CDNs que servem imagem direta em URLs sem extensão no caminho. Como o
+// predicado abaixo só consegue olhar a URL (não faz requisição), esses hosts
+// precisam ser reconhecidos pelo nome — senão a imagem vira "Abrir link".
+function isKnownImageCdn(hostname: string, pathname: string): boolean {
+  if (hostname === "cdn.cosmos.so") return true;
+  if (hostname === "drive.google.com") return pathname.startsWith("/thumbnail");
+  if (hostname.endsWith(".supabase.co")) {
+    return pathname.includes("/storage/v1/object/public/");
+  }
+  return (
+    hostname.endsWith(".fbcdn.net") ||
+    hostname.endsWith(".cdninstagram.com") ||
+    hostname.endsWith(".pinimg.com")
+  );
+}
+
 export function isLikelyImageUrl(url: string): boolean {
   try {
-    const { pathname } = new URL(url);
+    const { hostname, pathname, searchParams } = new URL(url);
     const lower = pathname.toLowerCase();
-    return IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext));
+    if (IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) return true;
+
+    // Formato na query em vez da extensão: ?format=webp, ?fm=jpg etc.
+    for (const value of searchParams.values()) {
+      const v = value.toLowerCase();
+      if (IMAGE_EXTENSIONS.some((ext) => v === ext.slice(1))) return true;
+    }
+
+    return isKnownImageCdn(hostname.toLowerCase(), lower);
   } catch {
     return false;
+  }
+}
+
+/**
+ * O renderizador de PDF (@react-pdf) só decodifica JPEG e PNG — uma imagem
+ * WebP/AVIF é descartada em silêncio e o PDF sai sem a referência. Quando o
+ * formato vem na query da URL (CDNs como o do Cosmos), dá pra pedir JPEG.
+ * URLs com a extensão no caminho não têm conversão possível aqui.
+ */
+export function toPdfSafeImageUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const format = parsed.searchParams.get("format")?.toLowerCase();
+    if (format === "webp" || format === "avif") {
+      parsed.searchParams.set("format", "jpeg");
+      return parsed.toString();
+    }
+    return url;
+  } catch {
+    return url;
   }
 }
 
