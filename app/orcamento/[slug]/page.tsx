@@ -135,7 +135,7 @@ export default async function PublicBudgetPage({
         <div className="relative mx-auto w-full max-w-3xl">
           <TatuLogo className="mx-auto block h-8 w-auto" />
         </div>
-        <div className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center">
+        <div className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col items-center justify-center text-center">
           {budget.hero_eyebrow ? (
             <p className="mb-4 text-xs font-bold uppercase tracking-widest">
               {budget.hero_eyebrow}
