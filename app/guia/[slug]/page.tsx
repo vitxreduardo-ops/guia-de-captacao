@@ -171,7 +171,7 @@ export default async function PublicGuidePage({
                           ) : null}
 
                           {sceneReferences.length > 0 ? (
-                            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            <div className="mt-3 columns-2 gap-2 sm:columns-3 [&>figure]:mb-2 [&>figure]:break-inside-avoid">
                               {(() => {
                                 const imageReferences = sceneReferences.filter(
                                   isShowableAsImage
@@ -204,7 +204,7 @@ export default async function PublicGuidePage({
                                       }
                                       sourceUrl={reference.source_url}
                                       selected={reference.selected}
-                                      className="h-28 w-full object-cover"
+                                      className="h-auto w-full"
                                       gallery={gallery}
                                       index={imageReferences.findIndex(
                                         (r) => r.id === reference.id
@@ -251,7 +251,7 @@ export default async function PublicGuidePage({
             <h2 className="mb-4 text-lg font-semibold text-neutral-900">
               Fotos
             </h2>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="columns-2 gap-2 sm:columns-3 [&>figure]:mb-2 [&>figure]:break-inside-avoid">
               {(() => {
                 const imagePhotos = guide.photo_items.filter(isShowableAsImage);
                 const gallery = imagePhotos.map((i) => ({
@@ -278,7 +278,7 @@ export default async function PublicGuidePage({
                         alt={item.caption || "Foto"}
                         sourceUrl={item.source_url}
                         selected={item.selected}
-                        className="h-32 w-full object-cover"
+                        className="h-auto w-full"
                         gallery={gallery}
                         index={imagePhotos.findIndex((i) => i.id === item.id)}
                         onToggleSelected={togglePhotoItemSelectedAction.bind(
@@ -314,7 +314,7 @@ export default async function PublicGuidePage({
             <h2 className="mb-4 text-lg font-semibold text-neutral-900">
               Cards
             </h2>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <div className="columns-2 gap-2 sm:columns-3 [&>figure]:mb-2 [&>figure]:break-inside-avoid">
               {(() => {
                 const imageCards = guide.card_items.filter(isShowableAsImage);
                 const gallery = imageCards.map((i) => ({
@@ -341,7 +341,7 @@ export default async function PublicGuidePage({
                         alt={item.caption || "Card"}
                         sourceUrl={item.source_url}
                         selected={item.selected}
-                        className="h-32 w-full object-cover"
+                        className="h-auto w-full"
                         gallery={gallery}
                         index={imageCards.findIndex((i) => i.id === item.id)}
                         onToggleSelected={toggleCardItemSelectedAction.bind(
