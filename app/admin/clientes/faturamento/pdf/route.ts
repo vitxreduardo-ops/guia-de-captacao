@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getInvoice } from "@/lib/billing";
 import { renderInvoicePdfBuffer } from "@/components/pdf/InvoicePdfDocument";
+import { DEFAULT_INVOICE_CLOSING } from "@/lib/billingTypes";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Mês não fechado" }, { status: 404 });
   }
 
-  const buffer = await renderInvoicePdfBuffer(invoice);
+  // Sem `texto` na URL vale o fecho padrão; com o campo vazio, o relatório sai
+  // sem fecho nenhum — tem cliente que não precisa de recado.
+  const closing = url.searchParams.get("texto");
+  const buffer = await renderInvoicePdfBuffer(
+    invoice,
+    closing === null ? DEFAULT_INVOICE_CLOSING : closing
+  );
   const slug = invoice.client_name
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
