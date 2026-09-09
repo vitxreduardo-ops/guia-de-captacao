@@ -9,7 +9,7 @@ import {
   renderToBuffer,
 } from "@react-pdf/renderer";
 import type { GuideWithSections } from "@/lib/guides";
-import { isLikelyImageUrl } from "@/lib/references";
+import { isLikelyImageUrl, toPdfSafeImageUrl } from "@/lib/references";
 
 const styles = StyleSheet.create({
   page: { padding: 32, fontSize: 10, fontFamily: "Helvetica" },
@@ -44,7 +44,9 @@ const styles = StyleSheet.create({
   sceneLabel: { fontSize: 9, color: "#666666", marginTop: 4, marginBottom: 2 },
   referencesGrid: { flexDirection: "row", flexWrap: "wrap", marginTop: 6 },
   referenceItem: { width: 90, marginRight: 8, marginBottom: 8 },
-  referenceImage: { width: 90, height: 68, objectFit: "cover", borderRadius: 4 },
+  // Sem altura fixa: o react-pdf escala pela proporção original da imagem. O
+  // teto evita que uma imagem em pé estoure a página.
+  referenceImage: { width: 90, maxHeight: 160, objectFit: "contain", borderRadius: 4 },
   referenceLinkBox: {
     width: 90,
     height: 68,
@@ -160,7 +162,7 @@ function GuidePdfDocument({ guide }: { guide: GuideWithSections }) {
                                 <Link src={href}>
                                   {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image is not an HTML img and has no alt prop */}
                                   <Image
-                                    src={reference.image_url}
+                                    src={toPdfSafeImageUrl(reference.image_url)}
                                     style={styles.referenceImage}
                                   />
                                 </Link>
@@ -207,7 +209,7 @@ function GuidePdfDocument({ guide }: { guide: GuideWithSections }) {
                       <Link src={href}>
                         {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image is not an HTML img and has no alt prop */}
                         <Image
-                          src={item.image_url}
+                          src={toPdfSafeImageUrl(item.image_url)}
                           style={styles.referenceImage}
                         />
                       </Link>
@@ -245,7 +247,7 @@ function GuidePdfDocument({ guide }: { guide: GuideWithSections }) {
                       <Link src={href}>
                         {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image is not an HTML img and has no alt prop */}
                         <Image
-                          src={item.image_url}
+                          src={toPdfSafeImageUrl(item.image_url)}
                           style={styles.referenceImage}
                         />
                       </Link>

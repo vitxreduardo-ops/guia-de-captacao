@@ -238,7 +238,7 @@ export default async function PublicBudgetPage({
                 Referências
               </h2>
             </Reveal>
-            <RevealStagger className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <RevealStagger className="columns-2 gap-4 sm:columns-3 [&>*]:mb-4 [&>*]:break-inside-avoid">
               {(() => {
                 const imageReferences = references.filter(
                   (item) =>
@@ -264,7 +264,7 @@ export default async function PublicBudgetPage({
                           src={item.image_url}
                           alt={item.caption || "Referência"}
                           sourceUrl={item.source_url}
-                          className="h-40 w-full object-cover sm:h-48"
+                          className="h-auto w-full"
                           gallery={gallery}
                           index={imageReferences.findIndex((r) => r.id === item.id)}
                         />

@@ -74,6 +74,26 @@ export function isLikelyImageUrl(url: string): boolean {
   }
 }
 
+/**
+ * O renderizador de PDF (@react-pdf) só decodifica JPEG e PNG — uma imagem
+ * WebP/AVIF é descartada em silêncio e o PDF sai sem a referência. Quando o
+ * formato vem na query da URL (CDNs como o do Cosmos), dá pra pedir JPEG.
+ * URLs com a extensão no caminho não têm conversão possível aqui.
+ */
+export function toPdfSafeImageUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    const format = parsed.searchParams.get("format")?.toLowerCase();
+    if (format === "webp" || format === "avif") {
+      parsed.searchParams.set("format", "jpeg");
+      return parsed.toString();
+    }
+    return url;
+  } catch {
+    return url;
+  }
+}
+
 const OG_IMAGE_REGEX =
   /<meta[^>]+(?:property|name)=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']|<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']og:image(?::secure_url)?["']/i;
 

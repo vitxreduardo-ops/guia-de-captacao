@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isLikelyImageUrl } from "@/lib/references";
+import { isLikelyImageUrl, toPdfSafeImageUrl } from "@/lib/references";
 
 describe("isLikelyImageUrl", () => {
   it("aceita extensão no caminho", () => {
@@ -40,5 +40,28 @@ describe("isLikelyImageUrl", () => {
 
   it("recusa URL inválida", () => {
     expect(isLikelyImageUrl("nao-e-url")).toBe(false);
+  });
+});
+
+describe("toPdfSafeImageUrl", () => {
+  it("troca webp por jpeg (o @react-pdf não decodifica webp)", () => {
+    expect(
+      toPdfSafeImageUrl("https://cdn.cosmos.so/abc?format=webp&w=2048")
+    ).toBe("https://cdn.cosmos.so/abc?format=jpeg&w=2048");
+  });
+
+  it("troca avif por jpeg", () => {
+    expect(toPdfSafeImageUrl("https://cdn.cosmos.so/abc?format=avif")).toBe(
+      "https://cdn.cosmos.so/abc?format=jpeg"
+    );
+  });
+
+  it("não mexe em URL já compatível", () => {
+    const url = "https://exemplo.com/foto.jpg";
+    expect(toPdfSafeImageUrl(url)).toBe(url);
+  });
+
+  it("devolve a entrada quando não é URL válida", () => {
+    expect(toPdfSafeImageUrl("nao-e-url")).toBe("nao-e-url");
   });
 });
