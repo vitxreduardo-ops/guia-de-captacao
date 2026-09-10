@@ -534,3 +534,22 @@ alter table gallery_clients
 -- supabase/migrations/0045_archive_clients.sql).
 alter table gallery_clients
   add column if not exists archived_at timestamptz;
+
+-- Acervo de referências visuais indexado por nicho (ver
+-- supabase/migrations/0046_add_reference_pins.sql). Só links colados: nada é
+-- hospedado, `thumb_url` é a capa que o site de origem publica e `kind`
+-- ('image' | 'video' | 'link') é resolvido na gravação.
+create table if not exists reference_pins (
+  id uuid primary key default gen_random_uuid(),
+  title text not null default '',
+  url text not null default '',
+  thumb_url text not null default '',
+  kind text not null default 'link',
+  note text not null default '',
+  tags text[] not null default '{}'::text[],
+  created_at timestamptz not null default now()
+);
+
+create index if not exists reference_pins_tags_idx on reference_pins using gin (tags);
+
+alter table reference_pins enable row level security;

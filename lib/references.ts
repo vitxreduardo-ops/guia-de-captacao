@@ -150,3 +150,75 @@ export async function fetchOgImage(url: string): Promise<string | null> {
     return null;
   }
 }
+
+const VIDEO_EXTENSIONS = [".mp4", ".webm", ".mov", ".m4v"];
+
+const YOUTUBE_ID_PATTERNS = [
+  /youtu\.be\/([a-zA-Z0-9_-]{6,})/,
+  /[?&]v=([a-zA-Z0-9_-]{6,})/,
+  /\/(?:embed|shorts|live)\/([a-zA-Z0-9_-]{6,})/,
+];
+
+/**
+ * ID do vídeo do YouTube na URL, ou null. Serve pra montar a capa sem pedir
+ * nada à API: o endereço do thumbnail é previsível a partir do ID.
+ */
+export function youtubeVideoId(url: string): string | null {
+  try {
+    const { hostname } = new URL(url);
+    const host = hostname.toLowerCase().replace(/^www\./, "");
+    if (host !== "youtube.com" && host !== "youtu.be" && host !== "m.youtube.com") {
+      return null;
+    }
+    for (const pattern of YOUTUBE_ID_PATTERNS) {
+      const match = url.match(pattern);
+      if (match?.[1]) return match[1];
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** Arquivo de vídeo servido direto, que dá pra tocar numa tag `<video>`. */
+export function isLikelyVideoUrl(url: string): boolean {
+  try {
+    const path = new URL(url).pathname.toLowerCase();
+    return VIDEO_EXTENSIONS.some((ext) => path.endsWith(ext));
+  } catch {
+    return false;
+  }
+}
+
+export type ReferenceKind = "image" | "video" | "link";
+
+/**
+ * Decide, na hora de salvar, o que um link colado é e qual capa mostrar — o
+ * mural só lê esses dois campos depois, sem reinspecionar URL a cada render.
+ *
+ * Nenhum arquivo é hospedado: a capa é sempre um endereço do próprio site de
+ * origem. Para YouTube ela é previsível; para o resto vem da og:image, que em
+ * Instagram e Facebook é assinada e um dia expira — quando isso acontece o
+ * card cai no favicon do domínio e a capa pode ser reapontada à mão.
+ */
+export async function resolveReferencePin(
+  url: string
+): Promise<{ kind: ReferenceKind; thumb_url: string }> {
+  if (isLikelyImageUrl(url)) return { kind: "image", thumb_url: url };
+
+  const drive = resolveDriveImageUrl(url);
+  if (drive) return { kind: "image", thumb_url: drive };
+
+  if (isLikelyVideoUrl(url)) return { kind: "video", thumb_url: "" };
+
+  const youtubeId = youtubeVideoId(url);
+  if (youtubeId) {
+    return {
+      kind: "video",
+      thumb_url: `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`,
+    };
+  }
+
+  const ogImage = await fetchOgImage(url);
+  return { kind: "link", thumb_url: ogImage ?? "" };
+}
