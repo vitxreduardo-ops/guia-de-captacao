@@ -552,4 +552,15 @@ create table if not exists reference_pins (
 
 create index if not exists reference_pins_tags_idx on reference_pins using gin (tags);
 
+-- Referência enviada como arquivo: o webp/webm vive numa pasta fixa do Drive e
+-- só o id fica aqui (ver supabase/migrations/0047_add_reference_pin_drive_file.sql).
+-- A coluna é também o que autoriza /api/drive-image e /api/drive-thumbnail a
+-- servirem o arquivo.
+alter table reference_pins
+  add column if not exists drive_file_id text not null default '';
+
+create index if not exists reference_pins_drive_file_id_idx
+  on reference_pins (drive_file_id)
+  where drive_file_id <> '';
+
 alter table reference_pins enable row level security;

@@ -9,6 +9,8 @@ export interface ReferencePin {
   /** Capa servida pelo próprio site de origem. Vazio = card sem miniatura. */
   thumb_url: string;
   kind: ReferenceKind;
+  /** Arquivo próprio na pasta de referências do Drive. Vazio = link colado. */
+  drive_file_id: string;
   note: string;
   /** Nicho e qualquer outra etiqueta livre — ver `lib/tags.ts`. */
   tags: string[];
@@ -25,6 +27,8 @@ function toReferencePin(row: Record<string, unknown>): ReferencePin {
     url: typeof row.url === "string" ? row.url : "",
     thumb_url: typeof row.thumb_url === "string" ? row.thumb_url : "",
     kind: kind === "image" || kind === "video" ? kind : "link",
+    drive_file_id:
+      typeof row.drive_file_id === "string" ? row.drive_file_id : "",
     note: typeof row.note === "string" ? row.note : "",
     tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
     created_at: String(row.created_at ?? ""),

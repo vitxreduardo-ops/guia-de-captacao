@@ -25,26 +25,48 @@ function normalizeUrl(url: string) {
 async function readFields(
   formData: FormData
 ): Promise<ReferencePinFields | null> {
-  const rawUrl = String(formData.get("url") ?? "").trim();
-  if (!rawUrl) return null;
-  const url = normalizeUrl(rawUrl);
-
-  const resolved = await resolveReferencePin(url);
   // Capa digitada à mão manda: é o conserto de quando a og:image do link
   // expirou ou nunca existiu, e refazer a descoberta apagaria o conserto.
   const manualThumb = String(formData.get("thumb_url") ?? "").trim();
-
-  return {
+  const comuns = {
     // Sem título, o domínio já identifica melhor que um card em branco.
     title: String(formData.get("title") ?? "").trim(),
-    url,
-    thumb_url: manualThumb || resolved.thumb_url,
-    kind: resolved.kind,
     note: String(formData.get("note") ?? "").trim(),
     tags: canonicalizeTags(
       parseTags(formData.get("tags")),
       await listReferenceTags()
     ),
+  };
+
+  // Arquivo enviado pelo painel: já está na pasta do Drive (ver
+  // /api/referencias/upload) e é servido pelos mesmos proxies das galerias,
+  // então nada aqui depende de site de terceiro continuar no ar.
+  const driveFileId = String(formData.get("drive_file_id") ?? "").trim();
+  if (driveFileId) {
+    const uploadKind = String(formData.get("upload_kind") ?? "");
+    return {
+      ...comuns,
+      url: `/api/drive-image/${driveFileId}`,
+      // O Drive gera a miniatura inclusive de vídeo, o que dá capa ao webm
+      // sem precisar extrair quadro nenhum.
+      thumb_url: manualThumb || `/api/drive-thumbnail/${driveFileId}?size=1200`,
+      kind: uploadKind === "video" ? "video" : "image",
+      drive_file_id: driveFileId,
+    };
+  }
+
+  const rawUrl = String(formData.get("url") ?? "").trim();
+  if (!rawUrl) return null;
+  const url = normalizeUrl(rawUrl);
+
+  const resolved = await resolveReferencePin(url);
+
+  return {
+    ...comuns,
+    url,
+    thumb_url: manualThumb || resolved.thumb_url,
+    kind: resolved.kind,
+    drive_file_id: "",
   };
 }
 

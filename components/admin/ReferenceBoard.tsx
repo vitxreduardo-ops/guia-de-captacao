@@ -120,6 +120,8 @@ function PinForm({
 }) {
   const [pending, startTransition] = useTransition();
   const [tags, setTags] = useState(pin?.tags.join(", ") ?? "");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState("");
 
   const used = new Set(
     tags
@@ -132,13 +134,50 @@ function PinForm({
     setTags((current) => (current.trim() ? `${current.trim()}, ${tag}` : tag));
   }
 
+  /**
+   * O arquivo sobe antes da gravação, por rota própria, e o formulário segue
+   * com o id que voltou. Fazer isso dentro da server action não daria: o
+   * corpo de uma action tem limite de poucos MB e um webm estoura.
+   */
+  async function subirArquivo(file: File) {
+    const corpo = new FormData();
+    corpo.set("file", file);
+    const resposta = await fetch("/api/referencias/upload", {
+      method: "POST",
+      body: corpo,
+    });
+    if (!resposta.ok) {
+      const { error } = (await resposta.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      throw new Error(error ?? "Falha ao enviar o arquivo");
+    }
+    return (await resposta.json()) as { fileId: string; kind: string };
+  }
+
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+    const file = formData.get("file");
+    formData.delete("file");
+    setErro("");
+
     startTransition(async () => {
-      if (pin) await updateReferencePinAction(formData);
-      else await createReferencePinAction(formData);
-      onDone();
+      try {
+        if (file instanceof File && file.size > 0) {
+          setEnviando(true);
+          const { fileId, kind } = await subirArquivo(file);
+          formData.set("drive_file_id", fileId);
+          formData.set("upload_kind", kind);
+        }
+        if (pin) await updateReferencePinAction(formData);
+        else await createReferencePinAction(formData);
+        onDone();
+      } catch (causa) {
+        setErro(causa instanceof Error ? causa.message : "Falha ao enviar");
+      } finally {
+        setEnviando(false);
+      }
     });
   }
 
@@ -153,14 +192,29 @@ function PinForm({
         <input
           id="pin-url"
           name="url"
-          defaultValue={pin?.url ?? ""}
+          defaultValue={pin?.drive_file_id ? "" : (pin?.url ?? "")}
           placeholder="https://instagram.com/p/..."
-          required
           autoFocus
           className={inputClass}
         />
         <p className="mt-1 text-xs text-neutral-500">
           Post, vídeo ou imagem. A capa é buscada no próprio link.
+        </p>
+      </div>
+
+      <div>
+        <label className={labelClass} htmlFor="pin-file">
+          …ou um arquivo seu
+        </label>
+        <input
+          id="pin-file"
+          name="file"
+          type="file"
+          accept="image/*,video/*"
+          className="w-full text-sm text-neutral-600 file:mr-3 file:rounded-md file:border-0 file:bg-neutral-900 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-neutral-800"
+        />
+        <p className="mt-1 text-xs text-neutral-500">
+          Vai pra pasta de referências do Drive. Capa própria, que não expira.
         </p>
       </div>
 
@@ -246,6 +300,11 @@ function PinForm({
           parar de carregar — a de Instagram e Facebook expira.
         </p>
       </div>
+
+      {erro ? <p className="text-xs text-red-600">{erro}</p> : null}
+      {enviando ? (
+        <p className="text-xs text-neutral-500">Enviando o arquivo…</p>
+      ) : null}
 
       <input type="submit" hidden disabled={pending} />
     </form>
