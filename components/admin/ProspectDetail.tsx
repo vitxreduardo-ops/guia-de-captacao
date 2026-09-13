@@ -21,7 +21,7 @@ import {
 /** Sem largura: quem usa escolhe. Compor `w-full` com `w-auto` na mesma
  * string não funciona — em Tailwind a ordem do CSS decide, não a da classe. */
 const fieldClass =
-  "rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none";
+  "rounded-md border border-neutral-300 px-2.5 py-2 text-base sm:py-1.5 sm:text-sm focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none";
 const inputClass = `w-full ${fieldClass}`;
 const labelClass = "mb-1 block text-xs font-medium text-neutral-600";
 const sectionClass =
@@ -56,12 +56,20 @@ export function ProspectDetail({
       <aside className="w-full space-y-6 lg:w-80 lg:shrink-0">
         <MoveStage prospect={prospect} stages={stages} />
         {prospect.stage.playbook ? (
-          <section>
-            <h2 className={sectionClass}>Roteiro desta etapa</h2>
-            <p className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap text-neutral-700">
+          /* O roteiro é longo por natureza: no celular ele empurraria os
+             dados do contato pra fora da tela. Abre no toque, igual ao
+             roteiro da fila. */
+          <details className="group rounded-lg border border-neutral-200 bg-neutral-50">
+            <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-semibold tracking-wide text-neutral-400 uppercase">
+              Roteiro desta etapa
+              <span className="ml-1 font-normal normal-case group-open:hidden">
+                — tocar para ler
+              </span>
+            </summary>
+            <p className="px-3 pb-1 text-[13px] leading-relaxed whitespace-pre-wrap text-neutral-700">
               {prospect.stage.playbook}
             </p>
-          </section>
+          </details>
         ) : null}
         <Details prospect={prospect} owners={owners} clients={clients} />
       </aside>
@@ -100,7 +108,7 @@ function NextContact({ prospect }: { prospect: ProspectRow }) {
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
-          className="ml-auto rounded-md bg-neutral-900 px-3.5 py-2 text-sm font-medium text-white hover:bg-neutral-800 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+          className="ml-auto inline-flex min-h-11 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 sm:min-h-0 sm:px-3.5 sm:py-2 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           {open ? "Fechar" : "Falei"}
         </button>
@@ -155,13 +163,13 @@ function TouchForm({
           <input
             type="date"
             name="next_contact_date"
-            className={`${fieldClass} w-auto`}
+            className={`${fieldClass} w-full sm:w-auto`}
             aria-label="Data do próximo contato"
           />
           <input
             type="time"
             name="next_contact_time"
-            className={`${fieldClass} w-auto`}
+            className={`${fieldClass} w-full sm:w-auto`}
             aria-label="Hora do próximo contato"
           />
           <input
@@ -170,7 +178,7 @@ function TouchForm({
             min={5}
             step={5}
             placeholder="min"
-            className={`${fieldClass} w-20`}
+            className={`${fieldClass} w-full sm:w-20`}
             aria-label="Duração em minutos"
           />
         </div>
@@ -186,7 +194,7 @@ function TouchForm({
           name="no_next"
           checked={noNext}
           onChange={(event) => setNoNext(event.target.checked)}
-          className="size-3.5"
+          className="size-4"
         />
         Este contato encerrou — sem próxima data
       </label>
@@ -199,14 +207,14 @@ function TouchForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+          className="inline-flex min-h-10 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
         >
           Salvar
         </button>
         <button
           type="button"
           onClick={onDone}
-          className="text-xs text-neutral-500 hover:text-neutral-800"
+          className="min-h-10 px-2 text-sm text-neutral-500 hover:text-neutral-800 sm:min-h-0 sm:px-0 sm:text-xs"
         >
           Cancelar
         </button>
@@ -361,7 +369,7 @@ function MoveStage({
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+          className="min-h-10 w-full rounded-md bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-xs"
         >
           Mover para {target?.name}
         </button>
@@ -398,7 +406,7 @@ function Details({
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="ml-auto text-xs text-neutral-500 hover:text-neutral-800"
+            className="ml-auto min-h-10 px-2 text-sm text-neutral-500 hover:text-neutral-800 sm:min-h-0 sm:px-0 sm:text-xs"
           >
             Editar
           </button>
@@ -491,14 +499,14 @@ function Details({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+          className="inline-flex min-h-10 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
         >
           Salvar
         </button>
         <button
           type="button"
           onClick={() => setEditing(false)}
-          className="text-xs text-neutral-500 hover:text-neutral-800"
+          className="min-h-10 px-2 text-sm text-neutral-500 hover:text-neutral-800 sm:min-h-0 sm:px-0 sm:text-xs"
         >
           Cancelar
         </button>
@@ -510,7 +518,7 @@ function Details({
             formData.set("id", prospect.id);
             startTransition(() => deleteProspectAction(formData));
           }}
-          className="ml-auto text-xs text-red-500 hover:text-red-700"
+          className="ml-auto min-h-10 px-2 text-sm text-red-500 hover:text-red-700 sm:min-h-0 sm:px-0 sm:text-xs"
         >
           Apagar
         </button>

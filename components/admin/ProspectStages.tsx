@@ -14,7 +14,7 @@ import {
 } from "@/lib/prospectTypes";
 
 const fieldClass =
-  "rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none";
+  "rounded-md border border-neutral-300 px-2.5 py-2 text-base sm:py-1.5 sm:text-sm focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none";
 const inputClass = `w-full ${fieldClass}`;
 
 export function ProspectStages({
@@ -65,30 +65,37 @@ function StageRow({
 
   if (!editing) {
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-neutral-200 px-3 py-2.5">
+      /* No celular o nome fica na primeira linha e os avisos embaixo: lado a
+         lado, "0 contatos" e "roteiro escrito" quebravam em duas linhas cada
+         e a etapa virava um bloco de texto picado. */
+      <div className="flex items-start gap-3 rounded-lg border border-neutral-200 px-3 py-2.5">
         <span
           aria-hidden
-          className="size-2.5 shrink-0 rounded-full"
+          className="mt-1.5 size-2.5 shrink-0 rounded-full sm:mt-0"
           style={{ backgroundColor: stage.color }}
         />
-        <span className="font-medium">{stage.name}</span>
-        <span className="text-xs text-neutral-400">
-          {count === 1 ? "1 contato" : `${count} contatos`}
-        </span>
-        {stage.kind !== "ativa" ? (
-          <span className="rounded bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-600">
-            {STAGE_KIND_LABELS[stage.kind]}
+        <div className="flex min-w-0 flex-1 flex-col gap-y-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
+          <span className="font-medium">{stage.name}</span>
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="text-xs text-neutral-400">
+              {count === 1 ? "1 contato" : `${count} contatos`}
+            </span>
+            {stage.kind !== "ativa" ? (
+              <span className="rounded bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-600">
+                {STAGE_KIND_LABELS[stage.kind]}
+              </span>
+            ) : null}
+            {stage.playbook ? (
+              <span className="text-[11px] text-neutral-400">roteiro escrito</span>
+            ) : (
+              <span className="text-[11px] text-amber-700">sem roteiro</span>
+            )}
           </span>
-        ) : null}
-        {stage.playbook ? (
-          <span className="text-[11px] text-neutral-400">roteiro escrito</span>
-        ) : (
-          <span className="text-[11px] text-amber-700">sem roteiro</span>
-        )}
+        </div>
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="ml-auto text-xs text-neutral-500 hover:text-neutral-800 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none"
+          className="-my-1 min-h-10 shrink-0 px-2 text-sm text-neutral-500 hover:text-neutral-800 sm:my-0 sm:min-h-0 sm:px-0 sm:text-xs focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none"
         >
           Editar
         </button>
@@ -160,14 +167,14 @@ function StageRow({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+          className="inline-flex min-h-10 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
         >
           Salvar
         </button>
         <button
           type="button"
           onClick={() => setEditing(false)}
-          className="text-xs text-neutral-500 hover:text-neutral-800"
+          className="min-h-10 px-2 text-sm text-neutral-500 hover:text-neutral-800 sm:min-h-0 sm:px-0 sm:text-xs"
         >
           Cancelar
         </button>
@@ -183,7 +190,7 @@ function StageRow({
               if (result.ok) setEditing(false);
             });
           }}
-          className="ml-auto text-xs text-red-500 hover:text-red-700"
+          className="ml-auto min-h-10 px-2 text-sm text-red-500 hover:text-red-700 sm:min-h-0 sm:px-0 sm:text-xs"
         >
           Apagar etapa
         </button>
@@ -242,14 +249,14 @@ function NewStage() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+        className="inline-flex min-h-10 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
       >
         Criar
       </button>
       <button
         type="button"
         onClick={() => setOpen(false)}
-        className="text-xs text-neutral-500 hover:text-neutral-800"
+        className="min-h-10 px-2 text-sm text-neutral-500 hover:text-neutral-800 sm:min-h-0 sm:px-0 sm:text-xs"
       >
         Cancelar
       </button>

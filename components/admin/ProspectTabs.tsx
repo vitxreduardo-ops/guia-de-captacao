@@ -17,7 +17,7 @@ export function ProspectTabs({ active }: { active: string }) {
           <span
             key={tab.href}
             aria-current="page"
-            className="rounded-md bg-neutral-900 px-3 py-1.5 font-medium text-white"
+            className="inline-flex min-h-10 items-center rounded-md bg-neutral-900 px-3.5 font-medium text-white sm:min-h-0 sm:px-3 sm:py-1.5"
           >
             {tab.label}
           </span>
@@ -25,7 +25,7 @@ export function ProspectTabs({ active }: { active: string }) {
           <Link
             key={tab.href}
             href={tab.href}
-            className="rounded-md border border-neutral-300 px-3 py-1.5 text-neutral-700 hover:bg-neutral-50 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+            className="inline-flex min-h-10 items-center rounded-md border border-neutral-300 px-3.5 text-neutral-700 hover:bg-neutral-50 sm:min-h-0 sm:px-3 sm:py-1.5 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
           >
             {tab.label}
           </Link>
