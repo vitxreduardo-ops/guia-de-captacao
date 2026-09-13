@@ -3,6 +3,7 @@ import Link from "next/link";
 const TABS = [
   { href: "/admin/prospeccao", label: "Fila" },
   { href: "/admin/prospeccao/tabela", label: "Tabela" },
+  { href: "/admin/prospeccao/radar", label: "Radar" },
   { href: "/admin/prospeccao/etapas", label: "Etapas" },
 ];
 

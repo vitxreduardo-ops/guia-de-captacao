@@ -1,6 +1,7 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import {
+  normalizeProducesContent,
   normalizeStageKind,
   type Prospect,
   type ProspectClientOption,
@@ -9,6 +10,7 @@ import {
   type ProspectStage,
   type ProspectTouch,
   type ProspectTouchKind,
+  type RadarCompany,
 } from "@/lib/prospectTypes";
 
 export type {
@@ -442,4 +444,54 @@ export async function reorderStages(orderedIds: string[]) {
       supabase.from("prospect_stages").update({ position }).eq("id", id)
     )
   );
+}
+
+// ----------------------------------------------------------------- radar
+
+export type { RadarCompany } from "@/lib/prospectTypes";
+
+function readRadarForm(formData: FormData) {
+  return {
+    company: text(formData.get("company")),
+    sector: text(formData.get("sector")),
+    instagram: text(formData.get("instagram")),
+    produces_content: normalizeProducesContent(formData.get("produces_content")),
+    contact: text(formData.get("contact")),
+    comms_name: text(formData.get("comms_name")),
+    referral: text(formData.get("referral")),
+    notes: text(formData.get("notes")),
+  };
+}
+
+export async function listRadar(): Promise<RadarCompany[]> {
+  const { data, error } = await getSupabaseServerClient()
+    .from("prospect_radar")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as RadarCompany[];
+}
+
+export async function createRadarCompany(formData: FormData) {
+  const fields = readRadarForm(formData);
+  const { error } = await getSupabaseServerClient()
+    .from("prospect_radar")
+    .insert(fields);
+  if (error) throw error;
+}
+
+export async function updateRadarCompany(id: string, formData: FormData) {
+  const { error } = await getSupabaseServerClient()
+    .from("prospect_radar")
+    .update({ ...readRadarForm(formData), updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteRadarCompany(id: string) {
+  const { error } = await getSupabaseServerClient()
+    .from("prospect_radar")
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
 }
