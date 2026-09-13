@@ -301,6 +301,36 @@ export function LibraryBrowser({ links }: { links: LibraryLink[] }) {
       : filtered;
   }, [links, query, activeTags, sort]);
 
+  /**
+   * A primeira tag do link é a categoria dele — é a ordem em que as tags
+   * foram digitadas, e na prática a primeira é o assunto ("ícones", "3D e
+   * mockups") enquanto as seguintes qualificam ("gratuito"). Separar por ela
+   * é o que faz a listagem parar de ser um bloco único quando o acervo passa
+   * de algumas dezenas de links.
+   *
+   * Agrupa o que está visível, não o acervo todo: com busca ou tag marcada,
+   * as seções acompanham o filtro em vez de sobrar grupo vazio.
+   */
+  const groups = useMemo(() => {
+    const byCategory = new Map<string, LibraryLink[]>();
+
+    for (const link of visible) {
+      const first = link.tags[0];
+      const label = first ? (spelling.get(tagKey(first)) ?? first) : "";
+      const bucket = byCategory.get(label);
+      if (bucket) bucket.push(link);
+      else byCategory.set(label, [link]);
+    }
+
+    return [...byCategory.entries()]
+      .map(([label, items]) => ({ label, items }))
+      .sort((a, b) => {
+        // Sem categoria vai pro fim: é sobra, não seção.
+        if (!a.label !== !b.label) return a.label ? -1 : 1;
+        return a.label.localeCompare(b.label, "pt-BR");
+      });
+  }, [visible, spelling]);
+
   function toggleTag(tag: string) {
     const key = tagKey(tag);
     setActiveTags((current) =>
@@ -404,87 +434,104 @@ export function LibraryBrowser({ links }: { links: LibraryLink[] }) {
             : "Nenhum link encontrado com essa busca."}
         </p>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {visible.map((link) => {
-            const host = linkHost(link.url);
-            return (
-              <li
-                key={link.id}
-                className={`group relative flex flex-col rounded-lg border border-neutral-200 bg-white p-4 transition-colors hover:border-neutral-300 ${
-                  pending ? "opacity-60" : ""
-                }`}
-              >
-                <div className="flex items-start gap-3 pr-14">
-                  {/* A chave carrega o `icon_url` pra que trocar o logo
-                      recomece a cadeia em vez de manter o degrau que falhou. */}
-                  <LibraryIcon key={link.icon_url} link={link} />
-                  <div className="min-w-0 flex-1">
-                    <a
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block truncate font-medium text-neutral-900 hover:underline"
-                    >
-                      {link.title}
-                    </a>
-                    {host ? (
-                      <p className="truncate text-xs text-neutral-400">{host}</p>
-                    ) : null}
-                  </div>
-                </div>
+        <div className="grid gap-8">
+          {groups.map((group) => (
+            <section key={group.label || "sem-categoria"}>
+              {/* Só vira separador quando há mais de uma seção: com uma só, o
+                  cabeçalho repetiria a tag que já está marcada acima. */}
+              {groups.length > 1 ? (
+                <h2 className="mb-3 flex items-baseline gap-2 border-b border-neutral-200 pb-1.5 text-sm font-medium text-neutral-900">
+                  {group.label || "Sem categoria"}
+                  <span className="text-xs font-normal text-neutral-400">
+                    {group.items.length}
+                  </span>
+                </h2>
+              ) : null}
 
-                {link.description ? (
-                  <p className="mt-2 line-clamp-2 text-sm text-neutral-500">
-                    {link.description}
-                  </p>
-                ) : null}
-
-                {link.tags.length > 0 ? (
-                  <div className="mt-3 flex flex-wrap gap-1">
-                    {link.tags.map((tag) => {
-                      const key = tagKey(tag);
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => toggleTag(tag)}
-                          className={`rounded-full px-2 py-0.5 text-xs transition-colors ${
-                            activeTags.includes(key)
-                              ? "bg-neutral-900 text-white"
-                              : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
-                          }`}
+              <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {group.items.map((link) => {
+                const host = linkHost(link.url);
+                return (
+                  <li
+                    key={link.id}
+                    className={`group relative flex flex-col rounded-lg border border-neutral-200 bg-white p-4 transition-colors hover:border-neutral-300 ${
+                      pending ? "opacity-60" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-3 pr-14">
+                      {/* A chave carrega o `icon_url` pra que trocar o logo
+                          recomece a cadeia em vez de manter o degrau que falhou. */}
+                      <LibraryIcon key={link.icon_url} link={link} />
+                      <div className="min-w-0 flex-1">
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block truncate font-medium text-neutral-900 hover:underline"
                         >
-                          {spelling.get(key) ?? tag}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
+                          {link.title}
+                        </a>
+                        {host ? (
+                          <p className="truncate text-xs text-neutral-400">{host}</p>
+                        ) : null}
+                      </div>
+                    </div>
 
-                {/* Só aparecem no hover/foco pra não competir com o conteúdo,
-                    mas seguem no DOM e alcançáveis pelo teclado. */}
-                <div className="absolute top-3 right-3 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                  <button
-                    type="button"
-                    onClick={() => setEditing(link)}
-                    aria-label={`Editar ${link.title}`}
-                    className="flex size-7 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-800"
-                  >
-                    <PencilIcon className="size-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(link)}
-                    aria-label={`Excluir ${link.title}`}
-                    className="flex size-7 items-center justify-center rounded-md text-neutral-400 hover:bg-red-50 hover:text-red-600"
-                  >
-                    <Trash2Icon className="size-4" />
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                    {link.description ? (
+                      <p className="mt-2 line-clamp-2 text-sm text-neutral-500">
+                        {link.description}
+                      </p>
+                    ) : null}
+
+                    {link.tags.length > 0 ? (
+                      <div className="mt-3 flex flex-wrap gap-1">
+                        {link.tags.map((tag) => {
+                          const key = tagKey(tag);
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => toggleTag(tag)}
+                              className={`rounded-full px-2 py-0.5 text-xs transition-colors ${
+                                activeTags.includes(key)
+                                  ? "bg-neutral-900 text-white"
+                                  : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                              }`}
+                            >
+                              {spelling.get(key) ?? tag}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+
+                    {/* Só aparecem no hover/foco pra não competir com o conteúdo,
+                        mas seguem no DOM e alcançáveis pelo teclado. */}
+                    <div className="absolute top-3 right-3 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                      <button
+                        type="button"
+                        onClick={() => setEditing(link)}
+                        aria-label={`Editar ${link.title}`}
+                        className="flex size-7 items-center justify-center rounded-md text-neutral-400 hover:bg-neutral-100 hover:text-neutral-800"
+                      >
+                        <PencilIcon className="size-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(link)}
+                        aria-label={`Excluir ${link.title}`}
+                        className="flex size-7 items-center justify-center rounded-md text-neutral-400 hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Trash2Icon className="size-4" />
+                      </button>
+                    </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
 
       {hasFilters && visible.length > 0 ? (

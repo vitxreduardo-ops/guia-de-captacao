@@ -618,7 +618,21 @@ async function loadKnownDriveFileByFileId(
     .select("caption, gallery_clients(status)")
     .eq("drive_file_id", fileId);
   if (error) throw error;
-  if (!data || data.length === 0) return null;
+
+  if (!data || data.length === 0) {
+    // Arquivo que não está em galeria nenhuma ainda pode ser uma referência
+    // enviada pelo painel (/admin/referencias). Nunca entra em cache
+    // compartilhado: referência é material interno, sem versão publicada.
+    const { data: pin, error: pinError } = await supabase
+      .from("reference_pins")
+      .select("title")
+      .eq("drive_file_id", fileId)
+      .maybeSingle();
+    if (pinError) throw pinError;
+    if (!pin) return null;
+
+    return { caption: typeof pin.title === "string" ? pin.title : "", published: false };
+  }
 
   // O mesmo arquivo do Drive pode estar em mais de uma galeria. Só libera
   // cache compartilhado se alguma delas já está publicada — enquanto for só

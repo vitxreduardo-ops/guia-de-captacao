@@ -1138,3 +1138,236 @@ export async function updateGoogleEvent(
     throw new Error(`Falha ao salvar o compromisso: ${detail}`);
   }
 }
+
+// ------------------------------------------------------------- prospecção
+
+interface SyncableProspect {
+  id: string;
+  name: string;
+  contact_name: string;
+  phone: string;
+  next_contact_date: string | null;
+  next_contact_time: string | null;
+  next_contact_minutes: number | null;
+  next_contact_what: string;
+}
+
+const PROSPECT_SELECT =
+  "id, name, contact_name, phone, next_contact_date, next_contact_time, next_contact_minutes, next_contact_what";
+
+/**
+ * O evento de um contato precisa dizer, só pelo título na grade da semana, o
+ * que é e com quem — quem olha a agenda às 8h não vai abrir o compromisso pra
+ * descobrir. O que fazer vai na descrição, junto com o telefone, que é o dado
+ * que se procura com o celular já na mão.
+ */
+function buildProspectEventBody(prospect: SyncableProspect) {
+  const date = prospect.next_contact_date!;
+  const description = [
+    prospect.next_contact_what,
+    prospect.contact_name && `Contato: ${prospect.contact_name}`,
+    prospect.phone && `Telefone: ${prospect.phone}`,
+  ]
+    .map((part) => (part || "").trim())
+    .filter(Boolean)
+    .join("\n");
+
+  const timing = prospect.next_contact_time
+    ? (() => {
+        const start = prospect.next_contact_time!.slice(0, 5);
+        const end = addMinutes(
+          start,
+          prospect.next_contact_minutes ?? DEFAULT_DURATION_MINUTES
+        );
+        return {
+          start: { dateTime: `${date}T${start}:00`, timeZone: TIME_ZONE },
+          end: {
+            dateTime: `${addDays(date, end.dayOffset)}T${end.time}:00`,
+            timeZone: TIME_ZONE,
+          },
+        };
+      })()
+    : { start: { date }, end: { date: addDays(date, 1) } };
+
+  return {
+    summary: `Prospecção: ${prospect.name}`,
+    description,
+    ...timing,
+  };
+}
+
+async function fetchProspect(id: string): Promise<SyncableProspect | null> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("prospects")
+    .select(PROSPECT_SELECT)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as SyncableProspect | null) ?? null;
+}
+
+/** Ids de evento já criados pra este contato, por usuário. */
+async function fetchProspectEvents(id: string): Promise<Map<string, string>> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("prospect_events")
+    .select("user_id, google_event_id")
+    .eq("prospect_id", id);
+  if (error) throw error;
+  return new Map(
+    (data ?? []).map((row) => [
+      row.user_id as string,
+      row.google_event_id as string,
+    ])
+  );
+}
+
+async function upsertProspectEvent(
+  account: UserCalendarAccount,
+  prospect: SyncableProspect,
+  existingEventId: string | undefined
+) {
+  const supabase = getSupabaseServerClient();
+  const body = buildProspectEventBody(prospect);
+  const calendar = encodeURIComponent(account.calendarId);
+
+  if (existingEventId) {
+    const response = await calendarFetch(
+      account.userId,
+      `${CALENDAR_API}/calendars/${calendar}/events/${encodeURIComponent(
+        existingEventId
+      )}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    );
+    if (response.ok) return;
+    // 404/410 = apagado direto no Google. Recria, mesmo tratamento dos cards.
+    if (response.status !== 404 && response.status !== 410) {
+      throw new Error(
+        `Falha ao atualizar evento no Google Agenda: ${await response.text()}`
+      );
+    }
+  }
+
+  const created = await calendarFetch(
+    account.userId,
+    `${CALENDAR_API}/calendars/${calendar}/events`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!created.ok) {
+    throw new Error(
+      `Falha ao criar evento no Google Agenda: ${await created.text()}`
+    );
+  }
+  const event = await created.json();
+  const { error } = await supabase.from("prospect_events").upsert({
+    prospect_id: prospect.id,
+    user_id: account.userId,
+    google_event_id: event.id as string,
+  });
+  if (error) throw error;
+}
+
+/**
+ * Espelha o próximo contato em todas as agendas conectadas. Contato que perde
+ * a data perde o evento — senão fica um fantasma numa data antiga, que é pior
+ * do que não ter nada.
+ */
+export async function syncProspectToCalendar(prospectId: string) {
+  const accounts = await listConnectedCalendarAccounts();
+  if (accounts.length === 0) return;
+
+  const prospect = await fetchProspect(prospectId);
+  if (!prospect) return;
+
+  const events = await fetchProspectEvents(prospectId);
+
+  if (!prospect.next_contact_date) {
+    const supabase = getSupabaseServerClient();
+    await forEachAccount(accounts, async (account) => {
+      const eventId = events.get(account.userId);
+      if (!eventId) return;
+      await deleteEvent(account, eventId);
+      await supabase
+        .from("prospect_events")
+        .delete()
+        .eq("prospect_id", prospectId)
+        .eq("user_id", account.userId);
+    });
+    return;
+  }
+
+  await forEachAccount(accounts, (account) =>
+    upsertProspectEvent(account, prospect, events.get(account.userId))
+  );
+}
+
+/**
+ * Apaga os eventos de um contato em todas as agendas. Precisa rodar ANTES de
+ * remover a linha, senão o cascade leva os ids junto e os eventos ficam
+ * órfãos no Google.
+ */
+export async function removeProspectFromCalendar(prospectId: string) {
+  const accounts = await listConnectedCalendarAccounts();
+  if (accounts.length === 0) return;
+
+  const events = await fetchProspectEvents(prospectId);
+  if (events.size === 0) return;
+
+  await forEachAccount(accounts, async (account) => {
+    const eventId = events.get(account.userId);
+    if (!eventId) return;
+    await deleteEvent(account, eventId);
+  });
+}
+
+/**
+ * Manda pra uma agenda recém-conectada os contatos que já têm data marcada,
+ * pra ela não começar sem a prospecção. Devolve quantos foram sincronizados.
+ */
+export async function syncAllProspectsToAccount(
+  account: UserCalendarAccount
+): Promise<number> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("prospects")
+    .select(PROSPECT_SELECT)
+    .not("next_contact_date", "is", null);
+  if (error) throw error;
+
+  const prospects = (data ?? []) as SyncableProspect[];
+  if (prospects.length === 0) return 0;
+
+  const { data: existing, error: eventsError } = await supabase
+    .from("prospect_events")
+    .select("prospect_id, google_event_id")
+    .eq("user_id", account.userId);
+  if (eventsError) throw eventsError;
+  const byProspect = new Map(
+    (existing ?? []).map((row) => [
+      row.prospect_id as string,
+      row.google_event_id as string,
+    ])
+  );
+
+  // Mesmo lote dos cards, pelo mesmo motivo: rate limit do Google na conexão.
+  const BATCH = 5;
+  for (let i = 0; i < prospects.length; i += BATCH) {
+    await Promise.all(
+      prospects
+        .slice(i, i + BATCH)
+        .map((prospect) =>
+          upsertProspectEvent(account, prospect, byProspect.get(prospect.id))
+        )
+    );
+  }
+  return prospects.length;
+}

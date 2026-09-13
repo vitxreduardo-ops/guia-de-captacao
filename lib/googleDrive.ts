@@ -1,12 +1,18 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
-// A mesma conta Google serve o Drive (galerias) e o Google Agenda (backlog),
-// então o consentimento pede os dois escopos de uma vez. Quem já conectou
-// antes do calendário existir precisa conectar de novo pra liberar o escopo
-// novo — o refresh_token antigo não ganha permissões retroativamente.
+// A mesma conta Google serve o Drive (galerias e referências) e o Google
+// Agenda (backlog), então o consentimento pede os escopos de uma vez. Quem já
+// conectou antes precisa conectar de novo pra liberar escopo novo — o
+// refresh_token antigo não ganha permissões retroativamente.
+//
+// O escopo do Drive é o completo, e não `drive.file`, porque as duas coisas
+// que fazemos exigem isso: as galerias leem pastas que não foram criadas por
+// este app (e `drive.file` só alcança arquivo que o próprio app criou ou que
+// o usuário escolheu no picker do Google), e o upload de referência precisa
+// gravar dentro de uma pasta que já existe na conta.
 const OAUTH_SCOPES = [
-  "https://www.googleapis.com/auth/drive.readonly",
+  "https://www.googleapis.com/auth/drive",
   "https://www.googleapis.com/auth/calendar",
 ];
 const TOKEN_ROW_ID = "default";
@@ -417,4 +423,58 @@ export async function fetchDriveThumbnailBytes(
     body: thumbResponse.body,
     contentType: thumbResponse.headers.get("content-type") ?? "image/jpeg",
   };
+}
+
+/** Pasta do Drive onde as referências enviadas pelo painel são gravadas. */
+export function getReferencesFolderId(): string {
+  const folderId = process.env.DRIVE_REFERENCES_FOLDER_ID;
+  if (!folderId) {
+    throw new Error(
+      "Pasta de referências não configurada: defina DRIVE_REFERENCES_FOLDER_ID no .env.local"
+    );
+  }
+  return folderId;
+}
+
+/**
+ * Sobe um arquivo pra uma pasta do Drive e devolve o id dele.
+ *
+ * Usa o upload multipart (metadados + bytes num único POST), que é o caminho
+ * mais curto e basta pros arquivos que passam por aqui — webp e webm já
+ * convertidos, na casa dos poucos MB. Arquivo grande pediria upload
+ * resumável, que é outra conversa: sessão, offset e retomada.
+ */
+export async function uploadDriveFile(
+  folderId: string,
+  file: File
+): Promise<string> {
+  const accessToken = await getFreshAccessToken();
+
+  const body = new FormData();
+  body.append(
+    "metadata",
+    new Blob([JSON.stringify({ name: file.name, parents: [folderId] })], {
+      type: "application/json",
+    })
+  );
+  body.append("file", file, file.name);
+
+  const response = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body,
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Upload pro Drive falhou (${response.status}): ${await response.text()}`
+    );
+  }
+
+  const { id } = (await response.json()) as { id?: string };
+  if (!id) throw new Error("Upload pro Drive não devolveu o id do arquivo");
+  return id;
 }

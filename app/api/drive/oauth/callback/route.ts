@@ -9,6 +9,7 @@ import {
 import {
   clearCalendarCache,
   syncAllCardsToAccount,
+  syncAllProspectsToAccount,
 } from "@/lib/googleCalendar";
 
 export async function GET(request: NextRequest) {
@@ -35,7 +36,10 @@ export async function GET(request: NextRequest) {
       const account = await getUserCalendarAccount(session.userId);
       // Agenda recém-conectada começa vazia; carrega de uma vez o que já
       // tem data pra pessoa não achar que não funcionou.
-      if (account) await syncAllCardsToAccount(account);
+      if (account) {
+        await syncAllCardsToAccount(account);
+        await syncAllProspectsToAccount(account);
+      }
     } catch (error) {
       console.error("[calendar oauth callback]", error);
       return NextResponse.redirect(
