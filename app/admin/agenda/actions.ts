@@ -14,6 +14,7 @@ import {
   removeAllCardsFromAccount,
   setCalendarSelected,
   syncAllCardsToAccount,
+  syncAllProspectsToAccount,
   updateGoogleEvent,
   type EventDraft,
   type EventEdit,
@@ -51,7 +52,11 @@ export async function syncMyCalendarAction(): Promise<number> {
   const account = await getUserCalendarAccount(session.userId);
   if (!account) return 0;
 
-  const synced = await syncAllCardsToAccount(account);
+  const [cards, prospects] = await Promise.all([
+    syncAllCardsToAccount(account),
+    syncAllProspectsToAccount(account),
+  ]);
+  const synced = cards + prospects;
   clearEventsCache(session.userId);
   revalidate();
   return synced;

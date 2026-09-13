@@ -11,6 +11,7 @@ import {
   Library,
   PenLine,
   Receipt,
+  Target,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -25,6 +26,7 @@ const ACTIONS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/admin/referencias", label: "Referências", icon: LayoutGrid },
   { href: "/admin/galerias", label: "Galeria", icon: Images },
   { href: "/admin/backlog", label: "Backlog", icon: Kanban },
+  { href: "/admin/prospeccao", label: "Prospecção", icon: Target },
   { href: "/admin/clientes", label: "Clientes", icon: Briefcase },
   { href: "/admin/agenda", label: "Agenda", icon: CalendarClock },
   { href: "/admin/lettering", label: "Lettering", icon: PenLine },
