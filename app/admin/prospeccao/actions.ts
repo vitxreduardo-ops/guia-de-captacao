@@ -207,3 +207,28 @@ export async function reorderStagesAction(orderedIds: string[]) {
   await reorderStages(orderedIds);
   revalidate();
 }
+
+// ----------------------------------------------------------------- radar
+
+export async function createRadarAction(formData: FormData) {
+  const { createRadarCompany } = await import("@/lib/prospects");
+  if (!String(formData.get("company") ?? "").trim()) return;
+  await createRadarCompany(formData);
+  revalidatePath("/admin/prospeccao/radar");
+}
+
+export async function updateRadarAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const { updateRadarCompany } = await import("@/lib/prospects");
+  await updateRadarCompany(id, formData);
+  revalidatePath("/admin/prospeccao/radar");
+}
+
+export async function deleteRadarAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  const { deleteRadarCompany } = await import("@/lib/prospects");
+  await deleteRadarCompany(id);
+  revalidatePath("/admin/prospeccao/radar");
+}

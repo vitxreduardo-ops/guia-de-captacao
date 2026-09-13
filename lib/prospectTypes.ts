@@ -173,3 +173,64 @@ export function daysLate(nextDate: string, today: string): number {
   const b = Date.parse(`${today}T00:00:00Z`);
   return Math.round((b - a) / 86_400_000);
 }
+
+// ----------------------------------------------------------------- radar
+
+/**
+ * Radar: empresa vista por aí, ainda sem contato. Fica fora de `Prospect`
+ * porque não tem etapa nem próximo passo — ver a migration 0050.
+ */
+export const PRODUCES_CONTENT = ["", "sim", "nao", "as_vezes", "nao_sei"] as const;
+export type ProducesContent = (typeof PRODUCES_CONTENT)[number];
+
+export const PRODUCES_CONTENT_LABELS: Record<ProducesContent, string> = {
+  "": "—",
+  sim: "Sim",
+  nao: "Não",
+  as_vezes: "Às vezes",
+  nao_sei: "Não sei",
+};
+
+/** Sugestões do dropdown de ramo; o campo aceita qualquer texto. */
+export const RADAR_SECTORS = [
+  "Alimentação",
+  "Arquitetura",
+  "Beleza e estética",
+  "Educação",
+  "Eventos",
+  "Imobiliário",
+  "Indústria",
+  "Moda",
+  "Saúde",
+  "Serviços",
+  "Tecnologia",
+  "Varejo",
+] as const;
+
+export interface RadarCompany {
+  id: string;
+  company: string;
+  sector: string;
+  instagram: string;
+  produces_content: ProducesContent;
+  contact: string;
+  comms_name: string;
+  referral: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export function normalizeProducesContent(value: unknown): ProducesContent {
+  return PRODUCES_CONTENT.includes(value as ProducesContent)
+    ? (value as ProducesContent)
+    : "";
+}
+
+/** "@estudio" ou uma URL — a tela sempre mostra o handle e linka o perfil. */
+export function instagramHandle(value: string): string {
+  const trimmed = value.trim().replace(/\/+$/, "");
+  if (!trimmed) return "";
+  const fromUrl = trimmed.match(/instagram\.com\/([^/?#]+)/i);
+  return (fromUrl ? fromUrl[1] : trimmed).replace(/^@/, "");
+}
