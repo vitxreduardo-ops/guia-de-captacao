@@ -106,7 +106,7 @@ export default async function ProspectTablePage({
                 : `/admin/prospeccao/tabela?filtro=${option.key}`
             }
             aria-current={option.key === filter ? "page" : undefined}
-            className={`rounded-full px-3 py-1.5 text-[12.5px] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none ${
+            className={`inline-flex min-h-10 items-center rounded-full px-3.5 text-[13px] sm:min-h-0 sm:py-1.5 sm:text-[12.5px] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none ${
               option.key === filter
                 ? "bg-neutral-900 text-white"
                 : "border border-neutral-300 text-neutral-600 hover:bg-neutral-50"
@@ -117,9 +117,82 @@ export default async function ProspectTablePage({
         ))}
       </div>
 
+      {/* No celular a tabela vira lista: oito colunas num visor de 375px só
+          existem rolando de lado, e ninguém confere funil de lado. Os mesmos
+          dados, na ordem em que se lê. */}
+      <ul className="space-y-2 sm:hidden">
+        {rows.map((prospect) => {
+          const bucket = queueBucket(prospect.next_contact_date, today);
+          const late = bucket === "atrasado" || bucket === "sem-data";
+          return (
+            <li key={prospect.id}>
+              <Link
+                href={`/admin/prospeccao/${prospect.id}`}
+                className={`block rounded-lg border px-3 py-2.5 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none ${
+                  late
+                    ? "border-red-200 bg-red-50/50"
+                    : "border-neutral-200 bg-white"
+                }`}
+              >
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                  <span className="text-[15px] font-semibold">{prospect.name}</span>
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                    style={{
+                      backgroundColor: `${prospect.stage.color}1a`,
+                      color: prospect.stage.color,
+                    }}
+                  >
+                    {prospect.stage.name}
+                  </span>
+                  <span
+                    className={`ml-auto text-[13px] tabular-nums ${
+                      late ? "font-semibold text-red-700" : "text-neutral-500"
+                    }`}
+                  >
+                    {prospect.next_contact_date
+                      ? `${formatDateShort(prospect.next_contact_date)}${
+                          bucket === "atrasado"
+                            ? ` · ${daysLate(prospect.next_contact_date, today)}d`
+                            : ""
+                        }`
+                      : prospect.stage.kind === "ativa"
+                        ? "sem data"
+                        : "—"}
+                  </span>
+                </div>
+                {prospect.contact_name || prospect.lost_reason || prospect.next_contact_what ? (
+                  <p className="mt-1 text-[13px] text-neutral-600">
+                    {prospect.lost_reason ||
+                      prospect.next_contact_what ||
+                      [prospect.contact_name, prospect.role]
+                        .filter(Boolean)
+                        .join(" · ")}
+                  </p>
+                ) : null}
+                <p className="mt-1 text-xs text-neutral-400">
+                  {[
+                    prospect.origin,
+                    `${prospect.touch_count} ${prospect.touch_count === 1 ? "toque" : "toques"}`,
+                    owners.get(prospect.owner_id ?? "") ?? null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </Link>
+            </li>
+          );
+        })}
+        {rows.length === 0 ? (
+          <li className="rounded-lg border border-dashed border-neutral-300 px-3 py-8 text-center text-sm text-neutral-500">
+            Nada aqui com esse filtro.
+          </li>
+        ) : null}
+      </ul>
+
       {/* A tabela é larga de propósito: rola dentro da própria caixa pra a
-          página nunca rolar de lado no celular. */}
-      <div className="overflow-x-auto rounded-lg border border-neutral-200">
+          página nunca rolar de lado. */}
+      <div className="hidden overflow-x-auto rounded-lg border border-neutral-200 sm:block">
         <table className="w-full border-collapse text-[13px]">
           <thead>
             <tr className="bg-neutral-50">

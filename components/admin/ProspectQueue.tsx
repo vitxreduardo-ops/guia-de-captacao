@@ -151,13 +151,13 @@ function QueueItem({
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+          className="inline-flex min-h-10 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           {open ? "Fechar" : "Falei"}
         </button>
         <Link
           href={`/admin/prospeccao/${prospect.id}`}
-          className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+          className="inline-flex min-h-10 items-center rounded-md border border-neutral-300 px-4 text-sm text-neutral-700 hover:bg-neutral-50 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           Abrir ficha
         </Link>
@@ -213,8 +213,10 @@ function When({
 
 /** Sem largura: quem usa escolhe. Compor `w-full` com `w-auto` na mesma
  * string não funciona — em Tailwind a ordem do CSS decide, não a da classe. */
+/** 16px no celular não é escolha estética: abaixo disso o iOS dá zoom ao
+ * focar o campo e joga a página pro lado no meio da digitação. */
 const fieldClass =
-  "rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none";
+  "rounded-md border border-neutral-300 px-2.5 py-2 text-base sm:py-1.5 sm:text-sm focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none";
 const inputClass = `w-full ${fieldClass}`;
 
 /**
@@ -282,13 +284,13 @@ function TouchForm({
           <input
             type="date"
             name="next_contact_date"
-            className={`${fieldClass} w-auto`}
+            className={`${fieldClass} w-full sm:w-auto`}
             aria-label="Data do próximo contato"
           />
           <input
             type="time"
             name="next_contact_time"
-            className={`${fieldClass} w-auto`}
+            className={`${fieldClass} w-full sm:w-auto`}
             aria-label="Hora do próximo contato"
           />
           <input
@@ -297,7 +299,7 @@ function TouchForm({
             min={5}
             step={5}
             placeholder="min"
-            className={`${fieldClass} w-20`}
+            className={`${fieldClass} w-full sm:w-20`}
             aria-label="Duração em minutos"
           />
         </div>
@@ -308,13 +310,13 @@ function TouchForm({
         />
       </fieldset>
 
-      <label className="flex items-center gap-2 text-xs text-neutral-600">
+      <label className="flex items-center gap-2 py-1 text-[13px] text-neutral-600 sm:text-xs">
         <input
           type="checkbox"
           name="no_next"
           checked={noNext}
           onChange={(event) => setNoNext(event.target.checked)}
-          className="size-3.5"
+          className="size-4"
         />
         Este contato encerrou — sem próxima data
       </label>
@@ -337,14 +339,14 @@ function TouchForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+          className="inline-flex min-h-10 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           Salvar
         </button>
         <button
           type="button"
           onClick={onDone}
-          className="text-xs text-neutral-500 hover:text-neutral-800"
+          className="min-h-10 px-2 text-sm text-neutral-500 hover:text-neutral-800 sm:min-h-0 sm:px-0 sm:text-xs"
         >
           Cancelar
         </button>

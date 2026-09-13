@@ -10,7 +10,7 @@ import type {
 /** Sem largura: quem usa escolhe. Compor `w-full` com `w-auto` na mesma
  * string não funciona — em Tailwind a ordem do CSS decide, não a da classe. */
 const fieldClass =
-  "rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none";
+  "rounded-md border border-neutral-300 px-2.5 py-2 text-base sm:py-1.5 sm:text-sm focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none";
 const inputClass = `w-full ${fieldClass}`;
 
 /**
@@ -34,7 +34,7 @@ export function ProspectNew({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+        className="inline-flex min-h-10 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 sm:min-h-0 sm:px-3 sm:py-1.5 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
         Novo contato
       </button>
@@ -61,7 +61,7 @@ export function ProspectNew({
           placeholder="Nome do negócio"
           className={`${fieldClass} flex-1 min-w-48`}
         />
-        <select name="stage_id" className={`${fieldClass} w-auto`}>
+        <select name="stage_id" className={`${fieldClass} w-full sm:w-auto`}>
           {stages.map((stage) => (
             <option key={stage.id} value={stage.id}>
               {stage.name}
@@ -92,13 +92,13 @@ export function ProspectNew({
         <input
           type="date"
           name="next_contact_date"
-          className={`${fieldClass} w-auto`}
+          className={`${fieldClass} w-full sm:w-auto`}
           aria-label="Data do próximo contato"
         />
         <input
           type="time"
           name="next_contact_time"
-          className={`${fieldClass} w-auto`}
+          className={`${fieldClass} w-full sm:w-auto`}
           aria-label="Hora do próximo contato"
         />
         <input
@@ -130,7 +130,7 @@ export function ProspectNew({
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="text-xs text-neutral-500 hover:text-neutral-800"
+          className="min-h-10 px-2 text-sm text-neutral-500 hover:text-neutral-800 sm:min-h-0 sm:px-0 sm:text-xs"
         >
           Cancelar
         </button>
