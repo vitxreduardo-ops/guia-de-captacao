@@ -23,7 +23,7 @@ export default async function ProspectPage({
   const { prospect, touches } = found;
 
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-5xl flex-col px-4 py-10 sm:px-6">
+    <div className="mx-auto flex w-full flex-1 max-w-5xl flex-col py-10">
       <AdminHeader
         title={prospect.name}
         trail={[

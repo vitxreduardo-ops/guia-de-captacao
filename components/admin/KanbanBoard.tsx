@@ -1125,7 +1125,9 @@ export function KanbanBoard({
       {/* Abas, filtro e configurações do quadro na mesma linha — a barra
           branca separada só criava um vão vazio no meio. */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <div>{tabs}</div>
+        {/* `min-w-0`: sem isso a faixa de abas vira o piso de largura da linha
+            e o `overflow-x-auto` da própria nav não chega a agir. */}
+        <div className="min-w-0 max-w-full">{tabs}</div>
         <div className="ml-auto flex items-center gap-2">
           <BacklogFilters
             filter={filter}

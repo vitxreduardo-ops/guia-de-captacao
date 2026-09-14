@@ -8,7 +8,7 @@ export default async function LetteringPage() {
   const username = await getCurrentUsername();
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-8 lg:px-8">
+    <div className="mx-auto w-full max-w-6xl py-4 sm:py-8">
       <AdminHeader
         title="Lettering"
         trail={[{ label: "Admin", href: "/admin" }, { label: "Lettering" }]}

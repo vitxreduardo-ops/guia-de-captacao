@@ -54,6 +54,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
 } from "react";
 import { snap, type Guia } from "@/lib/letteringSnap";
 import {
@@ -734,6 +735,11 @@ export function LetteringStudio() {
         moldura.style.transform =
           `translate3d(${px}px, ${py}px, 0) translate(-50%, -50%) ` +
           `rotate(${layer.rotation}deg) scale(${z})`;
+        // As alças desfazem esta escala pra continuarem do tamanho do dedo.
+        if (moldura.dataset.z !== String(z)) {
+          moldura.dataset.z = String(z);
+          moldura.style.setProperty("--zoom", String(z));
+        }
       } else {
         moldura.hidden = true;
       }
@@ -2052,30 +2058,26 @@ export function LetteringStudio() {
                 visível, mas impossível de tocar. */}
             {(
               [
-                [
-                  "top-0 left-0 -translate-x-1/2 -translate-y-1/2",
-                  "Aumentar pelo canto superior esquerdo",
-                ],
-                [
-                  "top-0 right-0 translate-x-1/2 -translate-y-1/2",
-                  "Aumentar pelo canto superior direito",
-                ],
-                [
-                  "bottom-0 left-0 -translate-x-1/2 translate-y-1/2",
-                  "Aumentar pelo canto inferior esquerdo",
-                ],
-                [
-                  "bottom-0 right-0 translate-x-1/2 translate-y-1/2",
-                  "Aumentar pelo canto inferior direito",
-                ],
+                ["top-0 left-0", "-50%", "-50%", "0", "0", "Aumentar pelo canto superior esquerdo"],
+                ["top-0 right-0", "50%", "-50%", "100%", "0", "Aumentar pelo canto superior direito"],
+                ["bottom-0 left-0", "-50%", "50%", "0", "100%", "Aumentar pelo canto inferior esquerdo"],
+                ["bottom-0 right-0", "50%", "50%", "100%", "100%", "Aumentar pelo canto inferior direito"],
               ] as const
-            ).map(([posicao, rotulo]) => (
+            ).map(([posicao, dx, dy, ox, oy, rotulo]) => (
               <button
                 key={posicao}
                 type="button"
                 aria-label={rotulo}
                 onPointerDown={(e) => onAlcaDown(e, { escala: true })}
-                className={`pointer-events-auto absolute ${posicao} grid size-10 touch-none place-items-center`}
+                style={
+                  {
+                    "--alca-x": dx,
+                    "--alca-y": dy,
+                    "--alca-ox": ox,
+                    "--alca-oy": oy,
+                  } as CSSProperties
+                }
+                className={`alca-fixa pointer-events-auto absolute ${posicao} grid size-10 touch-none place-items-center`}
               >
                 <span className="block size-3.5 rounded-full border-2 border-neutral-900 bg-white shadow-sm" />
               </button>
@@ -2087,7 +2089,15 @@ export function LetteringStudio() {
               type="button"
               aria-label="Girar a camada"
               onPointerDown={(e) => onAlcaDown(e, { giro: true })}
-              className="pointer-events-auto absolute -top-14 left-1/2 grid size-11 -translate-x-1/2 touch-none place-items-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-md"
+              style={
+                {
+                  "--alca-x": "-50%",
+                  "--alca-y": "calc(-100% - 0.75rem)",
+                  "--alca-ox": "0",
+                  "--alca-oy": "0",
+                } as CSSProperties
+              }
+              className="alca-fixa pointer-events-auto absolute top-0 left-1/2 grid size-11 touch-none place-items-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-md"
             >
               <RotateCw aria-hidden="true" className="size-4" />
             </button>
@@ -3210,10 +3220,14 @@ export function LetteringStudio() {
               // O nome aparece só na ferramenta aberta. Oito rótulos lado a
               // lado não cabem sem cortar palavra, e rótulo cortado não ajuda
               // ninguém — o da vez basta pra situar.
-              className={`flex min-w-0 shrink-0 items-center gap-1.5 rounded-[22px] px-3 py-2.5 text-[11px] font-medium tracking-[0.01em] transition-[transform,background-color,color] duration-150 active:scale-95 ${
+              // Oito ícones mais o rótulo da ferramenta aberta não cabiam numa
+              // linha de 375px: a fila estourava a tela por 22px. O respiro
+              // lateral das fechadas é o que cede — só a aberta mantém o dela,
+              // porque é a única que carrega texto ao lado do ícone.
+              className={`flex min-w-0 items-center gap-1.5 rounded-[22px] py-2.5 text-[11px] font-medium tracking-[0.01em] transition-[transform,background-color,color] duration-150 active:scale-95 ${
                 dock === id
-                  ? "bg-neutral-900 text-white"
-                  : "flex-1 justify-center text-neutral-600"
+                  ? "shrink-0 bg-neutral-900 px-3 text-white"
+                  : "flex-1 justify-center px-2 text-neutral-600 sm:px-3"
               }`}
             >
               <Icone aria-hidden="true" className="size-5 shrink-0" />

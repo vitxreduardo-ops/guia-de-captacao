@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -15,6 +15,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Guia de Captação",
   description: "Guias de gravação: roteiros, referências e checklist por projeto.",
+};
+
+/**
+ * `viewportFit: "cover"` é o que faz `env(safe-area-inset-*)` valer alguma
+ * coisa: sem ele o iOS resolve todos os insets como 0 e as barras fixas
+ * ficam por baixo do indicador de home / do notch.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

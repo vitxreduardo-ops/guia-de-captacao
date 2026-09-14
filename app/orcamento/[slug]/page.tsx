@@ -93,7 +93,7 @@ export default async function PublicBudgetPage({
 
   if (budget.status !== "published") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[var(--tatu-beige)] px-4 text-center">
+      <div className="flex min-h-svh items-center justify-center bg-[var(--tatu-beige)] px-4 text-center">
         <p className="text-sm text-[var(--tatu-ink)]/70">
           Este orçamento ainda não foi publicado.
         </p>
@@ -126,9 +126,9 @@ export default async function PublicBudgetPage({
   const footerTone = blockTone(blockIndex + 1);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-svh">
       <section
-        className={`relative flex min-h-[100dvh] flex-col overflow-hidden px-4 py-8 sm:px-8 sm:py-10 ${heroTone.bg} ${heroTone.text}`}
+        className={`relative flex min-h-svh flex-col overflow-hidden px-4 py-8 sm:px-8 sm:py-10 ${heroTone.bg} ${heroTone.text}`}
       >
         <HeroBackground url={budget.hero_bg_video_url} />
         {hasVideo ? <div className="absolute inset-0 bg-black/50" /> : null}

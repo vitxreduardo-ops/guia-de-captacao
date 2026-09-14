@@ -642,3 +642,58 @@ a {
     animation-duration: 160ms;
   }
 }
+
+/*
+  Barras fixas no rodapé: encostar em `bottom: 0` no iPhone joga o conteúdo
+  por baixo do indicador de home. Estes dois utilitários sobem a barra pelo
+  maior valor entre 1rem e o inset seguro — o `env()` só tem efeito porque o
+  layout raiz declara `viewportFit: "cover"`.
+*/
+@utility pb-segura {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+@utility bottom-segura {
+  bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/*
+  Gutter lateral único do painel admin. Mesmos degraus de antes (1rem / 1.5rem
+  / 2rem), só que agora nunca menores que o inset seguro — no iPhone deitado a
+  faixa do notch comia o começo do texto.
+*/
+@utility px-painel {
+  padding-inline: max(1rem, env(safe-area-inset-left))
+    max(1rem, env(safe-area-inset-right));
+
+  @media (width >= 40rem) {
+    padding-inline: max(1.5rem, env(safe-area-inset-left))
+      max(1.5rem, env(safe-area-inset-right));
+  }
+
+  @media (width >= 64rem) {
+    padding-inline: max(2rem, env(safe-area-inset-left))
+      max(2rem, env(safe-area-inset-right));
+  }
+}
+
+/*
+  Alças da moldura de camada no estúdio de lettering. A moldura é escalada
+  pelo zoom da câmera, e as alças herdavam essa escala: num zoom de 5x o alvo
+  de toque de 40px virava 200px na tela e vazava pela direita. Aqui a escala é
+  desfeita, então a alça mede o mesmo em qualquer zoom.
+
+  A ordem importa: numa lista de transformações a da direita age primeiro, e é
+  o `translate` que precisa acontecer em unidades da própria alça antes de a
+  escala entrar. `--zoom` é escrito pelo laço de pintura; o 1 de reserva vale
+  enquanto ele ainda não rodou.
+*/
+@utility alca-fixa {
+  /* A origem é o canto da moldura em que a alça está ancorada, não o centro
+     do botão: encolher em torno do centro tirava a alça do canto que ela
+     serve. Com a origem no canto, ele fica parado e só a alça muda de
+     tamanho. */
+  transform-origin: var(--alca-ox, 50%) var(--alca-oy, 50%);
+  transform: scale(calc(1 / var(--zoom, 1)))
+    translate(var(--alca-x, 0), var(--alca-y, 0));
+}

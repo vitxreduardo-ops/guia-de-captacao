@@ -5,7 +5,7 @@
  */
 export default function ClientesLoading() {
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-5xl py-10">
       <div className="h-6 w-40 animate-pulse rounded bg-neutral-200" />
       <div className="mt-6 h-11 w-full max-w-md animate-pulse rounded-lg bg-neutral-100" />
       <div className="mt-6 h-40 w-full animate-pulse rounded-lg bg-neutral-100" />

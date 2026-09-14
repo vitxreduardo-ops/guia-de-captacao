@@ -133,7 +133,7 @@ export default async function MinhaAgendaPage({
   };
 
   return (
-    <div className="mx-auto w-full max-w-[100rem] px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-[100rem] py-10">
       <AdminHeader
         title="Minha Agenda"
         trail={[{ label: "Admin", href: "/admin" }, { label: "Minha Agenda" }]}

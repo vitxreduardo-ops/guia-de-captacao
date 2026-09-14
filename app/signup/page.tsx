@@ -35,7 +35,7 @@ export default function SignupPage() {
           : 'Vamos criar sua conta.'
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[linear-gradient(180deg,#faf5ee,#f0e6d9)] px-6 py-16 text-neutral-900">
+    <main className="flex min-h-svh items-center justify-center bg-[linear-gradient(180deg,#faf5ee,#f0e6d9)] px-6 py-16 text-neutral-900">
       <div className="w-full max-w-sm">
         <Cena cenaRef={cenaRef} olhoX={olhoX} olhoY={olhoY} tapando={tapando} feliz={pronto} fala={fala} />
 

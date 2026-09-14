@@ -38,7 +38,7 @@ export default async function BriefingsDashboard() {
   const formUrl = `${origin}/briefing`;
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-3xl py-10">
       <AdminHeader
         title="Briefings"
         trail={[{ label: "Admin", href: "/admin" }, { label: "Briefings" }]}

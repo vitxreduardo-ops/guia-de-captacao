@@ -454,7 +454,9 @@ export function LibraryBrowser({ links }: { links: LibraryLink[] }) {
                 return (
                   <li
                     key={link.id}
-                    className={`group relative flex flex-col rounded-lg border border-neutral-200 bg-white p-4 transition-colors hover:border-neutral-300 ${
+                    // `min-w-0`: item de grid nasce com `min-width: auto`, então o título
+                    // `truncate` (nowrap) vira o piso de largura da coluna e estoura a tela.
+                    className={`group relative flex min-w-0 flex-col rounded-lg border border-neutral-200 bg-white p-4 transition-colors hover:border-neutral-300 ${
                       pending ? "opacity-60" : ""
                     }`}
                   >
