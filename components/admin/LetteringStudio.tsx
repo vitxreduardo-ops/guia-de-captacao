@@ -570,8 +570,16 @@ export function LetteringStudio() {
   const alturaVisivelRef = useRef(STAGE.height);
   /** A pintura vista de fora, pra quem é declarado antes dela. */
   const pinturaRef = useRef<() => void>(() => {});
-  /** A vista se acomoda uma vez na abertura, e não a cada remedida. */
-  const jaEnquadrouRef = useRef(false);
+  /**
+   * A vista ainda é a da abertura, ou a pessoa já mexeu nela?
+   *
+   * Enquanto ninguém mexeu, toda mudança de tamanho da janela reenquadra: no
+   * iPhone a barra do Safari some na primeira rolagem e o palco muda de altura
+   * depois de a tela já ter aberto. Sem isso, o enquadramento nascia certo pra
+   * uma altura que durava um segundo.
+   */
+  const vistaTocadaRef = useRef(false);
+  const enquadrarRef = useRef<() => void>(() => {});
   /**
    * Deslocamento da vista, em unidades do palco.
    *
@@ -628,6 +636,7 @@ export function LetteringStudio() {
             pinturaRef.current();
           }
         }
+        if (!vistaTocadaRef.current) enquadrarRef.current();
       }
     };
     medir();
@@ -917,6 +926,7 @@ export function LetteringStudio() {
    * pra longe, e escolhe o zoom que faz tudo caber com folga.
    */
   const centralizar = useCallback(() => {
+    vistaTocadaRef.current = true;
     const caixas = camadasRef.current
       .filter((l) => !l.hidden)
       .map((l) => {
@@ -947,15 +957,35 @@ export function LetteringStudio() {
   }, [animarVista]);
 
   /**
-   * Na abertura a vista enquadra o que está desenhado. O palco é maior que a
-   * janela em quase toda tela, e começar no canto dele deixaria a peça fora de
-   * vista sem motivo.
+   * Enquadra o palco inteiro na janela.
+   *
+   * A abertura enquadrava o que estava desenhado, e uma peça pequena levava a
+   * vista a 3 ou 4 vezes — a tela abria por dentro do lettering, com as alças
+   * gigantes e metade do palco fora. Quem chega quer ver a folha toda; passar
+   * perto é escolha de quem já está trabalhando.
+   *
+   * O zoom não passa de 1: acima disso o palco já não caberia na largura.
    */
+  const enquadrarPalco = useCallback(() => {
+    const z = clamp(
+      Math.min(1, alturaVisivelRef.current / STAGE.height),
+      ZOOM_MIN,
+      ZOOM_MAX,
+    );
+    camRef.current = {
+      x: STAGE.width / 2 - STAGE.width / 2 / z,
+      y: STAGE.height / 2 - alturaVisivelRef.current / 2 / z,
+      z,
+    };
+    pintar();
+  }, [pintar]);
+
   useEffect(() => {
-    if (jaEnquadrouRef.current || sizes.size === 0) return;
-    jaEnquadrouRef.current = true;
-    centralizar();
-  }, [sizes, centralizar]);
+    enquadrarRef.current = enquadrarPalco;
+    // O efeito que mede a janela roda antes deste e só encontra a função
+    // vazia: o primeiro enquadramento é este aqui.
+    if (!vistaTocadaRef.current) enquadrarPalco();
+  }, [enquadrarPalco]);
 
   /** Guarda o rascunho a cada mudança: fechar a aba não pode custar o layout. */
   useEffect(() => {
@@ -1337,6 +1367,9 @@ export function LetteringStudio() {
   }, []);
 
   function onPointerDown(e: React.PointerEvent) {
+    // A partir daqui a vista é de quem está trabalhando: a janela pode mudar
+    // de tamanho à vontade que ninguém reenquadra por cima.
+    vistaTocadaRef.current = true;
     // Uma animação em curso é interrompida pelo toque: quem manda é o dedo.
     if (animacaoRef.current !== null) {
       cancelAnimationFrame(animacaoRef.current);
