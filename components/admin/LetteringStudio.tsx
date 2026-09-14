@@ -935,16 +935,35 @@ export function LetteringStudio() {
       })
       .filter((c): c is NonNullable<typeof c> => c !== null);
 
+    // Sem nada desenhado, centralizar é o mesmo que voltar pra abertura: o
+    // palco inteiro na tela.
+    const palcoInteiro = clamp(
+      Math.min(1, alturaVisivelRef.current / STAGE.height),
+      ZOOM_MIN,
+      ZOOM_MAX,
+    );
+
     const conteudo = unionBounds(caixas);
     if (!conteudo) {
-      animarVista({ x: 0, y: 0, z: 1 });
+      animarVista({
+        x: STAGE.width / 2 - STAGE.width / 2 / palcoInteiro,
+        y: STAGE.height / 2 - alturaVisivelRef.current / 2 / palcoInteiro,
+        z: palcoInteiro,
+      });
       return;
     }
 
     const largura = Math.max(1, conteudo.right - conteudo.left);
     const altura = Math.max(1, conteudo.bottom - conteudo.top);
+    // O zoom não passa de 1: centralizar é trazer de volta o que sumiu, não
+    // aproximar. Numa peça pequena, aproximar abria a tela por dentro dela —
+    // e chegar perto é escolha de quem está trabalhando, com a pinça.
     const z = clamp(
-      Math.min(STAGE.width / largura, alturaVisivelRef.current / altura) * 0.85,
+      Math.min(
+        1,
+        Math.min(STAGE.width / largura, alturaVisivelRef.current / altura) *
+          0.85,
+      ),
       ZOOM_MIN,
       ZOOM_MAX,
     );
