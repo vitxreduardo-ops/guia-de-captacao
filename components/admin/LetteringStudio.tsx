@@ -3297,11 +3297,85 @@ function CampoNumero({
   // Casas decimais vêm do passo: somar 0,05 em ponto flutuante rende
   // 1,0500000000000003, e o campo mostraria isso.
   const casas = (String(passo).split(".")[1] ?? "").length;
-  const andar = (direcao: number) => {
+
+  // O laço da repetição não passa pelo React e enxergaria um valor velho a
+  // cada quadro; o ref é o valor de agora.
+  const valorRef = useRef(valor);
+  valorRef.current = valor;
+  const seguraRef = useRef<number | null>(null);
+  const veioDoDedoRef = useRef(false);
+
+  const pararLaco = () => {
+    if (seguraRef.current === null) return;
+    cancelAnimationFrame(seguraRef.current);
+    seguraRef.current = null;
+  };
+
+  const andar = (direcao: number, multiplicador = 1) => {
+    const atual = valorRef.current;
+    const proximo = Number(
+      dentro(atual + direcao * passo * multiplicador).toFixed(casas),
+    );
+    if (proximo === atual) {
+      // Chegou no limite: o botão fica desabilitado e o dedo levantado nele
+      // não avisaria mais ninguém — o laço se encerra sozinho.
+      pararLaco();
+      return;
+    }
+    valorRef.current = proximo;
+    onChange(proximo);
+  };
+
+  /**
+   * Segurar anda sozinho, e cada vez mais rápido.
+   *
+   * De um em um, chegar num espaçamento de -100 custava cem toques. Agora o
+   * primeiro toque anda um — que é o ajuste fino que a pessoa espera de um
+   * toque curto — e, se o dedo ficar, a repetição começa devagar e vai
+   * aumentando o salto, que é o que atravessa uma faixa grande em segundos.
+   */
+  const segurar = (direcao: number) => {
     setRascunho(null);
-    onChange(Number(dentro(valor + direcao * passo).toFixed(casas)));
+    andar(direcao);
+
+    const inicio = performance.now();
+    let ultimo = inicio;
+
+    const quadro = (agora: number) => {
+      const desde = agora - inicio;
+      // A pausa antes de começar a repetir é o que deixa um toque curto valer
+      // exatamente um passo.
+      if (desde > 350) {
+        const intervalo = desde > 1200 ? 40 : 90;
+        // Dez de cada vez é o teto: acima disso o valor passa voando pelo
+        // ponto que a pessoa queria e ela volta a caçar de um em um.
+        const multiplicador = desde > 2500 ? 10 : desde > 1400 ? 5 : 1;
+        if (agora - ultimo >= intervalo) {
+          ultimo = agora;
+          andar(direcao, multiplicador);
+        }
+      }
+      seguraRef.current = requestAnimationFrame(quadro);
+    };
+
+    seguraRef.current = requestAnimationFrame(quadro);
+  };
+
+  const soltar = () => {
+    if (seguraRef.current === null) return;
+    pararLaco();
+    // Todo o segurar vira um passo só no desfazer.
     onFim();
   };
+
+  // Campo desmontado com o dedo em cima: o laço morre junto, senão continuaria
+  // pedindo quadros pra um componente que já saiu.
+  useEffect(
+    () => () => {
+      if (seguraRef.current !== null) cancelAnimationFrame(seguraRef.current);
+    },
+    [],
+  );
 
   const noLimite = (direcao: number) =>
     direcao < 0 ? min !== undefined && valor <= min : max !== undefined && valor >= max;
@@ -3319,8 +3393,29 @@ function CampoNumero({
           type="button"
           aria-label={`Diminuir ${rotulo}`}
           disabled={noLimite(-1)}
-          onClick={() => andar(-1)}
-          className={BOTAO}
+          onPointerDown={(e) => {
+            veioDoDedoRef.current = true;
+            // O dedo pode escorregar pra fora do botão; capturado, o soltar
+            // continua chegando aqui. Nem todo ponteiro aceita captura.
+            try {
+              e.currentTarget.setPointerCapture(e.pointerId);
+            } catch {
+              // segue sem captura
+            }
+            segurar(-1);
+          }}
+          onPointerUp={soltar}
+          onPointerCancel={soltar}
+          // Teclado não dispara ponteiro: aí o clique é que anda um passo.
+          onClick={() => {
+            if (veioDoDedoRef.current) {
+              veioDoDedoRef.current = false;
+              return;
+            }
+            andar(-1);
+            onFim();
+          }}
+          className={`${BOTAO} touch-none`}
         >
           <Minus aria-hidden="true" className="size-4" />
         </button>
@@ -3350,8 +3445,28 @@ function CampoNumero({
           type="button"
           aria-label={`Aumentar ${rotulo}`}
           disabled={noLimite(1)}
-          onClick={() => andar(1)}
-          className={BOTAO}
+          onPointerDown={(e) => {
+            veioDoDedoRef.current = true;
+            // O dedo pode escorregar pra fora do botão; capturado, o soltar
+            // continua chegando aqui. Nem todo ponteiro aceita captura.
+            try {
+              e.currentTarget.setPointerCapture(e.pointerId);
+            } catch {
+              // segue sem captura
+            }
+            segurar(1);
+          }}
+          onPointerUp={soltar}
+          onPointerCancel={soltar}
+          onClick={() => {
+            if (veioDoDedoRef.current) {
+              veioDoDedoRef.current = false;
+              return;
+            }
+            andar(1);
+            onFim();
+          }}
+          className={`${BOTAO} touch-none`}
         >
           <Plus aria-hidden="true" className="size-4" />
         </button>
