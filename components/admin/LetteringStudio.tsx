@@ -19,12 +19,14 @@ import {
   GripVertical,
   Layers,
   MoreHorizontal,
+  Minus,
   Move,
   Share2,
   Redo2,
   Undo2,
   RotateCw,
   Palette,
+  Plus,
   Smile,
   Sparkles,
   Trash2,
@@ -2814,38 +2816,26 @@ export function LetteringStudio() {
 
                   {aba === "estilo" ? (
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <label className={LABEL} htmlFor="lettering-size">
-                          Tamanho
-                        </label>
-                        <input
-                          id="lettering-size"
-                          type="number"
-                          min={8}
-                          max={900}
-                          value={selected.size}
-                          onChange={(e) =>
-                            patch({ size: Number(e.target.value) || 8 })
-                          }
-                          className={INPUT}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className={LABEL} htmlFor="lettering-rotation">
-                          Girar
-                        </label>
-                        <input
-                          id="lettering-rotation"
-                          type="number"
-                          min={-180}
-                          max={180}
-                          value={selected.rotation}
-                          onChange={(e) =>
-                            patch({ rotation: Number(e.target.value) || 0 })
-                          }
-                          className={INPUT}
-                        />
-                      </div>
+                      <CampoNumero
+                        id="lettering-size"
+                        rotulo="Tamanho"
+                        valor={selected.size}
+                        min={8}
+                        max={900}
+                        onChange={(size) => patch({ size }, "campo:size")}
+                        onFim={fecharPasso}
+                      />
+                      <CampoNumero
+                        id="lettering-rotation"
+                        rotulo="Girar"
+                        valor={selected.rotation}
+                        min={-180}
+                        max={180}
+                        onChange={(rotation) =>
+                          patch({ rotation }, "campo:rotation")
+                        }
+                        onFim={fecharPasso}
+                      />
                       <div className="space-y-1.5">
                         <label className={LABEL} htmlFor="lettering-color">
                           Cor
@@ -2875,67 +2865,44 @@ export function LetteringStudio() {
                           <option value="right">Direita</option>
                         </select>
                       </div>
-                      <div className="space-y-1.5">
-                        <label
-                          className={LABEL}
-                          htmlFor="lettering-line-height"
-                        >
-                          Entrelinha
-                        </label>
-                        <input
-                          id="lettering-line-height"
-                          type="number"
-                          step={0.05}
-                          min={0.5}
-                          max={3}
-                          value={selected.lineHeight}
-                          onChange={(e) =>
-                            patch({ lineHeight: Number(e.target.value) || 1 })
-                          }
-                          className={INPUT}
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className={LABEL} htmlFor="lettering-tracking">
-                          Espaçamento
-                        </label>
-                        <input
-                          id="lettering-tracking"
-                          type="number"
-                          value={selected.tracking}
-                          onChange={(e) =>
-                            patch({ tracking: Number(e.target.value) || 0 })
-                          }
-                          className={INPUT}
-                        />
-                      </div>
+                      <CampoNumero
+                        id="lettering-line-height"
+                        rotulo="Entrelinha"
+                        valor={selected.lineHeight}
+                        min={0.5}
+                        max={3}
+                        passo={0.05}
+                        onChange={(lineHeight) =>
+                          patch({ lineHeight }, "campo:lineHeight")
+                        }
+                        onFim={fecharPasso}
+                      />
+                      <CampoNumero
+                        id="lettering-tracking"
+                        rotulo="Espaçamento"
+                        valor={selected.tracking}
+                        onChange={(tracking) =>
+                          patch({ tracking }, "campo:tracking")
+                        }
+                        onFim={fecharPasso}
+                      />
                     </div>
                   ) : null}
 
                   {aba === "efeitos" ? (
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1.5">
-                          <label className={LABEL} htmlFor="lettering-stroke">
-                            Contorno
-                          </label>
-                          <input
-                            id="lettering-stroke"
-                            type="number"
-                            min={0}
-                            max={60}
-                            value={selected.stroke}
-                            onChange={(e) =>
-                              patch({
-                                stroke: Math.max(
-                                  0,
-                                  Number(e.target.value) || 0,
-                                ),
-                              })
-                            }
-                            className={INPUT}
-                          />
-                        </div>
+                        <CampoNumero
+                          id="lettering-stroke"
+                          rotulo="Contorno"
+                          valor={selected.stroke}
+                          min={0}
+                          max={60}
+                          onChange={(stroke) =>
+                            patch({ stroke }, "campo:stroke")
+                          }
+                          onFim={fecharPasso}
+                        />
                         <div className="space-y-1.5">
                           <label
                             className={LABEL}
@@ -2967,29 +2934,16 @@ export function LetteringStudio() {
                       </label>
                       {selected.shadow ? (
                         <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1.5">
-                            <label
-                              className={LABEL}
-                              htmlFor="lettering-shadow-blur"
-                            >
-                              Desfoque
-                            </label>
-                            <input
-                              id="lettering-shadow-blur"
-                              type="number"
-                              min={0}
-                              value={selected.shadowBlur}
-                              onChange={(e) =>
-                                patch({
-                                  shadowBlur: Math.max(
-                                    0,
-                                    Number(e.target.value) || 0,
-                                  ),
-                                })
-                              }
-                              className={INPUT}
-                            />
-                          </div>
+                          <CampoNumero
+                            id="lettering-shadow-blur"
+                            rotulo="Desfoque"
+                            valor={selected.shadowBlur}
+                            min={0}
+                            onChange={(shadowBlur) =>
+                              patch({ shadowBlur }, "campo:shadowBlur")
+                            }
+                            onFim={fecharPasso}
+                          />
                           <div className="space-y-1.5">
                             <label
                               className={LABEL}
@@ -3007,40 +2961,24 @@ export function LetteringStudio() {
                               className="h-11 w-full rounded-md border border-neutral-200 bg-white p-1"
                             />
                           </div>
-                          <div className="space-y-1.5">
-                            <label
-                              className={LABEL}
-                              htmlFor="lettering-shadow-x"
-                            >
-                              Deslocar X
-                            </label>
-                            <input
-                              id="lettering-shadow-x"
-                              type="number"
-                              value={selected.shadowX}
-                              onChange={(e) =>
-                                patch({ shadowX: Number(e.target.value) || 0 })
-                              }
-                              className={INPUT}
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <label
-                              className={LABEL}
-                              htmlFor="lettering-shadow-y"
-                            >
-                              Deslocar Y
-                            </label>
-                            <input
-                              id="lettering-shadow-y"
-                              type="number"
-                              value={selected.shadowY}
-                              onChange={(e) =>
-                                patch({ shadowY: Number(e.target.value) || 0 })
-                              }
-                              className={INPUT}
-                            />
-                          </div>
+                          <CampoNumero
+                            id="lettering-shadow-x"
+                            rotulo="Deslocar X"
+                            valor={selected.shadowX}
+                            onChange={(shadowX) =>
+                              patch({ shadowX }, "campo:shadowX")
+                            }
+                            onFim={fecharPasso}
+                          />
+                          <CampoNumero
+                            id="lettering-shadow-y"
+                            rotulo="Deslocar Y"
+                            valor={selected.shadowY}
+                            onChange={(shadowY) =>
+                              patch({ shadowY }, "campo:shadowY")
+                            }
+                            onFim={fecharPasso}
+                          />
                         </div>
                       ) : null}
 
@@ -3072,50 +3010,25 @@ export function LetteringStudio() {
                               className="h-11 w-full rounded-md border border-neutral-200 bg-white p-1"
                             />
                           </div>
-                          <div className="space-y-1.5">
-                            <label
-                              className={LABEL}
-                              htmlFor="lettering-box-radius"
-                            >
-                              Cantos
-                            </label>
-                            <input
-                              id="lettering-box-radius"
-                              type="number"
-                              min={0}
-                              value={selected.boxRadius}
-                              onChange={(e) =>
-                                patch({
-                                  boxRadius: Math.max(
-                                    0,
-                                    Number(e.target.value) || 0,
-                                  ),
-                                })
-                              }
-                              className={INPUT}
-                            />
-                          </div>
-                          <div className="col-span-2 space-y-1.5">
-                            <label
-                              className={LABEL}
-                              htmlFor="lettering-box-padding"
-                            >
-                              Respiro
-                            </label>
-                            <input
+                          <CampoNumero
+                            id="lettering-box-radius"
+                            rotulo="Cantos"
+                            valor={selected.boxRadius}
+                            min={0}
+                            onChange={(boxRadius) =>
+                              patch({ boxRadius }, "campo:boxRadius")
+                            }
+                            onFim={fecharPasso}
+                          />
+                          <div className="col-span-2">
+                            <CampoNumero
                               id="lettering-box-padding"
-                              type="number"
-                              min={0}
-                              value={selected.boxPadding}
-                              onChange={(e) =>
-                                patch({
-                                  boxPadding: Math.max(
-                                    0,
-                                    Number(e.target.value) || 0,
-                                  ),
-                                })
+                              rotulo="Respiro"
+                              valor={selected.boxPadding}
+                              onChange={(boxPadding) =>
+                                patch({ boxPadding }, "campo:boxPadding")
                               }
-                              className={INPUT}
+                              onFim={fecharPasso}
                             />
                           </div>
                         </div>
@@ -3291,6 +3204,107 @@ export function LetteringStudio() {
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Campo numérico com botão de menos e de mais.
+ *
+ * As setinhas do navegador só existem no computador, e o teclado numérico do
+ * iPhone não tem sinal de menos: no celular não havia como chegar num valor
+ * negativo. Os botões resolvem os dois casos de uma vez.
+ *
+ * Enquanto o campo está em foco, o que a pessoa digitou vale como está — sem
+ * isso, apagar tudo pra escrever "-8" virava 0 na primeira tecla, e o menos
+ * sozinho nunca chegava a ser um número.
+ */
+function CampoNumero({
+  id,
+  rotulo,
+  valor,
+  min,
+  max,
+  passo = 1,
+  onChange,
+  onFim,
+}: {
+  id: string;
+  rotulo: string;
+  valor: number;
+  min?: number;
+  max?: number;
+  passo?: number;
+  onChange: (valor: number) => void;
+  onFim: () => void;
+}) {
+  const [rascunho, setRascunho] = useState<string | null>(null);
+
+  const dentro = (n: number) =>
+    clamp(n, min ?? Number.NEGATIVE_INFINITY, max ?? Number.POSITIVE_INFINITY);
+
+  // Casas decimais vêm do passo: somar 0,05 em ponto flutuante rende
+  // 1,0500000000000003, e o campo mostraria isso.
+  const casas = (String(passo).split(".")[1] ?? "").length;
+  const andar = (direcao: number) => {
+    setRascunho(null);
+    onChange(Number(dentro(valor + direcao * passo).toFixed(casas)));
+    onFim();
+  };
+
+  const noLimite = (direcao: number) =>
+    direcao < 0 ? min !== undefined && valor <= min : max !== undefined && valor >= max;
+
+  const BOTAO =
+    "grid w-11 shrink-0 place-items-center rounded-md border border-neutral-200 text-neutral-700 transition-transform duration-100 active:scale-95 disabled:opacity-40";
+
+  return (
+    <div className="space-y-1.5">
+      <label className={LABEL} htmlFor={id}>
+        {rotulo}
+      </label>
+      <div className="flex items-stretch gap-1">
+        <button
+          type="button"
+          aria-label={`Diminuir ${rotulo}`}
+          disabled={noLimite(-1)}
+          onClick={() => andar(-1)}
+          className={BOTAO}
+        >
+          <Minus aria-hidden="true" className="size-4" />
+        </button>
+        <input
+          id={id}
+          type="number"
+          inputMode="decimal"
+          min={min}
+          max={max}
+          step={passo}
+          value={rascunho ?? String(valor)}
+          onChange={(e) => {
+            const texto = e.target.value;
+            setRascunho(texto);
+            const n = Number(texto);
+            if (texto !== "" && texto !== "-" && Number.isFinite(n)) {
+              onChange(dentro(n));
+            }
+          }}
+          onBlur={() => {
+            setRascunho(null);
+            onFim();
+          }}
+          className={`${INPUT} min-w-0 flex-1 text-center`}
+        />
+        <button
+          type="button"
+          aria-label={`Aumentar ${rotulo}`}
+          disabled={noLimite(1)}
+          onClick={() => andar(1)}
+          className={BOTAO}
+        >
+          <Plus aria-hidden="true" className="size-4" />
+        </button>
+      </div>
     </div>
   );
 }

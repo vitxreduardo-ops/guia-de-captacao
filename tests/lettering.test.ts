@@ -12,7 +12,7 @@ import {
   unionBounds,
   type Layer,
 } from "@/lib/lettering";
-import { safeScale } from "@/lib/letteringDraw";
+import { drawLayer, esqueceMedidas, safeScale } from "@/lib/letteringDraw";
 
 function layer(over: Partial<Layer> = {}): Layer {
   return {
@@ -180,5 +180,60 @@ describe("distributedValues", () => {
 
   it("não mexe com menos de três", () => {
     expect(distributedValues([5, 90])).toEqual([5, 90]);
+  });
+});
+
+describe("fundo com respiro negativo", () => {
+  /** Canvas de mentira: guarda o que foi pedido, sem desenhar nada. */
+  function ctxFalso() {
+    const chamadas: number[][] = [];
+    const ctx = {
+      roundRect: (...args: number[]) => chamadas.push(args),
+      measureText: () => ({
+        width: 80,
+        actualBoundingBoxLeft: 0,
+        actualBoundingBoxRight: 80,
+        actualBoundingBoxAscent: 70,
+        actualBoundingBoxDescent: 20,
+      }),
+      save() {},
+      restore() {},
+      translate() {},
+      rotate() {},
+      scale() {},
+      beginPath() {},
+      fill() {},
+      stroke() {},
+      strokeText() {},
+      fillText() {},
+      font: "",
+      textAlign: "center",
+      textBaseline: "alphabetic",
+      fillStyle: "",
+      strokeStyle: "",
+      lineWidth: 0,
+      lineJoin: "round",
+      letterSpacing: "0px",
+      shadowBlur: 0,
+      shadowColor: "",
+      shadowOffsetX: 0,
+      shadowOffsetY: 0,
+    };
+    return { ctx, chamadas };
+  }
+
+  it("aperta o fundo até zero em vez de pedir lado negativo ao canvas", () => {
+    const { ctx, chamadas } = ctxFalso();
+    esqueceMedidas();
+    drawLayer(ctx as unknown as CanvasRenderingContext2D, {
+      ...layer({ box: true, boxPadding: -400, boxRadius: 20 }),
+    });
+
+    expect(chamadas).toHaveLength(1);
+    const [, , largura, altura, raio] = chamadas[0];
+    // Lado ou raio negativo faz o canvas recusar o desenho inteiro.
+    expect(largura).toBeGreaterThanOrEqual(0);
+    expect(altura).toBeGreaterThanOrEqual(0);
+    expect(raio).toBeGreaterThanOrEqual(0);
   });
 });
