@@ -365,6 +365,33 @@ a {
   font-display: swap;
 }
 
+/* Bobby Jones: quatro cortes da mesma família, cada um é uma escolha na lista.
+   As versões Rough são pesadas (1 e 2 MB); por isso carregam só quando a peça
+   pede, e não na abertura da tela. */
+@font-face {
+  font-family: "BobbyJonesSoft";
+  src: url("/fonts/BobbyJonesSoft.otf") format("opentype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "BobbyJonesSoftOutline";
+  src: url("/fonts/BobbyJonesSoftOutline.otf") format("opentype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "BobbyRoughSoft";
+  src: url("/fonts/BobbyRoughSoft.ttf") format("truetype");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "BobbyRoughSoftOutline";
+  src: url("/fonts/BobbyRoughSoftOutline.ttf") format("truetype");
+  font-display: swap;
+}
+
 /*
   O painel de ferramentas do lettering nasce e morre no botão que o abriu — a
   origem da transformação é escrita no elemento. Entrar e sair pelo mesmo
