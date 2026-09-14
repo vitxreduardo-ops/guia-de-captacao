@@ -120,6 +120,10 @@ import {
 
 const SYSTEM_FONTS = [
   { family: '"BootzyTM"', label: "Bootzy" },
+  { family: '"BobbyJonesSoft"', label: "Bobby Jones Soft" },
+  { family: '"BobbyJonesSoftOutline"', label: "Bobby Jones Soft Outline" },
+  { family: '"BobbyRoughSoft"', label: "Bobby Rough Soft" },
+  { family: '"BobbyRoughSoftOutline"', label: "Bobby Rough Soft Outline" },
   { family: "Georgia, serif", label: "Georgia" },
   { family: "Helvetica, Arial, sans-serif", label: "Helvetica" },
   { family: "'Times New Roman', serif", label: "Times" },
