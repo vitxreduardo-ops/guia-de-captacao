@@ -661,7 +661,7 @@ export function DailyTodoList({
       {trashed ? (
         <div
           role="status"
-          className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-lg bg-neutral-900/90 px-4 py-3 text-sm text-white shadow-lg backdrop-blur-md"
+          className="fixed inset-x-4 bottom-segura z-50 mx-auto flex max-w-sm items-center justify-between gap-3 rounded-lg bg-neutral-900/90 px-4 py-3 text-sm text-white shadow-lg backdrop-blur-md"
         >
           <span className="min-w-0 truncate">
             &ldquo;{trashed.text}&rdquo; excluída

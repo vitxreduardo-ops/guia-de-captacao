@@ -280,7 +280,7 @@ export default function BriefingPage() {
     return (
       <>
         <BriefingHeader />
-        <main className="flex min-h-screen items-center justify-center bg-[var(--tatu-cream)] px-4 pt-20 pb-20">
+        <main className="flex min-h-svh items-center justify-center bg-[var(--tatu-cream)] px-4 pt-20 pb-20">
           <motion.div
             initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -309,7 +309,7 @@ export default function BriefingPage() {
           travada e rolagem por dentro. Isso substitui o antigo "sticky
           bottom-20" da página — o rodapé de ações agora é parte do próprio
           cartão, sempre visível, sem depender de matemática de viewport. */}
-      <main className="flex min-h-screen items-center justify-center bg-[var(--tatu-cream)] px-4 pt-20 pb-20">
+      <main className="flex min-h-svh items-center justify-center bg-[var(--tatu-cream)] px-4 pt-20 pb-20">
         {/* layout: sem isso, o espaço de uma pergunta nova aparecia de uma vez
             (o cartão pulava pra nova altura) e só o conteúdo dentro fazia
             fade — lia como bloco surgindo do nada. Com layout, a própria

@@ -642,3 +642,37 @@ a {
     animation-duration: 160ms;
   }
 }
+
+/*
+  Barras fixas no rodapé: encostar em `bottom: 0` no iPhone joga o conteúdo
+  por baixo do indicador de home. Estes dois utilitários sobem a barra pelo
+  maior valor entre 1rem e o inset seguro — o `env()` só tem efeito porque o
+  layout raiz declara `viewportFit: "cover"`.
+*/
+@utility pb-segura {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+@utility bottom-segura {
+  bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/*
+  Gutter lateral único do painel admin. Mesmos degraus de antes (1rem / 1.5rem
+  / 2rem), só que agora nunca menores que o inset seguro — no iPhone deitado a
+  faixa do notch comia o começo do texto.
+*/
+@utility px-painel {
+  padding-inline: max(1rem, env(safe-area-inset-left))
+    max(1rem, env(safe-area-inset-right));
+
+  @media (width >= 40rem) {
+    padding-inline: max(1.5rem, env(safe-area-inset-left))
+      max(1.5rem, env(safe-area-inset-right));
+  }
+
+  @media (width >= 64rem) {
+    padding-inline: max(2rem, env(safe-area-inset-left))
+      max(2rem, env(safe-area-inset-right));
+  }
+}

@@ -16,7 +16,7 @@ export default function ClientesError({
   reset: () => void;
 }) {
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-3xl py-16">
       <h1 className="text-lg font-semibold text-neutral-900">
         Não deu para carregar esta tela
       </h1>

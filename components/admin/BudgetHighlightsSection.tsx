@@ -35,14 +35,15 @@ export function BudgetHighlightsSection({
               </span>
               <form
                 action={updateBudgetHighlightAction}
-                className="flex flex-1 items-center gap-2"
+                className="flex min-w-0 flex-1 items-center gap-2"
               >
                 <input type="hidden" name="id" value={item.id} />
                 <input type="hidden" name="budget_id" value={budgetId} />
                 <input
                   name="title"
                   defaultValue={item.title}
-                  className="flex-1 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
+                  // `min-w-0`: a largura intrínseca do input (size=20) seria o piso da linha.
+                  className="w-full min-w-0 flex-1 rounded-md border border-neutral-300 px-2 py-1.5 text-sm focus:border-neutral-500 focus:outline-none"
                 />
                 <button
                   type="submit"

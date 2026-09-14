@@ -25,7 +25,7 @@ export default async function PublicGalleryPage({ params }: { params: Params }) 
 
   if (client.status !== "published") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 text-center">
+      <div className="flex min-h-svh items-center justify-center bg-neutral-50 px-4 text-center">
         <p className="text-sm text-neutral-500">
           Esta galeria ainda não foi publicada.
         </p>
@@ -36,7 +36,7 @@ export default async function PublicGalleryPage({ params }: { params: Params }) 
   const root = buildGalleryFolderTree(client.images);
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-svh bg-neutral-50">
       <div className="mx-auto max-w-4xl px-4 py-12">
         <header className="mb-10 border-b border-neutral-200 pb-6 text-center">
           <TatuLogo className="mx-auto mb-8 block h-9 w-auto text-black" />

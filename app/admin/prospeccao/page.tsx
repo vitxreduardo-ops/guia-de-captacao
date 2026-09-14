@@ -16,7 +16,7 @@ export default async function ProspeccaoPage() {
   const today = todayISO();
 
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-3xl flex-col px-4 py-10 sm:px-6">
+    <div className="mx-auto flex w-full flex-1 max-w-3xl flex-col py-10">
       <AdminHeader
         title="Prospecção"
         trail={[{ label: "Admin", href: "/admin" }, { label: "Prospecção" }]}

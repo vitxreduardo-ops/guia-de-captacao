@@ -719,7 +719,7 @@ export function GalleryFolderBrowser({
       </AnimatePresence>
 
       {!selecting && allIdsHere.length > 0 ? (
-        <div className="fixed inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-4">
+        <div className="fixed inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-segura">
           {canShareFiles ? (
             <button
               type="button"
@@ -772,7 +772,7 @@ export function GalleryFolderBrowser({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
             transition={spring}
-            className="fixed inset-x-0 bottom-0 z-30 px-4 pb-4"
+            className="fixed inset-x-0 bottom-0 z-30 px-4 pb-segura"
           >
             <div className="mx-auto flex max-w-2xl flex-wrap items-center gap-3 rounded-xl border border-neutral-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
               <div className="min-w-0 flex-1">

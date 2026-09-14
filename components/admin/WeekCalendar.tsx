@@ -849,7 +849,7 @@ export function WeekCalendar({
       {notice ? (
         <div
           role="status"
-          className={`fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg px-4 py-2 text-sm shadow-lg ${
+          className={`fixed bottom-segura left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg px-4 py-2 text-sm shadow-lg ${
             notice.tone === "error"
               ? "border border-amber-200 bg-amber-50/95 text-amber-900 backdrop-blur-md"
               : "bg-neutral-900/90 text-white backdrop-blur-md"

@@ -40,7 +40,7 @@ export default async function PublicGuidePage({
 
   if (guide.status !== "published") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4 text-center">
+      <div className="flex min-h-svh items-center justify-center bg-neutral-50 px-4 text-center">
         <p className="text-sm text-neutral-500">
           Este guia ainda não foi publicado.
         </p>
@@ -56,7 +56,7 @@ export default async function PublicGuidePage({
   );
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-svh bg-neutral-50">
       <div className="mx-auto max-w-3xl px-4 py-12">
         <header className="mb-10 border-b border-neutral-200 pb-6">
           <TatuLogo className="mx-auto mb-10 block h-9 w-auto text-black" />
