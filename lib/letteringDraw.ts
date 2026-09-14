@@ -192,14 +192,17 @@ export function drawLayer(ctx: CanvasRenderingContext2D, layer: Layer) {
     ctx.beginPath();
     // O raio não pode passar da metade do lado menor, senão o canvas reclama e
     // não desenha nada.
-    const boxW = layout.textWidth + inner * 2;
-    const boxH = layout.textHeight + inner * 2;
+    // Respiro negativo aperta o fundo contra o texto. Passando do ponto ele
+    // zera: um retângulo de lado negativo faz o canvas recusar o raio e não
+    // desenhar nada.
+    const boxW = Math.max(0, layout.textWidth + inner * 2);
+    const boxH = Math.max(0, layout.textHeight + inner * 2);
     ctx.roundRect(
       -boxW / 2,
       -boxH / 2,
       boxW,
       boxH,
-      Math.min(layer.boxRadius, Math.min(boxW, boxH) / 2),
+      Math.max(0, Math.min(layer.boxRadius, Math.min(boxW, boxH) / 2)),
     );
     ctx.fill();
     clearShadow();
