@@ -676,3 +676,24 @@ a {
       max(2rem, env(safe-area-inset-right));
   }
 }
+
+/*
+  Alças da moldura de camada no estúdio de lettering. A moldura é escalada
+  pelo zoom da câmera, e as alças herdavam essa escala: num zoom de 5x o alvo
+  de toque de 40px virava 200px na tela e vazava pela direita. Aqui a escala é
+  desfeita, então a alça mede o mesmo em qualquer zoom.
+
+  A ordem importa: numa lista de transformações a da direita age primeiro, e é
+  o `translate` que precisa acontecer em unidades da própria alça antes de a
+  escala entrar. `--zoom` é escrito pelo laço de pintura; o 1 de reserva vale
+  enquanto ele ainda não rodou.
+*/
+@utility alca-fixa {
+  /* A origem é o canto da moldura em que a alça está ancorada, não o centro
+     do botão: encolher em torno do centro tirava a alça do canto que ela
+     serve. Com a origem no canto, ele fica parado e só a alça muda de
+     tamanho. */
+  transform-origin: var(--alca-ox, 50%) var(--alca-oy, 50%);
+  transform: scale(calc(1 / var(--zoom, 1)))
+    translate(var(--alca-x, 0), var(--alca-y, 0));
+}
