@@ -1,6 +1,7 @@
 import { ChevronRight, Home } from "lucide-react";
 import Link from "next/link";
 import { logout } from "@/app/admin/login/actions";
+import { AdminMenuButton } from "@/components/admin/AdminMenuButton";
 import { LiveRefresh } from "@/components/admin/LiveRefresh";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { TatuLogo } from "@/components/TatuLogo";
@@ -50,6 +51,7 @@ export async function AdminHeader({
       <header className="mb-3">
         <LiveRefresh />
         <div className="flex items-center justify-center gap-4">
+          {session ? <AdminMenuButton isAdmin={session.role === "admin"} /> : null}
           <Link
             href="/admin"
             aria-label="Ir para o Painel"
@@ -85,6 +87,9 @@ export async function AdminHeader({
       {/* Logo e ações na chrome, acima da linha. */}
       <div className="flex items-center justify-between gap-4 border-b border-neutral-200 pb-3">
         <div className="flex min-w-0 items-center gap-3">
+          {/* No celular a barra de atalhos não cabe; vira gaveta atrás deste
+              botão, encostada no logo. */}
+          {session ? <AdminMenuButton isAdmin={session.role === "admin"} /> : null}
           {/* O logo é a volta pro Painel de qualquer página — é onde todo
               mundo clica esperando ir pra home. */}
           <Link
