@@ -33,7 +33,7 @@ export default async function GuideEditPage({
   if (!guide) notFound();
 
   return (
-    <div className="mx-auto w-full max-w-6xl py-10">
+    <div className="mx-auto w-full max-w-6xl pb-10">
       <AdminHeader
         title={guide.title}
         trail={[

@@ -10,7 +10,7 @@ export default async function ReferencesPage() {
   ]);
 
   return (
-    <div className="mx-auto w-full max-w-7xl py-10">
+    <div className="mx-auto w-full max-w-7xl pb-10">
       <AdminHeader
         title="Referências"
         trail={[{ label: "Admin", href: "/admin" }, { label: "Referências" }]}

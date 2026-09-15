@@ -80,7 +80,7 @@ export default async function AdminDashboard({
   const filteredGuides = guides.filter((guide) => matchesFilters(guide, filters));
 
   return (
-    <div className="mx-auto w-full max-w-6xl py-10">
+    <div className="mx-auto w-full max-w-6xl pb-10">
       <AdminHeader
         title="Guias de gravação"
         trail={[{ label: "Admin", href: "/admin" }, { label: "Guias" }]}

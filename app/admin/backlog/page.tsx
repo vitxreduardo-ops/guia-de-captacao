@@ -11,7 +11,7 @@ export default async function BacklogPage() {
   ]);
 
   return (
-    <div className="mx-auto flex w-full flex-1 max-w-[100rem] flex-col py-10">
+    <div className="mx-auto flex w-full flex-1 max-w-[100rem] flex-col pb-10">
       <AdminHeader
         title="Backlog do Instagram"
         trail={[

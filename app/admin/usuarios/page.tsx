@@ -34,7 +34,7 @@ export default async function UsersPage() {
   ]);
 
   return (
-    <div className="mx-auto w-full max-w-6xl py-10">
+    <div className="mx-auto w-full max-w-6xl pb-10">
       <AdminHeader
         title="Usuários"
         trail={[{ label: "Admin", href: "/admin" }, { label: "Usuários" }]}

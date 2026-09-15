@@ -79,7 +79,7 @@ export default async function FaturamentoPage({
   const clientName = clients.find((client) => client.id === clientId)?.name ?? "";
 
   return (
-    <div className="mx-auto w-full max-w-5xl py-10">
+    <div className="mx-auto w-full max-w-5xl pb-10">
       <AdminHeader
         title="Clientes"
         trail={[

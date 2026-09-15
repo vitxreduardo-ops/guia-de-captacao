@@ -21,7 +21,7 @@ export default async function BacklogCalendarPage() {
     : null;
 
   return (
-    <div className="mx-auto w-full max-w-[100rem] py-10">
+    <div className="mx-auto w-full max-w-[100rem] pb-10">
       <AdminHeader
         title="Backlog do Instagram"
         trail={[

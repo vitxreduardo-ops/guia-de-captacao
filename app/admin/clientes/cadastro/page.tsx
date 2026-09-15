@@ -25,7 +25,7 @@ export default async function ClientesCadastroPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl py-10">
+    <div className="mx-auto w-full max-w-5xl pb-10">
       <AdminHeader
         title="Clientes"
         trail={[

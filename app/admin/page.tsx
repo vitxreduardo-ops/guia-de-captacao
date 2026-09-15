@@ -30,7 +30,7 @@ export default async function AdminHub() {
     session && username ? { id: session.userId, username } : null;
 
   return (
-    <div className="mx-auto w-full max-w-6xl pt-6 pb-10">
+    <div className="mx-auto w-full max-w-6xl pb-10">
       <AdminHeader title="Painel" />
 
       {/* Os atalhos saíram daqui pra barra do layout, onde valem pras 19

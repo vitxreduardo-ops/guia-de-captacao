@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export default async function LetteringPage() {
 
   return (
-    <div className="mx-auto w-full max-w-6xl py-4 sm:py-8">
+    <div className="mx-auto w-full max-w-6xl pb-4 sm:pb-8">
       <AdminHeader
         title="Lettering"
         trail={[{ label: "Admin", href: "/admin" }, { label: "Lettering" }]}

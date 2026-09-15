@@ -54,7 +54,7 @@ export default async function ResumoPage({
   const topCents = ranking[0]?.totalCents ?? 1;
 
   return (
-    <div className="mx-auto w-full max-w-5xl py-10">
+    <div className="mx-auto w-full max-w-5xl pb-10">
       <AdminHeader
         title="Clientes"
         trail={[

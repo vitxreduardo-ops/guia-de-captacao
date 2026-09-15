@@ -36,8 +36,17 @@ export function AdminHeader({
 }) {
   return (
     <header
+      // A margem de cima alinha a primeira linha da página com o logotipo da
+      // barra: o cartão começa em 8px (`m-2` do layout) e a barra abre a linha
+      // do logo em 16px (`p-4` do SidebarFrame), então `mt-2` fecha a conta.
+      // No celular não há barra nem logotipo com que alinhar — ali em cima fica
+      // a faixa translúcida, e 8px deixariam a trilha colada nela.
       className={
-        dense ? "mt-4 mb-3" : trail?.length ? "mt-6 mb-6" : "mt-8 mb-8"
+        dense
+          ? "mt-4 mb-3 lg:mt-2"
+          : trail?.length
+            ? "mt-4 mb-6 lg:mt-2"
+            : "mt-4 mb-4 lg:mt-2"
       }
     >
       {/* Todo o admin fica montado sob este header, então é daqui que sai a
@@ -70,7 +79,13 @@ export function AdminHeader({
       {/* A trilha nomeia onde a pessoa está — é a primeira linha da página
           agora que logo e conta saíram daqui pra moldura. */}
       {trail?.length ? (
-        <nav aria-label="Breadcrumb" className={standalone ? "mt-4" : ""}>
+        <nav
+          aria-label="Breadcrumb"
+          // `h-8`: a mesma faixa de 32px que a linha do logo ocupa na barra —
+          // é a altura do botão de recolher que manda ali. Com a mesma altura
+          // e o mesmo começo, os dois centram no mesmo ponto.
+          className={`flex h-8 items-center ${standalone ? "mt-4" : ""}`.trim()}
+        >
           <ol className="flex flex-wrap items-center gap-1 text-[13px]">
             {trail.map((item, index) => (
               <li key={item.label} className="flex items-center gap-1">
@@ -107,7 +122,7 @@ export function AdminHeader({
         className={
           dense || trail?.length
             ? "sr-only"
-            : "text-xl leading-tight font-semibold tracking-tight text-neutral-900"
+            : "flex h-8 items-center text-xl leading-tight font-semibold tracking-tight text-neutral-900"
         }
       >
         {title}

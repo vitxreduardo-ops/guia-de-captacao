@@ -23,7 +23,7 @@ export default async function BudgetEditPage({ params }: { params: Params }) {
   if (!budget) notFound();
 
   return (
-    <div className="mx-auto w-full max-w-6xl py-10">
+    <div className="mx-auto w-full max-w-6xl pb-10">
       <AdminHeader
         title={budget.title}
         trail={[

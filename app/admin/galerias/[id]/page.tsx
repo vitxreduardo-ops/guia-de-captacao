@@ -101,7 +101,7 @@ export default async function GalleryClientPage({ params }: { params: Params }) 
   const root = buildGalleryFolderTree(client.images);
 
   return (
-    <div className="mx-auto w-full max-w-6xl py-10">
+    <div className="mx-auto w-full max-w-6xl pb-10">
       <AdminHeader
         title={client.name}
         trail={[

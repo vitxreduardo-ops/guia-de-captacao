@@ -30,7 +30,7 @@ export default async function GalleryClientsPage({
   ]);
 
   return (
-    <div className="mx-auto w-full max-w-6xl py-10">
+    <div className="mx-auto w-full max-w-6xl pb-10">
       <AdminHeader
         title="Galeria do cliente"
         trail={[{ label: "Admin", href: "/admin" }, { label: "Galerias" }]}
