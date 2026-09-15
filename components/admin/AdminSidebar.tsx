@@ -34,21 +34,22 @@ export function AdminSidebar({
           conteúdo não precisa de margem esquerda combinada na mão. Só a lista
           rola — logo e conta ficam parados nas pontas. */}
       <div className="sticky top-0 flex h-svh flex-col">
-        <div className="flex shrink-0 items-center gap-2 p-4 group-data-[colapsada=true]/barra:flex-col group-data-[colapsada=true]/barra:px-0">
+        <div className="flex shrink-0 items-center gap-2 p-4 group-data-[colapsada=true]/barra:justify-center group-data-[colapsada=true]/barra:px-0">
+          {/* Fechada, o logotipo sai inteiro: em 64px ele viraria um glifo
+              solto, que não se lê como marca nem como botão. Sobra o botão de
+              expandir, e a volta pro Painel continua no primeiro atalho. */}
           <Link
             href="/admin"
             aria-label="Ir para o Painel"
-            className="mx-auto block w-fit rounded focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+            className="block rounded group-data-[colapsada=true]/barra:hidden focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
           >
-            {/* Fechada, a caixa corta o logotipo no primeiro glifo: o "T" já
-                marca a volta pro Painel, e evita desenhar uma segunda marca
-                só pra caber em 64px. */}
-            <span className="block overflow-hidden group-data-[colapsada=true]/barra:w-[15px]">
-              <TatuLogo className="block h-[26px] w-auto max-w-none text-black" />
-            </span>
+            <TatuLogo className="block h-[26px] w-auto text-black" />
           </Link>
 
-          <form action={toggleSidebar} className="shrink-0">
+          <form
+            action={toggleSidebar}
+            className="ml-auto shrink-0 group-data-[colapsada=true]/barra:mx-auto"
+          >
             <button
               type="submit"
               aria-expanded={!colapsada}
