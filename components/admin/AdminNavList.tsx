@@ -28,7 +28,8 @@ export function AdminNavList({
               href={action.href}
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
-              className={`flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.99] pointer-coarse:min-h-11 ${
+              title={action.label}
+              className={`flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.99] group-data-[colapsada=true]/barra:justify-center group-data-[colapsada=true]/barra:px-0 pointer-coarse:min-h-11 ${
                 active
                   ? "bg-neutral-100 font-medium text-neutral-900"
                   : "text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
@@ -38,7 +39,9 @@ export function AdminNavList({
                 aria-hidden="true"
                 className={`size-4 shrink-0 ${active ? "text-neutral-900" : "text-neutral-500"}`}
               />
-              {action.label}
+              <span className="truncate group-data-[colapsada=true]/barra:sr-only">
+                {action.label}
+              </span>
             </Link>
           </li>
         );

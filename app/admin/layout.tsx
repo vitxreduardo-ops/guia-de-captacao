@@ -4,6 +4,7 @@ import { AdminMenuButton } from "@/components/admin/AdminMenuButton";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { TatuLogo } from "@/components/TatuLogo";
 import { getCurrentSession } from "@/lib/session";
+import { isSidebarCollapsed } from "@/lib/sidebarState";
 
 /**
  * Moldura única do painel. Antes cada página do admin montava o próprio
@@ -21,13 +22,23 @@ import { getCurrentSession } from "@/lib/session";
  * 19 telas do admin sem cada página ter que montá-la.
  */
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
-  const session = await getCurrentSession();
+  // Lido no servidor pra barra já nascer na largura certa: decidir isso no
+  // cliente daria a piscada de aberta-e-fecha a cada carga.
+  const [session, colapsada] = await Promise.all([
+    getCurrentSession(),
+    isSidebarCollapsed(),
+  ]);
 
   return (
     <div className="flex min-h-svh">
       {/* Sem sessão (o login mora sob /admin) não há pra onde ir: a barra
           seria uma lista de links que todos devolvem pro login. */}
-      {session ? <AdminSidebar isAdmin={session.role === "admin"} /> : null}
+      {session ? (
+        <AdminSidebar
+          isAdmin={session.role === "admin"}
+          colapsada={colapsada}
+        />
+      ) : null}
 
       <div className="flex min-w-0 flex-1 flex-col px-painel">
         {/* No celular 220px de barra não cabem: a mesma chrome vira uma faixa

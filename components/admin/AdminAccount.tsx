@@ -1,3 +1,4 @@
+import { LogOut } from "lucide-react";
 import { logout } from "@/app/admin/login/actions";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import {
@@ -41,11 +42,11 @@ export async function AdminAccount({
       className={stacked ? "flex flex-col gap-2" : "flex items-center gap-2"}
     >
       {username ? (
-        <span className="min-w-0 truncate text-sm text-neutral-500">
+        <span className="min-w-0 truncate text-sm text-neutral-500 group-data-[colapsada=true]/barra:hidden">
           {username}
         </span>
       ) : null}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 group-data-[colapsada=true]/barra:flex-col">
         <NotificationBell
           notifications={notifications}
           unreadCount={unreadCount}
@@ -58,9 +59,15 @@ export async function AdminAccount({
         <form action={logout}>
           <button
             type="submit"
-            className={`flex items-center rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 transition-transform hover:bg-neutral-50 hover:text-neutral-900 active:scale-[0.97] pointer-coarse:min-h-11 ${FOCUS_RING}`}
+            className={`flex items-center rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 group-data-[colapsada=true]/barra:px-2 transition-transform hover:bg-neutral-50 hover:text-neutral-900 active:scale-[0.97] pointer-coarse:min-h-11 ${FOCUS_RING}`}
           >
-            Sair
+            <LogOut
+              aria-hidden="true"
+              className="hidden size-4 group-data-[colapsada=true]/barra:block"
+            />
+            <span className="group-data-[colapsada=true]/barra:sr-only">
+              Sair
+            </span>
           </button>
         </form>
       </div>
