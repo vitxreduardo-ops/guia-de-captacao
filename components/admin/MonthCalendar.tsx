@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { EventDetails } from "@/components/admin/EventDetails";
+import { eventTint } from "@/lib/eventColor";
 import type { WeekEvent } from "@/lib/googleCalendar";
 
 const DAY_LABELS = ["DOM.", "SEG.", "TER.", "QUA.", "QUI.", "SEX.", "SÁB."];
@@ -98,49 +99,45 @@ export function MonthCalendar({
                     </div>
 
                     <div className="space-y-0.5">
-                      {dayEvents.map((event) => (
-                        <button
-                          key={event.id}
-                          type="button"
-                          onClick={(clickEvent) => {
-                            const bounds =
-                              clickEvent.currentTarget.getBoundingClientRect();
-                            setSelected({
-                              event,
-                              dayKey: day.key,
-                              origin: {
-                                x: bounds.left + bounds.width / 2,
-                                y: bounds.top + bounds.height / 2,
-                              },
-                            });
-                          }}
-                          title={`${event.title} · ${event.calendarName}`}
-                          className="flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[0.6875rem] transition-transform hover:bg-neutral-100 active:scale-90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
-                        >
-                          {event.allDay ? (
-                            <span
-                              className="min-w-0 flex-1 truncate rounded px-1 text-white"
-                              style={{ backgroundColor: event.color }}
-                            >
-                              {event.title}
-                            </span>
-                          ) : (
-                            <>
-                              <span
-                                aria-hidden
-                                className="h-2 w-2 shrink-0 rounded-full"
-                                style={{ backgroundColor: event.color }}
-                              />
-                              <span className="shrink-0 text-neutral-400">
+                      {dayEvents.map((event) => {
+                        // A cor cheia do Google é feita pra bloco grande com
+                        // texto branco por cima. Aqui ela vira fundo claro +
+                        // texto escuro do mesmo matiz, que é o que aguenta
+                        // texto pequeno sem perder a identidade da agenda.
+                        const tint = eventTint(event.color);
+                        return (
+                          <button
+                            key={event.id}
+                            type="button"
+                            onClick={(clickEvent) => {
+                              const bounds =
+                                clickEvent.currentTarget.getBoundingClientRect();
+                              setSelected({
+                                event,
+                                dayKey: day.key,
+                                origin: {
+                                  x: bounds.left + bounds.width / 2,
+                                  y: bounds.top + bounds.height / 2,
+                                },
+                              });
+                            }}
+                            title={`${event.title} · ${event.calendarName}`}
+                            style={{ backgroundColor: tint.bg, color: tint.fg }}
+                            className="flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[0.6875rem] transition-[filter,transform] hover:brightness-95 active:scale-90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-1 focus-visible:outline-none"
+                          >
+                            {/* Dia inteiro não tem hora que valha a pena
+                                mostrar: fica só o título, na largura toda. */}
+                            {event.allDay ? null : (
+                              <span className="shrink-0 tabular-nums opacity-70">
                                 {timeText(event.startMinutes)}
                               </span>
-                              <span className="min-w-0 flex-1 truncate text-neutral-700">
-                                {event.title}
-                              </span>
-                            </>
-                          )}
-                        </button>
-                      ))}
+                            )}
+                            <span className="min-w-0 flex-1 truncate">
+                              {event.title}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 );

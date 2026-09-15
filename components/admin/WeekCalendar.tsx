@@ -8,6 +8,7 @@ import {
   type NewEventSlot,
 } from "@/components/admin/EventCreate";
 import { updateEventAction } from "@/app/admin/agenda/actions";
+import { eventTint } from "@/lib/eventColor";
 import { layoutDay } from "@/lib/dayLayout";
 import type { CalendarSource, WeekEvent } from "@/lib/googleCalendar";
 
@@ -568,24 +569,27 @@ export function WeekCalendar({
             <div key={day.key} className="min-w-0 flex-1 space-y-1 border-l border-neutral-100 p-1">
               {allDay
                 .filter((event) => event.dayIndex === index)
-                .map((event) => (
-                  <button
-                    key={event.id}
-                    type="button"
-                    onClick={(clickEvent) =>
-                      setSelected({
-                        event,
-                        dayKey: day.key,
-                        origin: centerOf(clickEvent.currentTarget),
-                      })
-                    }
-                    title={`${event.title} · ${event.calendarName}`}
-                    className="block w-full truncate rounded px-1.5 py-0.5 text-left text-[0.6875rem] text-white transition-transform active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
-                    style={{ backgroundColor: event.color }}
-                  >
-                    {event.title}
-                  </button>
-                ))}
+                .map((event) => {
+                  const tint = eventTint(event.color);
+                  return (
+                    <button
+                      key={event.id}
+                      type="button"
+                      onClick={(clickEvent) =>
+                        setSelected({
+                          event,
+                          dayKey: day.key,
+                          origin: centerOf(clickEvent.currentTarget),
+                        })
+                      }
+                      title={`${event.title} · ${event.calendarName}`}
+                      className="block w-full truncate rounded px-1.5 py-0.5 text-left text-[0.6875rem] transition-transform active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+                      style={{ backgroundColor: tint.bg, color: tint.fg }}
+                    >
+                      {event.title}
+                    </button>
+                  );
+                })}
             </div>
           ))}
         </div>
@@ -670,6 +674,9 @@ export function WeekCalendar({
                     18
                   );
                   const width = 100 / columns;
+                  // Mesma conversão da visão de mês: metade da paleta do
+                  // Google é clara demais pra aguentar texto branco.
+                  const tint = eventTint(event.color);
                   return (
                     <button
                       key={event.id}
@@ -697,19 +704,22 @@ export function WeekCalendar({
                         height,
                         left: `${column * width}%`,
                         width: `calc(${width}% - 2px)`,
-                        backgroundColor: event.color,
+                        backgroundColor: tint.bg,
+                        color: tint.fg,
                         touchAction: event.canEdit ? "none" : undefined,
                         transition: drag
                           ? undefined
                           : "top 220ms cubic-bezier(0.22, 1, 0.36, 1), height 220ms cubic-bezier(0.22, 1, 0.36, 1), left 220ms cubic-bezier(0.22, 1, 0.36, 1)",
                       }}
-                      className={`absolute select-none overflow-hidden rounded px-1.5 py-0.5 text-left text-[0.6875rem] leading-tight text-white shadow-sm transition-transform active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none ${
+                      className={`absolute select-none overflow-hidden rounded px-1.5 py-0.5 text-left text-[0.6875rem] leading-tight shadow-sm transition-transform active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none ${
                         // Clicar abre os detalhes; arrastar é gesto extra.
                         // Mostrar "grab" fazia o card parecer que só arrasta.
                         "cursor-pointer"
                       } ${
                         drag?.event.id === event.id
-                          ? "cursor-grabbing opacity-80 ring-2 ring-white"
+                          // Anel escuro, não branco: o bloco agora é claro, e
+                          // um anel branco sumiria dentro dele.
+                          ? "cursor-grabbing opacity-80 ring-2 ring-neutral-900/30"
                           : ""
                       }`.trim()}
                     >
