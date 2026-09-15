@@ -31,8 +31,8 @@ export function AdminNavList({
               title={action.label}
               className={`flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.99] group-data-[colapsada=true]/barra:justify-center group-data-[colapsada=true]/barra:px-0 pointer-coarse:min-h-11 ${
                 active
-                  ? "bg-neutral-100 font-medium text-neutral-900"
-                  : "text-neutral-700 hover:bg-neutral-100 hover:text-neutral-900"
+                  ? "border border-neutral-200 bg-white font-medium text-neutral-900 shadow-[0_1px_2px_rgba(30,28,24,0.04)]"
+                  : "border border-transparent text-neutral-600 hover:bg-neutral-200/50 hover:text-neutral-900"
               }`}
             >
               <action.icon

@@ -28,7 +28,7 @@ export function AdminSidebar({
   return (
     <aside
       data-colapsada={colapsada}
-      className="group/barra hidden w-55 shrink-0 border-r border-neutral-200 bg-white data-[colapsada=true]:w-16 lg:block"
+      className="group/barra hidden w-55 shrink-0 data-[colapsada=true]:w-16 lg:block"
     >
       {/* `sticky` em vez de `fixed`: assim a barra ocupa lugar no fluxo e o
           conteúdo não precisa de margem esquerda combinada na mão. Só a lista
@@ -72,7 +72,7 @@ export function AdminSidebar({
           <AdminNavList isAdmin={isAdmin} />
         </nav>
 
-        <div className="shrink-0 border-t border-neutral-200 p-3">
+        <div className="shrink-0 p-3">
           <AdminAccount dropUp stacked />
         </div>
       </div>
