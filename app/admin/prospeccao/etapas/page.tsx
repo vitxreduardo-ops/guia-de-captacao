@@ -2,14 +2,12 @@ import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ProspectStages } from "@/components/admin/ProspectStages";
 import { ProspectTabs } from "@/components/admin/ProspectTabs";
 import { getProspects } from "@/lib/prospects";
-import { getCurrentUsername } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProspectStagesPage() {
-  const [board, username] = await Promise.all([
+  const [board] = await Promise.all([
     getProspects(),
-    getCurrentUsername(),
   ]);
 
   const counts: Record<string, number> = {};
@@ -26,7 +24,6 @@ export default async function ProspectStagesPage() {
           { label: "Prospecção", href: "/admin/prospeccao" },
           { label: "Etapas" },
         ]}
-        username={username}
       />
 
       <div className="mb-4">

@@ -33,14 +33,11 @@ export default async function UsersPage() {
     getSiteOrigin(),
   ]);
 
-  const currentUsername = users.find((user) => user.id === session.userId)?.username;
-
   return (
     <div className="mx-auto w-full max-w-6xl py-10">
       <AdminHeader
         title="Usuários"
         trail={[{ label: "Admin", href: "/admin" }, { label: "Usuários" }]}
-        username={currentUsername}
       />
 
       <section className="mb-8 rounded-lg border border-neutral-200 bg-white p-4">

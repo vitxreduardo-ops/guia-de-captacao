@@ -10,7 +10,6 @@ import {
   todayISO,
   type ProspectRow,
 } from "@/lib/prospectTypes";
-import { getCurrentUsername } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -52,10 +51,9 @@ export default async function ProspectTablePage({
 }: {
   searchParams: Promise<{ filtro?: string }>;
 }) {
-  const [{ filtro }, board, username] = await Promise.all([
+  const [{ filtro }, board] = await Promise.all([
     searchParams,
     getProspects(),
-    getCurrentUsername(),
   ]);
   const today = todayISO();
 
@@ -89,7 +87,6 @@ export default async function ProspectTablePage({
           { label: "Prospecção", href: "/admin/prospeccao" },
           { label: "Tabela" },
         ]}
-        username={username}
       />
 
       <div className="mb-4">

@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ProspectDetail } from "@/components/admin/ProspectDetail";
 import { getProspect, getProspects } from "@/lib/prospects";
-import { getCurrentUsername } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +12,9 @@ export default async function ProspectPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [found, board, username] = await Promise.all([
+  const [found, board] = await Promise.all([
     getProspect(id),
     getProspects(),
-    getCurrentUsername(),
   ]);
   if (!found) notFound();
 
@@ -31,7 +29,6 @@ export default async function ProspectPage({
           { label: "Prospecção", href: "/admin/prospeccao" },
           { label: prospect.name },
         ]}
-        username={username}
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-2">

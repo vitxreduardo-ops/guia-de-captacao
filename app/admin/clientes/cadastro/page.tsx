@@ -3,16 +3,14 @@ import { ClientTabs } from "@/components/admin/ClientTabs";
 import { ClientRegistry, type ClientSummary } from "@/components/admin/ClientRegistry";
 import { getYearTotals } from "@/lib/billing";
 import { listGalleryClients } from "@/lib/galleries";
-import { getCurrentUsername } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClientesCadastroPage() {
   const year = new Date().getFullYear();
-  const [todos, totals, username] = await Promise.all([
+  const [todos, totals] = await Promise.all([
     listGalleryClients({ includeArchived: true }),
     getYearTotals(year),
-    getCurrentUsername(),
   ]);
 
   const clients = todos.filter((client) => !client.archived_at);
@@ -35,7 +33,6 @@ export default async function ClientesCadastroPage() {
           { label: "Clientes", href: "/admin/clientes" },
           { label: "Cadastro" },
         ]}
-        username={username}
       />
 
       <div className="mb-6">

@@ -31,7 +31,7 @@ export default async function AdminHub() {
 
   return (
     <div className="mx-auto w-full max-w-6xl py-10">
-      <AdminHeader title="Painel" username={username} />
+      <AdminHeader title="Painel" />
 
       {/* Os atalhos saíram daqui pra barra do layout, onde valem pras 19
           telas. Sobra a coluna do "o que tenho pela frente": agenda de hoje

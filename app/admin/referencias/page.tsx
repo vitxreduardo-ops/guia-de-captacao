@@ -1,14 +1,12 @@
 import { listReferencePins } from "@/lib/referencePins";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ReferenceBoard } from "@/components/admin/ReferenceBoard";
-import { getCurrentUsername } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReferencesPage() {
-  const [pins, username] = await Promise.all([
+  const [pins] = await Promise.all([
     listReferencePins(),
-    getCurrentUsername(),
   ]);
 
   return (
@@ -16,7 +14,6 @@ export default async function ReferencesPage() {
       <AdminHeader
         title="Referências"
         trail={[{ label: "Admin", href: "/admin" }, { label: "Referências" }]}
-        username={username}
       />
 
       <ReferenceBoard pins={pins} />

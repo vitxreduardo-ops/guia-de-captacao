@@ -1,15 +1,8 @@
 import { ChevronRight, Home } from "lucide-react";
 import Link from "next/link";
 import { logout } from "@/app/admin/login/actions";
-import { AdminMenuButton } from "@/components/admin/AdminMenuButton";
 import { LiveRefresh } from "@/components/admin/LiveRefresh";
-import { NotificationBell } from "@/components/admin/NotificationBell";
 import { TatuLogo } from "@/components/TatuLogo";
-import {
-  countUnreadNotifications,
-  listNotifications,
-} from "@/lib/notifications";
-import { getCurrentSession } from "@/lib/session";
 
 export type BreadcrumbItem = {
   label: string;
@@ -20,38 +13,39 @@ export type BreadcrumbItem = {
 const FOCUS_RING =
   "focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none";
 
-export async function AdminHeader({
+export function AdminHeader({
   title,
   trail,
-  username,
   dense = false,
+  standalone = false,
 }: {
   title: string;
   trail?: BreadcrumbItem[];
-  username?: string | null;
   /**
    * Versão baixa do cabeçalho, pra tela que é ferramenta e não documento: o
    * título sai (a trilha já nomeia a página) e a folga encolhe, porque cada
    * faixa aqui em cima é faixa a menos pra área de trabalho no celular.
    */
   dense?: boolean;
+  /**
+   * Fora do layout do admin não existe barra lateral nem faixa de topo, então
+   * o cabeçalho volta a carregar logo e Sair por conta própria. Dentro do
+   * admin isso vive no layout, e repetir aqui seria a mesma coisa duas vezes.
+   */
+  standalone?: boolean;
 }) {
-  // A campainha é buscada aqui, e não em cada página, pra aparecer igual em
-  // todo o admin sem repetir a consulta em dez lugares.
-  const session = await getCurrentSession();
-  const [notifications, unreadCount] = session
-    ? await Promise.all([
-        listNotifications(session.userId),
-        countUnreadNotifications(session.userId),
-      ])
-    : [[], 0];
+  return (
+    <header
+      className={
+        dense ? "mt-4 mb-3" : trail?.length ? "mt-6 mb-6" : "mt-8 mb-8"
+      }
+    >
+      {/* Todo o admin fica montado sob este header, então é daqui que sai a
+          sincronização com o que os outros usuários estão fazendo. */}
+      <LiveRefresh />
 
-  if (dense) {
-    return (
-      <header className="mb-3">
-        <LiveRefresh />
-        <div className="flex items-center justify-center gap-4">
-          {session ? <AdminMenuButton isAdmin={session.role === "admin"} /> : null}
+      {standalone ? (
+        <div className="mb-3 flex items-center justify-center gap-4">
           <Link
             href="/admin"
             aria-label="Ir para o Painel"
@@ -71,65 +65,12 @@ export async function AdminHeader({
             </button>
           </form>
         </div>
-        {/* O nome da tela continua para quem usa leitor de tela. */}
-        <h1 className="sr-only">{title}</h1>
-      </header>
-    );
-  }
+      ) : null}
 
-  return (
-    // Sem título visível a trilha é a última linha do cabeçalho, e a folga
-    // de baixo pode ser menor sem o conteúdo colar nela.
-    <header className={trail?.length ? "mb-6" : "mb-8"}>
-      {/* Todo o admin fica montado sob este header, então é daqui que sai a
-          sincronização com o que os outros usuários estão fazendo. */}
-      <LiveRefresh />
-      {/* Logo e ações na chrome, acima da linha. */}
-      <div className="flex items-center justify-between gap-4 border-b border-neutral-200 pb-3">
-        <div className="flex min-w-0 items-center gap-3">
-          {/* No celular a barra de atalhos não cabe; vira gaveta atrás deste
-              botão, encostada no logo. */}
-          {session ? <AdminMenuButton isAdmin={session.role === "admin"} /> : null}
-          {/* O logo é a volta pro Painel de qualquer página — é onde todo
-              mundo clica esperando ir pra home. */}
-          <Link
-            href="/admin"
-            aria-label="Ir para o Painel"
-            className={`block shrink-0 rounded ${FOCUS_RING}`}
-          >
-            <TatuLogo className="block h-[26px] w-auto text-black" />
-          </Link>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-3">
-          {username ? (
-            <span className="text-sm text-neutral-500">{username}</span>
-          ) : null}
-          {session ? (
-            <NotificationBell
-              notifications={notifications}
-              unreadCount={unreadCount}
-            />
-          ) : null}
-          {/* Borda pra separar do nome ao lado: sem ela os dois eram o mesmo
-              cinza e nada dizia qual era clicável. Sem confirmação de
-              propósito — deslogar é reversível, e diálogo em ação reversível
-              treina a pessoa a clicar sem ler. */}
-          <form action={logout}>
-            <button
-              type="submit"
-              className={`flex items-center rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-600 transition-transform hover:bg-neutral-50 hover:text-neutral-900 active:scale-[0.97] pointer-coarse:min-h-11 ${FOCUS_RING}`}
-            >
-              Sair
-            </button>
-          </form>
-        </div>
-      </div>
-
-      {/* Trilha abaixo da linha, colada no título: ela nomeia onde a pessoa
-          está, então fica junto do nome da tela e não na faixa do logo. */}
+      {/* A trilha nomeia onde a pessoa está — é a primeira linha da página
+          agora que logo e conta saíram daqui pra moldura. */}
       {trail?.length ? (
-        <nav aria-label="Breadcrumb" className="mt-4">
+        <nav aria-label="Breadcrumb" className={standalone ? "mt-4" : ""}>
           <ol className="flex flex-wrap items-center gap-1 text-[13px]">
             {trail.map((item, index) => (
               <li key={item.label} className="flex items-center gap-1">
@@ -142,7 +83,7 @@ export async function AdminHeader({
                 {item.href ? (
                   <Link
                     href={item.href}
-                    className={`flex items-center rounded-md bg-neutral-100 px-2.5 text-neutral-600 transition-transform hover:bg-neutral-200 active:scale-[0.97] pointer-coarse:min-h-11 py-1 ${FOCUS_RING}`}
+                    className={`flex items-center rounded-md bg-neutral-100 px-2.5 py-1 text-neutral-600 transition-transform hover:bg-neutral-200 active:scale-[0.97] pointer-coarse:min-h-11 ${FOCUS_RING}`}
                   >
                     {item.label}
                   </Link>
@@ -164,9 +105,9 @@ export async function AdminHeader({
           a mesma palavra duas vezes. Some da tela, fica pro leitor. */}
       <h1
         className={
-          trail?.length
+          dense || trail?.length
             ? "sr-only"
-            : "mt-2 text-xl leading-tight font-semibold tracking-tight text-neutral-900"
+            : "text-xl leading-tight font-semibold tracking-tight text-neutral-900"
         }
       >
         {title}

@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { getBudgetWithSections } from "@/lib/budgets";
 import { AdminHeader } from "@/components/admin/AdminHeader";
-import { getCurrentUsername } from "@/lib/session";
 import { BudgetGeneralInfoForm } from "@/components/admin/BudgetGeneralInfoForm";
 import { BudgetHighlightsSection } from "@/components/admin/BudgetHighlightsSection";
 import { BudgetReferencesSection } from "@/components/admin/BudgetReferencesSection";
@@ -17,9 +16,8 @@ type Params = Promise<{ id: string }>;
 
 export default async function BudgetEditPage({ params }: { params: Params }) {
   const { id } = await params;
-  const [budget, username] = await Promise.all([
+  const [budget] = await Promise.all([
     getBudgetWithSections(id),
-    getCurrentUsername(),
   ]);
 
   if (!budget) notFound();
@@ -32,7 +30,6 @@ export default async function BudgetEditPage({ params }: { params: Params }) {
           { label: "Admin", href: "/admin" },
           { label: "Orçamentos", href: "/admin/orcamentos" },
         ]}
-        username={username}
       />
 
       <div className="space-y-8">

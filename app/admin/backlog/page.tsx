@@ -1,15 +1,13 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { getBacklogBoard } from "@/lib/backlog";
-import { getCurrentUsername } from "@/lib/session";
 import { KanbanBoard } from "@/components/admin/KanbanBoard";
 
 export const dynamic = "force-dynamic";
 
 export default async function BacklogPage() {
-  const [board, username] = await Promise.all([
+  const [board] = await Promise.all([
     getBacklogBoard(),
-    getCurrentUsername(),
   ]);
 
   return (
@@ -20,7 +18,6 @@ export default async function BacklogPage() {
           { label: "Admin", href: "/admin" },
           { label: "Backlog" },
         ]}
-        username={username}
       />
 
       {/* flex-1 pra as colunas ocuparem a altura da tela e o slider encostar

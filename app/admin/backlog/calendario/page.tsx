@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { getBacklogBoard } from "@/lib/backlog";
-import { getCurrentUsername } from "@/lib/session";
 import { getCurrentSession } from "@/lib/session";
 import { getUserCalendarAccount } from "@/lib/userCalendars";
 import { BacklogCalendarSync } from "@/components/admin/BacklogCalendarSync";
@@ -10,9 +9,8 @@ import { Calendar } from "./Calendar";
 export const dynamic = "force-dynamic";
 
 export default async function BacklogCalendarPage() {
-  const [board, username, session] = await Promise.all([
+  const [board, session] = await Promise.all([
     getBacklogBoard(),
-    getCurrentUsername(),
     getCurrentSession(),
   ]);
 
@@ -31,7 +29,6 @@ export default async function BacklogCalendarPage() {
           { label: "Backlog", href: "/admin/backlog" },
           { label: "Calendário" },
         ]}
-        username={username}
       />
 
       <div className="mb-4 flex items-center gap-2 text-sm">

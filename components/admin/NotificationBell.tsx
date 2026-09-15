@@ -28,9 +28,15 @@ function timeAgo(iso: string) {
 export function NotificationBell({
   notifications,
   unreadCount,
+  dropUp = false,
 }: {
   notifications: Notification[];
   unreadCount: number;
+  /**
+   * No rodapé da barra lateral não há tela abaixo do sino — a lista abre pra
+   * cima e alinhada à esquerda, que é o lado onde sobra espaço.
+   */
+  dropUp?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
@@ -106,7 +112,9 @@ export function NotificationBell({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg"
+          className={`absolute z-50 w-80 max-w-[calc(100vw-2rem)] ${
+            dropUp ? "bottom-full left-0 mb-2" : "right-0 mt-2"
+          } overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg`}
         >
           <div className="flex items-center justify-between gap-2 border-b border-neutral-100 px-3 py-2">
             <span className="text-sm font-semibold text-neutral-900">

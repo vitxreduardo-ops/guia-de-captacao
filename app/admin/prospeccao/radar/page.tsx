@@ -2,14 +2,12 @@ import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ProspectTabs } from "@/components/admin/ProspectTabs";
 import { RadarTable } from "@/components/admin/RadarTable";
 import { listRadar } from "@/lib/prospects";
-import { getCurrentUsername } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function RadarPage() {
-  const [companies, username] = await Promise.all([
+  const [companies] = await Promise.all([
     listRadar(),
-    getCurrentUsername(),
   ]);
 
   return (
@@ -21,7 +19,6 @@ export default async function RadarPage() {
           { label: "Prospecção", href: "/admin/prospeccao" },
           { label: "Radar" },
         ]}
-        username={username}
       />
 
       <div className="mb-4">

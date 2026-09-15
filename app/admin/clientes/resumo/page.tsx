@@ -6,7 +6,6 @@ import {
   getYearTotals,
   listInvoiceYears,
 } from "@/lib/billing";
-import { getCurrentUsername } from "@/lib/session";
 import { formatBRL } from "@/lib/billingTypes";
 
 export const dynamic = "force-dynamic";
@@ -17,10 +16,9 @@ export default async function ResumoPage({
   searchParams: Promise<{ ano?: string; cliente?: string }>;
 }) {
   const params = await searchParams;
-  const [years, overdue, username] = await Promise.all([
+  const [years, overdue] = await Promise.all([
     listInvoiceYears(),
     getOverdueByClient(),
-    getCurrentUsername(),
   ]);
 
   const year = Number(params.ano) || years[0] || new Date().getFullYear();
@@ -64,7 +62,6 @@ export default async function ResumoPage({
           { label: "Clientes", href: "/admin/clientes" },
           { label: "Resumo do ano" },
         ]}
-        username={username}
       />
 
       <div className="mb-6">

@@ -1,15 +1,13 @@
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ClientTabs } from "@/components/admin/ClientTabs";
 import { getBacklogBoard } from "@/lib/backlog";
-import { getCurrentUsername } from "@/lib/session";
 import { KanbanBoard } from "@/components/admin/KanbanBoard";
 
 export const dynamic = "force-dynamic";
 
 export default async function EntregasPage() {
-  const [board, username] = await Promise.all([
+  const [board] = await Promise.all([
     getBacklogBoard("entregas"),
-    getCurrentUsername(),
   ]);
 
   return (
@@ -21,7 +19,6 @@ export default async function EntregasPage() {
           { label: "Clientes", href: "/admin/clientes" },
           { label: "Entregas" },
         ]}
-        username={username}
       />
 
       {/* flex-1 pra as colunas ocuparem a altura da tela e o slider encostar

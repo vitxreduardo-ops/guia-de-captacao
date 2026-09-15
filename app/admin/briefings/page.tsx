@@ -6,7 +6,6 @@ import { Accordion } from "@/components/Accordion";
 import { DeleteButton } from "@/components/admin/DeleteButton";
 import { BRIEFING_RETENTION_DAYS, listBriefings } from "@/lib/briefings";
 import { FIELDS } from "@/app/briefing/fields";
-import { getCurrentUsername } from "@/lib/session";
 import { deleteBriefingAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -23,9 +22,8 @@ function formatDate(value: string) {
 }
 
 export default async function BriefingsDashboard() {
-  const [briefings, username, requestHeaders] = await Promise.all([
+  const [briefings, requestHeaders] = await Promise.all([
     listBriefings(),
-    getCurrentUsername(),
     headers(),
   ]);
 
@@ -42,7 +40,6 @@ export default async function BriefingsDashboard() {
       <AdminHeader
         title="Briefings"
         trail={[{ label: "Admin", href: "/admin" }, { label: "Briefings" }]}
-        username={username}
       />
 
       <section className="mb-8 rounded-lg border border-neutral-200 bg-white p-4">
