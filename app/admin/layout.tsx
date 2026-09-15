@@ -47,10 +47,13 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           borrão. `min-h` fecha a altura da tela quando a página é curta, pra
           não sobrar um retângulo pela metade.
 
-          O palco é quase-branco, não branco: os blocos das páginas são
-          brancos com fio, e branco sobre branco apagaria todos eles de uma
-          vez. Três degraus — bege, palco, bloco — e cada um se lê. */}
-      <div className="m-2 flex min-h-[calc(100svh_-_1rem)] min-w-0 flex-1 flex-col rounded-xl border border-neutral-200 bg-neutral-50 px-painel shadow-[0_1px_2px_rgba(30,28,24,0.04)] lg:ml-0">
+          O palco é branco, e os blocos por cima dele são brancos com fio: é
+          o fio que os separa, não o fundo. Tentei o palco em quase-branco pra
+          dar relevo aos blocos e o preço era alto — todo recuo do app (coluna
+          de kanban, caixa de ícone) é `neutral-50`, e passava a ter a mesma
+          cor do palco. Bege na moldura, branco no palco, fio nos blocos,
+          `neutral-50` nos recuos: quatro degraus, cada um com um trabalho. */}
+      <div className="m-2 flex min-h-[calc(100svh_-_1rem)] min-w-0 flex-1 flex-col rounded-xl border border-neutral-200 bg-white px-painel shadow-[0_1px_2px_rgba(30,28,24,0.04)] lg:ml-0">
         {/* No celular 220px de barra não cabem: a mesma chrome vira uma faixa
             de topo, com os atalhos atrás do botão de menu. */}
         {session ? (

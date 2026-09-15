@@ -57,10 +57,11 @@ export default async function AdminHub() {
           </div>
         </div>
 
-        <section
-          aria-labelledby="tarefas-titulo"
-          className="rounded-lg border border-neutral-200 bg-white p-4"
-        >
+        {/* Sem moldura de propósito: cada tarefa já é um bloco branco com
+            fio, e um bloco em volta de blocos vira caixa dentro de caixa —
+            duas bordas dizendo a mesma coisa. O título e a folga bastam pra
+            marcar onde a seção começa. */}
+        <section aria-labelledby="tarefas-titulo">
           <DailyTodoList
             todos={todos}
             users={users}
