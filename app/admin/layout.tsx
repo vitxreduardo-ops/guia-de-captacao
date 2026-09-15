@@ -57,7 +57,11 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
         {/* No celular 220px de barra não cabem: a mesma chrome vira uma faixa
             de topo, com os atalhos atrás do botão de menu. */}
         {session ? (
-          <div className="flex items-center gap-3 border-b border-neutral-200 py-3 lg:hidden">
+          // Material translúcido em vez de faixa opaca com fio: o conteúdo
+          // passa por baixo e continua legível, e a separação vem do desfoque
+          // e de um degradê curto — não de uma linha de 1px que corta a tela
+          // mesmo quando não há nada passando por baixo.
+          <div className="sticky top-0 z-30 -mx-painel flex items-center gap-3 bg-white/80 px-painel py-3 backdrop-blur-md after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-4 after:bg-gradient-to-b after:from-white/80 after:to-transparent lg:hidden">
             <AdminMenuButton isAdmin={session.role === "admin"} />
             <Link
               href="/admin"

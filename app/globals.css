@@ -295,6 +295,52 @@ a {
   os `transition-transform` e as transições que o dnd-kit escreve inline
   durante o arraste.
 */
+/*
+  Tracking por tamanho, não um valor único pro app inteiro.
+
+  Letra grande lê com as formas longe demais umas das outras e pede
+  aproximação; letra pequena lê com as formas grudadas e pede o contrário.
+  Um `letter-spacing` fixo está errado em uma das duas pontas, e aqui o app
+  vive nas duas: `text-xs` é o segundo tamanho mais usado (352 usos) e os
+  títulos passam de 30px.
+
+  Fica em `@layer base` de propósito: qualquer `tracking-*` escrito à mão na
+  classe continua ganhando, porque utilitário vence base.
+*/
+@layer base {
+  .text-\[10px\],
+  .text-\[11px\] {
+    letter-spacing: 0.015em;
+  }
+
+  .text-xs,
+  .text-\[13px\] {
+    letter-spacing: 0.01em;
+  }
+
+  /* Corpo fica no natural da fonte: a Geist já é desenhada pra este tamanho. */
+  .text-sm,
+  .text-base {
+    letter-spacing: 0;
+  }
+
+  .text-lg,
+  .text-xl {
+    letter-spacing: -0.011em;
+  }
+
+  .text-2xl,
+  .text-3xl {
+    letter-spacing: -0.018em;
+  }
+
+  .text-4xl,
+  .text-5xl,
+  .text-6xl {
+    letter-spacing: -0.024em;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

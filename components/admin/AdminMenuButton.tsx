@@ -29,7 +29,10 @@ export function AdminMenuButton({ isAdmin }: { isAdmin: boolean }) {
 
       <DialogContent
         showCloseButton={false}
-        className="top-0 left-0 flex h-svh max-w-72 translate-x-0 translate-y-0 flex-col gap-0 overflow-y-auto rounded-none rounded-r-xl p-3 pt-4 sm:max-w-72 data-open:zoom-in-100 data-closed:zoom-out-100"
+        // Entra e sai pela esquerda, que é a borda de onde ela vem: o que
+        // aparece por um lado e some por outro lê como duas coisas
+        // diferentes. O zoom do diálogo é neutralizado pelo mesmo motivo.
+        className="top-0 left-0 flex h-svh max-w-72 translate-x-0 translate-y-0 flex-col gap-0 overflow-y-auto rounded-none rounded-r-xl p-3 pt-4 duration-200 sm:max-w-72 data-open:zoom-in-100 data-open:slide-in-from-left-full data-closed:zoom-out-100 data-closed:slide-out-to-left-full"
       >
         <DialogTitle className="px-2 pb-3 text-sm text-neutral-500">
           Atalhos

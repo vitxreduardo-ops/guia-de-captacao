@@ -32,9 +32,14 @@ export async function AdminAccount({
   if (!session) return null;
 
   const [username, notifications, unreadCount] = await Promise.all([
-    getCurrentUsername(),
-    listNotifications(session.userId),
-    countUnreadNotifications(session.userId),
+    // Nada aqui pode derrubar a barra. Este bloco é o único pedaço da chrome
+    // que vai ao banco, e com o banco fora a barra inteira deixava de
+    // renderizar — sem nome, sem Sair e, pior, sem navegação. Presenciei isso
+    // numa queda de rede aqui. Nome em branco e sino zerado são degradações
+    // aceitáveis; ficar sem como sair da tela não é.
+    getCurrentUsername().catch(() => null),
+    listNotifications(session.userId).catch(() => []),
+    countUnreadNotifications(session.userId).catch(() => 0),
   ]);
 
   return (

@@ -1,6 +1,7 @@
 import {
   Briefcase,
   CalendarClock,
+  House,
   Clapperboard,
   ClipboardList,
   Images,
@@ -17,6 +18,9 @@ import {
 export type AdminAction = { href: string; label: string; icon: LucideIcon };
 
 const ACTIONS: AdminAction[] = [
+  // Fechada, a barra não mostra o logotipo, que era a única volta pro Painel.
+  // Sem este item a pessoa ficava sem caminho de volta pela barra.
+  { href: "/admin", label: "Painel", icon: House },
   { href: "/admin/guias", label: "Guia de Captação", icon: Clapperboard },
   { href: "/admin/orcamentos", label: "Orçamento", icon: Receipt },
   { href: "/admin/briefings", label: "Briefing", icon: ClipboardList },
@@ -43,5 +47,8 @@ export function adminActions(isAdmin: boolean): AdminAction[] {
  * raiz ficaria marcada e a pessoa perderia a referência ao abrir um item.
  */
 export function isActive(pathname: string, href: string): boolean {
+  // O Painel é prefixo de todas as outras rotas: sem a saída antecipada, ele
+  // ficaria marcado como atual em toda tela do admin.
+  if (href === "/admin") return pathname === "/admin";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
