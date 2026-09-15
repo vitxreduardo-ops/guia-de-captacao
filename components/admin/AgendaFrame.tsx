@@ -1,61 +1,19 @@
 "use client";
 
-import { useSyncExternalStore, type ReactNode } from "react";
-
-const STORAGE_KEY = "agenda:lateral";
-
-/**
- * Estado da lateral, guardado fora do React.
- *
- * O servidor sempre renderiza a lateral aberta; ler o localStorage por
- * `useSyncExternalStore` deixa a hidratação bater com o HTML e só então
- * aplica a escolha guardada — sem o piscar de quem a deixou escondida.
- */
-let hidden: boolean | null = null;
-const listeners = new Set<() => void>();
-
-function isHidden(): boolean {
-  if (hidden === null) {
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      // Sem escolha guardada, a lateral começa escondida no celular e no
-      // tablet: aberta ali ela ocupa a tela inteira e a grade — que é o
-      // motivo da página — só aparece depois de rolar.
-      hidden = saved
-        ? saved === "escondida"
-        : !window.matchMedia("(min-width: 1024px)").matches;
-    } catch {
-      // Navegador com armazenamento bloqueado: segue com a lateral aberta.
-      hidden = false;
-    }
-  }
-  return hidden;
-}
-
-function subscribe(onChange: () => void) {
-  listeners.add(onChange);
-  return () => {
-    listeners.delete(onChange);
-  };
-}
-
-function setHidden(next: boolean) {
-  hidden = next;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, next ? "escondida" : "visivel");
-  } catch {
-    // Sem memória entre visitas, mas o clique continua valendo agora.
-  }
-  for (const listener of listeners) listener();
-}
+import { useState, type ReactNode } from "react";
 
 /**
  * Moldura da tela: lateral que se esconde, barra de controles e grade.
  *
  * A lateral e a barra são montadas no servidor e entram aqui como conteúdo
  * pronto; o que este componente acrescenta é o botão que mostra e esconde a
- * lateral, e a memória dessa escolha entre visitas — quem trabalha com a
- * grade aberta não quer reabrir o menu a cada semana.
+ * lateral.
+ *
+ * A lateral nasce fechada toda vez que a página abre, e a escolha não
+ * sobrevive à visita — a grade é o motivo da tela, e quem quiser o
+ * calendário e a lista de agendas pede. Trocar as semanas no ‹ › não conta
+ * como abrir de novo: aquilo troca a query, não remonta este componente,
+ * então a lateral aberta continua aberta enquanto a pessoa navega o período.
  */
 export function AgendaFrame({
   sidebar,
@@ -66,7 +24,9 @@ export function AgendaFrame({
   toolbar: ReactNode;
   children: ReactNode;
 }) {
-  const open = !useSyncExternalStore(subscribe, isHidden, () => false);
+  // Fechada no primeiro render tanto no servidor quanto no cliente: sem
+  // estado externo pra ler, não há divergência de hidratação nem piscada.
+  const [open, setOpen] = useState(false);
   return (
     <div className="lg:flex lg:gap-6">
       {/* Colapso em CSS, não em JS: a lateral encolhe na altura enquanto
@@ -91,7 +51,7 @@ export function AgendaFrame({
         <div className="mb-3 flex flex-wrap items-center gap-3">
           <button
             type="button"
-            onClick={() => setHidden(open)}
+            onClick={() => setOpen((current) => !current)}
             aria-pressed={!open}
             aria-label={
               open ? "Esconder calendário e agendas" : "Mostrar calendário e agendas"
