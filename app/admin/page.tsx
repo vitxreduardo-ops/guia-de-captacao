@@ -30,7 +30,7 @@ export default async function AdminHub() {
     session && username ? { id: session.userId, username } : null;
 
   return (
-    <div className="mx-auto w-full max-w-6xl py-10">
+    <div className="mx-auto w-full max-w-6xl pt-6 pb-10">
       <AdminHeader title="Painel" />
 
       {/* Os atalhos saíram daqui pra barra do layout, onde valem pras 19
@@ -51,22 +51,17 @@ export default async function AdminHub() {
             </Suspense>
           ) : null}
 
-          {/* No mobile fecha a pilha, depois das tarefas. */}
-          <div className="max-lg:order-last">
+          {/* No celular cai por último, depois das tarefas — no desktop
+              fecha a coluna estreita, embaixo da agenda. */}
+          <div className="max-lg:order-3">
             <UpcomingPosts posts={upcoming} />
           </div>
         </div>
 
-        {/* Sem moldura de propósito: cada tarefa já é um bloco branco com
-            fio, e um bloco em volta de blocos vira caixa dentro de caixa —
-            duas bordas dizendo a mesma coisa. O título e a folga bastam pra
-            marcar onde a seção começa. */}
-        <section aria-labelledby="tarefas-titulo">
-          <DailyTodoList
-            todos={todos}
-            users={users}
-            currentUser={currentUser}
-          />
+        {/* Filho direto do grid de propósito: é ele que ocupa a coluna
+            larga (2fr) no desktop. No celular sobe pro meio da pilha. */}
+        <section aria-labelledby="tarefas-titulo" className="max-lg:order-2">
+          <DailyTodoList todos={todos} users={users} currentUser={currentUser} />
         </section>
       </div>
     </div>

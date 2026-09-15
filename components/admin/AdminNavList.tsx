@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { adminActions, isActive } from "@/components/admin/adminActions";
@@ -24,24 +25,30 @@ export function AdminNavList({
         const active = isActive(pathname, action.href);
         return (
           <li key={action.href} className="group/atalho relative">
-            <Link
-              href={action.href}
-              onClick={onNavigate}
-              aria-current={active ? "page" : undefined}
-              className={`flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-[color,background-color,border-color,transform] duration-150 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.99] group-data-[colapsada=true]/barra:justify-center group-data-[colapsada=true]/barra:px-0 pointer-coarse:min-h-11 ${
-                active
-                  ? "border border-neutral-200 bg-white font-medium text-neutral-900 shadow-[0_1px_2px_rgba(30,28,24,0.04)]"
-                  : "border border-transparent text-neutral-600 hover:bg-neutral-200/50 hover:text-neutral-900"
-              }`}
+            <motion.div
+              whileHover={{ scale: 1.05, x: 2 }}
+              transition={{ type: "spring", bounce: 0, duration: 0.2 }}
+              className="origin-left"
             >
-              <action.icon
-                aria-hidden="true"
-                className={`size-4 shrink-0 ${active ? "text-neutral-900" : "text-neutral-500"}`}
-              />
-              <span className="truncate group-data-[colapsada=true]/barra:sr-only">
-                {action.label}
-              </span>
-            </Link>
+              <Link
+                href={action.href}
+                onClick={onNavigate}
+                aria-current={active ? "page" : undefined}
+                className={`flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-[color,background-color,border-color,transform] duration-150 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.99] group-data-[colapsada=true]/barra:justify-center group-data-[colapsada=true]/barra:px-0 pointer-coarse:min-h-11 ${
+                  active
+                    ? "border border-neutral-200 bg-white font-medium text-neutral-900 shadow-[0_1px_2px_rgba(30,28,24,0.04)]"
+                    : "border border-transparent text-neutral-600 hover:bg-neutral-200/50 hover:text-neutral-900"
+                }`}
+              >
+                <action.icon
+                  aria-hidden="true"
+                  className={`size-4 shrink-0 ${active ? "text-neutral-900" : "text-neutral-500"}`}
+                />
+                <span className="truncate group-data-[colapsada=true]/barra:sr-only">
+                  {action.label}
+                </span>
+              </Link>
+            </motion.div>
 
             {/* Dica própria em vez do `title` do navegador: o nativo só
                 aparece depois de ~1s, nunca no toque, e não acompanha o foco
