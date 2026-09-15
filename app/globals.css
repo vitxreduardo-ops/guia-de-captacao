@@ -751,6 +751,26 @@ a {
 }
 
 /*
+  Par vertical do `px-painel`, nos mesmos degraus. Existe pra o conteúdo ficar
+  à mesma distância da borda de cima e da borda lateral do cartão — escrito
+  como número solto, um dos dois mudava e a simetria sumia sem ninguém notar.
+
+  Sem `env()` aqui: o recuo seguro de cima é problema da moldura, que já
+  começa abaixo dele; deste lado ele só somaria duas vezes.
+*/
+@utility pt-painel {
+  padding-top: 1rem;
+
+  @media (width >= 40rem) {
+    padding-top: 1.5rem;
+  }
+
+  @media (width >= 64rem) {
+    padding-top: 2rem;
+  }
+}
+
+/*
   Alças da moldura de camada no estúdio de lettering. A moldura é escalada
   pelo zoom da câmera, e as alças herdavam essa escala: num zoom de 5x o alvo
   de toque de 40px virava 200px na tela e vazava pela direita. Aqui a escala é
