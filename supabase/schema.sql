@@ -140,6 +140,9 @@ create table if not exists budgets (
   calc_extras numeric(10,2) not null default 0,
   calc_margem_pct numeric(5,2) not null default 10,
   calc_tax_pct numeric(5,2) not null default 5,
+  -- As 11 seções da proposta: ordem, enabled e conteúdo (ver
+  -- supabase/migrations/0051_add_budget_sections.sql e lib/budgetSections.ts).
+  sections jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
