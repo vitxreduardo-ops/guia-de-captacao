@@ -139,9 +139,19 @@ describe("isEmpty", () => {
   it("considera vazia a seção ligada mas sem conteúdo", () => {
     const sections = parseSections([]);
     for (const section of sections) {
-      // O rodapé é a única que sempre aparece: ele fecha a página.
-      expect(isEmpty(section)).toBe(section.kind !== "footer");
+      // Capa e rodapé sempre aparecem: uma abre e o outro fecha a página.
+      const sempreVisivel = section.kind === "cover" || section.kind === "footer";
+      expect(isEmpty(section)).toBe(!sempreVisivel);
     }
+  });
+
+  it("mantém a capa de uma proposta sem nome de cliente", () => {
+    // Regressão real: o orçamento "teste" em produção tem client_name e
+    // hero_title1 vazios, e o hero renderizava assim mesmo.
+    const [capa] = parseSections([
+      { kind: "cover", enabled: true, data: { subtitle: "só o subtítulo" } },
+    ]);
+    expect(isEmpty(capa)).toBe(false);
   });
 });
 

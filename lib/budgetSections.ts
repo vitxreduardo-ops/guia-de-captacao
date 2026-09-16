@@ -328,15 +328,18 @@ export function parseSections(raw: unknown): BudgetSection[] {
 }
 
 /**
- * Uma seção está vazia quando não sobrou nada para mostrar. O rodapé nunca
- * está: ele sempre fecha a página, com ou sem conteúdo.
+ * Uma seção está vazia quando não sobrou nada para mostrar.
+ *
+ * Capa e rodapé nunca estão: uma abre e o outro fecha a página, com ou sem
+ * texto — é o que a página pública já fazia, onde o bloco do hero renderizava
+ * mesmo com o <h1> vazio. Só ficam de fora se alguém desligar.
  */
 export function isEmpty(section: BudgetSection): boolean {
   const { kind, data } = section;
 
   switch (kind) {
     case "cover":
-      return data.title.trim() === "";
+      return false;
     case "about":
       return (
         data.title.trim() === "" &&
