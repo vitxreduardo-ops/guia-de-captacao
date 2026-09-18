@@ -2,24 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import {
-  addBudgetFaq,
-  addBudgetHighlight,
-  addBudgetPackage,
-  addBudgetReference,
-  deleteBudgetFaq,
-  deleteBudgetHighlight,
-  deleteBudgetPackage,
-  deleteBudgetReference,
   getBudgetWithSections,
-  replaceBudgetPackages,
   setBudgetStatus,
   updateBudgetCalc,
-  updateBudgetFaq,
-  updateBudgetHighlight,
   updateBudgetInfo,
-  updateBudgetPackage,
+  updateBudgetSections,
   type BudgetStatus,
 } from "@/lib/budgets";
+import { parseSections } from "@/lib/budgetSections";
 import {
   computeFreela,
   computeRecorrente,
@@ -27,13 +17,65 @@ import {
   type MeuNivel,
   type NivelCliente,
 } from "@/lib/budgetCalc";
-import { fetchOgImage, isLikelyImageUrl } from "@/lib/references";
-import { mirrorRemoteImage, uploadBudgetReferenceImage } from "@/lib/storage";
+import { uploadBudgetReferenceImage } from "@/lib/storage";
 
 function revalidateBudget(id: string, slug?: string | null) {
   revalidatePath(`/admin/orcamentos/${id}`);
   revalidatePath("/admin/orcamentos");
   if (slug) revalidatePath(`/orcamento/${slug}`);
+}
+
+/**
+ * Grava as seções que o editor mandou.
+ *
+ * O que chega do cliente passa por parseSections antes de ir para o banco: é a
+ * mesma normalização da leitura, então campo faltando ganha default e campo do
+ * tipo errado não entra. Uma action não confia no que o navegador manda.
+ */
+export async function saveBudgetSectionsAction(id: string, sections: unknown) {
+  await updateBudgetSections(id, parseSections(sections));
+
+  const budget = await getBudgetWithSections(id);
+  revalidateBudget(id, budget?.slug);
+}
+
+/**
+ * Teto do upload. Cobre foto de capa em resolução de tela com folga; acima
+ * disto é arquivo que não foi tratado, e a proposta ia demorar a abrir no
+ * celular do cliente.
+ */
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Sobe um arquivo do computador e devolve a URL pública.
+ *
+ * Reusa o bucket das referências (uploads ficam em budgets/{id}/ dentro dele),
+ * então não há storage novo para configurar. Quem chama costura a URL no lugar
+ * certo da seção e o autosave grava — o upload em si não mexe no orçamento.
+ */
+export async function uploadBudgetMediaAction(
+  budgetId: string,
+  formData: FormData
+): Promise<{ url: string } | { error: string }> {
+  const file = formData.get("file");
+
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Nenhum arquivo recebido." };
+  }
+  if (!file.type.startsWith("image/")) {
+    return { error: "Só imagem: PNG, JPG, SVG ou WebP." };
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return { error: "Arquivo grande demais — o limite é 10 MB." };
+  }
+
+  try {
+    const url = await uploadBudgetReferenceImage(budgetId, file);
+    return { url };
+  } catch (error) {
+    console.error("[uploadBudgetMediaAction] falhou:", error);
+    return { error: "Não foi possível enviar o arquivo." };
+  }
 }
 
 export async function updateBudgetInfoAction(formData: FormData) {
@@ -43,15 +85,6 @@ export async function updateBudgetInfoAction(formData: FormData) {
     title: String(formData.get("title") ?? "").trim() || "Sem título",
     client_name: String(formData.get("client_name") ?? "").trim(),
     client_whatsapp: String(formData.get("client_whatsapp") ?? "").trim(),
-    hero_eyebrow: String(formData.get("hero_eyebrow") ?? "").trim(),
-    hero_title1: String(formData.get("hero_title1") ?? "").trim(),
-    hero_title2: String(formData.get("hero_title2") ?? "").trim(),
-    hero_subtitle: String(formData.get("hero_subtitle") ?? "").trim(),
-    hero_cta: String(formData.get("hero_cta") ?? "").trim(),
-    hero_bg_video_url: String(formData.get("hero_bg_video_url") ?? "").trim(),
-    about_title: String(formData.get("about_title") ?? "").trim(),
-    about_text: String(formData.get("about_text") ?? "").trim(),
-    highlights_title: String(formData.get("highlights_title") ?? "").trim(),
   });
 
   const budget = await getBudgetWithSections(id);
@@ -105,29 +138,56 @@ export async function generatePackagesFromCalcAction(formData: FormData) {
   });
   const { start, ideal, pro } = packagesFromRecomendado(result.recomendado);
 
-  await replaceBudgetPackages(id, [
-    {
-      name: "Start",
-      price: start,
-      tag: "",
-      features: "Escopo enxuto\nEdite os itens deste pacote",
-    },
-    {
-      name: "Ideal",
-      price: ideal,
-      tag: "MAIS ESCOLHIDO",
-      features: "Gerado pela calculadora\nEdite os itens deste pacote",
-    },
-    {
-      name: "Pro",
-      price: pro,
-      tag: "",
-      features: "Escopo ampliado\nEdite os itens deste pacote",
-    },
-  ]);
-
   const budget = await getBudgetWithSections(id);
-  revalidateBudget(id, budget?.slug);
+  if (!budget) return;
+
+  // A calculadora escreve na seção de valores, que é onde os pacotes moram
+  // agora. Ela troca os três pacotes e não encosta no resto da seção: a
+  // etiqueta, o título e o texto do botão são escolha de quem escreveu a
+  // proposta, não resultado de conta.
+  const pricing = budget.sections.map((section) =>
+    section.kind === "pricing"
+      ? {
+          ...section,
+          enabled: true,
+          data: {
+            ...section.data,
+            packages: [
+              {
+                name: "Start",
+                price: start,
+                subtitle: "",
+                description: "",
+                features: ["Escopo enxuto", "Edite os itens deste pacote"],
+                featured: false,
+              },
+              {
+                name: "Ideal",
+                price: ideal,
+                subtitle: "campeão de vendas",
+                description: "",
+                features: [
+                  "Gerado pela calculadora",
+                  "Edite os itens deste pacote",
+                ],
+                featured: true,
+              },
+              {
+                name: "Pro",
+                price: pro,
+                subtitle: "",
+                description: "",
+                features: ["Escopo ampliado", "Edite os itens deste pacote"],
+                featured: false,
+              },
+            ],
+          },
+        }
+      : section
+  );
+
+  await updateBudgetSections(id, parseSections(pricing));
+  revalidateBudget(id, budget.slug);
 }
 
 export async function addFreelaAsPackageAction(formData: FormData) {
@@ -143,156 +203,57 @@ export async function addFreelaAsPackageAction(formData: FormData) {
     taxPct: Number(formData.get("taxPct")) || 0,
   });
 
-  await addBudgetPackage(budgetId, {
-    name: label,
-    price: Math.round(price),
-    tag: "SOB MEDIDA",
-    features: "Escopo fechado sob medida\nSem recorrência obrigatória",
-  });
-
   const budget = await getBudgetWithSections(budgetId);
-  revalidateBudget(budgetId, budget?.slug);
+  if (!budget) return;
+
+  // O job avulso entra como mais um pacote, no fim da lista — os que já
+  // estavam ali continuam onde estavam.
+  const comFreela = budget.sections.map((section) =>
+    section.kind === "pricing"
+      ? {
+          ...section,
+          enabled: true,
+          data: {
+            ...section.data,
+            packages: [
+              ...section.data.packages,
+              {
+                name: label,
+                price: Math.round(price),
+                subtitle: "sob medida",
+                description: "",
+                features: [
+                  "Escopo fechado sob medida",
+                  "Sem recorrência obrigatória",
+                ],
+                featured: false,
+              },
+            ],
+          },
+        }
+      : section
+  );
+
+  await updateBudgetSections(budgetId, parseSections(comFreela));
+  revalidateBudget(budgetId, budget.slug);
 }
 
 // Destaques
 
-export async function addBudgetHighlightAction(formData: FormData) {
-  const budgetId = String(formData.get("budget_id"));
-  const title = String(formData.get("title") ?? "").trim();
-  if (!title) return;
-  await addBudgetHighlight(budgetId, title);
-  revalidateBudget(budgetId);
-}
 
-export async function updateBudgetHighlightAction(formData: FormData) {
-  const id = String(formData.get("id"));
-  const budgetId = String(formData.get("budget_id"));
-  const title = String(formData.get("title") ?? "").trim();
-  await updateBudgetHighlight(id, title);
-  revalidateBudget(budgetId);
-}
 
-export async function deleteBudgetHighlightAction(formData: FormData) {
-  const id = String(formData.get("id"));
-  const budgetId = String(formData.get("budget_id"));
-  await deleteBudgetHighlight(id);
-  revalidateBudget(budgetId);
-}
 
 // Pacotes
 
-export async function addBudgetPackageAction(formData: FormData) {
-  const budgetId = String(formData.get("budget_id"));
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) return;
-  await addBudgetPackage(budgetId, {
-    name,
-    price: Number(formData.get("price")) || 0,
-    tag: String(formData.get("tag") ?? "").trim(),
-    features: String(formData.get("features") ?? "").trim(),
-  });
-  revalidateBudget(budgetId);
-}
 
-export async function updateBudgetPackageAction(formData: FormData) {
-  const id = String(formData.get("id"));
-  const budgetId = String(formData.get("budget_id"));
-  await updateBudgetPackage(id, {
-    name: String(formData.get("name") ?? "").trim(),
-    price: Number(formData.get("price")) || 0,
-    tag: String(formData.get("tag") ?? "").trim(),
-    features: String(formData.get("features") ?? "").trim(),
-  });
-  revalidateBudget(budgetId);
-}
 
-export async function deleteBudgetPackageAction(formData: FormData) {
-  const id = String(formData.get("id"));
-  const budgetId = String(formData.get("budget_id"));
-  await deleteBudgetPackage(id);
-  revalidateBudget(budgetId);
-}
 
 // FAQ
 
-export async function addBudgetFaqAction(formData: FormData) {
-  const budgetId = String(formData.get("budget_id"));
-  const question = String(formData.get("question") ?? "").trim();
-  if (!question) return;
-  await addBudgetFaq(budgetId, {
-    question,
-    answer: String(formData.get("answer") ?? "").trim(),
-  });
-  revalidateBudget(budgetId);
-}
 
-export async function updateBudgetFaqAction(formData: FormData) {
-  const id = String(formData.get("id"));
-  const budgetId = String(formData.get("budget_id"));
-  await updateBudgetFaq(id, {
-    question: String(formData.get("question") ?? "").trim(),
-    answer: String(formData.get("answer") ?? "").trim(),
-  });
-  revalidateBudget(budgetId);
-}
 
-export async function deleteBudgetFaqAction(formData: FormData) {
-  const id = String(formData.get("id"));
-  const budgetId = String(formData.get("budget_id"));
-  await deleteBudgetFaq(id);
-  revalidateBudget(budgetId);
-}
 
 // Referências
 
-async function resolveReferenceImage(
-  urlInput: string
-): Promise<{ image_url: string; source_url: string | null }> {
-  if (isLikelyImageUrl(urlInput)) {
-    return { image_url: urlInput, source_url: null };
-  }
 
-  const ogImage = await fetchOgImage(urlInput);
-  if (ogImage) {
-    // A og:image do Instagram/Facebook é assinada e expira; guardamos uma
-    // cópia nossa pra referência não sumir depois.
-    const mirrored = await mirrorRemoteImage("mirrors", ogImage);
-    return { image_url: mirrored ?? ogImage, source_url: urlInput };
-  }
 
-  return { image_url: urlInput, source_url: null };
-}
-
-export async function addBudgetReferenceAction(formData: FormData) {
-  const budgetId = String(formData.get("budget_id"));
-  const caption = String(formData.get("caption") ?? "").trim();
-  const urlInput = String(formData.get("image_url") ?? "").trim();
-  const file = formData.get("file");
-
-  let imageUrl = "";
-  let sourceUrl: string | null = null;
-
-  if (file instanceof File && file.size > 0) {
-    imageUrl = await uploadBudgetReferenceImage(budgetId, file);
-  } else if (urlInput) {
-    const resolved = await resolveReferenceImage(urlInput);
-    imageUrl = resolved.image_url;
-    sourceUrl = resolved.source_url;
-  }
-
-  if (!imageUrl) return;
-
-  await addBudgetReference(budgetId, {
-    image_url: imageUrl,
-    source_url: sourceUrl,
-    caption,
-  });
-  revalidateBudget(budgetId);
-}
-
-export async function deleteBudgetReferenceAction(formData: FormData) {
-  const id = String(formData.get("id"));
-  const budgetId = String(formData.get("budget_id"));
-  await deleteBudgetReference(id);
-  revalidateBudget(budgetId);
-}

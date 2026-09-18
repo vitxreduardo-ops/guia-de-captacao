@@ -12,7 +12,21 @@ import {
 } from "@react-pdf/renderer";
 import type { BudgetWithSections } from "@/lib/budgets";
 import { PACKAGE_WHATSAPP_URL } from "@/lib/budgetCalc";
-import { isLikelyImageUrl, toPdfSafeImageUrl } from "@/lib/references";
+import { toPdfSafeImageUrl } from "@/lib/references";
+import {
+  visibleSections,
+  type ListSectionData,
+  type SectionData,
+  type SectionKind,
+} from "@/lib/budgetSections";
+
+/** As quatro seções que são só uma lista de itens. */
+const LIST_KINDS = [
+  "package1",
+  "package1Extra",
+  "package2Perks",
+  "strategy",
+] as const;
 
 Font.register({
   family: "Bootzy",
@@ -107,127 +121,142 @@ function money(n: number) {
 }
 
 function BudgetPdfDocument({ budget }: { budget: BudgetWithSections }) {
-  const highlights = budget.highlights;
-  const references = budget.references;
-  const packages = budget.packages;
-  const faq = budget.faq;
-  const hasAbout = Boolean(budget.about_title || budget.about_text);
+  // O PDF lê as mesmas seções da página, e na mesma ordem: seção desligada ou
+  // vazia não sai aqui também. O desenho é outro — é papel —, mas o conteúdo é
+  // o mesmo, então a proposta impressa nunca diverge da publicada.
+  const visiveis = visibleSections(budget.sections);
+
+  // O find já garante o kind; o cast só conta isso ao TypeScript, que não
+  // consegue estreitar a união sozinho a partir de um parâmetro genérico.
+  function secao<K extends SectionKind>(kind: K): SectionData[K] | undefined {
+    const achada = visiveis.find((s) => s.kind === kind);
+    return achada ? (achada.data as SectionData[K]) : undefined;
+  }
+
+  const cover = secao("cover");
+  const about = secao("about");
+  const portfolio = secao("portfolio");
+  const pricing = secao("pricing");
+  const faq = secao("faq");
+  const listas = visiveis
+    .filter((s) => LIST_KINDS.includes(s.kind as (typeof LIST_KINDS)[number]))
+    .map((s) => ({ kind: s.kind, data: s.data as ListSectionData }));
 
   return (
     <Document>
       <Page size="A4" orientation="portrait" style={styles.page}>
-        {budget.hero_eyebrow ? (
-          <Text style={styles.eyebrow}>{budget.hero_eyebrow}</Text>
+        {cover?.eyebrow ? (
+          <Text style={styles.eyebrow}>{cover.eyebrow}</Text>
         ) : null}
-        <Text style={styles.heroTitle}>{budget.hero_title1}</Text>
-        <Text style={styles.heroTitleBold}>{budget.hero_title2}</Text>
-        {budget.hero_subtitle ? (
-          <Text style={styles.subtitle}>{budget.hero_subtitle}</Text>
+        {cover?.title ? (
+          <Text style={styles.heroTitleBold}>{cover.title}</Text>
+        ) : null}
+        {cover?.subtitle ? (
+          <Text style={styles.subtitle}>{cover.subtitle}</Text>
         ) : null}
 
-        {hasAbout ? (
+        {about ? (
           <View>
-            {budget.about_title ? (
-              <Text style={styles.sectionTitle}>{budget.about_title}</Text>
+            {about.title ? (
+              <Text style={styles.sectionTitle}>{about.title}</Text>
             ) : null}
-            {budget.about_text ? (
-              <Text style={styles.aboutText}>{budget.about_text}</Text>
+            {about.text ? (
+              <Text style={styles.aboutText}>{about.text}</Text>
+            ) : null}
+            {about.items.length > 0 ? (
+              <View style={styles.highlightsGrid}>
+                {about.items.map((item, index) => (
+                  <View key={`${item}-${index}`} style={styles.highlightItem}>
+                    <Text style={styles.highlightNum}>
+                      {String(index + 1).padStart(2, "0")}
+                    </Text>
+                    <Text style={styles.highlightTitle}>{item}</Text>
+                  </View>
+                ))}
+              </View>
             ) : null}
           </View>
         ) : null}
 
-        {highlights.length > 0 ? (
-          <View>
-            <Text style={styles.sectionTitle}>
-              {budget.highlights_title || "O que você recebe"}
-            </Text>
+        {listas.map((lista) => (
+          <View key={lista.kind}>
+            {lista.data.title ? (
+              <Text style={styles.sectionTitle}>{lista.data.title}</Text>
+            ) : null}
             <View style={styles.highlightsGrid}>
-              {highlights.map((item, index) => (
-                <View key={item.id} style={styles.highlightItem}>
+              {lista.data.items.map((item, index) => (
+                <View key={`${item}-${index}`} style={styles.highlightItem}>
                   <Text style={styles.highlightNum}>
                     {String(index + 1).padStart(2, "0")}
                   </Text>
-                  <Text style={styles.highlightTitle}>{item.title}</Text>
+                  <Text style={styles.highlightTitle}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ))}
+
+        {portfolio ? (
+          <View>
+            <Text style={styles.sectionTitle}>
+              {portfolio.title || "Trabalhos selecionados"}
+            </Text>
+            <View style={styles.referencesGrid}>
+              {portfolio.projects.map((projeto, index) => (
+                <View key={`${projeto.url}-${index}`} style={styles.referenceItem}>
+                  {projeto.mediaType === "image" ? (
+                    <Link src={projeto.url}>
+                      {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image is not an HTML img and has no alt prop */}
+                      <Image
+                        src={toPdfSafeImageUrl(projeto.url)}
+                        style={styles.referenceImage}
+                      />
+                    </Link>
+                  ) : (
+                    // Vídeo não tem como virar papel: fica o link.
+                    <Link src={projeto.url} style={styles.referenceLinkBox}>
+                      <Text style={styles.referenceLinkText}>Ver vídeo</Text>
+                    </Link>
+                  )}
+                  {projeto.name ? (
+                    <Text style={styles.referenceCaption}>{projeto.name}</Text>
+                  ) : null}
                 </View>
               ))}
             </View>
           </View>
         ) : null}
 
-        {references.length > 0 ? (
-          <View>
-            <Text style={styles.sectionTitle}>Referências</Text>
-            <View style={styles.referencesGrid}>
-              {references.map((item) => {
-                const showAsImage =
-                  Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
-                const href = item.source_url ?? item.image_url;
-
-                return (
-                  <View key={item.id} style={styles.referenceItem}>
-                    {showAsImage ? (
-                      <Link src={href}>
-                        {/* eslint-disable-next-line jsx-a11y/alt-text -- react-pdf's Image is not an HTML img and has no alt prop */}
-                        <Image
-                          src={toPdfSafeImageUrl(item.image_url)}
-                          style={styles.referenceImage}
-                        />
-                      </Link>
-                    ) : (
-                      <Link src={href} style={styles.referenceLinkBox}>
-                        <Text style={styles.referenceLinkText}>
-                          Abrir link
-                        </Text>
-                      </Link>
-                    )}
-                    {item.caption ? (
-                      <Text style={styles.referenceCaption}>
-                        {item.caption}
-                      </Text>
-                    ) : null}
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        ) : null}
-
-        {packages.length > 0 ? (
+        {pricing ? (
           <View wrap={false}>
             <Text style={styles.sectionTitle}>
-              Três formatos. Uma decisão de posicionamento.
+              {pricing.title || "Escolha a rota"}
             </Text>
             <View style={styles.packagesGrid}>
-              {packages.map((pkg) => {
-                const features = pkg.features
-                  .split("\n")
-                  .map((f) => f.trim())
-                  .filter(Boolean);
-                return (
-                  <View
-                    key={pkg.id}
-                    style={
-                      pkg.tag
-                        ? { ...styles.packageCard, ...styles.packageCardHighlight }
-                        : styles.packageCard
-                    }
-                  >
-                    {pkg.tag ? (
-                      <Text style={styles.packageTag}>{pkg.tag}</Text>
-                    ) : null}
-                    <Text style={styles.packageName}>{pkg.name}</Text>
-                    <Text style={styles.packagePrice}>
-                      {money(pkg.price)}
-                      <Text style={styles.packagePriceUnit}>/mês</Text>
+              {pricing.packages.map((pkg, index) => (
+                <View
+                  key={`${pkg.name}-${index}`}
+                  style={
+                    pkg.featured
+                      ? { ...styles.packageCard, ...styles.packageCardHighlight }
+                      : styles.packageCard
+                  }
+                >
+                  {pkg.featured ? (
+                    <Text style={styles.packageTag}>Recomendado</Text>
+                  ) : null}
+                  <Text style={styles.packageName}>{pkg.name}</Text>
+                  <Text style={styles.packagePrice}>
+                    {money(pkg.price)}
+                    <Text style={styles.packagePriceUnit}>/mês</Text>
+                  </Text>
+                  {pkg.features.map((feature, i) => (
+                    <Text key={i} style={styles.packageFeature}>
+                      — {feature}
                     </Text>
-                    {features.map((feature, i) => (
-                      <Text key={i} style={styles.packageFeature}>
-                        — {feature}
-                      </Text>
-                    ))}
-                  </View>
-                );
-              })}
+                  ))}
+                </View>
+              ))}
             </View>
             <Link src={PACKAGE_WHATSAPP_URL} style={{ fontSize: 8, color: "#2563eb", marginTop: 8 }}>
               {PACKAGE_WHATSAPP_URL}
@@ -235,11 +264,13 @@ function BudgetPdfDocument({ budget }: { budget: BudgetWithSections }) {
           </View>
         ) : null}
 
-        {faq.length > 0 ? (
+        {faq ? (
           <View>
-            <Text style={styles.sectionTitle}>Perguntas frequentes</Text>
-            {faq.map((item) => (
-              <View key={item.id} style={styles.faqItem}>
+            <Text style={styles.sectionTitle}>
+              {faq.title || "Perguntas frequentes"}
+            </Text>
+            {faq.items.map((item, index) => (
+              <View key={`${item.question}-${index}`} style={styles.faqItem}>
                 <Text style={styles.faqQuestion}>{item.question}</Text>
                 {item.answer ? (
                   <Text style={styles.faqAnswer}>{item.answer}</Text>

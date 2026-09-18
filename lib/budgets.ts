@@ -1,6 +1,7 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { MeuNivel, NivelCliente } from "@/lib/budgetCalc";
+import { parseSections, type BudgetSection } from "@/lib/budgetSections";
 
 export type BudgetStatus = "draft" | "published";
 
@@ -28,6 +29,11 @@ export interface Budget {
   calc_extras: number;
   calc_margem_pct: number;
   calc_tax_pct: number;
+  /**
+   * As seções da proposta, como vieram do banco (jsonb cru). Quem lê passa por
+   * parseSections antes de usar — BudgetWithSections já entrega parseado.
+   */
+  sections: unknown;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +73,7 @@ export interface BudgetReference {
 }
 
 export interface BudgetWithSections extends Budget {
+  sections: BudgetSection[];
   highlights: BudgetHighlight[];
   packages: BudgetPackage[];
   faq: BudgetFaq[];
@@ -164,6 +171,7 @@ async function attachSections(budget: Budget): Promise<BudgetWithSections> {
 
   return {
     ...budget,
+    sections: parseSections(budget.sections),
     highlights: highlights.data ?? [],
     packages: packages.data ?? [],
     faq: faq.data ?? [],
@@ -267,6 +275,27 @@ export async function updateBudgetInfo(
   const { error } = await supabase
     .from("budgets")
     .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
+/**
+ * Grava o array inteiro de seções. É um UPDATE só, atômico e idempotente — é o
+ * que torna o autosave do editor barato.
+ *
+ * ponytail: last-write-wins no array inteiro; um editor por orçamento. Se duas
+ * pessoas passarem a editar a mesma proposta ao mesmo tempo, salvar só a seção
+ * alterada com jsonb_set.
+ */
+export async function updateBudgetSections(
+  id: string,
+  sections: BudgetSection[]
+) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("budgets")
+    .update({ sections, updated_at: new Date().toISOString() })
     .eq("id", id);
 
   if (error) throw error;
