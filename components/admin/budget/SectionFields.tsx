@@ -6,6 +6,7 @@ import {
   RepeatableList,
   TextList,
 } from "@/components/admin/budget/RepeatableList";
+import { UploadButton } from "@/components/admin/budget/UploadButton";
 import {
   MAX_BLUR,
   type BudgetSection,
@@ -24,6 +25,7 @@ import {
 export function SectionFields({
   section,
   onChange,
+  budgetId,
 }: {
   section: BudgetSection;
   onChange: (section: BudgetSection) => void;
@@ -76,6 +78,13 @@ export function SectionFields({
               className={FIELD_CLASS}
               placeholder="Link da imagem, .mp4, YouTube ou Vimeo"
             />
+            <div className="mt-1.5">
+              <UploadButton
+                budgetId={budgetId}
+                onUploaded={(url) => set({ mediaUrl: url })}
+                label="Enviar foto do computador"
+              />
+            </div>
           </Field>
 
           <Field label={`Desfoque do fundo — ${data.blur}px`}>
@@ -231,6 +240,13 @@ export function SectionFields({
                     className={FIELD_CLASS}
                     placeholder="URL da imagem ou vídeo"
                   />
+                  <UploadButton
+                    budgetId={budgetId}
+                    onUploaded={(url) =>
+                      trocar({ ...projeto, url, mediaType: "image" })
+                    }
+                    label="Enviar imagem do computador"
+                  />
                   <div className="grid grid-cols-2 gap-1.5">
                     <select
                       value={projeto.mediaType}
@@ -315,6 +331,11 @@ export function SectionFields({
                     onChange={(e) => trocar({ ...logo, url: e.target.value })}
                     className={FIELD_CLASS}
                     placeholder="URL do logo, ou /clientes/arquivo.svg"
+                  />
+                  <UploadButton
+                    budgetId={budgetId}
+                    onUploaded={(url) => trocar({ ...logo, url })}
+                    label="Enviar logo do computador"
                   />
                 </>
               )}

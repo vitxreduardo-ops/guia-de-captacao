@@ -52,6 +52,45 @@ export async function saveBudgetSectionsAction(id: string, sections: unknown) {
   revalidateBudget(id, budget?.slug);
 }
 
+/**
+ * Teto do upload. Cobre foto de capa em resolução de tela com folga; acima
+ * disto é arquivo que não foi tratado, e a proposta ia demorar a abrir no
+ * celular do cliente.
+ */
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Sobe um arquivo do computador e devolve a URL pública.
+ *
+ * Reusa o bucket das referências (uploads ficam em budgets/{id}/ dentro dele),
+ * então não há storage novo para configurar. Quem chama costura a URL no lugar
+ * certo da seção e o autosave grava — o upload em si não mexe no orçamento.
+ */
+export async function uploadBudgetMediaAction(
+  budgetId: string,
+  formData: FormData
+): Promise<{ url: string } | { error: string }> {
+  const file = formData.get("file");
+
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Nenhum arquivo recebido." };
+  }
+  if (!file.type.startsWith("image/")) {
+    return { error: "Só imagem: PNG, JPG, SVG ou WebP." };
+  }
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return { error: "Arquivo grande demais — o limite é 10 MB." };
+  }
+
+  try {
+    const url = await uploadBudgetReferenceImage(budgetId, file);
+    return { url };
+  } catch (error) {
+    console.error("[uploadBudgetMediaAction] falhou:", error);
+    return { error: "Não foi possível enviar o arquivo." };
+  }
+}
+
 export async function updateBudgetInfoAction(formData: FormData) {
   const id = String(formData.get("id"));
 
