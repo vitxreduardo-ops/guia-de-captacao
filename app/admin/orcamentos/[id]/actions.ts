@@ -18,6 +18,13 @@ import {
   type NivelCliente,
 } from "@/lib/budgetCalc";
 import { uploadBudgetReferenceImage } from "@/lib/storage";
+import {
+  addClientLogo,
+  deleteClientLogo,
+  listClientLogos,
+  renameClientLogo,
+  type ClientLogoRecord,
+} from "@/lib/clientLogos";
 
 function revalidateBudget(id: string, slug?: string | null) {
   revalidatePath(`/admin/orcamentos/${id}`);
@@ -76,6 +83,37 @@ export async function uploadBudgetMediaAction(
     console.error("[uploadBudgetMediaAction] falhou:", error);
     return { error: "Não foi possível enviar o arquivo." };
   }
+}
+
+// Biblioteca de logos
+
+export async function listClientLogosAction(): Promise<ClientLogoRecord[]> {
+  return listClientLogos();
+}
+
+/**
+ * Sobe um logo e guarda no acervo de uma vez: quem está montando a proposta
+ * não deveria ter que cadastrar o logo num lugar e escolhê-lo em outro.
+ */
+export async function uploadClientLogoAction(
+  budgetId: string,
+  formData: FormData
+): Promise<{ logo: ClientLogoRecord } | { error: string }> {
+  const nome = String(formData.get("name") ?? "").trim();
+  const enviado = await uploadBudgetMediaAction(budgetId, formData);
+
+  if ("error" in enviado) return enviado;
+
+  const logo = await addClientLogo({ name: nome, logo_url: enviado.url });
+  return { logo };
+}
+
+export async function renameClientLogoAction(id: string, name: string) {
+  await renameClientLogo(id, name.trim());
+}
+
+export async function deleteClientLogoAction(id: string) {
+  await deleteClientLogo(id);
 }
 
 export async function updateBudgetInfoAction(formData: FormData) {
