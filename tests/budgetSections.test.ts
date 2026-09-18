@@ -7,6 +7,7 @@ import {
   isNumbered,
   parseSections,
   sectionNumber,
+  secoesPadrao,
   visibleSections,
   type BudgetSection,
 } from "@/lib/budgetSections";
@@ -241,5 +242,56 @@ describe("capa: mídia de fundo e desfoque", () => {
       if (capa.kind !== "cover") throw new Error("kind inesperado");
       expect(capa.data.blur).toBe(esperado[i]);
     });
+  });
+});
+
+describe("secoesPadrao", () => {
+  it("entrega as 11 seções, com capa, leitura e rodapé ligados", () => {
+    const padrao = secoesPadrao();
+    expect(padrao).toHaveLength(11);
+    expect(padrao.filter((s) => s.enabled).map((s) => s.kind)).toEqual([
+      "cover",
+      "about",
+      "footer",
+    ]);
+  });
+
+  it("não deixa a capa com um nome de cliente inventado", () => {
+    const capa = secoesPadrao()[0];
+    if (capa.kind !== "cover") throw new Error("kind inesperado");
+    expect(capa.data.title).toBe("");
+    // O resto da capa vem escrito.
+    expect(capa.data.eyebrow).not.toBe("");
+    expect(capa.data.cta).not.toBe("");
+  });
+
+  it("nasce com os campos escritos, e não só com os títulos", () => {
+    const padrao = secoesPadrao();
+    const porKind = Object.fromEntries(padrao.map((s) => [s.kind, s.data]));
+
+    // Listas de texto vêm preenchidas.
+    for (const kind of ["package1", "package1Extra", "package2Perks", "strategy"]) {
+      expect((porKind[kind] as { items: string[] }).items.length).toBeGreaterThan(0);
+    }
+    expect((porKind.about as { items: string[] }).items.length).toBeGreaterThan(0);
+    expect((porKind.faq as { items: unknown[] }).items.length).toBe(3);
+    expect((porKind.pricing as { packages: unknown[] }).packages.length).toBe(3);
+
+    // Listas que dependem de arquivo ficam vazias: sem imagem não há o que
+    // mostrar, e um item sem mídia seria um buraco na página.
+    expect((porKind.portfolio as { projects: unknown[] }).projects).toEqual([]);
+    expect((porKind.logos as { logos: unknown[] }).logos).toEqual([]);
+  });
+
+  it("deixa os preços em zero para ninguém publicar um valor de exemplo", () => {
+    const pricing = secoesPadrao().find((s) => s.kind === "pricing");
+    if (pricing?.kind !== "pricing") throw new Error("kind inesperado");
+    expect(pricing.data.packages.map((p) => p.price)).toEqual([0, 0, 0]);
+  });
+
+  it("toda pergunta semeada vem com resposta", () => {
+    const faq = secoesPadrao().find((s) => s.kind === "faq");
+    if (faq?.kind !== "faq") throw new Error("kind inesperado");
+    expect(faq.data.items.every((i) => i.answer.trim() !== "")).toBe(true);
   });
 });

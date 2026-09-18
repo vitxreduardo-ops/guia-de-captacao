@@ -410,6 +410,228 @@ export function blockTone(index: number) {
 
 export type BlockTone = ReturnType<typeof blockTone>;
 
+/**
+ * Como um orçamento novo nasce: com os textos que se repetem em toda proposta
+ * já escritos, para sobrar só o que muda de cliente para cliente.
+ *
+ * Fica ligado o que toda proposta tem — capa, leitura e rodapé. O resto nasce
+ * desligado mas já preenchido: ligar a seção não deve ser o começo de uma
+ * página em branco.
+ *
+ * O título da capa fica vazio de propósito: é o nome do cliente, e um texto
+ * genérico ali seria justamente o que ninguém pode esquecer de trocar.
+ */
+export function secoesPadrao(): BudgetSection[] {
+  const cru = [
+    {
+      kind: "cover",
+      enabled: true,
+      data: {
+        eyebrow: "PROPOSTA CRIATIVA · 2026",
+        title: "",
+        subtitle:
+          "Uma direção audiovisual desenhada para transformar atenção em percepção de valor.",
+        cta: "Conhecer a proposta",
+        mediaUrl: "",
+        blur: 0,
+      },
+    },
+    {
+      kind: "about",
+      enabled: true,
+      data: {
+        eyebrow: "NOSSA LEITURA",
+        title:
+          "Sua marca não precisa apenas aparecer. Precisa ser reconhecida.",
+        subtitle: "",
+        text: "A gente entra na operação para entender o que a sua marca já comunica, o que ainda não está claro e onde está a oportunidade. A partir daí desenha uma rota audiovisual com começo, meio e recorrência.",
+        items: [
+          "Direção criativa",
+          "Produção audiovisual",
+          "Gestão de conteúdo",
+          "Estratégia de recorrência",
+        ],
+        statNumber: "150+",
+        statCaption: "projetos colocados em movimento",
+      },
+    },
+    {
+      kind: "portfolio",
+      enabled: false,
+      data: {
+        eyebrow: "TRABALHOS SELECIONADOS",
+        title: "O que já colocamos no ar",
+        subtitle: "",
+        projects: [],
+      },
+    },
+    {
+      kind: "logos",
+      enabled: false,
+      data: {
+        eyebrow: "QUEM JÁ CONFIA",
+        title: "Marcas que já colocamos em movimento",
+        logos: [],
+      },
+    },
+    {
+      kind: "package1",
+      enabled: false,
+      data: {
+        eyebrow: "O QUE ENTRA",
+        title: "O que está incluído",
+        subtitle: "Tudo que acompanha o pacote, do primeiro alinhamento à entrega.",
+        items: [
+          "Reunião de alinhamento e definição de pauta",
+          "Diária de captação com direção no set",
+          "Edição, finalização e tratamento de cor",
+          "Entrega nos formatos de cada canal",
+        ],
+      },
+    },
+    {
+      kind: "package1Extra",
+      enabled: false,
+      data: {
+        eyebrow: "ALÉM DO PACOTE",
+        title: "Mas se você precisar de mais",
+        subtitle: "O que dá para somar sem trocar de pacote.",
+        items: [
+          "Diária extra de captação",
+          "Cortes adicionais a partir do material já gravado",
+          "Design de peças estáticas",
+          "Legendagem e versões para tráfego",
+        ],
+      },
+    },
+    {
+      kind: "package2Perks",
+      enabled: false,
+      data: {
+        eyebrow: "DIFERENCIAIS",
+        title: "O que muda no pacote seguinte",
+        subtitle: "Onde o próximo nível abre espaço.",
+        items: [
+          "Planejamento de conteúdo mês a mês",
+          "Branding aplicado às peças",
+          "Leitura de métricas para guiar a próxima pauta",
+          "Prioridade de agenda",
+        ],
+      },
+    },
+    {
+      kind: "strategy",
+      enabled: false,
+      data: {
+        eyebrow: "COMO FUNCIONA",
+        title: "A rota, mês a mês",
+        subtitle: "Como a operação roda depois do sim.",
+        items: [
+          "Alinhamento de pauta no início do mês",
+          "Captação concentrada em uma diária",
+          "Entregas ao longo do mês, por formato",
+          "Leitura de resultado para guiar o mês seguinte",
+        ],
+      },
+    },
+    {
+      kind: "pricing",
+      enabled: false,
+      data: {
+        eyebrow: "INVESTIMENTO",
+        title: "Escolha a rota",
+        subtitle: "Todos os pacotes são mensais e recorrentes.",
+        cta: "Escolher este pacote",
+        // Os preços ficam em zero de propósito: quem define é a calculadora,
+        // na aba Configuração, ou a mão. Um valor de exemplo aqui é o tipo de
+        // coisa que vai para o cliente sem ninguém perceber.
+        packages: [
+          {
+            name: "START",
+            price: 0,
+            subtitle: "mínimo para entrar",
+            description: "4 vídeos · meia diária",
+            features: [
+              "Direção criativa",
+              "Captação mensal",
+              "Edição e finalização",
+              "Entrega por formato",
+            ],
+            featured: false,
+          },
+          {
+            name: "IDEAL",
+            price: 0,
+            subtitle: "campeão de vendas",
+            description: "6 vídeos · diária completa",
+            features: [
+              "Tudo do START",
+              "Planejamento de conteúdo",
+              "Branding aplicado",
+              "Leitura de métricas",
+            ],
+            featured: true,
+          },
+          {
+            name: "PRO",
+            price: 0,
+            subtitle: "tudo + exclusividade",
+            description: "até 8 vídeos · frentes múltiplas",
+            features: [
+              "Tudo do IDEAL",
+              "Gestão de tráfego",
+              "Prioridade de agenda",
+              "Time dedicado",
+            ],
+            featured: false,
+          },
+        ],
+      },
+    },
+    {
+      kind: "faq",
+      enabled: false,
+      data: {
+        eyebrow: "DÚVIDAS FREQUENTES",
+        title: "O que costumam perguntar",
+        items: [
+          {
+            question: "Qual o prazo mínimo de contrato?",
+            answer:
+              "Três meses. É o tempo que a marca leva para sair do teste e começar a mostrar constância — abaixo disso não dá para ler resultado.",
+          },
+          {
+            question: "Como funciona a aprovação do material?",
+            answer:
+              "Cada entrega vai com uma rodada de ajustes inclusa. Você comenta direto no material e a versão final sai em até dois dias úteis.",
+          },
+          {
+            question: "E se eu precisar de algo fora do pacote?",
+            answer:
+              "A gente orça à parte, sem mexer na recorrência. Diária extra, peça avulsa e formatos novos entram assim.",
+          },
+        ],
+      },
+    },
+    {
+      kind: "footer",
+      enabled: true,
+      data: {
+        phrase:
+          "Estratégia, direção criativa e audiovisual para marcas que decidiram ocupar espaço.",
+        instagram: "",
+        youtube: "",
+        email: "",
+        phone: "",
+      },
+    },
+  ];
+
+  // Passa pelo normalizador como qualquer outro dado: assim um campo novo
+  // ganha o default sozinho, sem precisar ser lembrado aqui.
+  return parseSections(cru);
+}
+
 /** "01", "02"... o número que a seção mostra no topo do bloco. */
 export function sectionNumber(index: number): string {
   return String(index + 1).padStart(2, "0");
