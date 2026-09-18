@@ -1,6 +1,13 @@
 import { updateBudgetInfoAction } from "@/app/admin/orcamentos/[id]/actions";
 import type { BudgetWithSections } from "@/lib/budgets";
 
+/**
+ * O que não é conteúdo da proposta: nome interno, cliente e WhatsApp.
+ *
+ * Tudo que o cliente lê — capa, sobre, pacotes — mora nas seções e se edita no
+ * painel, com o resultado à vista. Repetir esses campos aqui daria dois lugares
+ * para a mesma coisa e um deles ia ficar velho.
+ */
 export function BudgetGeneralInfoForm({
   budget,
 }: {
@@ -51,124 +58,6 @@ export function BudgetGeneralInfoForm({
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="border-t border-neutral-200 pt-4">
-          <h2 className="mb-3 text-sm font-semibold text-neutral-900">
-            Hero
-          </h2>
-          <div className="space-y-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">
-                Etiqueta (eyebrow)
-              </label>
-              <input
-                name="hero_eyebrow"
-                defaultValue={budget.hero_eyebrow}
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-neutral-600">
-                  Título — linha 1
-                </label>
-                <input
-                  name="hero_title1"
-                  defaultValue={budget.hero_title1}
-                  placeholder="CLIENTE"
-                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-neutral-600">
-                  Título — linha 2
-                </label>
-                <input
-                  name="hero_title2"
-                  defaultValue={budget.hero_title2}
-                  placeholder="COMUNICAÇÃO"
-                  className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">
-                Subtítulo
-              </label>
-              <textarea
-                name="hero_subtitle"
-                defaultValue={budget.hero_subtitle}
-                rows={2}
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">
-                Texto do botão
-              </label>
-              <input
-                name="hero_cta"
-                defaultValue={budget.hero_cta}
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">
-                Vídeo de fundo (link direto .mp4 ou YouTube/Vimeo — opcional)
-              </label>
-              <input
-                name="hero_bg_video_url"
-                defaultValue={budget.hero_bg_video_url}
-                placeholder="Cole aqui o melhor recorte do seu portfólio"
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-              />
-              <p className="mt-1 text-xs text-neutral-500">
-                Deixe em branco pra usar só a cor de fundo. Não esqueça de
-                trocar isso antes de publicar — não deixe vídeo de teste.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t border-neutral-200 pt-4">
-          <h2 className="mb-3 text-sm font-semibold text-neutral-900">
-            Sobre
-          </h2>
-          <div className="space-y-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">
-                Título
-              </label>
-              <input
-                name="about_title"
-                defaultValue={budget.about_title}
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">
-                Texto
-              </label>
-              <textarea
-                name="about_text"
-                defaultValue={budget.about_text}
-                rows={3}
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t border-neutral-200 pt-4">
-          <label className="mb-1 block text-xs font-medium text-neutral-600">
-            Título da seção de destaques
-          </label>
-          <input
-            name="highlights_title"
-            defaultValue={budget.highlights_title}
-            className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-          />
         </div>
 
         <button

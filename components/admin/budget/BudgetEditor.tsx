@@ -85,6 +85,21 @@ export function BudgetEditor({
     [flush]
   );
 
+  // A aba Configuração salva pelo servidor: a calculadora escreve os pacotes
+  // direto na seção de valores. Sem adotar o que volta de lá, o preview ficaria
+  // desatualizado e — pior — o próximo autosave gravaria o estado antigo por
+  // cima, apagando os pacotes recém-gerados.
+  //
+  // Só adota quando não há save pendente: o rascunho de quem está digitando
+  // vale mais que a versão do servidor, que é justamente a de antes.
+  useEffect(() => {
+    if (pending.current) return;
+    const doServidor = JSON.stringify(budget.sections);
+    setSections((atual) =>
+      doServidor === JSON.stringify(atual) ? atual : budget.sections
+    );
+  }, [budget.sections]);
+
   // Fechar a aba com um save agendado perderia a última edição.
   useEffect(() => {
     function avisar(event: BeforeUnloadEvent) {
