@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { saveBudgetSectionsAction } from "@/app/admin/orcamentos/[id]/actions";
-import { BudgetPreviewPane } from "@/components/admin/budget/BudgetPreviewPane";
+import {
+  BudgetPreviewPane,
+  ZoomControls,
+} from "@/components/admin/budget/BudgetPreviewPane";
 import { BudgetSectionPanel } from "@/components/admin/budget/BudgetSectionPanel";
 import type { BudgetSection } from "@/lib/budgetSections";
 import type { BudgetWithSections } from "@/lib/budgets";
@@ -48,6 +51,9 @@ export function BudgetEditor({
   const [openKind, setOpenKind] = useState<string | null>(null);
   const [tab, setTab] = useState<"secoes" | "config">("secoes");
   const [painelAberto, setPainelAberto] = useState(true);
+  // O zoom do preview mora aqui porque o controle dele fica na barra do painel,
+  // e não sobre a proposta.
+  const [zoom, setZoom] = useState<number | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -155,6 +161,7 @@ export function BudgetEditor({
         <BudgetPreviewPane
           sections={sections}
           clientName={budget.client_name}
+          zoom={zoom}
         />
         {painelAberto ? null : (
           <button
@@ -185,7 +192,11 @@ export function BudgetEditor({
           >
             {SAVE_LABEL[saveState]}
           </span>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <ZoomControls zoom={zoom} onChange={setZoom} />
+
+            <span className="h-4 w-px bg-neutral-200" />
+
             <a
               href={`/orcamento/${budget.slug}`}
               target="_blank"
