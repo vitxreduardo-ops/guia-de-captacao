@@ -14,6 +14,10 @@ import type { BlockTone, SectionData } from "@/lib/budgetSections";
  * domínio que alguém cole no editor, e a otimização do Next exige domínio
  * declarado na config.
  */
+function isSvg(url: string) {
+  return /\.svg($|\?)/i.test(url);
+}
+
 export function LogosSection({
   data,
   tone,
@@ -35,11 +39,33 @@ export function LogosSection({
       <RevealStagger className="grid grid-cols-2 items-center gap-x-10 gap-y-12 sm:grid-cols-4">
         {data.logos.map((logo, index) => (
           <RevealItem key={`${logo.url}-${index}`}>
-            <img
-              src={logo.url}
-              alt={logo.name || "Cliente"}
-              className="h-10 w-full object-contain opacity-70 grayscale transition duration-300 hover:opacity-100 hover:grayscale-0 sm:h-12"
-            />
+            {isSvg(logo.url) ? (
+              // SVG entra como máscara, e a cor vem de baixo: um <img> isola o
+              // conteúdo do arquivo e não deixa o CSS de fora pintar nada.
+              // Assim o logo assume a tinta do bloco em vez de trazer a cor
+              // que o cliente usou na marca dele.
+              <span
+                role="img"
+                aria-label={logo.name || "Cliente"}
+                style={{
+                  maskImage: `url("${logo.url}")`,
+                  WebkitMaskImage: `url("${logo.url}")`,
+                  maskRepeat: "no-repeat",
+                  WebkitMaskRepeat: "no-repeat",
+                  maskPosition: "center",
+                  WebkitMaskPosition: "center",
+                  maskSize: "contain",
+                  WebkitMaskSize: "contain",
+                }}
+                className={`block h-10 w-full bg-current opacity-70 transition-opacity duration-300 hover:opacity-100 sm:h-12 ${tone.iconColor}`}
+              />
+            ) : (
+              <img
+                src={logo.url}
+                alt={logo.name || "Cliente"}
+                className="h-10 w-full object-contain opacity-70 grayscale transition duration-300 hover:opacity-100 hover:grayscale-0 sm:h-12"
+              />
+            )}
           </RevealItem>
         ))}
       </RevealStagger>
