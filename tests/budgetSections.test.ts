@@ -3,6 +3,7 @@ import {
   SECTION_KINDS,
   blockTone,
   isEmpty,
+  isNumbered,
   parseSections,
   sectionNumber,
   visibleSections,
@@ -182,5 +183,29 @@ describe("visibleSections", () => {
       blockTone(i).isDark
     );
     expect(tons).toEqual([true, false, true, false, true]);
+  });
+});
+
+describe("isNumbered", () => {
+  it("numera o miolo e deixa capa e rodapé de fora", () => {
+    const numeradas = parseSections(backfilled).filter(isNumbered).map((s) => s.kind);
+    expect(numeradas).not.toContain("cover");
+    expect(numeradas).not.toContain("footer");
+    expect(numeradas).toHaveLength(SECTION_KINDS.length - 2);
+  });
+
+  it("dá 01 à primeira seção depois da capa", () => {
+    // É o cálculo que BudgetSections faz para montar a página.
+    const visiveis = visibleSections(parseSections(backfilled));
+    const numeros = visiveis.map((_, i) =>
+      sectionNumber(visiveis.slice(0, i).filter(isNumbered).length)
+    );
+    // capa, sobre, pacotes, faq, rodapé
+    expect(visiveis.map((s) => s.kind)).toEqual([
+      "cover", "about", "pricing", "faq", "footer",
+    ]);
+    expect(numeros[1]).toBe("01");
+    expect(numeros[2]).toBe("02");
+    expect(numeros[3]).toBe("03");
   });
 });

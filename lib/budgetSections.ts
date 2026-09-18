@@ -401,3 +401,9 @@ export type BlockTone = ReturnType<typeof blockTone>;
 export function sectionNumber(index: number): string {
   return String(index + 1).padStart(2, "0");
 }
+
+/** Capa e rodapé abrem e fecham a página sem número — a primeira seção
+ *  depois da capa é a 01. */
+export function isNumbered(section: BudgetSection): boolean {
+  return section.kind !== "cover" && section.kind !== "footer";
+}
