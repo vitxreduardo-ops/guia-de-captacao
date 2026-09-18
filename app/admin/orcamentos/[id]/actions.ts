@@ -18,8 +18,10 @@ import {
   updateBudgetHighlight,
   updateBudgetInfo,
   updateBudgetPackage,
+  updateBudgetSections,
   type BudgetStatus,
 } from "@/lib/budgets";
+import { parseSections } from "@/lib/budgetSections";
 import {
   computeFreela,
   computeRecorrente,
@@ -34,6 +36,20 @@ function revalidateBudget(id: string, slug?: string | null) {
   revalidatePath(`/admin/orcamentos/${id}`);
   revalidatePath("/admin/orcamentos");
   if (slug) revalidatePath(`/orcamento/${slug}`);
+}
+
+/**
+ * Grava as seções que o editor mandou.
+ *
+ * O que chega do cliente passa por parseSections antes de ir para o banco: é a
+ * mesma normalização da leitura, então campo faltando ganha default e campo do
+ * tipo errado não entra. Uma action não confia no que o navegador manda.
+ */
+export async function saveBudgetSectionsAction(id: string, sections: unknown) {
+  await updateBudgetSections(id, parseSections(sections));
+
+  const budget = await getBudgetWithSections(id);
+  revalidateBudget(id, budget?.slug);
 }
 
 export async function updateBudgetInfoAction(formData: FormData) {
