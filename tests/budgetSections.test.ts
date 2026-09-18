@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_BLUR,
   SECTION_KINDS,
   blockTone,
   isEmpty,
@@ -22,6 +23,7 @@ const backfilled = [
       subtitle: "Uma direção audiovisual desenhada para transformar atenção.",
       cta: "Conhecer a proposta",
       videoUrl: "",
+
     },
   },
   {
@@ -207,5 +209,37 @@ describe("isNumbered", () => {
     expect(numeros[1]).toBe("01");
     expect(numeros[2]).toBe("02");
     expect(numeros[3]).toBe("03");
+  });
+});
+
+describe("capa: mídia de fundo e desfoque", () => {
+  it("aceita o videoUrl das propostas gravadas antes", () => {
+    const [capa] = parseSections([
+      { kind: "cover", enabled: true, data: { videoUrl: " https://vimeo.com/123 " } },
+    ]);
+    if (capa.kind !== "cover") throw new Error("kind inesperado");
+    expect(capa.data.mediaUrl).toBe("https://vimeo.com/123");
+  });
+
+  it("prefere mediaUrl quando os dois vêm juntos", () => {
+    const [capa] = parseSections([
+      {
+        kind: "cover",
+        enabled: true,
+        data: { mediaUrl: "/capa.jpg", videoUrl: "https://vimeo.com/123" },
+      },
+    ]);
+    if (capa.kind !== "cover") throw new Error("kind inesperado");
+    expect(capa.data.mediaUrl).toBe("/capa.jpg");
+  });
+
+  it("segura o desfoque entre zero e o teto", () => {
+    const valores = [-10, 0, 12, 999, Number.NaN];
+    const esperado = [0, 0, 12, MAX_BLUR, 0];
+    valores.forEach((blur, i) => {
+      const [capa] = parseSections([{ kind: "cover", enabled: true, data: { blur } }]);
+      if (capa.kind !== "cover") throw new Error("kind inesperado");
+      expect(capa.data.blur).toBe(esperado[i]);
+    });
   });
 });

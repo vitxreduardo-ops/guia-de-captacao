@@ -73,7 +73,10 @@ export interface SectionData {
     title: string;
     subtitle: string;
     cta: string;
-    videoUrl: string;
+    /** Imagem ou vídeo de fundo: arquivo, YouTube ou Vimeo. */
+    mediaUrl: string;
+    /** Desfoque da mídia de fundo, em pixels. 0 = sem desfoque. */
+    blur: number;
   };
   about: {
     eyebrow: string;
@@ -153,6 +156,13 @@ function num(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+/** O desfoque para de fazer diferença muito antes disto; é só um teto. */
+export const MAX_BLUR = 40;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
 function bool(value: unknown): boolean {
   return value === true;
 }
@@ -205,7 +215,10 @@ function parseData<K extends SectionKind>(
         title: str(d.title),
         subtitle: str(d.subtitle),
         cta: str(d.cta),
-        videoUrl: str(d.videoUrl),
+        // videoUrl é o nome antigo, de quando a capa só aceitava vídeo: as
+        // propostas gravadas antes ainda têm a chave, e continuam valendo.
+        mediaUrl: str(d.mediaUrl, str(d.videoUrl)).trim(),
+        blur: clamp(num(d.blur), 0, MAX_BLUR),
       } as SectionData[K];
 
     case "about":

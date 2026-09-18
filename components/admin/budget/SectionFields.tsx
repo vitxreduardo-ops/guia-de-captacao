@@ -6,10 +6,11 @@ import {
   RepeatableList,
   TextList,
 } from "@/components/admin/budget/RepeatableList";
-import type {
-  BudgetSection,
-  ListSectionData,
-  SectionData,
+import {
+  MAX_BLUR,
+  type BudgetSection,
+  type ListSectionData,
+  type SectionData,
 } from "@/lib/budgetSections";
 
 /**
@@ -68,17 +69,31 @@ export function SectionFields({
               placeholder="Conhecer a proposta"
             />
           </Field>
-          <Field label="Vídeo de fundo">
+          <Field label="Foto ou vídeo de fundo">
             <input
-              value={data.videoUrl}
-              onChange={(e) => set({ videoUrl: e.target.value })}
+              value={data.mediaUrl}
+              onChange={(e) => set({ mediaUrl: e.target.value })}
               className={FIELD_CLASS}
-              placeholder="Link .mp4, YouTube ou Vimeo"
+              placeholder="Link da imagem, .mp4, YouTube ou Vimeo"
             />
           </Field>
+
+          <Field label={`Desfoque do fundo — ${data.blur}px`}>
+            <input
+              type="range"
+              min={0}
+              max={MAX_BLUR}
+              step={1}
+              value={data.blur}
+              onChange={(e) => set({ blur: Number(e.target.value) })}
+              disabled={!(data.mediaUrl ?? "").trim()}
+              className="w-full accent-neutral-900 disabled:opacity-40"
+            />
+          </Field>
+
           <p className="text-[11px] leading-relaxed text-neutral-400">
-            Sem vídeo a capa fica na cor de fundo. Não é lugar de vídeo de
-            teste: é a primeira coisa que o cliente vê.
+            Sem mídia a capa fica na cor de fundo. Desfocar ajuda o título a
+            respirar quando a imagem é cheia de detalhe.
           </p>
         </div>
       );

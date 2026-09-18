@@ -2,14 +2,25 @@ import { TatuLogo } from "@/components/TatuLogo";
 import { ScrollHint } from "@/components/ScrollHint";
 import type { BlockTone, SectionData } from "@/lib/budgetSections";
 
-function HeroBackground({ url }: { url: string }) {
+/**
+ * A mídia de fundo da capa: imagem, vídeo de arquivo, YouTube ou Vimeo.
+ *
+ * O desfoque come as bordas — um blur de 20px deixa 20px translúcidos em volta
+ * — então a mídia cresce o bastante para o borrado morrer fora da tela.
+ */
+function HeroBackground({ url, blur }: { url: string; blur: number }) {
   const trimmed = url.trim();
   if (!trimmed) return null;
 
-  if (/\.mp4($|\?)/i.test(trimmed)) {
+  const desfoque = blur > 0
+    ? { filter: `blur(${blur}px)`, transform: `scale(${1 + blur / 100})` }
+    : undefined;
+
+  if (/\.(mp4|webm|mov|m4v)($|\?)/i.test(trimmed)) {
     return (
       <video
         className="absolute inset-0 h-full w-full object-cover opacity-40"
+        style={desfoque}
         autoPlay
         muted
         loop
@@ -31,11 +42,28 @@ function HeroBackground({ url }: { url: string }) {
     embed = `https://player.vimeo.com/video/${vm[1]}?autoplay=1&muted=1&loop=1&background=1`;
   }
 
-  if (!embed) return null;
+  if (!embed) {
+    // Sobrou imagem. Detectar imagem por extensão não serve: as URLs que mais
+    // chegam aqui vêm de CDN e de storage, sem extensão nenhuma. Então o que é
+    // vídeo a gente reconhece, e todo o resto é foto.
+    return (
+      // <img> cru: a URL pode ser de qualquer domínio colado no editor, e a
+      // otimização do Next exige domínio declarado na config.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={trimmed}
+        alt=""
+        aria-hidden
+        style={desfoque}
+        className="absolute inset-0 h-full w-full object-cover opacity-40"
+      />
+    );
+  }
 
   return (
     <iframe
       className="absolute inset-0 h-full w-full opacity-40"
+      style={desfoque}
       src={embed}
       frameBorder={0}
       allow="autoplay"
@@ -59,7 +87,9 @@ export function CoverSection({
   /** Sem seção de valores visível o botão não teria para onde levar. */
   hasPricing: boolean;
 }) {
-  const hasVideo = Boolean(data.videoUrl.trim());
+  // A capa não confia que quem chama normalizou: um campo faltando não pode
+  // derrubar a proposta inteira do cliente.
+  const midia = (data.mediaUrl ?? "").trim();
 
   return (
     <section
@@ -67,8 +97,8 @@ export function CoverSection({
       // página é a janela, e dentro do preview do editor é a altura do painel.
       className={`relative flex min-h-[var(--budget-vh,100svh)] flex-col overflow-hidden px-4 py-8 sm:px-8 sm:py-10 ${tone.bg} ${tone.text}`}
     >
-      <HeroBackground url={data.videoUrl} />
-      {hasVideo ? <div className="absolute inset-0 bg-black/50" /> : null}
+      <HeroBackground url={midia} blur={data.blur ?? 0} />
+      {midia ? <div className="absolute inset-0 bg-black/50" /> : null}
 
       <div className="relative mx-auto w-full max-w-5xl">
         <TatuLogo className="h-8 w-auto" />

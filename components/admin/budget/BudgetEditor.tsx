@@ -134,7 +134,9 @@ export function BudgetEditor({
         painelAberto ? "lg:grid-cols-[1fr_380px]" : "lg:grid-cols-1"
       }`}
     >
-      <div className="relative min-h-0">
+      {/* min-w-0: sem isto a coluna se recusa a encolher abaixo da largura do
+          conteúdo, que é fixa em 1440, e o grid estoura a tela. */}
+      <div className="relative min-h-0 min-w-0">
         <BudgetPreviewPane
           sections={sections}
           clientName={budget.client_name}
