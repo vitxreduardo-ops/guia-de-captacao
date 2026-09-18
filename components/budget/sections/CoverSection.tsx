@@ -63,7 +63,9 @@ export function CoverSection({
 
   return (
     <section
-      className={`relative flex min-h-svh flex-col overflow-hidden px-4 py-8 sm:px-8 sm:py-10 ${tone.bg} ${tone.text}`}
+      // A altura vem de --budget-vh para a capa caber no espaço que tem: na
+      // página é a janela, e dentro do preview do editor é a altura do painel.
+      className={`relative flex min-h-[var(--budget-vh,100svh)] flex-col overflow-hidden px-4 py-8 sm:px-8 sm:py-10 ${tone.bg} ${tone.text}`}
     >
       <HeroBackground url={data.videoUrl} />
       {hasVideo ? <div className="absolute inset-0 bg-black/50" /> : null}

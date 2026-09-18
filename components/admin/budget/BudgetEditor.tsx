@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { saveBudgetSectionsAction } from "@/app/admin/orcamentos/[id]/actions";
 import { BudgetPreviewPane } from "@/components/admin/budget/BudgetPreviewPane";
 import { BudgetSectionPanel } from "@/components/admin/budget/BudgetSectionPanel";
@@ -47,6 +47,7 @@ export function BudgetEditor({
   const [sections, setSections] = useState<BudgetSection[]>(budget.sections);
   const [openKind, setOpenKind] = useState<string | null>(null);
   const [tab, setTab] = useState<"secoes" | "config">("secoes");
+  const [painelAberto, setPainelAberto] = useState(true);
   const [saveState, setSaveState] = useState<SaveState>("idle");
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -127,13 +128,34 @@ export function BudgetEditor({
   return (
     // data-live-pause segura o LiveRefresh do cabeçalho: uma revalidação de
     // rota no meio da edição traria as seções do banco por cima do rascunho.
-    <div data-live-pause className="grid gap-4 lg:h-[calc(100svh-9rem)] lg:grid-cols-[1fr_380px]">
-      <BudgetPreviewPane
-        sections={sections}
-        clientName={budget.client_name}
-      />
+    <div
+      data-live-pause
+      className={`grid gap-4 lg:h-[calc(100svh-9rem)] ${
+        painelAberto ? "lg:grid-cols-[1fr_380px]" : "lg:grid-cols-1"
+      }`}
+    >
+      <div className="relative min-h-0">
+        <BudgetPreviewPane
+          sections={sections}
+          clientName={budget.client_name}
+        />
+        {painelAberto ? null : (
+          <button
+            type="button"
+            onClick={() => setPainelAberto(true)}
+            className="absolute right-4 top-4 flex items-center gap-2 rounded-lg border border-neutral-200 bg-white/90 px-3 py-2 text-xs font-medium text-neutral-700 shadow-sm backdrop-blur hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none"
+          >
+            <PanelRightOpen className="h-4 w-4" />
+            Editar
+          </button>
+        )}
+      </div>
 
-      <div className="flex min-h-0 flex-col gap-3 lg:overflow-y-auto">
+      <div
+        className={`flex min-h-0 flex-col gap-3 lg:overflow-y-auto ${
+          painelAberto ? "" : "hidden"
+        }`}
+      >
         <div className="flex items-center justify-between gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2.5">
           <span
             className={`text-xs ${
@@ -146,15 +168,26 @@ export function BudgetEditor({
           >
             {SAVE_LABEL[saveState]}
           </span>
-          <a
-            href={`/orcamento/${budget.slug}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1.5 text-xs font-medium text-neutral-700 hover:text-neutral-900"
-          >
-            Abrir proposta
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
+          <div className="flex items-center gap-3">
+            <a
+              href={`/orcamento/${budget.slug}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 text-xs font-medium text-neutral-700 hover:text-neutral-900"
+            >
+              Abrir proposta
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+            <button
+              type="button"
+              onClick={() => setPainelAberto(false)}
+              title="Esconder o painel e ver a proposta larga"
+              className="rounded p-1 text-neutral-500 hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none"
+            >
+              <PanelRightClose className="h-4 w-4" />
+              <span className="sr-only">Esconder o painel</span>
+            </button>
+          </div>
         </div>
 
         <div
