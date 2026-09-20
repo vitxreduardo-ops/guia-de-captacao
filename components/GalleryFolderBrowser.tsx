@@ -555,20 +555,6 @@ export function GalleryFolderBrowser({
             className="h-8 w-32 rounded-md border border-neutral-300 bg-white px-3 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-500 focus:outline-none sm:w-48"
           />
           <SortMenu value={sortKey} onChange={setSortKey} />
-          <button
-            type="button"
-            onClick={() => {
-              setSelecting((value) => !value);
-              setSelectedIds([]);
-            }}
-            className={`h-8 whitespace-nowrap rounded-md border px-3 text-xs transition-colors ${
-              selecting
-                ? "border-neutral-900 bg-neutral-900 text-white"
-                : "border-neutral-300 bg-white text-neutral-700 hover:border-neutral-400"
-            }`}
-          >
-            {selecting ? "Cancelar" : "Selecionar"}
-          </button>
         </div>
       </div>
 
@@ -718,9 +704,19 @@ export function GalleryFolderBrowser({
         </motion.div>
       </AnimatePresence>
 
-      {!selecting && allIdsHere.length > 0 ? (
-        <div className="fixed inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-segura">
-          {canShareFiles ? (
+      {allIdsHere.length > 0 && !(selecting && selectedIds.length > 0) ? (
+        <div className="fixed inset-x-0 bottom-0 z-20 flex flex-wrap items-center justify-center gap-2 px-4 pb-segura">
+          <button
+            type="button"
+            onClick={() => {
+              setSelecting((value) => !value);
+              setSelectedIds([]);
+            }}
+            className="inline-flex items-center rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white shadow-lg transition-colors hover:bg-neutral-800"
+          >
+            {selecting ? "Cancelar" : "Selecionar fotos"}
+          </button>
+          {selecting ? null : canShareFiles ? (
             <button
               type="button"
               onClick={() => shareToPhotos(allHere)}
