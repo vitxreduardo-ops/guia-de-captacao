@@ -2,7 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ProspectDetail } from "@/components/admin/ProspectDetail";
-import { getProspect, getProspects } from "@/lib/prospects";
+import {
+  getProspect,
+  getProspects,
+  listLinkableDocs,
+} from "@/lib/prospects";
 
 export const dynamic = "force-dynamic";
 
@@ -12,9 +16,10 @@ export default async function ProspectPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [found, board] = await Promise.all([
+  const [found, board, docs] = await Promise.all([
     getProspect(id),
     getProspects(),
+    listLinkableDocs(),
   ]);
   if (!found) notFound();
 
@@ -60,6 +65,8 @@ export default async function ProspectPage({
         stages={board.stages}
         owners={board.owners}
         clients={board.clients}
+        budgets={docs.budgets}
+        contracts={docs.contracts}
       />
     </div>
   );

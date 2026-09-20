@@ -70,6 +70,12 @@ export interface Prospect {
   next_contact_what: string;
   lost_reason: string;
   notes: string;
+  /** Valor em jogo. Zero é "ainda não se falou de dinheiro" — ver 0055. */
+  value: number;
+  budget_id: string | null;
+  contract_id: string | null;
+  /** Quando fechou. Separado de `updated_at`, que qualquer edição move. */
+  closed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -89,6 +95,14 @@ export interface ProspectTouch {
 export interface ProspectOwnerOption {
   id: string;
   username: string;
+}
+
+/** Orçamento ou contrato que pode ser amarrado ao contato. O `slug` é o que
+ *  permite abrir a peça sem uma segunda consulta na hora de desenhar. */
+export interface ProspectDocOption {
+  id: string;
+  title: string;
+  slug: string;
 }
 
 export interface ProspectClientOption {

@@ -3,12 +3,13 @@ import Link from "next/link";
 const TABS = [
   { href: "/admin/prospeccao", label: "Fila" },
   { href: "/admin/prospeccao/tabela", label: "Tabela" },
+  { href: "/admin/prospeccao/comercial", label: "Comercial" },
   { href: "/admin/prospeccao/radar", label: "Radar" },
   { href: "/admin/prospeccao/etapas", label: "Etapas" },
 ];
 
-/** As três telas são recortes do mesmo dado; a aba deixa isso explícito em
- * vez de fazer parecer que são lugares diferentes. */
+/** As telas são recortes do mesmo dado; a aba deixa isso explícito em vez de
+ * fazer parecer que são lugares diferentes. */
 export function ProspectTabs({ active }: { active: string }) {
   return (
     <div className="flex items-center gap-2 text-sm">

@@ -12,11 +12,13 @@ import {
   formatDateFull,
   formatTime,
   type ProspectClientOption,
+  type ProspectDocOption,
   type ProspectOwnerOption,
   type ProspectRow,
   type ProspectStage,
   type ProspectTouch,
 } from "@/lib/prospectTypes";
+import { formatBRL } from "@/lib/prospectPipeline";
 
 /** Sem largura: quem usa escolhe. Compor `w-full` com `w-auto` na mesma
  * string não funciona — em Tailwind a ordem do CSS decide, não a da classe. */
@@ -33,12 +35,16 @@ export function ProspectDetail({
   stages,
   owners,
   clients,
+  budgets,
+  contracts,
 }: {
   prospect: ProspectRow;
   touches: ProspectTouch[];
   stages: ProspectStage[];
   owners: ProspectOwnerOption[];
   clients: ProspectClientOption[];
+  budgets: ProspectDocOption[];
+  contracts: ProspectDocOption[];
 }) {
   const authors = new Map(owners.map((owner) => [owner.id, owner.username]));
 
@@ -71,7 +77,13 @@ export function ProspectDetail({
             </p>
           </details>
         ) : null}
-        <Details prospect={prospect} owners={owners} clients={clients} />
+        <Details
+          prospect={prospect}
+          owners={owners}
+          clients={clients}
+          budgets={budgets}
+          contracts={contracts}
+        />
       </aside>
     </div>
   );
@@ -390,10 +402,14 @@ function Details({
   prospect,
   owners,
   clients,
+  budgets,
+  contracts,
 }: {
   prospect: ProspectRow;
   owners: ProspectOwnerOption[];
   clients: ProspectClientOption[];
+  budgets: ProspectDocOption[];
+  contracts: ProspectDocOption[];
 }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -424,6 +440,31 @@ function Details({
           <Field
             k="Cliente"
             v={clients.find((client) => client.id === prospect.client_id)?.name ?? ""}
+          />
+          <Field
+            k="Valor"
+            v={prospect.value > 0 ? formatBRL(prospect.value) : ""}
+          />
+          <Field
+            k="Orçamento"
+            v={budgets.find((doc) => doc.id === prospect.budget_id)?.title ?? ""}
+            href={
+              prospect.budget_id
+                ? `/orcamento/${budgets.find((doc) => doc.id === prospect.budget_id)?.slug ?? ""}`
+                : undefined
+            }
+          />
+          <Field
+            k="Contrato"
+            v={
+              contracts.find((doc) => doc.id === prospect.contract_id)?.title ??
+              ""
+            }
+            href={
+              prospect.contract_id
+                ? `/contrato/${contracts.find((doc) => doc.id === prospect.contract_id)?.slug ?? ""}`
+                : undefined
+            }
           />
           <Field k="Toques" v={String(prospect.touch_count)} />
         </dl>
@@ -493,6 +534,30 @@ function Details({
         ))}
       </select>
 
+      {/* O valor é o que faz o painel comercial existir: sem ele o funil
+          conta contatos e não sabe dizer quanto há em jogo. */}
+      <input
+        name="value"
+        inputMode="decimal"
+        defaultValue={prospect.value > 0 ? String(prospect.value) : ""}
+        placeholder="Valor em jogo (R$)"
+        className={inputClass}
+      />
+
+      <select name="budget_id" defaultValue={prospect.budget_id ?? ""} className={inputClass} aria-label="Orçamento enviado">
+        <option value="">Sem orçamento</option>
+        {budgets.map((doc) => (
+          <option key={doc.id} value={doc.id}>{doc.title}</option>
+        ))}
+      </select>
+
+      <select name="contract_id" defaultValue={prospect.contract_id ?? ""} className={inputClass} aria-label="Contrato">
+        <option value="">Sem contrato</option>
+        {contracts.map((doc) => (
+          <option key={doc.id} value={doc.id}>{doc.title}</option>
+        ))}
+      </select>
+
       <textarea name="notes" rows={3} defaultValue={prospect.notes} placeholder="Notas" className={inputClass} />
 
       <div className="flex items-center gap-3">
@@ -527,12 +592,35 @@ function Details({
   );
 }
 
-function Field({ k, v }: { k: string; v: string }) {
+function Field({
+  k,
+  v,
+  href,
+}: {
+  k: string;
+  v: string;
+  /** Orçamento e contrato abrem a peça: sem o link, saber que existe obriga a
+   *  procurar o mesmo nome na outra tela. */
+  href?: string;
+}) {
   if (!v) return null;
   return (
     <div className="flex gap-3 border-b border-neutral-100 py-1.5 last:border-b-0">
       <dt className="w-20 shrink-0 text-neutral-400">{k}</dt>
-      <dd className="min-w-0 break-words">{v}</dd>
+      <dd className="min-w-0 break-words">
+        {href ? (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="underline decoration-neutral-300 underline-offset-2 hover:decoration-neutral-600"
+          >
+            {v}
+          </a>
+        ) : (
+          v
+        )}
+      </dd>
     </div>
   );
 }
