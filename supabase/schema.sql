@@ -192,6 +192,22 @@ alter table budget_packages enable row level security;
 alter table budget_faq enable row level security;
 alter table budget_references enable row level security;
 
+-- Biblioteca de logos de clientes (ver
+-- supabase/migrations/0052_add_client_logos.sql). É o acervo de onde cada
+-- proposta escolhe quais marcas mostrar; a proposta guarda nome e URL dentro
+-- da própria seção, não uma referência daqui.
+
+create table if not exists client_logos (
+  id uuid primary key default gen_random_uuid(),
+  name text not null default '',
+  logo_url text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists client_logos_name_idx on client_logos(lower(name));
+
+alter table client_logos enable row level security;
+
 -- Biblioteca — lista de links e ferramentas úteis (ver
 -- supabase/migrations/0010_add_library_links.sql e
 -- 0036_add_library_tags_and_icon.sql). `tags` categoriza e alimenta a busca;

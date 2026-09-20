@@ -6,6 +6,7 @@ import {
   RepeatableList,
   TextList,
 } from "@/components/admin/budget/RepeatableList";
+import { LogoLibrary } from "@/components/admin/budget/LogoLibrary";
 import { UploadButton } from "@/components/admin/budget/UploadButton";
 import {
   MAX_BLUR,
@@ -310,37 +311,27 @@ export function SectionFields({
               placeholder="Marcas que já colocamos em movimento"
             />
           </Field>
-          <Field label="Logos">
-            <RepeatableList
-              items={data.logos}
-              onChange={(logos) => set({ logos })}
-              rotulo="Logo"
-              vazio="Nenhum logo adicionado — esta seção não aparece para o cliente."
-              novoItem={() => ({ name: "", url: "" })}
-            >
-              {(logo, trocar) => (
-                <>
-                  <input
-                    value={logo.name}
-                    onChange={(e) => trocar({ ...logo, name: e.target.value })}
-                    className={FIELD_CLASS}
-                    placeholder="Nome do cliente"
-                  />
-                  <input
-                    value={logo.url}
-                    onChange={(e) => trocar({ ...logo, url: e.target.value })}
-                    className={FIELD_CLASS}
-                    placeholder="URL do logo, ou /clientes/arquivo.svg"
-                  />
-                  <UploadButton
-                    budgetId={budgetId}
-                    onUploaded={(url) => trocar({ ...logo, url })}
-                    label="Enviar logo do computador"
-                  />
-                </>
-              )}
-            </RepeatableList>
+          <Field label={`Logos — ${data.logos.length} escolhido${data.logos.length === 1 ? "" : "s"}`}>
+            <LogoLibrary
+              budgetId={budgetId}
+              escolhidos={data.logos}
+              onChange={(logos) =>
+                onChange({
+                  ...section,
+                  // Escolher o primeiro logo liga a seção: sem isso, marcar uma
+                  // marca não mudaria nada na proposta e ninguém entenderia por
+                  // quê. O mesmo que a calculadora faz ao gerar os pacotes.
+                  enabled: section.enabled || logos.length > 0,
+                  data: { ...data, logos },
+                })
+              }
+            />
           </Field>
+          <p className="text-[11px] leading-relaxed text-neutral-400">
+            A biblioteca é a mesma em todas as propostas. Escolha aqui só as
+            marcas que conversam com este cliente — sem nenhuma marcada, a seção
+            não aparece para ele.
+          </p>
         </div>
       );
     }
