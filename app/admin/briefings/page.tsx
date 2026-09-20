@@ -5,14 +5,22 @@ import { CopyLinkButton } from "@/components/admin/CopyLinkButton";
 import { Accordion } from "@/components/Accordion";
 import { DeleteButton } from "@/components/admin/DeleteButton";
 import { BRIEFING_RETENTION_DAYS, listBriefings } from "@/lib/briefings";
-import { FIELDS } from "@/app/briefing/fields";
-import { deleteBriefingAction } from "./actions";
+import { FIELDS, SERVICOS } from "@/app/briefing/fields";
+import { listBriefingLinks } from "@/lib/briefingLinks";
+import {
+  createBriefingLinkAction,
+  deleteBriefingAction,
+  deleteBriefingLinkAction,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
 const FIELD_LABELS = Object.fromEntries(
   FIELDS.map((field) => [field.name, field.label]),
 );
+
+const CAMPO =
+  "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString("pt-BR", {
@@ -22,8 +30,9 @@ function formatDate(value: string) {
 }
 
 export default async function BriefingsDashboard() {
-  const [briefings, requestHeaders] = await Promise.all([
+  const [briefings, links, requestHeaders] = await Promise.all([
     listBriefings(),
+    listBriefingLinks(),
     headers(),
   ]);
 
@@ -61,6 +70,97 @@ export default async function BriefingsDashboard() {
             Abrir
           </Link>
         </div>
+      </section>
+
+      {/* O link por cliente: o genérico acima continua valendo pra quem chega
+          pelo site, mas quem já está em conversa recebe o próprio, com o que
+          a gente anotou no funil já preenchido. */}
+      <section className="mb-8 rounded-lg border border-neutral-200 bg-white p-4">
+        <h2 className="font-medium text-neutral-900">Briefing de um cliente</h2>
+        <p className="mt-1 mb-3 text-sm text-neutral-500">
+          Gera um link próprio com o que já se sabe respondido. O cliente pode
+          corrigir tudo — quem sabe o nome da empresa é ele.
+        </p>
+
+        <form action={createBriefingLinkAction} className="grid gap-2 sm:grid-cols-2">
+          <input
+            name="client_name"
+            placeholder="Nome do cliente ou empresa"
+            required
+            className={CAMPO}
+          />
+          <input
+            name="contact"
+            placeholder="WhatsApp (só números)"
+            className={CAMPO}
+          />
+          <select name="servico" defaultValue="" className={CAMPO} aria-label="Serviço">
+            <option value="">Deixar o cliente escolher o serviço</option>
+            {SERVICOS.map((servico) => (
+              <option key={servico} value={servico}>
+                {servico}
+              </option>
+            ))}
+          </select>
+          <input
+            name="note"
+            placeholder="Recado no alto do formulário (opcional)"
+            className={CAMPO}
+          />
+          <div>
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+            >
+              Gerar link
+            </button>
+          </div>
+        </form>
+
+        {links.length > 0 ? (
+          <ul className="mt-4 space-y-2 border-t border-neutral-100 pt-4">
+            {links.map((link) => {
+              const url = `${origin}/briefing/${link.slug}`;
+              return (
+                <li
+                  key={link.id}
+                  className="flex flex-wrap items-center justify-between gap-2 text-sm"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-neutral-900">
+                      {link.client_name || "Sem nome"}
+                      {link.servico ? (
+                        <span className="font-normal text-neutral-500">
+                          {" "}
+                          · {link.servico}
+                        </span>
+                      ) : null}
+                    </p>
+                    {/* Aberto e respondido são coisas diferentes: sem os dois
+                        não dá pra saber se o silêncio é do cliente ou do
+                        WhatsApp que não entregou. */}
+                    <p className="text-xs text-neutral-500">
+                      {link.answered_at
+                        ? `Respondido em ${formatDate(link.answered_at)}`
+                        : link.opened_at
+                          ? `Aberto em ${formatDate(link.opened_at)}, sem resposta`
+                          : "Ainda não foi aberto"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CopyLinkButton text={url} />
+                    <form action={deleteBriefingLinkAction}>
+                      <input type="hidden" name="id" value={link.id} />
+                      <DeleteButton
+                        confirmMessage={`Excluir o link de "${link.client_name || "sem nome"}"? Ele para de abrir.`}
+                      />
+                    </form>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
       </section>
 
       <h2 className="mb-3 font-medium text-neutral-900">Briefings recebidos</h2>
