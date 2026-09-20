@@ -4,6 +4,7 @@ const TABS = [
   { href: "/admin/prospeccao", label: "Fila" },
   { href: "/admin/prospeccao/tabela", label: "Tabela" },
   { href: "/admin/prospeccao/comercial", label: "Comercial" },
+  { href: "/admin/prospeccao/followups", label: "Follow-up" },
   { href: "/admin/prospeccao/radar", label: "Radar" },
   { href: "/admin/prospeccao/etapas", label: "Etapas" },
 ];

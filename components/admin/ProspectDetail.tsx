@@ -19,6 +19,8 @@ import {
   type ProspectTouch,
 } from "@/lib/prospectTypes";
 import { formatBRL } from "@/lib/prospectPipeline";
+import { FollowupBox } from "@/components/admin/FollowupBox";
+import type { FollowupTemplate } from "@/lib/followupText";
 
 /** Sem largura: quem usa escolhe. Compor `w-full` com `w-auto` na mesma
  * string não funciona — em Tailwind a ordem do CSS decide, não a da classe. */
@@ -37,6 +39,7 @@ export function ProspectDetail({
   clients,
   budgets,
   contracts,
+  followups,
 }: {
   prospect: ProspectRow;
   touches: ProspectTouch[];
@@ -45,6 +48,7 @@ export function ProspectDetail({
   clients: ProspectClientOption[];
   budgets: ProspectDocOption[];
   contracts: ProspectDocOption[];
+  followups: FollowupTemplate[];
 }) {
   const authors = new Map(owners.map((owner) => [owner.id, owner.username]));
 
@@ -52,6 +56,9 @@ export function ProspectDetail({
     <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
       <div className="min-w-0 flex-1 space-y-6">
         <NextContact prospect={prospect} />
+        {/* Fica antes do histórico: quem abre a ficha de um contato parado
+            vem escrever a mensagem, não reler o que já sabe. */}
+        <FollowupBox prospect={prospect} templates={followups} />
         <section>
           <h2 className={sectionClass}>Histórico</h2>
           <NoteBox prospectId={prospect.id} />

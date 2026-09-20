@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ProspectDetail } from "@/components/admin/ProspectDetail";
+import { listFollowupTemplates } from "@/lib/followups";
 import {
   getProspect,
   getProspects,
@@ -16,10 +17,11 @@ export default async function ProspectPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [found, board, docs] = await Promise.all([
+  const [found, board, docs, followups] = await Promise.all([
     getProspect(id),
     getProspects(),
     listLinkableDocs(),
+    listFollowupTemplates(),
   ]);
   if (!found) notFound();
 
@@ -67,6 +69,7 @@ export default async function ProspectPage({
         clients={board.clients}
         budgets={docs.budgets}
         contracts={docs.contracts}
+        followups={followups}
       />
     </div>
   );

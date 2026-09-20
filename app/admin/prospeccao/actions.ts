@@ -18,12 +18,18 @@ import {
   updateProspect,
   updateStage,
 } from "@/lib/prospects";
+import {
+  createFollowupTemplate,
+  deleteFollowupTemplate,
+  updateFollowupTemplate,
+} from "@/lib/followups";
 import { getCurrentSession } from "@/lib/session";
 
 const PATHS = [
   "/admin/prospeccao",
   "/admin/prospeccao/tabela",
   "/admin/prospeccao/etapas",
+  "/admin/prospeccao/comercial",
 ];
 
 function revalidate(prospectId?: string) {
@@ -231,4 +237,33 @@ export async function deleteRadarAction(formData: FormData) {
   const { deleteRadarCompany } = await import("@/lib/prospects");
   await deleteRadarCompany(id);
   revalidatePath("/admin/prospeccao/radar");
+}
+
+// ------------------------------------------------------------- follow-up
+
+export async function createFollowupAction(formData: FormData) {
+  await createFollowupTemplate({
+    name: String(formData.get("name") ?? "").trim(),
+    situation: String(formData.get("situation") ?? ""),
+    body: String(formData.get("body") ?? ""),
+  });
+  revalidatePath("/admin/prospeccao/followups");
+}
+
+export async function updateFollowupAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await updateFollowupTemplate(id, {
+    name: String(formData.get("name") ?? "").trim(),
+    situation: String(formData.get("situation") ?? ""),
+    body: String(formData.get("body") ?? ""),
+  });
+  revalidatePath("/admin/prospeccao/followups");
+}
+
+export async function deleteFollowupAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await deleteFollowupTemplate(id);
+  revalidatePath("/admin/prospeccao/followups");
 }
