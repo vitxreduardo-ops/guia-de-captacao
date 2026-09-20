@@ -1,13 +1,15 @@
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ProspectTabs } from "@/components/admin/ProspectTabs";
 import { RadarTable } from "@/components/admin/RadarTable";
+import { listOutreachTemplates } from "@/lib/outreach";
 import { listRadar } from "@/lib/prospects";
 
 export const dynamic = "force-dynamic";
 
 export default async function RadarPage() {
-  const [companies] = await Promise.all([
+  const [companies, outreach] = await Promise.all([
     listRadar(),
+    listOutreachTemplates(),
   ]);
 
   return (
@@ -33,6 +35,7 @@ export default async function RadarPage() {
       <RadarTable
         companies={companies}
         sectors={companies.map((row) => row.sector)}
+        outreach={outreach}
       />
     </div>
   );

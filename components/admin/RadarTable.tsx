@@ -13,6 +13,8 @@ import {
   instagramHandle,
   type RadarCompany,
 } from "@/lib/prospectTypes";
+import { OutreachBox } from "@/components/admin/OutreachBox";
+import type { OutreachTemplate } from "@/lib/outreachText";
 
 /**
  * Uma grade, não uma `<table>`.
@@ -63,10 +65,13 @@ function Field({
 export function RadarTable({
   companies,
   sectors,
+  outreach,
 }: {
   companies: RadarCompany[];
   /** Ramos já usados, somados às sugestões fixas. */
   sectors: string[];
+  /** Modelos de abordagem; o gerador aparece na linha aberta. */
+  outreach: OutreachTemplate[];
 }) {
   const newForm = useRef<HTMLFormElement>(null);
 
@@ -294,6 +299,18 @@ export function RadarTable({
                           </button>
                         </div>
                       </form>
+
+                      {/* Fora do <form> de propósito: o textarea da mensagem
+                          entraria no salvamento automático da linha e o
+                          gerador viraria um campo do cadastro. Fechado por
+                          padrão — a tela é uma lista pra varrer, não uma
+                          pilha de rascunhos abertos. */}
+                      <details className="px-3 pb-2 sm:px-1.5">
+                        <summary className="cursor-pointer text-[12px] text-neutral-500 hover:text-neutral-900">
+                          Escrever abordagem
+                        </summary>
+                        <OutreachBox company={row} templates={outreach} />
+                      </details>
                     </li>
                   );
                 })}

@@ -23,6 +23,11 @@ import {
   deleteFollowupTemplate,
   updateFollowupTemplate,
 } from "@/lib/followups";
+import {
+  createOutreachTemplate,
+  deleteOutreachTemplate,
+  updateOutreachTemplate,
+} from "@/lib/outreach";
 import { getCurrentSession } from "@/lib/session";
 
 const PATHS = [
@@ -247,7 +252,7 @@ export async function createFollowupAction(formData: FormData) {
     situation: String(formData.get("situation") ?? ""),
     body: String(formData.get("body") ?? ""),
   });
-  revalidatePath("/admin/prospeccao/followups");
+  revalidatePath("/admin/prospeccao/modelos");
 }
 
 export async function updateFollowupAction(formData: FormData) {
@@ -258,12 +263,43 @@ export async function updateFollowupAction(formData: FormData) {
     situation: String(formData.get("situation") ?? ""),
     body: String(formData.get("body") ?? ""),
   });
-  revalidatePath("/admin/prospeccao/followups");
+  revalidatePath("/admin/prospeccao/modelos");
 }
 
 export async function deleteFollowupAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await deleteFollowupTemplate(id);
-  revalidatePath("/admin/prospeccao/followups");
+  revalidatePath("/admin/prospeccao/modelos");
+}
+
+// ------------------------------------------------------------ abordagem
+
+const MODELOS = "/admin/prospeccao/modelos";
+
+export async function createOutreachAction(formData: FormData) {
+  await createOutreachTemplate({
+    name: String(formData.get("name") ?? "").trim(),
+    angle: String(formData.get("angle") ?? ""),
+    body: String(formData.get("body") ?? ""),
+  });
+  revalidatePath(MODELOS);
+}
+
+export async function updateOutreachAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await updateOutreachTemplate(id, {
+    name: String(formData.get("name") ?? "").trim(),
+    angle: String(formData.get("angle") ?? ""),
+    body: String(formData.get("body") ?? ""),
+  });
+  revalidatePath(MODELOS);
+}
+
+export async function deleteOutreachAction(formData: FormData) {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await deleteOutreachTemplate(id);
+  revalidatePath(MODELOS);
 }
