@@ -1,6 +1,12 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
+export {
+  CATEGORIAS_FONTE,
+  PESOS_FONTE,
+  type CategoriaFonte,
+} from "@/lib/letteringFontesMeta";
+
 export const FONTS_BUCKET = "lettering-fonts";
 
 export interface LayoutSalvo {
@@ -18,6 +24,10 @@ export interface FonteSalva {
   label: string;
   /** Nome com que a fonte é registrada no navegador. */
   family: string;
+  /** Rótulo do peso (Regular, Bold…). Vazio quando a fonte tem um só. */
+  weight: string;
+  /** Uma de CATEGORIAS_FONTE, ou vazio quando não foi classificada. */
+  category: string;
 }
 
 export async function listarLayouts(): Promise<LayoutSalvo[]> {
@@ -71,9 +81,10 @@ export async function listarFontes(): Promise<FonteSalva[]> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("lettering_fonts")
-    .select("id, client, label, family")
+    .select("id, client, label, family, weight, category")
     .order("client")
-    .order("label");
+    .order("label")
+    .order("weight");
 
   if (error) throw error;
   return (data ?? []) as FonteSalva[];
@@ -90,9 +101,11 @@ export async function guardarFonte(
   client: string,
   label: string,
   arquivo: File,
+  weight = "",
+  category = "",
 ): Promise<FonteSalva> {
   const supabase = getSupabaseServerClient();
-  const slug = `${client}-${label}`
+  const slug = `${client}-${label}-${weight}`
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
@@ -113,10 +126,10 @@ export async function guardarFonte(
   const { data, error } = await supabase
     .from("lettering_fonts")
     .upsert(
-      { client, label, family, storage_path: storagePath },
+      { client, label, family, weight, category, storage_path: storagePath },
       { onConflict: "family" },
     )
-    .select("id, client, label, family")
+    .select("id, client, label, family, weight, category")
     .single();
 
   if (error) throw error;

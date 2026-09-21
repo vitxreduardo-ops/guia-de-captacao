@@ -88,11 +88,20 @@ import {
 } from "@/lib/letteringStorage";
 import {
   carregarBiblioteca,
+  carregarFontesAction,
   excluirLayoutAction,
   guardarFonteAction,
   guardarLayoutAction,
 } from "@/app/admin/lettering/actions";
 import type { FonteSalva, LayoutSalvo } from "@/lib/letteringLibrary";
+import {
+  agrupadoPorCategoria,
+  catalogoDeFontes,
+  CATEGORIAS_FONTE,
+  PESOS_FONTE,
+  type FonteDaBiblioteca,
+  type OpcaoFonte,
+} from "@/lib/letteringFontesMeta";
 import { Button } from "@/components/ui/button";
 import {
   angle,
@@ -122,16 +131,24 @@ import {
 } from "@/lib/letteringDraw";
 
 const SYSTEM_FONTS = [
-  { family: '"BootzyTM"', label: "Bootzy" },
-  { family: '"BobbyJonesSoft"', label: "Bobby Jones Soft" },
-  { family: '"BobbyJonesSoftOutline"', label: "Bobby Jones Soft Outline" },
-  { family: '"BobbyRoughSoft"', label: "Bobby Rough Soft" },
-  { family: '"BobbyRoughSoftOutline"', label: "Bobby Rough Soft Outline" },
-  { family: "Georgia, serif", label: "Georgia" },
-  { family: "Helvetica, Arial, sans-serif", label: "Helvetica" },
-  { family: "'Times New Roman', serif", label: "Times" },
-  { family: "'Courier New', monospace", label: "Courier" },
-  { family: "Impact, sans-serif", label: "Impact" },
+  { family: '"BootzyTM"', label: "Bootzy", category: "display" },
+  { family: '"BobbyJonesSoft"', label: "Bobby Jones Soft", category: "display" },
+  {
+    family: '"BobbyJonesSoftOutline"',
+    label: "Bobby Jones Soft Outline",
+    category: "display",
+  },
+  { family: '"BobbyRoughSoft"', label: "Bobby Rough Soft", category: "display" },
+  {
+    family: '"BobbyRoughSoftOutline"',
+    label: "Bobby Rough Soft Outline",
+    category: "display",
+  },
+  { family: "Georgia, serif", label: "Georgia", category: "serif" },
+  { family: "Helvetica, Arial, sans-serif", label: "Helvetica", category: "sans" },
+  { family: "'Times New Roman', serif", label: "Times", category: "serif" },
+  { family: "'Courier New', monospace", label: "Courier", category: "mono" },
+  { family: "Impact, sans-serif", label: "Impact", category: "display" },
 ];
 
 /** Fonte de emoji do sistema: o canvas desenha colorido, sem asset nenhum. */
@@ -162,6 +179,26 @@ const LABEL_ESCURO =
   "block text-sm font-semibold tracking-[0.01em] text-neutral-300";
 
 const BOTAO_CLARO = "bg-white text-neutral-900 hover:bg-neutral-200";
+
+/**
+ * Agrupa a biblioteca por categoria, na ordem de CATEGORIAS_FONTE, com as
+ * fontes sem categoria no fim. Só entram grupos que têm fonte.
+ */
+function gruposDeFonte(fontes: FonteSalva[]): [string, FonteSalva[]][] {
+  const ordem = [...CATEGORIAS_FONTE, ""];
+  return ordem
+    .map(
+      (categoria) =>
+        [
+          categoria,
+          fontes.filter(
+            (f) =>
+              (ordem.includes(f.category) ? f.category : "") === categoria,
+          ),
+        ] as [string, FonteSalva[]],
+    )
+    .filter(([, lista]) => lista.length > 0);
+}
 
 /** Xadrez de fundo: é assim que se enxerga que o PNG saiu mesmo transparente. */
 /** A pessoa pediu menos movimento no sistema? Então nada de deslizar sozinho. */
@@ -271,7 +308,9 @@ export function LetteringStudio() {
       setHistory((h) => despachar(h, { type: "selecionar", id })),
     [],
   );
-  const [fonts, setFonts] = useState(SYSTEM_FONTS);
+  const [fonts, setFonts] = useState<OpcaoFonte[]>(
+    SYSTEM_FONTS.map((f) => ({ ...f, weight: "" })),
+  );
   const [fontError, setFontError] = useState<string | null>(null);
   const [trim, setTrim] = useState(true);
   /** null = dock fechada. Um painel de cada vez, que é o que cabe no celular. */
@@ -839,7 +878,23 @@ export function LetteringStudio() {
     pintar();
   }, [selectedId, grade, pintar]);
 
-  /** A biblioteca é buscada quando a aba abre, não na carga da tela. */
+  /**
+   * As fontes vêm na carga da tela, e não só quando a biblioteca abre: elas
+   * aparecem no seletor de fonte junto com as do app.
+   */
+  useEffect(() => {
+    let cancelado = false;
+    carregarFontesAction()
+      .then((fontes) => {
+        if (!cancelado) setFontesSalvas(fontes);
+      })
+      .catch(() => {});
+    return () => {
+      cancelado = true;
+    };
+  }, []);
+
+  /** Os layouts continuam sendo buscados quando a aba abre. */
   useEffect(() => {
     if (dock !== "biblioteca") return;
     let cancelado = false;
@@ -1924,7 +1979,7 @@ export function LetteringStudio() {
    * buscado da rota do app, que exige sessão — o bucket é privado.
    */
   const registrarFonte = useCallback(
-    async (fonte: FonteSalva) => {
+    async (fonte: FonteDaBiblioteca) => {
       const familia = `"${fonte.family}"`;
       if (fonts.some((f) => f.family === familia)) return familia;
       try {
@@ -1937,7 +1992,12 @@ export function LetteringStudio() {
         esqueceMedidas();
         setFonts((atual) => [
           ...atual,
-          { family: familia, label: fonte.label },
+          {
+            family: familia,
+            label: fonte.label,
+            category: fonte.category,
+            weight: fonte.weight,
+          },
         ]);
         return familia;
       } catch {
@@ -1946,6 +2006,22 @@ export function LetteringStudio() {
       }
     },
     [fonts],
+  );
+
+  /**
+   * Aplica uma opção do seletor. Fonte da biblioteca só existe no navegador
+   * depois de registrada, então o arquivo é buscado aqui, sob demanda.
+   */
+  const aplicarFonte = useCallback(
+    async (opcao: OpcaoFonte) => {
+      if (opcao.salva && !fonts.some((f) => f.family === opcao.family)) {
+        const familia = await registrarFonte(opcao.salva);
+        if (familia) patch({ family: familia });
+        return;
+      }
+      patch({ family: opcao.family });
+    },
+    [fonts, patch, registrarFonte],
   );
 
   async function salvarNaBiblioteca() {
@@ -2043,7 +2119,10 @@ export function LetteringStudio() {
       // O mesmo texto passa a ter outra forma: o que foi medido antes vira
       // mentira.
       esqueceMedidas();
-      setFonts((current) => [...current, { family: `"${custom}"`, label }]);
+      setFonts((current) => [
+        ...current,
+        { family: `"${custom}"`, label, category: "", weight: "" },
+      ]);
       patch({ family: `"${custom}"` });
     } catch {
       setFontError(
@@ -2061,7 +2140,15 @@ export function LetteringStudio() {
   const alterado =
     aberto !== null && JSON.stringify(layers) !== aberto.assinatura;
 
-  const faltando = fontesFaltando(
+  const catalogo = catalogoDeFontes(fonts, fontesSalvas);
+  const grupoAtual =
+    catalogo.find((g) =>
+      g.opcoes.some((o) => o.family === selected?.family),
+    ) ?? null;
+  const pesoAtual =
+    grupoAtual?.opcoes.find((o) => o.family === selected?.family)?.weight ?? "";
+
+    const faltando = fontesFaltando(
     layers,
     fonts.map((f) => f.family),
   );
@@ -2508,35 +2595,51 @@ export function LetteringStudio() {
                 </p>
 
                 {fontesSalvas.length > 0 ? (
-                  <ul className="space-y-1">
-                    {fontesSalvas.map((fonte, i) => (
-                      <li
-                        key={fonte.id}
-                        style={{ animationDelay: `${Math.min(i, 7) * 25}ms` }}
-                        className={`flex items-center gap-1 rounded-md border border-white/15 ${
-                          destaque === fonte.id
-                            ? "lettering-item-novo"
-                            : "lettering-item"
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            const familia = await registrarFonte(fonte);
-                            if (familia) patch({ family: familia });
-                          }}
-                          className="flex-1 truncate px-3 py-3 text-left text-sm"
-                        >
-                          {fonte.label}
-                          {fonte.client ? (
-                            <span className="ml-2 text-xs text-neutral-400">
-                              {fonte.client}
-                            </span>
-                          ) : null}
-                        </button>
-                      </li>
+                  <div className="space-y-2">
+                    {gruposDeFonte(fontesSalvas).map(([categoria, doGrupo]) => (
+                      <div key={categoria} className="space-y-1">
+                        <p className="text-xs tracking-[0.08em] text-neutral-500 uppercase">
+                          {categoria || "sem categoria"}
+                        </p>
+                        <ul className="space-y-1">
+                          {doGrupo.map((fonte, i) => (
+                            <li
+                              key={fonte.id}
+                              style={{
+                                animationDelay: `${Math.min(i, 7) * 25}ms`,
+                              }}
+                              className={`flex items-center gap-1 rounded-md border border-white/15 ${
+                                destaque === fonte.id
+                                  ? "lettering-item-novo"
+                                  : "lettering-item"
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const familia = await registrarFonte(fonte);
+                                  if (familia) patch({ family: familia });
+                                }}
+                                className="flex-1 truncate px-3 py-3 text-left text-sm"
+                              >
+                                {fonte.label}
+                                {fonte.weight ? (
+                                  <span className="ml-2 text-xs text-neutral-400">
+                                    {fonte.weight}
+                                  </span>
+                                ) : null}
+                                {fonte.client ? (
+                                  <span className="ml-2 text-xs text-neutral-400">
+                                    {fonte.client}
+                                  </span>
+                                ) : null}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 ) : null}
 
                 <form
@@ -2571,6 +2674,32 @@ export function LetteringStudio() {
                       required
                       className={INPUT_ESCURO}
                     />
+                    <select
+                      name="peso"
+                      defaultValue=""
+                      aria-label="Peso da fonte"
+                      className={INPUT_ESCURO}
+                    >
+                      <option value="">Peso</option>
+                      {PESOS_FONTE.map((peso) => (
+                        <option key={peso} value={peso}>
+                          {peso}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      name="categoria"
+                      defaultValue=""
+                      aria-label="Categoria da fonte"
+                      className={INPUT_ESCURO}
+                    >
+                      <option value="">Categoria</option>
+                      {CATEGORIAS_FONTE.map((categoria) => (
+                        <option key={categoria} value={categoria}>
+                          {categoria}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <input
                     type="file"
@@ -2846,16 +2975,73 @@ export function LetteringStudio() {
                           </label>
                           <select
                             id="lettering-font"
-                            value={selected.family}
-                            onChange={(e) => patch({ family: e.target.value })}
+                            value={grupoAtual?.label ?? ""}
+                            onChange={(e) => {
+                              const grupo = catalogo.find(
+                                (g) => g.label === e.target.value,
+                              );
+                              if (!grupo) return;
+                              // Mantém o peso atual quando a fonte nova tem
+                              // esse peso: trocar de família não é trocar de
+                              // peso.
+                              const opcao =
+                                grupo.opcoes.find(
+                                  (o) => o.weight === pesoAtual,
+                                ) ??
+                                grupo.opcoes.find(
+                                  (o) => o.weight === "Regular",
+                                ) ??
+                                grupo.opcoes[0];
+                              void aplicarFonte(opcao);
+                            }}
                             className={INPUT}
                           >
-                            {fonts.map((font) => (
-                              <option key={font.family} value={font.family}>
-                                {font.label}
-                              </option>
-                            ))}
+                            {!grupoAtual ? <option value="">—</option> : null}
+                            {agrupadoPorCategoria(catalogo).map(
+                              ([categoria, grupos]) => (
+                                <optgroup
+                                  key={categoria}
+                                  label={categoria || "sem categoria"}
+                                >
+                                  {grupos.map((grupo) => (
+                                    <option
+                                      key={grupo.label}
+                                      value={grupo.label}
+                                    >
+                                      {grupo.label}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              ),
+                            )}
                           </select>
+                          {grupoAtual && grupoAtual.opcoes.length > 1 ? (
+                            <>
+                              <label
+                                className={LABEL}
+                                htmlFor="lettering-font-weight"
+                              >
+                                Peso
+                              </label>
+                              <select
+                                id="lettering-font-weight"
+                                value={pesoAtual}
+                                onChange={(e) => {
+                                  const opcao = grupoAtual.opcoes.find(
+                                    (o) => o.weight === e.target.value,
+                                  );
+                                  if (opcao) void aplicarFonte(opcao);
+                                }}
+                                className={INPUT}
+                              >
+                                {grupoAtual.opcoes.map((o) => (
+                                  <option key={o.family} value={o.weight}>
+                                    {o.weight || "Regular"}
+                                  </option>
+                                ))}
+                              </select>
+                            </>
+                          ) : null}
                           <label className="inline-flex cursor-pointer items-center gap-2 py-2 text-sm text-neutral-600">
                             <Upload aria-hidden="true" className="size-4" />
                             Carregar fonte do cliente

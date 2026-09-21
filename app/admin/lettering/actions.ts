@@ -4,6 +4,7 @@ import {
   excluirFonte,
   excluirLayout,
   guardarFonte,
+  CATEGORIAS_FONTE,
   listarFontes,
   listarLayouts,
   regravarLayout,
@@ -18,6 +19,11 @@ export async function carregarBiblioteca(): Promise<{
 }> {
   const [layouts, fontes] = await Promise.all([listarLayouts(), listarFontes()]);
   return { layouts, fontes };
+}
+
+/** Só as fontes: o seletor do estúdio carrega na abertura da tela. */
+export async function carregarFontesAction(): Promise<FonteSalva[]> {
+  return listarFontes();
 }
 
 export async function guardarLayoutAction(
@@ -45,10 +51,18 @@ export async function guardarFonteAction(
   const arquivo = formData.get("arquivo");
   const cliente = String(formData.get("cliente") ?? "").trim();
   const rotulo = String(formData.get("rotulo") ?? "").trim();
+  const peso = String(formData.get("peso") ?? "").trim();
+  const categoriaBruta = String(formData.get("categoria") ?? "").trim();
+  // A coluna tem check: categoria desconhecida vira vazio em vez de erro 500.
+  const categoria = (CATEGORIAS_FONTE as readonly string[]).includes(
+    categoriaBruta,
+  )
+    ? categoriaBruta
+    : "";
 
   if (!(arquivo instanceof File) || !rotulo) return listarFontes();
 
-  await guardarFonte(cliente, rotulo, arquivo);
+  await guardarFonte(cliente, rotulo, arquivo, peso, categoria);
   return listarFontes();
 }
 
