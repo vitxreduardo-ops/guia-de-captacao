@@ -248,3 +248,38 @@ export function instagramHandle(value: string): string {
   const fromUrl = trimmed.match(/instagram\.com\/([^/?#]+)/i);
   return (fromUrl ? fromUrl[1] : trimmed).replace(/^@/, "");
 }
+
+// ------------------------------------------------------------ busca
+
+/**
+ * O texto como a busca o compara: sem acento, sem cedilha, em minúscula.
+ *
+ * Quem digita no meio da rua escreve "saude", "servicos", "agronegocio" — e
+ * com a comparação crua isso não acha nada, porque no banco está escrito com
+ * acento. Cada busca que não acha ensina a não usar a busca.
+ *
+ * `NFD` separa a letra do acento e a faixa `\u0300-\u036f` apaga o acento
+ * sozinho; o `ç` entra junto, porque nessa forma ele é um `c` mais cedilha.
+ */
+export function normalizeSearch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * Se o texto casa com o que foi digitado.
+ *
+ * Cada palavra do termo é procurada por conta própria, e todas precisam
+ * aparecer — em qualquer ordem. É o que faz "padaria barreiras" achar a
+ * "Padaria do Zé" de Barreiras, que uma busca por frase inteira perderia.
+ */
+export function matchesSearch(haystack: string, needle: string): boolean {
+  const termos = normalizeSearch(needle).split(/\s+/).filter(Boolean);
+  if (termos.length === 0) return true;
+
+  const alvo = normalizeSearch(haystack);
+  return termos.every((termo) => alvo.includes(termo));
+}

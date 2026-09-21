@@ -11,6 +11,7 @@ import {
   PRODUCES_CONTENT_LABELS,
   RADAR_SECTORS,
   instagramHandle,
+  matchesSearch,
   type RadarCompany,
 } from "@/lib/prospectTypes";
 
@@ -71,23 +72,22 @@ const COLUNAS: { chave: Coluna; rotulo: string }[] = [
  * busca só acharia o que já se sabia onde estava.
  */
 function filtrar(companies: RadarCompany[], busca: string): RadarCompany[] {
-  const termo = busca.trim().toLowerCase();
-  if (!termo) return companies;
+  if (!busca.trim()) return companies;
 
   return companies.filter((row) =>
-    [
-      row.company,
-      row.sector,
-      row.instagram,
-      row.contact,
-      row.comms_name,
-      row.referral,
-      row.notes,
-      PRODUCES_CONTENT_LABELS[row.produces_content],
-    ]
-      .join(" ")
-      .toLowerCase()
-      .includes(termo)
+    matchesSearch(
+      [
+        row.company,
+        row.sector,
+        row.instagram,
+        row.contact,
+        row.comms_name,
+        row.referral,
+        row.notes,
+        PRODUCES_CONTENT_LABELS[row.produces_content],
+      ].join(" "),
+      busca
+    )
   );
 }
 
