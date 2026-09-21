@@ -70,6 +70,12 @@ export interface Prospect {
   next_contact_what: string;
   lost_reason: string;
   notes: string;
+  /** Valor em jogo. Zero é "ainda não se falou de dinheiro" — ver 0055. */
+  value: number;
+  budget_id: string | null;
+  contract_id: string | null;
+  /** Quando fechou. Separado de `updated_at`, que qualquer edição move. */
+  closed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -89,6 +95,14 @@ export interface ProspectTouch {
 export interface ProspectOwnerOption {
   id: string;
   username: string;
+}
+
+/** Orçamento ou contrato que pode ser amarrado ao contato. O `slug` é o que
+ *  permite abrir a peça sem uma segunda consulta na hora de desenhar. */
+export interface ProspectDocOption {
+  id: string;
+  title: string;
+  slug: string;
 }
 
 export interface ProspectClientOption {
@@ -233,4 +247,39 @@ export function instagramHandle(value: string): string {
   if (!trimmed) return "";
   const fromUrl = trimmed.match(/instagram\.com\/([^/?#]+)/i);
   return (fromUrl ? fromUrl[1] : trimmed).replace(/^@/, "");
+}
+
+// ------------------------------------------------------------ busca
+
+/**
+ * O texto como a busca o compara: sem acento, sem cedilha, em minúscula.
+ *
+ * Quem digita no meio da rua escreve "saude", "servicos", "agronegocio" — e
+ * com a comparação crua isso não acha nada, porque no banco está escrito com
+ * acento. Cada busca que não acha ensina a não usar a busca.
+ *
+ * `NFD` separa a letra do acento e a faixa `\u0300-\u036f` apaga o acento
+ * sozinho; o `ç` entra junto, porque nessa forma ele é um `c` mais cedilha.
+ */
+export function normalizeSearch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * Se o texto casa com o que foi digitado.
+ *
+ * Cada palavra do termo é procurada por conta própria, e todas precisam
+ * aparecer — em qualquer ordem. É o que faz "padaria barreiras" achar a
+ * "Padaria do Zé" de Barreiras, que uma busca por frase inteira perderia.
+ */
+export function matchesSearch(haystack: string, needle: string): boolean {
+  const termos = normalizeSearch(needle).split(/\s+/).filter(Boolean);
+  if (termos.length === 0) return true;
+
+  const alvo = normalizeSearch(haystack);
+  return termos.every((termo) => alvo.includes(termo));
 }

@@ -48,6 +48,22 @@ retomar sem reconstruir a investigação. Última revisão: 06/09/2026.
       surpresa, não fluidez. O assentamento (deslizar até o lugar) esse sim foi
       feito.
 
+## Prospecção
+
+- [ ] **Lapidar a tabela de contatos.** Clicar num contato abre a ficha
+      inteira, que é uma tela gigante — a lista perde o lugar e voltar custa.
+      A tabela virou a única visão do funil em 21/09/2026 (a Fila foi
+      removida), então o caminho de ida e volta pra ficha passou a ser o
+      caminho principal. Decidir se a ficha vira gaveta lateral, se a linha
+      expande no lugar, ou se só o essencial abre ali.
+
+- [ ] **Tabelas mortas da unificação dos modelos.** `followup_templates`
+      (0056), `outreach_templates` (0058) e a coluna
+      `prospect_stages.playbook` (0048) tiveram o conteúdo copiado pra
+      `message_templates` pela migration 0061 e não são mais lidos por código
+      nenhum. Ficaram de pé de propósito, pra ter volta caso algo tenha ficado
+      pra trás. Conferir e derrubar.
+
 ## Painel
 
 - [ ] **O link "Minha Agenda" mora dentro do `<summary>`.** No celular, tocar

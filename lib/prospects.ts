@@ -5,6 +5,7 @@ import {
   normalizeStageKind,
   type Prospect,
   type ProspectClientOption,
+  type ProspectDocOption,
   type ProspectOwnerOption,
   type ProspectRow,
   type ProspectStage,
@@ -189,6 +190,38 @@ export async function getProspect(
   };
 }
 
+/**
+ * As peças que podem ser amarradas a um contato: orçamentos e contratos.
+ *
+ * Só o que o vínculo precisa (id, título, slug). Puxar a linha inteira traria
+ * o corpo do contrato e as seções da proposta para montar um `<select>`.
+ */
+export async function listLinkableDocs(): Promise<{
+  budgets: ProspectDocOption[];
+  contracts: ProspectDocOption[];
+}> {
+  const supabase = getSupabaseServerClient();
+  const [budgets, contracts] = await Promise.all([
+    supabase
+      .from("budgets")
+      .select("id, title, slug")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("contracts")
+      .select("id, title, slug")
+      .eq("is_template", false)
+      .order("created_at", { ascending: false }),
+  ]);
+
+  if (budgets.error) throw budgets.error;
+  if (contracts.error) throw contracts.error;
+
+  return {
+    budgets: budgets.data ?? [],
+    contracts: contracts.data ?? [],
+  };
+}
+
 // ---------------------------------------------------------------- escrita
 
 export interface ProspectInput {
@@ -208,6 +241,9 @@ export interface ProspectInput {
   next_contact_what: string;
   lost_reason: string;
   notes: string;
+  value: number;
+  budget_id: string | null;
+  contract_id: string | null;
 }
 
 export function readProspectForm(formData: FormData): ProspectInput {
@@ -228,7 +264,25 @@ export function readProspectForm(formData: FormData): ProspectInput {
     next_contact_what: text(formData.get("next_contact_what")),
     lost_reason: text(formData.get("lost_reason")),
     notes: text(formData.get("notes")),
+    value: money(formData.get("value")),
+    budget_id: text(formData.get("budget_id")) || null,
+    contract_id: text(formData.get("contract_id")) || null,
   };
+}
+
+/**
+ * Aceita "2.500,00" e "2500.00" — o campo é digitado à mão e as duas formas
+ * aparecem. Sem isso `Number("2.500,00")` é NaN e o valor vira zero calado,
+ * que no painel comercial some da soma sem ninguém perceber.
+ */
+function money(value: FormDataEntryValue | null): number {
+  const bruto = String(value ?? "").trim().replace(/[^\d,.-]/g, "");
+  if (!bruto) return 0;
+  const normalizado = bruto.includes(",")
+    ? bruto.replace(/\./g, "").replace(",", ".")
+    : bruto;
+  const numero = Number(normalizado);
+  return Number.isFinite(numero) && numero >= 0 ? numero : 0;
 }
 
 export async function createProspect(fields: ProspectInput): Promise<Prospect> {
@@ -348,6 +402,12 @@ export async function moveProspect(params: {
   // não sobrar uma justificativa velha num contato que voltou a andar.
   if (kind === "perdida") patch.lost_reason = params.lostReason;
   else patch.lost_reason = "";
+
+  // A data de fechamento é gravada na hora da mudança de etapa, e não deduzida
+  // depois de `updated_at`: qualquer correção posterior de telefone moveria
+  // "fechou em agosto" para "fechou hoje". Sair da etapa de ganho limpa —
+  // senão o mês passado continua contando um fechamento que se desfez.
+  patch.closed_at = kind === "ganha" ? new Date().toISOString() : null;
 
   const { error } = await supabase
     .from("prospects")

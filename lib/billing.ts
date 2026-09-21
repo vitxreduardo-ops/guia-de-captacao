@@ -345,13 +345,23 @@ export interface OverdueClient {
   months: string[];
 }
 
+export interface BillingDue extends OverdueClient {
+  /** O vencimento mais próximo entre os meses somados, em AAAA-MM-DD. */
+  dueDate: string;
+}
+
 /**
- * O que já passou da data de pagamento: entregas faturáveis ainda não pagas
- * cujo vencimento (dia do cliente, no mês seguinte ao da entrega) ficou para
- * trás. Cliente sem dia de vencimento cadastrado não entra — sem combinado não
- * há atraso.
+ * O que está para vencer ou já venceu: entregas faturáveis ainda não pagas,
+ * com o vencimento (dia do cliente, no mês seguinte ao da entrega) dentro da
+ * janela. Cliente sem dia de vencimento cadastrado não entra — sem combinado
+ * não há data.
+ *
+ * `windowDays` conta pra frente a partir de hoje. Zero devolve só o que já
+ * venceu, que é o que a tela de clientes sempre mostrou; o Painel pede alguns
+ * dias, porque lembrete que só aparece no dia do vencimento chega junto com o
+ * atraso.
  */
-export async function getOverdueByClient(): Promise<OverdueClient[]> {
+export async function getBillingDue(windowDays = 0): Promise<BillingDue[]> {
   const supabase = getSupabaseServerClient();
 
   const [clientsResult, columnsResult] = await Promise.all([
@@ -388,21 +398,29 @@ export async function getOverdueByClient(): Promise<OverdueClient[]> {
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
 
-  const porCliente = new Map<string, OverdueClient>();
+  const limite = new Date(hoje);
+  limite.setDate(limite.getDate() + windowDays);
+
+  const porCliente = new Map<string, BillingDue>();
 
   for (const card of cards ?? []) {
     const client = clients.find((item) => item.id === card.client_id);
     if (!client) continue;
 
     const month = monthKey(card.post_date as string);
-    if (dueDateOf(month, client.payment_day as number) >= hoje) continue;
+    const vencimento = dueDateOf(month, client.payment_day as number);
+    if (vencimento > limite) continue;
 
     const atual = porCliente.get(client.id as string) ?? {
       clientId: client.id as string,
       clientName: client.name as string,
       cents: 0,
       months: [] as string[],
+      // Entre vários meses em aberto, o que manda é o mais antigo: é dele a
+      // cobrança que está esperando há mais tempo.
+      dueDate: isoDate(vencimento),
     };
+    if (isoDate(vencimento) < atual.dueDate) atual.dueDate = isoDate(vencimento);
     atual.cents += lineTotalCents({
       quantity: (card.quantity as number) ?? 1,
       unit_price_cents: (card.unit_price_cents as number | null) ?? 0,
@@ -415,6 +433,26 @@ export async function getOverdueByClient(): Promise<OverdueClient[]> {
     .map((row) => ({ ...row, months: row.months.sort() }))
     .filter((row) => row.cents > 0)
     .sort((a, b) => b.cents - a.cents);
+}
+
+/** Data local em AAAA-MM-DD. `toISOString` daria o dia de ontem à noite, que
+ *  num vencimento é a diferença entre "hoje" e "atrasado". */
+function isoDate(date: Date): string {
+  const mes = String(date.getMonth() + 1).padStart(2, "0");
+  const dia = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${mes}-${dia}`;
+}
+
+/**
+ * O que já venceu — sem o que vence hoje.
+ *
+ * Continua existindo com este nome porque é o que a tela de clientes
+ * pergunta: lá a lista se chama "atrasado", e cobrar alguém no próprio dia do
+ * vencimento é o jeito mais rápido de perder o cliente que ia pagar à tarde.
+ */
+export async function getOverdueByClient(): Promise<OverdueClient[]> {
+  const hoje = isoDate(new Date());
+  return (await getBillingDue(0)).filter((row) => row.dueDate < hoje);
 }
 
 /**

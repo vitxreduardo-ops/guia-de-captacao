@@ -2,7 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ProspectDetail } from "@/components/admin/ProspectDetail";
-import { getProspect, getProspects } from "@/lib/prospects";
+import { listMessageTemplates } from "@/lib/messages";
+import {
+  getProspect,
+  getProspects,
+  listLinkableDocs,
+} from "@/lib/prospects";
 
 export const dynamic = "force-dynamic";
 
@@ -12,9 +17,11 @@ export default async function ProspectPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [found, board] = await Promise.all([
+  const [found, board, docs, templates] = await Promise.all([
     getProspect(id),
     getProspects(),
+    listLinkableDocs(),
+    listMessageTemplates(),
   ]);
   if (!found) notFound();
 
@@ -50,7 +57,7 @@ export default async function ProspectPage({
           href="/admin/prospeccao"
           className="ml-auto text-sm text-neutral-500 hover:text-neutral-800"
         >
-          ← Voltar pra fila
+          ← Voltar pra lista
         </Link>
       </div>
 
@@ -60,6 +67,9 @@ export default async function ProspectPage({
         stages={board.stages}
         owners={board.owners}
         clients={board.clients}
+        budgets={docs.budgets}
+        contracts={docs.contracts}
+        templates={templates}
       />
     </div>
   );

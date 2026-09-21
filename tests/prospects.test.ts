@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addDaysISO,
   daysLate,
+  matchesSearch,
   normalizeStageKind,
   queueBucket,
 } from "@/lib/prospectTypes";
@@ -28,6 +29,10 @@ function row(fields: Partial<ProspectRow>): ProspectRow {
     next_contact_minutes: null,
     next_contact_what: "",
     lost_reason: "",
+    value: 0,
+    budget_id: null,
+    contract_id: null,
+    closed_at: null,
     notes: "",
     created_at: "",
     updated_at: "",
@@ -107,5 +112,29 @@ describe("normalizeStageKind", () => {
     expect(normalizeStageKind("nutricao")).toBe("nutricao");
     expect(normalizeStageKind("qualquer coisa")).toBe("ativa");
     expect(normalizeStageKind(null)).toBe("ativa");
+  });
+});
+
+describe("busca do radar", () => {
+  it("acha com e sem acento, nos dois sentidos", () => {
+    expect(matchesSearch("Saúde", "saude")).toBe(true);
+    expect(matchesSearch("Saude", "saúde")).toBe(true);
+    expect(matchesSearch("Serviços", "servicos")).toBe(true);
+    expect(matchesSearch("Agronegócio", "agronegocio")).toBe(true);
+  });
+
+  it("acha pelo começo da palavra", () => {
+    expect(matchesSearch("Agronegócio", "agro")).toBe(true);
+  });
+
+  it("exige todas as palavras, em qualquer ordem", () => {
+    const linha = "Padaria do Zé Alimentação Barreiras";
+    expect(matchesSearch(linha, "padaria barreiras")).toBe(true);
+    expect(matchesSearch(linha, "barreiras padaria")).toBe(true);
+    expect(matchesSearch(linha, "padaria salvador")).toBe(false);
+  });
+
+  it("termo vazio não filtra nada", () => {
+    expect(matchesSearch("qualquer coisa", "   ")).toBe(true);
   });
 });
