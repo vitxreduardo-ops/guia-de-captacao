@@ -6,7 +6,9 @@ import {
   TodayAgenda,
   TodayAgendaSkeleton,
 } from "@/components/admin/TodayAgenda";
+import { Reminders } from "@/components/admin/Reminders";
 import { listDailyTodos } from "@/lib/dailyTodos";
+import { getReminders } from "@/lib/reminders";
 import { listUpcomingPosts } from "@/lib/upcomingPosts";
 import { getCurrentSession, getCurrentUsername } from "@/lib/session";
 import { getUserCalendarAccount } from "@/lib/userCalendars";
@@ -14,12 +16,14 @@ import { getUserCalendarAccount } from "@/lib/userCalendars";
 export const dynamic = "force-dynamic";
 
 export default async function AdminHub() {
-  const [session, username, { todos, users }, upcoming] = await Promise.all([
-    getCurrentSession(),
-    getCurrentUsername(),
-    listDailyTodos(),
-    listUpcomingPosts(),
-  ]);
+  const [session, username, { todos, users }, upcoming, reminders] =
+    await Promise.all([
+      getCurrentSession(),
+      getCurrentUsername(),
+      listDailyTodos(),
+      listUpcomingPosts(),
+      getReminders(),
+    ]);
 
   // Quem não conectou agenda não vê o bloco de hoje — e nem paga a consulta.
   const account = session ? await getUserCalendarAccount(session.userId) : null;
@@ -32,6 +36,10 @@ export default async function AdminHub() {
   return (
     <div className="mx-auto w-full max-w-6xl pb-10">
       <AdminHeader title="Painel" />
+
+      {/* Acima do grid e da largura inteira: é a única coisa da tela que tem
+          data pra vencer. Some sozinho quando não há nada. */}
+      <Reminders data={reminders} />
 
       {/* Os atalhos saíram daqui pra barra do layout, onde valem pras 19
           telas. Sobra a coluna do "o que tenho pela frente": agenda de hoje
