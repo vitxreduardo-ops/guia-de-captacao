@@ -6,7 +6,10 @@ import {
   TodayAgenda,
   TodayAgendaSkeleton,
 } from "@/components/admin/TodayAgenda";
-import { Reminders } from "@/components/admin/Reminders";
+import {
+  FollowupsToday,
+  PaymentsDue,
+} from "@/components/admin/Reminders";
 import { listDailyTodos } from "@/lib/dailyTodos";
 import { getReminders } from "@/lib/reminders";
 import { listUpcomingPosts } from "@/lib/upcomingPosts";
@@ -37,9 +40,6 @@ export default async function AdminHub() {
     <div className="mx-auto w-full max-w-6xl pb-10">
       <AdminHeader title="Painel" />
 
-      {/* Acima do grid e da largura inteira: é a única coisa da tela que tem
-          data pra vencer. Some sozinho quando não há nada. */}
-      <Reminders data={reminders} />
 
       {/* Os atalhos saíram daqui pra barra do layout, onde valem pras 19
           telas. Sobra a coluna do "o que tenho pela frente": agenda de hoje
@@ -59,10 +59,27 @@ export default async function AdminHub() {
             </Suspense>
           ) : null}
 
+          {/* Entre a agenda e as postagens: os três respondem a mesma
+              pergunta, e a prospecção é a única cujo atraso não aparece
+              sozinho em lugar nenhum. */}
+          <div className="max-lg:order-3">
+            <FollowupsToday
+              prospects={reminders.followups}
+              today={reminders.today}
+            />
+          </div>
+
           {/* No celular cai por último, depois das tarefas — no desktop
               fecha a coluna estreita, embaixo da agenda. */}
-          <div className="max-lg:order-3">
+          <div className="max-lg:order-4">
             <UpcomingPosts posts={upcoming} />
+          </div>
+
+          <div className="max-lg:order-5">
+            <PaymentsDue
+              payments={reminders.payments}
+              today={reminders.today}
+            />
           </div>
         </div>
 

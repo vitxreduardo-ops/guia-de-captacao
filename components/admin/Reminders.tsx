@@ -1,112 +1,140 @@
 import Link from "next/link";
 import { formatBRL } from "@/lib/billingTypes";
-import { dueLabel, dueStatus, remindersSummary } from "@/lib/reminderText";
-import type { Reminders as RemindersData } from "@/lib/reminders";
+import { dueLabel, dueStatus } from "@/lib/reminderText";
+import type { BillingDue } from "@/lib/billing";
+import type { ProspectRow } from "@/lib/prospectTypes";
+
+const CARD = "rounded-lg border border-neutral-200 bg-white p-4";
+const TITULO = "text-sm font-semibold text-neutral-900";
+const LINHA =
+  "block rounded-md px-2 py-1.5 text-sm transition-transform hover:bg-neutral-100 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.99] pointer-coarse:min-h-11";
 
 /**
- * O que precisa de você hoje.
+ * Os contatos com próximo passo marcado pra hoje ou pra trás.
  *
- * As duas coisas que ele mostra moram em telas que não se abre todo dia:
- * follow-up atrasado é o vazamento silencioso do funil, e pagamento em aberto
- * só aparece quando alguém vai conferir. Nenhum dos dois grita sozinho — o
- * Painel é onde eles ganham voz.
+ * Na coluna do "o que tenho pela frente", entre a agenda e as postagens: a
+ * mesma pergunta que os dois vizinhos respondem, só que pra prospecção — que
+ * é a única das três cujo atraso não aparece em lugar nenhum sozinho.
  *
- * Sem nada pendente o bloco não existe. Uma caixa dizendo "tudo em dia" todo
- * santo dia é a mais rápida das maneiras de ensinar a pular essa parte da
- * tela, e aí o dia em que houver algo também não será visto.
+ * Sem ninguém esperando, o bloco não existe. Um cartão dizendo "nada pra
+ * hoje" todo santo dia ensina a pular aquele pedaço da tela, e aí o dia em
+ * que houver alguém também não será visto.
  */
-export function Reminders({ data }: { data: RemindersData }) {
-  const resumo = remindersSummary(data.followups.length, data.payments.length);
-  if (!resumo) return null;
+export function FollowupsToday({
+  prospects,
+  today,
+}: {
+  prospects: ProspectRow[];
+  today: string;
+}) {
+  if (prospects.length === 0) return null;
 
   return (
-    <section
-      aria-labelledby="lembretes-titulo"
-      className="mb-6 rounded-lg border border-neutral-200 bg-white p-4"
-    >
-      <h2
-        id="lembretes-titulo"
-        className="text-sm font-semibold text-neutral-900"
-      >
-        Pra hoje
-      </h2>
-      <p className="mt-0.5 mb-3 text-sm text-neutral-500">{resumo}</p>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        {data.followups.length > 0 ? (
-          <div>
-            <h3 className="mb-1.5 text-xs font-medium tracking-wide text-neutral-400 uppercase">
-              Follow-up
-            </h3>
-            <ul className="space-y-1.5">
-              {data.followups.map((prospect) => {
-                const prazo = dueLabel(prospect.next_contact_date!, data.today);
-                const atrasado =
-                  dueStatus(prospect.next_contact_date!, data.today) ===
-                  "vencido";
-                return (
-                  <li key={prospect.id} className="text-sm">
-                    <Link
-                      href={`/admin/prospeccao/${prospect.id}`}
-                      className="font-medium text-neutral-900 underline decoration-neutral-300 underline-offset-2 hover:decoration-neutral-600"
-                    >
-                      {prospect.name}
-                    </Link>{" "}
-                    <span
-                      className={atrasado ? "text-red-700" : "text-neutral-500"}
-                    >
-                      {prazo}
-                    </span>
-                    {prospect.next_contact_what ? (
-                      <span className="block text-[13px] text-neutral-500">
-                        {prospect.next_contact_what}
-                      </span>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ) : null}
-
-        {data.payments.length > 0 ? (
-          <div>
-            <h3 className="mb-1.5 text-xs font-medium tracking-wide text-neutral-400 uppercase">
-              Pagamento
-            </h3>
-            <ul className="space-y-1.5">
-              {data.payments.map((payment) => {
-                const status = dueStatus(payment.dueDate, data.today);
-                return (
-                  <li key={payment.clientId} className="text-sm">
-                    <Link
-                      href="/admin/clientes/resumo"
-                      className="font-medium text-neutral-900 underline decoration-neutral-300 underline-offset-2 hover:decoration-neutral-600"
-                    >
-                      {payment.clientName}
-                    </Link>{" "}
-                    <span className="tabular-nums text-neutral-500">
-                      {formatBRL(payment.cents)}
-                    </span>{" "}
-                    <span
-                      className={
-                        status === "vencido"
-                          ? "text-red-700"
-                          : status === "hoje"
-                            ? "text-amber-700"
-                            : "text-neutral-500"
-                      }
-                    >
-                      {status === "vencido" ? "venceu " : "vence "}
-                      {dueLabel(payment.dueDate, data.today)}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ) : null}
+    <section aria-labelledby="followup-titulo" className={CARD}>
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <h2 id="followup-titulo" className={TITULO}>
+          Follow-up hoje
+          <span className="font-normal text-neutral-500">
+            {` · ${prospects.length}`}
+          </span>
+        </h2>
+        <Link
+          href="/admin/prospeccao"
+          className="shrink-0 rounded text-xs text-neutral-500 hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+        >
+          Prospecção
+        </Link>
       </div>
+
+      <ul className="-mx-2 space-y-0.5">
+        {prospects.map((prospect) => {
+          const quando = prospect.next_contact_date ?? today;
+          const atrasado = dueStatus(quando, today) === "vencido";
+          return (
+            <li key={prospect.id}>
+              <Link href={`/admin/prospeccao/${prospect.id}`} className={LINHA}>
+                <span className="block break-words text-neutral-800">
+                  {prospect.name}
+                </span>
+                <span className="text-xs text-neutral-500">
+                  <span className={atrasado ? "text-red-700" : undefined}>
+                    {atrasado ? `era ${dueLabel(quando, today)}` : "hoje"}
+                  </span>
+                  {prospect.next_contact_what
+                    ? ` · ${prospect.next_contact_what}`
+                    : ""}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * O que vence, do mais próximo ao mais distante.
+ *
+ * Vem depois das postagens porque é o único dos quatro cartões que não é
+ * sobre hoje: a janela olha uma semana pra frente, já que lembrete que nasce
+ * no dia do vencimento chega junto com o atraso.
+ */
+export function PaymentsDue({
+  payments,
+  today,
+}: {
+  payments: BillingDue[];
+  today: string;
+}) {
+  if (payments.length === 0) return null;
+
+  return (
+    <section aria-labelledby="pagamentos-titulo" className={CARD}>
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <h2 id="pagamentos-titulo" className={TITULO}>
+          Pagamentos
+          <span className="font-normal text-neutral-500">
+            {` · ${payments.length}`}
+          </span>
+        </h2>
+        <Link
+          href="/admin/clientes/resumo"
+          className="shrink-0 rounded text-xs text-neutral-500 hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+        >
+          Clientes
+        </Link>
+      </div>
+
+      <ul className="-mx-2 space-y-0.5">
+        {payments.map((payment) => {
+          const status = dueStatus(payment.dueDate, today);
+          return (
+            <li key={payment.clientId}>
+              <Link href="/admin/clientes/resumo" className={LINHA}>
+                <span className="block break-words text-neutral-800">
+                  {payment.clientName}
+                  <span className="text-neutral-500 tabular-nums">
+                    {` · ${formatBRL(payment.cents)}`}
+                  </span>
+                </span>
+                <span
+                  className={`text-xs ${
+                    status === "vencido"
+                      ? "text-red-700"
+                      : status === "hoje"
+                        ? "text-amber-700"
+                        : "text-neutral-500"
+                  }`}
+                >
+                  {status === "vencido" ? "venceu " : "vence "}
+                  {dueLabel(payment.dueDate, today)}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }
