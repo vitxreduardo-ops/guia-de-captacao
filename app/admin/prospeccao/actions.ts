@@ -19,23 +19,13 @@ import {
   updateStage,
 } from "@/lib/prospects";
 import {
-  createFollowupTemplate,
-  deleteFollowupTemplate,
-  updateFollowupTemplate,
-} from "@/lib/followups";
-import {
-  createOutreachTemplate,
-  deleteOutreachTemplate,
-  updateOutreachTemplate,
-} from "@/lib/outreach";
+  createMessageTemplate,
+  deleteMessageTemplate,
+  updateMessageTemplate,
+} from "@/lib/messages";
 import { getCurrentSession } from "@/lib/session";
 
-const PATHS = [
-  "/admin/prospeccao",
-  "/admin/prospeccao/tabela",
-  "/admin/prospeccao/etapas",
-  "/admin/prospeccao/comercial",
-];
+const PATHS = ["/admin/prospeccao", "/admin/prospeccao/ajustes"];
 
 function revalidate(prospectId?: string) {
   for (const path of PATHS) revalidatePath(path);
@@ -219,87 +209,33 @@ export async function reorderStagesAction(orderedIds: string[]) {
   revalidate();
 }
 
-// ----------------------------------------------------------------- radar
+// -------------------------------------------------------------- modelos
 
-export async function createRadarAction(formData: FormData) {
-  const { createRadarCompany } = await import("@/lib/prospects");
-  if (!String(formData.get("company") ?? "").trim()) return;
-  await createRadarCompany(formData);
-  revalidatePath("/admin/prospeccao/radar");
-}
+const AJUSTES = "/admin/prospeccao/ajustes";
 
-export async function updateRadarAction(formData: FormData) {
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
-  const { updateRadarCompany } = await import("@/lib/prospects");
-  await updateRadarCompany(id, formData);
-  revalidatePath("/admin/prospeccao/radar");
-}
-
-export async function deleteRadarAction(formData: FormData) {
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
-  const { deleteRadarCompany } = await import("@/lib/prospects");
-  await deleteRadarCompany(id);
-  revalidatePath("/admin/prospeccao/radar");
-}
-
-// ------------------------------------------------------------- follow-up
-
-export async function createFollowupAction(formData: FormData) {
-  await createFollowupTemplate({
+export async function createMessageAction(formData: FormData) {
+  await createMessageTemplate({
     name: String(formData.get("name") ?? "").trim(),
     situation: String(formData.get("situation") ?? ""),
     body: String(formData.get("body") ?? ""),
   });
-  revalidatePath("/admin/prospeccao/modelos");
+  revalidatePath(AJUSTES);
 }
 
-export async function updateFollowupAction(formData: FormData) {
+export async function updateMessageAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
-  await updateFollowupTemplate(id, {
+  await updateMessageTemplate(id, {
     name: String(formData.get("name") ?? "").trim(),
     situation: String(formData.get("situation") ?? ""),
     body: String(formData.get("body") ?? ""),
   });
-  revalidatePath("/admin/prospeccao/modelos");
+  revalidatePath(AJUSTES);
 }
 
-export async function deleteFollowupAction(formData: FormData) {
+export async function deleteMessageAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
-  await deleteFollowupTemplate(id);
-  revalidatePath("/admin/prospeccao/modelos");
-}
-
-// ------------------------------------------------------------ abordagem
-
-const MODELOS = "/admin/prospeccao/modelos";
-
-export async function createOutreachAction(formData: FormData) {
-  await createOutreachTemplate({
-    name: String(formData.get("name") ?? "").trim(),
-    angle: String(formData.get("angle") ?? ""),
-    body: String(formData.get("body") ?? ""),
-  });
-  revalidatePath(MODELOS);
-}
-
-export async function updateOutreachAction(formData: FormData) {
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
-  await updateOutreachTemplate(id, {
-    name: String(formData.get("name") ?? "").trim(),
-    angle: String(formData.get("angle") ?? ""),
-    body: String(formData.get("body") ?? ""),
-  });
-  revalidatePath(MODELOS);
-}
-
-export async function deleteOutreachAction(formData: FormData) {
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
-  await deleteOutreachTemplate(id);
-  revalidatePath(MODELOS);
+  await deleteMessageTemplate(id);
+  revalidatePath(AJUSTES);
 }

@@ -85,11 +85,6 @@ function StageRow({
                 {STAGE_KIND_LABELS[stage.kind]}
               </span>
             ) : null}
-            {stage.playbook ? (
-              <span className="text-[11px] text-neutral-400">roteiro escrito</span>
-            ) : (
-              <span className="text-[11px] text-amber-700">sem roteiro</span>
-            )}
           </span>
         </div>
         <button
@@ -147,21 +142,6 @@ function StageRow({
           ))}
         </select>
       </div>
-
-      <label className="block">
-        <span className="mb-1 block text-xs font-medium text-neutral-600">
-          Roteiro — aparece na fila e na ficha de quem está nesta etapa
-        </span>
-        <textarea
-          name="playbook"
-          defaultValue={stage.playbook}
-          rows={8}
-          placeholder={
-            "Objetivo desta conversa (uma frase só).\n\nPerguntas, na ordem.\n\nO que escutar: sinal de que avança / sinal de que não é cliente.\n\nSaída combinada: nunca encerrar sem próxima data."
-          }
-          className={inputClass}
-        />
-      </label>
 
       <div className="flex items-center gap-3">
         <button

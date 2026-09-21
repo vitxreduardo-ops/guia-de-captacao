@@ -5,7 +5,7 @@ import {
   createRadarAction,
   deleteRadarAction,
   updateRadarAction,
-} from "@/app/admin/prospeccao/actions";
+} from "@/app/admin/radar/actions";
 import {
   PRODUCES_CONTENT,
   PRODUCES_CONTENT_LABELS,
@@ -13,8 +13,12 @@ import {
   instagramHandle,
   type RadarCompany,
 } from "@/lib/prospectTypes";
-import { OutreachBox } from "@/components/admin/OutreachBox";
-import type { OutreachTemplate } from "@/lib/outreachText";
+import { MessageBox } from "@/components/admin/MessageBox";
+import {
+  companyVars,
+  suggestForCompany,
+  type MessageTemplate,
+} from "@/lib/messageText";
 
 /**
  * Uma grade, não uma `<table>`.
@@ -65,13 +69,13 @@ function Field({
 export function RadarTable({
   companies,
   sectors,
-  outreach,
+  templates,
 }: {
   companies: RadarCompany[];
   /** Ramos já usados, somados às sugestões fixas. */
   sectors: string[];
-  /** Modelos de abordagem; o gerador aparece na linha aberta. */
-  outreach: OutreachTemplate[];
+  /** Modelos de mensagem; o gerador aparece na linha aberta. */
+  templates: MessageTemplate[];
 }) {
   const newForm = useRef<HTMLFormElement>(null);
 
@@ -307,9 +311,19 @@ export function RadarTable({
                           pilha de rascunhos abertos. */}
                       <details className="px-3 pb-2 sm:px-1.5">
                         <summary className="cursor-pointer text-[12px] text-neutral-500 hover:text-neutral-900">
-                          Escrever abordagem
+                          Escrever mensagem
                         </summary>
-                        <OutreachBox company={row} templates={outreach} />
+                        <MessageBox
+                          templates={templates}
+                          suggested={suggestForCompany()}
+                          vars={companyVars(row)}
+                          phone={row.contact}
+                          profileUrl={
+                            handle ? `https://instagram.com/${handle}` : undefined
+                          }
+                          compact
+                          storageKey={row.id}
+                        />
                       </details>
                     </li>
                   );

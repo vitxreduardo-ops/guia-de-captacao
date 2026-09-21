@@ -2,17 +2,15 @@ import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import {
   normalizeSituation,
-  type FollowupTemplate,
-} from "@/lib/followupText";
+  type MessageTemplate,
+} from "@/lib/messageText";
 
-export type { FollowupTemplate } from "@/lib/followupText";
+export type { MessageTemplate } from "@/lib/messageText";
 
-/** Todos os modelos, agrupáveis por situação na tela. Ordem: situação e
- *  depois posição — é a ordem em que o `<select>` os oferece. */
-export async function listFollowupTemplates(): Promise<FollowupTemplate[]> {
+export async function listMessageTemplates(): Promise<MessageTemplate[]> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
-    .from("followup_templates")
+    .from("message_templates")
     .select("id, name, situation, position, body")
     .order("situation", { ascending: true })
     .order("position", { ascending: true });
@@ -24,13 +22,13 @@ export async function listFollowupTemplates(): Promise<FollowupTemplate[]> {
   }));
 }
 
-export async function createFollowupTemplate(fields: {
+export async function createMessageTemplate(fields: {
   name: string;
   situation: string;
   body: string;
 }) {
   const supabase = getSupabaseServerClient();
-  const { error } = await supabase.from("followup_templates").insert({
+  const { error } = await supabase.from("message_templates").insert({
     name: fields.name || "Novo modelo",
     situation: normalizeSituation(fields.situation),
     body: fields.body,
@@ -38,13 +36,13 @@ export async function createFollowupTemplate(fields: {
   if (error) throw error;
 }
 
-export async function updateFollowupTemplate(
+export async function updateMessageTemplate(
   id: string,
   fields: { name: string; situation: string; body: string }
 ) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase
-    .from("followup_templates")
+    .from("message_templates")
     .update({
       name: fields.name || "Novo modelo",
       situation: normalizeSituation(fields.situation),
@@ -55,10 +53,10 @@ export async function updateFollowupTemplate(
   if (error) throw error;
 }
 
-export async function deleteFollowupTemplate(id: string) {
+export async function deleteMessageTemplate(id: string) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase
-    .from("followup_templates")
+    .from("message_templates")
     .delete()
     .eq("id", id);
   if (error) throw error;

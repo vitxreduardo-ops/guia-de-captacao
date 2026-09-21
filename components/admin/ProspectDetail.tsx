@@ -19,8 +19,13 @@ import {
   type ProspectTouch,
 } from "@/lib/prospectTypes";
 import { formatBRL } from "@/lib/prospectPipeline";
-import { FollowupBox } from "@/components/admin/FollowupBox";
-import type { FollowupTemplate } from "@/lib/followupText";
+import { MessageBox } from "@/components/admin/MessageBox";
+import {
+  daysSinceTouch,
+  prospectVars,
+  suggestForProspect,
+  type MessageTemplate,
+} from "@/lib/messageText";
 
 /** Sem largura: quem usa escolhe. Compor `w-full` com `w-auto` na mesma
  * string não funciona — em Tailwind a ordem do CSS decide, não a da classe. */
@@ -39,7 +44,7 @@ export function ProspectDetail({
   clients,
   budgets,
   contracts,
-  followups,
+  templates,
 }: {
   prospect: ProspectRow;
   touches: ProspectTouch[];
@@ -48,7 +53,7 @@ export function ProspectDetail({
   clients: ProspectClientOption[];
   budgets: ProspectDocOption[];
   contracts: ProspectDocOption[];
-  followups: FollowupTemplate[];
+  templates: MessageTemplate[];
 }) {
   const authors = new Map(owners.map((owner) => [owner.id, owner.username]));
 
@@ -58,7 +63,7 @@ export function ProspectDetail({
         <NextContact prospect={prospect} />
         {/* Fica antes do histórico: quem abre a ficha de um contato parado
             vem escrever a mensagem, não reler o que já sabe. */}
-        <FollowupBox prospect={prospect} templates={followups} />
+        <Message prospect={prospect} templates={templates} />
         <section>
           <h2 className={sectionClass}>Histórico</h2>
           <NoteBox prospectId={prospect.id} />
@@ -68,22 +73,6 @@ export function ProspectDetail({
 
       <aside className="w-full space-y-6 lg:w-80 lg:shrink-0">
         <MoveStage prospect={prospect} stages={stages} />
-        {prospect.stage.playbook ? (
-          /* O roteiro é longo por natureza: no celular ele empurraria os
-             dados do contato pra fora da tela. Abre no toque, igual ao
-             roteiro da fila. */
-          <details className="group rounded-lg border border-neutral-200 bg-neutral-50">
-            <summary className="cursor-pointer list-none px-3 py-2.5 text-xs font-semibold tracking-wide text-neutral-400 uppercase">
-              Roteiro desta etapa
-              <span className="ml-1 font-normal normal-case group-open:hidden">
-                — tocar para ler
-              </span>
-            </summary>
-            <p className="px-3 pb-1 text-[13px] leading-relaxed whitespace-pre-wrap text-neutral-700">
-              {prospect.stage.playbook}
-            </p>
-          </details>
-        ) : null}
         <Details
           prospect={prospect}
           owners={owners}
@@ -404,6 +393,39 @@ function MoveStage({
 }
 
 // ------------------------------------------------------------------ dados
+
+/** A caixa de mensagem com as contas de data já feitas. Separada só pra não
+ *  encher o corpo do componente de cima com três `useMemo`. */
+function Message({
+  prospect,
+  templates,
+}: {
+  prospect: ProspectRow;
+  templates: MessageTemplate[];
+}) {
+  const dias = daysSinceTouch(prospect.last_touch_at);
+
+  return (
+    <section>
+      <h2 className={sectionClass}>Mensagem</h2>
+      <MessageBox
+        templates={templates}
+        suggested={suggestForProspect(prospect, dias)}
+        vars={prospectVars(prospect, dias)}
+        phone={prospect.phone}
+        hint={
+          dias === null
+            ? "Nenhum contato registrado ainda."
+            : `Último registro faz ${dias} ${dias === 1 ? "dia" : "dias"}.`
+        }
+        storageKey={prospect.id}
+      />
+      <p className="mt-1 text-xs text-neutral-500">
+        Depois de mandar, registre no “Falei” pra reagendar o próximo passo.
+      </p>
+    </section>
+  );
+}
 
 function Details({
   prospect,
