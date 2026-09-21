@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   createRadarAction,
   deleteRadarAction,
@@ -13,12 +13,6 @@ import {
   instagramHandle,
   type RadarCompany,
 } from "@/lib/prospectTypes";
-import { MessageBox } from "@/components/admin/MessageBox";
-import {
-  companyVars,
-  suggestForCompany,
-  type MessageTemplate,
-} from "@/lib/messageText";
 
 /**
  * Uma grade, não uma `<table>`.
@@ -48,6 +42,80 @@ function save(element: HTMLInputElement | HTMLSelectElement) {
   element.form?.requestSubmit();
 }
 
+type Coluna =
+  | "company"
+  | "sector"
+  | "instagram"
+  | "produces_content"
+  | "contact"
+  | "comms_name"
+  | "referral";
+
+type Ordem = { coluna: Coluna; desc: boolean };
+
+const COLUNAS: { chave: Coluna; rotulo: string }[] = [
+  { chave: "company", rotulo: "Empresa" },
+  { chave: "sector", rotulo: "Ramo" },
+  { chave: "instagram", rotulo: "Instagram" },
+  { chave: "produces_content", rotulo: "Produz conteúdo?" },
+  { chave: "contact", rotulo: "Contato" },
+  { chave: "comms_name", rotulo: "Responsável" },
+  { chave: "referral", rotulo: "Indicação" },
+];
+
+/**
+ * A busca varre a linha inteira, inclusive as notas.
+ *
+ * Quem procura no radar lembra de um pedaço solto — "aquela de Barreiras", "a
+ * que a Keila indicou" —, e não da coluna onde ele está. Campo a campo, a
+ * busca só acharia o que já se sabia onde estava.
+ */
+function filtrar(companies: RadarCompany[], busca: string): RadarCompany[] {
+  const termo = busca.trim().toLowerCase();
+  if (!termo) return companies;
+
+  return companies.filter((row) =>
+    [
+      row.company,
+      row.sector,
+      row.instagram,
+      row.contact,
+      row.comms_name,
+      row.referral,
+      row.notes,
+      PRODUCES_CONTENT_LABELS[row.produces_content],
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(termo)
+  );
+}
+
+/** Campo vazio vai sempre pro fim, nos dois sentidos: ordenar por "quem
+ *  indicou" existe pra ver quem tem indicação, e meia tela de traços no topo
+ *  não é resposta nenhuma. */
+function ordenar(companies: RadarCompany[], ordem: Ordem): RadarCompany[] {
+  const lidos = companies.map((row) => ({
+    row,
+    valor:
+      ordem.coluna === "produces_content"
+        ? PRODUCES_CONTENT_LABELS[row.produces_content].trim()
+        : String(row[ordem.coluna] ?? "").trim(),
+  }));
+
+  lidos.sort((a, b) => {
+    if (!a.valor && !b.valor) return 0;
+    if (!a.valor) return 1;
+    if (!b.valor) return -1;
+    const comparado = a.valor.localeCompare(b.valor, "pt-BR", {
+      sensitivity: "base",
+    });
+    return ordem.desc ? -comparado : comparado;
+  });
+
+  return lidos.map((item) => item.row);
+}
+
 /** O rótulo só existe no celular; no monitor quem nomeia é o cabeçalho. */
 function Field({
   label,
@@ -69,15 +137,20 @@ function Field({
 export function RadarTable({
   companies,
   sectors,
-  templates,
 }: {
   companies: RadarCompany[];
   /** Ramos já usados, somados às sugestões fixas. */
   sectors: string[];
-  /** Modelos de mensagem; o gerador aparece na linha aberta. */
-  templates: MessageTemplate[];
 }) {
   const newForm = useRef<HTMLFormElement>(null);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [busca, setBusca] = useState("");
+  const [ordem, setOrdem] = useState<Ordem>({ coluna: "company", desc: false });
+
+  const visiveis = useMemo(
+    () => ordenar(filtrar(companies, busca), ordem),
+    [companies, busca, ordem]
+  );
 
   const options = Array.from(
     new Set([...RADAR_SECTORS, ...sectors].filter(Boolean))
@@ -91,20 +164,78 @@ export function RadarTable({
         ))}
       </datalist>
 
-      {/* Cadastro em cima: o campo do nome fica sempre no mesmo lugar, dá pra
-          anotar várias empresas seguidas sem procurar onde digitar. */}
-      <form
-        ref={newForm}
-        action={async (formData) => {
-          await createRadarAction(formData);
-          newForm.current?.reset();
-          newForm.current?.querySelector("input")?.focus();
+      {/* Busca e cadastro na mesma linha: procurar é o que mais se faz aqui,
+          anotar empresa nova é o que menos. O formulário inteiro no topo
+          empurrava a lista pra baixo em toda visita. */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <input
+          type="search"
+          value={busca}
+          onChange={(event) => setBusca(event.target.value)}
+          placeholder="Buscar empresa, ramo, indicação…"
+          aria-label="Buscar no radar"
+          className="min-w-0 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-base sm:py-1.5 sm:text-sm focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => dialog.current?.showModal()}
+          className="min-h-11 rounded-md bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-700 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none sm:min-h-0 sm:py-2"
+        >
+          Nova empresa
+        </button>
+      </div>
+
+      {busca ? (
+        <p className="mb-2 text-xs text-neutral-500">
+          {visiveis.length === 1
+            ? "1 empresa encontrada"
+            : `${visiveis.length} empresas encontradas`}{" "}
+          de {companies.length}.
+        </p>
+      ) : null}
+
+      {/* `<dialog>` nativo: já vem com foco preso dentro, Esc que fecha e
+          fundo escurecido — os três pedaços que uma janela feita à mão erra,
+          e nenhum deles é o assunto desta tela. */}
+      <dialog
+        ref={dialog}
+        aria-label="Nova empresa no radar"
+        onClick={(event) => {
+          // Clique no fundo fecha; clique no cartão não. O alvo ser o próprio
+          // <dialog> só acontece no fundo, já que o cartão é filho.
+          if (event.target === dialog.current) dialog.current?.close();
         }}
-        className="mb-5 grid gap-2 rounded-lg border border-neutral-200 bg-neutral-50 p-3 sm:grid-cols-3 lg:grid-cols-4"
+        className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-xl border border-neutral-200 bg-white p-0 shadow-xl backdrop:bg-neutral-900/40"
       >
+        <form
+          ref={newForm}
+          action={async (formData) => {
+            await createRadarAction(formData);
+            newForm.current?.reset();
+            dialog.current?.close();
+          }}
+          className="space-y-2 p-4"
+        >
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-neutral-900">
+              Nova empresa
+            </h2>
+            <button
+              type="button"
+              onClick={() => dialog.current?.close()}
+              aria-label="Fechar"
+              className="min-h-10 px-2 text-sm text-neutral-500 hover:text-neutral-900 sm:min-h-0"
+            >
+              Fechar
+            </button>
+          </div>
+
+        {/* O foco inicial é do nome, não do botão Fechar: sem isto o
+            `<dialog>` foca o primeiro focável, que é a saída. */}
         <input
           name="company"
           required
+          autoFocus
           placeholder="Nome da empresa"
           aria-label="Nome da empresa"
           className={NEW_FIELD}
@@ -152,25 +283,29 @@ export function RadarTable({
           aria-label="Ponto de contato ou indicação"
           className={NEW_FIELD}
         />
-        {/* Alto o bastante pra acertar com o polegar em pé no meio da rua. */}
-        <button
-          type="submit"
-          className="min-h-11 rounded bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-700 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
-        >
-          Adicionar
-        </button>
-      </form>
 
-      {companies.length === 0 ? (
+          {/* Alto o bastante pra acertar com o polegar em pé no meio da rua. */}
+          <button
+            type="submit"
+            className="min-h-11 w-full rounded bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-700 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            Adicionar
+          </button>
+        </form>
+      </dialog>
+
+      {visiveis.length === 0 ? (
         <p className="rounded-lg border border-dashed border-neutral-300 px-4 py-8 text-center text-sm text-neutral-500">
-          Nenhuma empresa no radar ainda.
+          {busca
+            ? "Nada encontrado com esse termo."
+            : "Nenhuma empresa no radar ainda."}
         </p>
       ) : (
         <>
           <p className="mb-2 text-xs text-neutral-400 sm:hidden">
-            {companies.length === 1
+            {visiveis.length === 1
               ? "1 empresa"
-              : `${companies.length} empresas`}{" "}
+              : `${visiveis.length} empresas`}{" "}
             · toque para editar, sai do campo e já salva
           </p>
 
@@ -181,18 +316,40 @@ export function RadarTable({
               <div
                 className={`hidden bg-neutral-50 px-1.5 py-2 text-[11px] font-semibold tracking-wide text-neutral-400 uppercase ${COLUMNS}`}
               >
-                <span>Empresa</span>
-                <span>Ramo</span>
-                <span>Instagram</span>
-                <span>Produz conteúdo?</span>
-                <span>Contato</span>
-                <span>Responsável</span>
-                <span>Indicação</span>
+                {COLUNAS.map((coluna) => {
+                  const atual = ordem.coluna === coluna.chave;
+                  return (
+                    <button
+                      key={coluna.chave}
+                      type="button"
+                      onClick={() =>
+                        setOrdem((anterior) =>
+                          anterior.coluna === coluna.chave
+                            ? { coluna: coluna.chave, desc: !anterior.desc }
+                            : { coluna: coluna.chave, desc: false }
+                        )
+                      }
+                      // `aria-sort` mora no cabeçalho de tabela de verdade;
+                      // aqui é grade, então o estado vai pelo rótulo lido.
+                      aria-label={`Ordenar por ${coluna.rotulo}${
+                        atual && !ordem.desc ? ", agora crescente" : ""
+                      }${atual && ordem.desc ? ", agora decrescente" : ""}`}
+                      className={`flex items-center gap-1 text-left uppercase hover:text-neutral-700 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none ${
+                        atual ? "text-neutral-900" : ""
+                      }`}
+                    >
+                      <span className="truncate">{coluna.rotulo}</span>
+                      <span aria-hidden="true" className="shrink-0">
+                        {atual ? (ordem.desc ? "↓" : "↑") : "↕"}
+                      </span>
+                    </button>
+                  );
+                })}
                 <span className="text-right">Ações</span>
               </div>
 
               <ul className="space-y-3 sm:space-y-0">
-                {companies.map((row) => {
+                {visiveis.map((row) => {
                   const handle = instagramHandle(row.instagram);
                   return (
                     <li key={row.id}>
@@ -304,27 +461,6 @@ export function RadarTable({
                         </div>
                       </form>
 
-                      {/* Fora do <form> de propósito: o textarea da mensagem
-                          entraria no salvamento automático da linha e o
-                          gerador viraria um campo do cadastro. Fechado por
-                          padrão — a tela é uma lista pra varrer, não uma
-                          pilha de rascunhos abertos. */}
-                      <details className="px-3 pb-2 sm:px-1.5">
-                        <summary className="cursor-pointer text-[12px] text-neutral-500 hover:text-neutral-900">
-                          Escrever mensagem
-                        </summary>
-                        <MessageBox
-                          templates={templates}
-                          suggested={suggestForCompany()}
-                          vars={companyVars(row)}
-                          phone={row.contact}
-                          profileUrl={
-                            handle ? `https://instagram.com/${handle}` : undefined
-                          }
-                          compact
-                          storageKey={row.id}
-                        />
-                      </details>
                     </li>
                   );
                 })}

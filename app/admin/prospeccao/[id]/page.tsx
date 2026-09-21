@@ -57,7 +57,7 @@ export default async function ProspectPage({
           href="/admin/prospeccao"
           className="ml-auto text-sm text-neutral-500 hover:text-neutral-800"
         >
-          ← Voltar pra fila
+          ← Voltar pra lista
         </Link>
       </div>
 

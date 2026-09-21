@@ -23,6 +23,7 @@ import { MessageBox } from "@/components/admin/MessageBox";
 import {
   daysSinceTouch,
   prospectVars,
+  SITUATION_LABELS,
   suggestForProspect,
   type MessageTemplate,
 } from "@/lib/messageText";
@@ -406,8 +407,22 @@ function Message({
   const dias = daysSinceTouch(prospect.last_touch_at);
 
   return (
-    <section>
-      <h2 className={sectionClass}>Mensagem</h2>
+    // Fechado por padrão: o bloco é alto e empurrava o histórico pra fora da
+    // tela em toda abertura da ficha, inclusive quando se veio só conferir o
+    // que foi falado. Quem vem escrever abre; quem vem ler não paga por isso.
+    <details className="group">
+      <summary className={`${sectionClass} flex cursor-pointer items-center gap-1.5`}>
+        <span
+          aria-hidden="true"
+          className="inline-block transition-transform group-open:rotate-90"
+        >
+          ›
+        </span>
+        Mensagem
+        <span className="font-normal normal-case tracking-normal text-neutral-400">
+          — {SITUATION_LABELS[suggestForProspect(prospect, dias)].toLowerCase()}
+        </span>
+      </summary>
       <MessageBox
         templates={templates}
         suggested={suggestForProspect(prospect, dias)}
@@ -423,7 +438,7 @@ function Message({
       <p className="mt-1 text-xs text-neutral-500">
         Depois de mandar, registre no “Falei” pra reagendar o próximo passo.
       </p>
-    </section>
+    </details>
   );
 }
 

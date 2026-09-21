@@ -1,15 +1,11 @@
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { RadarTable } from "@/components/admin/RadarTable";
-import { listMessageTemplates } from "@/lib/messages";
 import { listRadar } from "@/lib/prospects";
 
 export const dynamic = "force-dynamic";
 
 export default async function RadarPage() {
-  const [companies, templates] = await Promise.all([
-    listRadar(),
-    listMessageTemplates(),
-  ]);
+  const companies = await listRadar();
 
   return (
     <div className="mx-auto flex w-full flex-1 max-w-[76rem] flex-col pb-10">
@@ -27,7 +23,6 @@ export default async function RadarPage() {
       <RadarTable
         companies={companies}
         sectors={companies.map((row) => row.sector)}
-        templates={templates}
       />
     </div>
   );
