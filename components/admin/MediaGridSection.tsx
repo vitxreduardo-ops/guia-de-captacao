@@ -1,22 +1,12 @@
 import { DeleteButton } from "@/components/admin/DeleteButton";
 import { LightboxImage } from "@/components/LightboxImage";
-import { isLikelyImageUrl } from "@/lib/references";
-
-interface MediaItem {
-  id: string;
-  image_url: string;
-  source_url: string | null;
-  caption: string;
-  selected: boolean;
-}
-
-function isShowableAsImage(item: MediaItem) {
-  return Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
-}
+import type { MediaItem } from "@/lib/guides";
+import { buildGallery, isShowableAsImage } from "@/lib/references";
 
 export function MediaGridSection({
   title,
   emptyLabel,
+  linkPlaceholder = "Ou link (Pinterest, Instagram, cosmos.so...)",
   guideId,
   items,
   addAction,
@@ -25,6 +15,7 @@ export function MediaGridSection({
 }: {
   title: string;
   emptyLabel: string;
+  linkPlaceholder?: string;
   guideId: string;
   items: MediaItem[];
   addAction: (formData: FormData) => void | Promise<void>;
@@ -38,14 +29,7 @@ export function MediaGridSection({
       {items.length > 0 ? (
         <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {(() => {
-            const imageItems = items.filter(isShowableAsImage);
-            const gallery = imageItems.map((i) => ({
-              id: i.id,
-              src: i.image_url,
-              alt: i.caption || title,
-              sourceUrl: i.source_url,
-              selected: i.selected,
-            }));
+            const { gallery, indexOf } = buildGallery(items, title);
 
             return items.map((item) => {
             const showAsImage = isShowableAsImage(item);
@@ -65,7 +49,7 @@ export function MediaGridSection({
                     selected={item.selected}
                     className="h-24 w-full object-cover"
                     gallery={gallery}
-                    index={imageItems.findIndex((i) => i.id === item.id)}
+                    index={indexOf(item.id)}
                     onToggleSelected={toggleSelectedAction}
                   />
                 ) : (
@@ -116,7 +100,7 @@ export function MediaGridSection({
           />
           <input
             name="image_url"
-            placeholder="Ou link (Pinterest, cosmos.so...)"
+            placeholder={linkPlaceholder}
             className="rounded-md border border-neutral-300 px-2 py-1.5 text-xs focus:border-neutral-500 focus:outline-none sm:col-span-1"
           />
           <input

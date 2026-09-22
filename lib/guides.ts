@@ -42,9 +42,10 @@ export interface VisualReference {
   caption: string;
   position: number;
   selected: boolean;
+  gallery_urls: string[];
 }
 
-export interface PhotoItem {
+export interface MediaItem {
   id: string;
   guide_id: string;
   position: number;
@@ -52,17 +53,12 @@ export interface PhotoItem {
   source_url: string | null;
   caption: string;
   selected: boolean;
+  gallery_urls: string[];
 }
 
-export interface CardItem {
-  id: string;
-  guide_id: string;
-  position: number;
-  image_url: string;
-  source_url: string | null;
-  caption: string;
-  selected: boolean;
-}
+export type PhotoItem = MediaItem;
+export type CardItem = MediaItem;
+export type VideoReferenceItem = MediaItem;
 
 export interface ShotListItem {
   id: string;
@@ -92,6 +88,7 @@ export interface GuideWithSections extends Guide {
   visual_references: VisualReference[];
   photo_items: PhotoItem[];
   card_items: CardItem[];
+  video_reference_items: VideoReferenceItem[];
   shot_list_items: ShotListItem[];
   checklist_items: ChecklistItem[];
 }
@@ -151,6 +148,7 @@ async function attachSections(guide: Guide): Promise<GuideWithSections> {
     visualReferences,
     photoItems,
     cardItems,
+    videoReferenceItems,
     shotListItems,
     checklistItems,
   ] = await Promise.all([
@@ -175,6 +173,11 @@ async function attachSections(guide: Guide): Promise<GuideWithSections> {
       .eq("guide_id", guide.id)
       .order("position", { ascending: true }),
     supabase
+      .from("video_reference_items")
+      .select("*")
+      .eq("guide_id", guide.id)
+      .order("position", { ascending: true }),
+    supabase
       .from("shot_list_items")
       .select("*")
       .eq("guide_id", guide.id)
@@ -190,6 +193,7 @@ async function attachSections(guide: Guide): Promise<GuideWithSections> {
   if (visualReferences.error) throw visualReferences.error;
   if (photoItems.error) throw photoItems.error;
   if (cardItems.error) throw cardItems.error;
+  if (videoReferenceItems.error) throw videoReferenceItems.error;
   if (shotListItems.error) throw shotListItems.error;
   if (checklistItems.error) throw checklistItems.error;
 
@@ -218,6 +222,7 @@ async function attachSections(guide: Guide): Promise<GuideWithSections> {
     visual_references: visualReferences.data ?? [],
     photo_items: photoItems.data ?? [],
     card_items: cardItems.data ?? [],
+    video_reference_items: videoReferenceItems.data ?? [],
     shot_list_items: shotListItems.data ?? [],
     checklist_items: checklistItems.data ?? [],
   };
@@ -391,6 +396,7 @@ export async function addVisualReference(
   fields: {
     image_url: string;
     source_url?: string | null;
+    gallery_urls?: string[];
     caption: string;
     scene_id: string | null;
   }
@@ -406,6 +412,7 @@ export async function addVisualReference(
     position,
     image_url: fields.image_url,
     source_url: fields.source_url ?? null,
+    gallery_urls: fields.gallery_urls ?? [],
     caption: fields.caption,
     scene_id: fields.scene_id,
   });
@@ -433,14 +440,21 @@ export async function toggleVisualReferenceSelected(
   if (error) throw error;
 }
 
-// Fotos e Cards (painéis de imagens embedadas no nível do guia)
+// Fotos, Cards e Referências de vídeo (painéis no nível do guia)
 
-type MediaItemTable = "photo_items" | "card_items";
+type MediaItemTable = "photo_items" | "card_items" | "video_reference_items";
+
+type MediaItemFields = {
+  image_url: string;
+  source_url?: string | null;
+  gallery_urls?: string[];
+  caption: string;
+};
 
 async function addMediaItem(
   table: MediaItemTable,
   guideId: string,
-  fields: { image_url: string; source_url?: string | null; caption: string }
+  fields: MediaItemFields
 ) {
   const supabase = getSupabaseServerClient();
   const position = await nextPosition(table, "guide_id", guideId);
@@ -449,6 +463,7 @@ async function addMediaItem(
     position,
     image_url: fields.image_url,
     source_url: fields.source_url ?? null,
+    gallery_urls: fields.gallery_urls ?? [],
     caption: fields.caption,
   });
   if (error) throw error;
@@ -475,7 +490,7 @@ async function toggleMediaItemSelected(
 
 export function addPhotoItem(
   guideId: string,
-  fields: { image_url: string; source_url?: string | null; caption: string }
+  fields: MediaItemFields
 ) {
   return addMediaItem("photo_items", guideId, fields);
 }
@@ -490,7 +505,7 @@ export function togglePhotoItemSelected(id: string, selected: boolean) {
 
 export function addCardItem(
   guideId: string,
-  fields: { image_url: string; source_url?: string | null; caption: string }
+  fields: MediaItemFields
 ) {
   return addMediaItem("card_items", guideId, fields);
 }
@@ -501,6 +516,18 @@ export function deleteCardItem(id: string) {
 
 export function toggleCardItemSelected(id: string, selected: boolean) {
   return toggleMediaItemSelected("card_items", id, selected);
+}
+
+export function addVideoReferenceItem(guideId: string, fields: MediaItemFields) {
+  return addMediaItem("video_reference_items", guideId, fields);
+}
+
+export function deleteVideoReferenceItem(id: string) {
+  return deleteMediaItem("video_reference_items", id);
+}
+
+export function toggleVideoReferenceItemSelected(id: string, selected: boolean) {
+  return toggleMediaItemSelected("video_reference_items", id, selected);
 }
 
 // Shot list

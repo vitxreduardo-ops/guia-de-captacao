@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import {
   toggleCardItemSelected,
   togglePhotoItemSelected,
+  toggleVideoReferenceItemSelected,
   toggleSceneRecorded,
   toggleVisualReferenceSelected,
 } from "@/lib/guides";
@@ -40,5 +41,14 @@ export async function toggleCardItemSelectedAction(
   selected: boolean
 ) {
   await toggleCardItemSelected(id, selected);
+  revalidatePath(`/guia/${slug}`);
+}
+
+export async function toggleVideoReferenceItemSelectedAction(
+  slug: string,
+  id: string,
+  selected: boolean
+) {
+  await toggleVideoReferenceItemSelected(id, selected);
   revalidatePath(`/guia/${slug}`);
 }

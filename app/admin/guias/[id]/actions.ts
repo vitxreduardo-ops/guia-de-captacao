@@ -8,6 +8,7 @@ import {
   addScene,
   addShotListItem,
   addVideo,
+  addVideoReferenceItem,
   addVisualReference,
   deleteCardItem,
   deleteChecklistItem,
@@ -15,19 +16,25 @@ import {
   deleteScene,
   deleteShotListItem,
   deleteVideo,
+  deleteVideoReferenceItem,
   deleteVisualReference,
   getGuideWithSections,
   setGuideStatus,
   toggleCardItemSelected,
   toggleChecklistItem,
   togglePhotoItemSelected,
+  toggleVideoReferenceItemSelected,
   toggleVisualReferenceSelected,
   updateGuideInfo,
   updateScene,
   updateVideo,
   type ChecklistCategory,
 } from "@/lib/guides";
-import { fetchOgImage, isLikelyImageUrl } from "@/lib/references";
+import {
+  fetchInstagramCarousel,
+  fetchOgImage,
+  isLikelyImageUrl,
+} from "@/lib/references";
 import { mirrorRemoteImage, uploadReferenceImage } from "@/lib/storage";
 
 function revalidateGuide(id: string, slug?: string | null) {
@@ -41,12 +48,30 @@ function revalidateGuide(id: string, slug?: string | null) {
  * Instagram/Pinterest), tenta extrair a imagem de capa (og:image) do link
  * pra usar como referência visual, guardando o link original em source_url.
  * Se não conseguir, mantém o comportamento anterior (link tratado como link).
+ * Carrossel do Instagram traz todas as imagens em gallery_urls.
  */
-async function resolveReferenceImage(
-  urlInput: string
-): Promise<{ image_url: string; source_url: string | null }> {
+async function resolveReferenceImage(urlInput: string): Promise<{
+  image_url: string;
+  source_url: string | null;
+  gallery_urls: string[];
+}> {
   if (isLikelyImageUrl(urlInput)) {
-    return { image_url: urlInput, source_url: null };
+    return { image_url: urlInput, source_url: null, gallery_urls: [] };
+  }
+
+  const slides = await fetchInstagramCarousel(urlInput);
+  if (slides.length > 1) {
+    // Mesma razão da og:image abaixo: os links do Instagram expiram.
+    const mirrored = await Promise.all(
+      slides.map(
+        async (slide) => (await mirrorRemoteImage("mirrors", slide)) ?? slide
+      )
+    );
+    return {
+      image_url: mirrored[0],
+      source_url: urlInput,
+      gallery_urls: mirrored,
+    };
   }
 
   const ogImage = await fetchOgImage(urlInput);
@@ -54,10 +79,14 @@ async function resolveReferenceImage(
     // A og:image do Instagram/Facebook é assinada e expira; guardamos uma
     // cópia nossa pra referência não sumir depois.
     const mirrored = await mirrorRemoteImage("mirrors", ogImage);
-    return { image_url: mirrored ?? ogImage, source_url: urlInput };
+    return {
+      image_url: mirrored ?? ogImage,
+      source_url: urlInput,
+      gallery_urls: [],
+    };
   }
 
-  return { image_url: urlInput, source_url: null };
+  return { image_url: urlInput, source_url: null, gallery_urls: [] };
 }
 
 export async function updateGuideInfoAction(formData: FormData) {
@@ -127,6 +156,7 @@ export async function addSceneAction(formData: FormData) {
 
   let imageUrl = "";
   let sourceUrl: string | null = null;
+  let galleryUrls: string[] = [];
 
   if (file instanceof File && file.size > 0) {
     imageUrl = await uploadReferenceImage(guideId, file);
@@ -134,12 +164,14 @@ export async function addSceneAction(formData: FormData) {
     const resolved = await resolveReferenceImage(urlInput);
     imageUrl = resolved.image_url;
     sourceUrl = resolved.source_url;
+    galleryUrls = resolved.gallery_urls;
   }
 
   if (imageUrl) {
     await addVisualReference(guideId, {
       image_url: imageUrl,
       source_url: sourceUrl,
+      gallery_urls: galleryUrls,
       caption,
       scene_id: scene.id,
     });
@@ -173,6 +205,7 @@ export async function addVisualReferenceAction(formData: FormData) {
 
   let imageUrl = "";
   let sourceUrl: string | null = null;
+  let galleryUrls: string[] = [];
 
   if (file instanceof File && file.size > 0) {
     imageUrl = await uploadReferenceImage(guideId, file);
@@ -180,6 +213,7 @@ export async function addVisualReferenceAction(formData: FormData) {
     const resolved = await resolveReferenceImage(urlInput);
     imageUrl = resolved.image_url;
     sourceUrl = resolved.source_url;
+    galleryUrls = resolved.gallery_urls;
   }
 
   if (!imageUrl) return;
@@ -187,6 +221,7 @@ export async function addVisualReferenceAction(formData: FormData) {
   await addVisualReference(guideId, {
     image_url: imageUrl,
     source_url: sourceUrl,
+    gallery_urls: galleryUrls,
     caption,
     scene_id: sceneId,
   });
@@ -217,6 +252,7 @@ async function resolveMediaItemInput(formData: FormData, guideId: string) {
 
   let imageUrl = "";
   let sourceUrl: string | null = null;
+  let galleryUrls: string[] = [];
 
   if (file instanceof File && file.size > 0) {
     imageUrl = await uploadReferenceImage(guideId, file);
@@ -224,22 +260,22 @@ async function resolveMediaItemInput(formData: FormData, guideId: string) {
     const resolved = await resolveReferenceImage(urlInput);
     imageUrl = resolved.image_url;
     sourceUrl = resolved.source_url;
+    galleryUrls = resolved.gallery_urls;
   }
 
-  return { imageUrl, sourceUrl, caption };
+  return { imageUrl, sourceUrl, galleryUrls, caption };
 }
 
 export async function addPhotoItemAction(formData: FormData) {
   const guideId = String(formData.get("guide_id"));
-  const { imageUrl, sourceUrl, caption } = await resolveMediaItemInput(
-    formData,
-    guideId
-  );
+  const { imageUrl, sourceUrl, galleryUrls, caption } =
+    await resolveMediaItemInput(formData, guideId);
   if (!imageUrl) return;
 
   await addPhotoItem(guideId, {
     image_url: imageUrl,
     source_url: sourceUrl,
+    gallery_urls: galleryUrls,
     caption,
   });
   revalidateGuide(guideId);
@@ -263,15 +299,14 @@ export async function togglePhotoItemSelectedAction(
 
 export async function addCardItemAction(formData: FormData) {
   const guideId = String(formData.get("guide_id"));
-  const { imageUrl, sourceUrl, caption } = await resolveMediaItemInput(
-    formData,
-    guideId
-  );
+  const { imageUrl, sourceUrl, galleryUrls, caption } =
+    await resolveMediaItemInput(formData, guideId);
   if (!imageUrl) return;
 
   await addCardItem(guideId, {
     image_url: imageUrl,
     source_url: sourceUrl,
+    gallery_urls: galleryUrls,
     caption,
   });
   revalidateGuide(guideId);
@@ -290,6 +325,37 @@ export async function toggleCardItemSelectedAction(
   selected: boolean
 ) {
   await toggleCardItemSelected(id, selected);
+  revalidateGuide(guideId);
+}
+
+export async function addVideoReferenceItemAction(formData: FormData) {
+  const guideId = String(formData.get("guide_id"));
+  const { imageUrl, sourceUrl, galleryUrls, caption } =
+    await resolveMediaItemInput(formData, guideId);
+  if (!imageUrl) return;
+
+  await addVideoReferenceItem(guideId, {
+    image_url: imageUrl,
+    source_url: sourceUrl,
+    gallery_urls: galleryUrls,
+    caption,
+  });
+  revalidateGuide(guideId);
+}
+
+export async function deleteVideoReferenceItemAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const guideId = String(formData.get("guide_id"));
+  await deleteVideoReferenceItem(id);
+  revalidateGuide(guideId);
+}
+
+export async function toggleVideoReferenceItemSelectedAction(
+  guideId: string,
+  id: string,
+  selected: boolean
+) {
+  await toggleVideoReferenceItemSelected(id, selected);
   revalidateGuide(guideId);
 }
 

@@ -22,6 +22,20 @@ export interface GalleryItem {
   alt: string;
   sourceUrl?: string | null;
   selected?: boolean;
+  /** Id usado ao marcar como selecionada — os slides de um carrossel são
+   * várias imagens da galeria, mas um item só no banco. */
+  selectId?: string;
+  /** Player embutido (Instagram, YouTube...): abre no lugar da imagem. */
+  embedUrl?: string | null;
+  /** Quantas imagens o carrossel deste item tem (selo na miniatura). */
+  slideCount?: number;
+}
+
+function embedFrameClass(url: string) {
+  // Reels e TikTok são verticais; o resto é 16:9.
+  return /instagram\.com|tiktok\.com/.test(url)
+    ? "aspect-[9/16] h-[80vh] max-w-full"
+    : "aspect-video w-[min(90vw,960px)]";
 }
 
 const SWIPE_VELOCITY_THRESHOLD = 500;
@@ -65,6 +79,20 @@ export function LightboxImage({
       : [{ id, src, fullSrc, downloadSrc, alt, sourceUrl, selected }];
   const canNavigate = items.length > 1;
   const current = items[currentIndex] ?? items[0];
+  const thumb = items[index ?? 0] ?? items[0];
+  // Slides do carrossel aberto agora (todos os itens da galeria com o mesmo
+  // item no banco), com a posição de cada um na galeria.
+  const carousel =
+    (current.slideCount ?? 1) > 1
+      ? items
+          .map((item, galleryIndex) => ({ item, galleryIndex }))
+          .filter(
+            ({ item }) =>
+              (item.selectId ?? item.id) === (current.selectId ?? current.id)
+          )
+      : [];
+  // Sobra espaço pra faixa de miniaturas sem a imagem cobrir o "Fechar".
+  const imageMaxH = carousel.length > 1 ? "max-h-[70vh]" : "max-h-[85vh]";
 
   function goPrev() {
     setCurrentIndex((i) => (i - 1 + items.length) % items.length);
@@ -143,6 +171,18 @@ export function LightboxImage({
             selected ? "opacity-40 grayscale" : ""
           }`}
         />
+        {thumb.embedUrl ? (
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 pl-0.5 text-sm text-neutral-900 shadow-sm">
+              ▶
+            </span>
+          </span>
+        ) : null}
+        {(thumb.slideCount ?? 1) > 1 ? (
+          <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white">
+            1/{thumb.slideCount}
+          </span>
+        ) : null}
         {selected ? (
           <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-green-600 text-xs text-white">
             ✓
@@ -227,13 +267,27 @@ export function LightboxImage({
                 failedIds[current.id] ? "hidden" : ""
               }`}
             >
-              <div className="relative max-h-[85vh] max-w-full overflow-hidden rounded-md">
+              <div className={`relative ${imageMaxH} max-w-full overflow-hidden rounded-md`}>
+                {current.embedUrl ? (
+                  <iframe
+                    key={current.id}
+                    src={current.embedUrl}
+                    title={current.alt}
+                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                    allowFullScreen
+                    onLoad={() =>
+                      setLoadedIds((loaded) => ({ ...loaded, [current.id]: true }))
+                    }
+                    onClick={(event) => event.stopPropagation()}
+                    className={`${embedFrameClass(current.embedUrl)} rounded-md bg-black`}
+                  />
+                ) : (
                 <AnimatePresence mode="popLayout" initial={false}>
                   <motion.img
                     key={current.id}
                     src={current.fullSrc ?? current.src}
                     alt={current.alt}
-                    className="max-h-[85vh] max-w-full touch-none rounded-md object-contain"
+                    className={`${imageMaxH} max-w-full touch-none rounded-md object-contain`}
                     onClick={(event) => event.stopPropagation()}
                     onLoad={() =>
                       setLoadedIds((loaded) => ({ ...loaded, [current.id]: true }))
@@ -263,7 +317,41 @@ export function LightboxImage({
                     transition={spring}
                   />
                 </AnimatePresence>
+                )}
               </div>
+              {carousel.length > 1 ? (
+                <div
+                  onClick={(event) => event.stopPropagation()}
+                  className="flex max-w-full items-center gap-1.5 overflow-x-auto rounded-md bg-black/40 p-1.5"
+                >
+                  <span className="shrink-0 px-1 text-xs font-medium text-white/80">
+                    Carrossel{" "}
+                    {carousel.findIndex(({ item }) => item.id === current.id) + 1}/
+                    {carousel.length}
+                  </span>
+                  {carousel.map(({ item, galleryIndex }, slideIndex) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setCurrentIndex(galleryIndex)}
+                      aria-label={`Slide ${slideIndex + 1} de ${carousel.length}`}
+                      aria-current={item.id === current.id}
+                      className={`h-12 w-12 shrink-0 overflow-hidden rounded transition-opacity ${
+                        item.id === current.id
+                          ? "ring-2 ring-white"
+                          : "opacity-50 hover:opacity-100"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element -- miniatura de URL externa, igual ao resto do lightbox */}
+                      <img
+                        src={item.src}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               {loadedIds[current.id] && onToggleSelected ? (
                 <label
                   onClick={(event) => event.stopPropagation()}
@@ -273,7 +361,10 @@ export function LightboxImage({
                     type="checkbox"
                     checked={Boolean(current.selected)}
                     onChange={() =>
-                      onToggleSelected(current.id, !current.selected)
+                      onToggleSelected(
+                        current.selectId ?? current.id,
+                        !current.selected
+                      )
                     }
                     className="h-4 w-4 accent-green-600"
                   />

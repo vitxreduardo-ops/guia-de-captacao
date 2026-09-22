@@ -1,4 +1,5 @@
 import "server-only";
+import type { GalleryItem } from "@/components/LightboxImage";
 
 const IMAGE_EXTENSIONS = [
   ".jpg",
@@ -221,4 +222,142 @@ export async function resolveReferencePin(
 
   const ogImage = await fetchOgImage(url);
   return { kind: "link", thumb_url: ogImage ?? "" };
+}
+
+// A página de embed do Instagram é pública e traz o JSON do post com todas as
+// imagens do carrossel (edge_sidecar_to_children). A og:image só tem a capa.
+const BROWSER_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
+
+function instagramPostCode(url: string): string | null {
+  try {
+    const { hostname, pathname } = new URL(url);
+    if (!hostname.toLowerCase().endsWith("instagram.com")) return null;
+    return pathname.match(/^\/(?:[\w.]+\/)?p\/([\w-]+)/)?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Imagens do carrossel no HTML da página de embed, na ordem do post. O JSON
+ * vem escapado duas vezes dentro de uma string, por isso o JSON.parse duplo.
+ * Lista vazia quando o post não é carrossel.
+ */
+export function parseInstagramCarousel(html: string): string[] {
+  const start = html.indexOf("edge_sidecar_to_children");
+  if (start === -1) return [];
+
+  const urls: string[] = [];
+  for (const match of html
+    .slice(start)
+    .matchAll(/\\"display_url\\":\\"(.*?)\\"/g)) {
+    try {
+      const url = JSON.parse(`"${JSON.parse(`"${match[1]}"`)}"`) as string;
+      if (!urls.includes(url)) urls.push(url);
+    } catch {
+      // Um slide ilegível não derruba os outros.
+    }
+  }
+  return urls;
+}
+
+/**
+ * Todas as imagens de um carrossel do Instagram. Lista vazia quando o link não
+ * é post do Instagram, não é carrossel ou a página mudou de formato — aí quem
+ * chama fica só com a capa da og:image, como antes.
+ */
+export async function fetchInstagramCarousel(url: string): Promise<string[]> {
+  const code = instagramPostCode(url);
+  if (!code) return [];
+
+  try {
+    const response = await fetch(
+      `https://www.instagram.com/p/${code}/embed/captioned/`,
+      {
+        headers: { "User-Agent": BROWSER_USER_AGENT, Accept: "text/html" },
+        signal: AbortSignal.timeout(8000),
+      }
+    );
+    if (!response.ok) return [];
+    return parseInstagramCarousel(await response.text());
+  } catch (error) {
+    console.error(`[fetchInstagramCarousel] erro ao buscar ${url}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Endereço do player embutido do site de origem, pra tocar o vídeo dentro do
+ * guia. Null quando o link não é de vídeo conhecido.
+ */
+export function embedUrlFor(url: string | null): string | null {
+  if (!url) return null;
+
+  const youtubeId = youtubeVideoId(url);
+  if (youtubeId) return `https://www.youtube.com/embed/${youtubeId}?autoplay=1`;
+
+  try {
+    const { hostname, pathname } = new URL(url);
+    const host = hostname.toLowerCase().replace(/^www\./, "");
+
+    // ponytail: post /p/ do Instagram que é vídeo não é reconhecido — só
+    // /reel/ e /tv/. Detectar exigiria buscar o post na hora de salvar.
+    if (host.endsWith("instagram.com")) {
+      const code = pathname.match(/^\/(?:[\w.]+\/)?(?:reels?|tv)\/([\w-]+)/)?.[1];
+      return code ? `https://www.instagram.com/reel/${code}/embed/` : null;
+    }
+    if (host === "vimeo.com") {
+      const id = pathname.match(/^\/(\d+)/)?.[1];
+      return id ? `https://player.vimeo.com/video/${id}?autoplay=1` : null;
+    }
+    if (host.endsWith("tiktok.com")) {
+      const id = pathname.match(/\/video\/(\d+)/)?.[1];
+      return id ? `https://www.tiktok.com/embed/v2/${id}` : null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+interface GalleryMediaItem {
+  id: string;
+  image_url: string;
+  source_url: string | null;
+  caption: string;
+  selected: boolean;
+  gallery_urls?: string[];
+}
+
+export function isShowableAsImage(item: GalleryMediaItem) {
+  return Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
+}
+
+/**
+ * Galeria do lightbox de um painel: cada slide de carrossel vira uma imagem
+ * navegável, e vídeo abre no player. `indexOf` diz onde cada item começa.
+ */
+export function buildGallery(items: GalleryMediaItem[], fallbackAlt: string) {
+  const gallery: GalleryItem[] = [];
+  const start = new Map<string, number>();
+
+  for (const item of items.filter(isShowableAsImage)) {
+    start.set(item.id, gallery.length);
+    const slides = item.gallery_urls?.length ? item.gallery_urls : [item.image_url];
+    slides.forEach((src, i) => {
+      gallery.push({
+        id: i === 0 ? item.id : `${item.id}:${i}`,
+        selectId: item.id,
+        src,
+        alt: item.caption || fallbackAlt,
+        sourceUrl: item.source_url,
+        selected: item.selected,
+        embedUrl: i === 0 ? embedUrlFor(item.source_url) : null,
+        slideCount: slides.length,
+      });
+    });
+  }
+
+  return { gallery, indexOf: (id: string) => start.get(id) ?? 0 };
 }

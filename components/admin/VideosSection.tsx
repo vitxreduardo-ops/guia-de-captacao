@@ -13,11 +13,7 @@ import { Accordion } from "@/components/Accordion";
 import { DeleteButton } from "@/components/admin/DeleteButton";
 import { LightboxImage } from "@/components/LightboxImage";
 import type { Scene, VideoWithScenes, VisualReference } from "@/lib/guides";
-import { isLikelyImageUrl } from "@/lib/references";
-
-function isShowableAsImage(item: { source_url: string | null; image_url: string }) {
-  return Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
-}
+import { buildGallery, isShowableAsImage } from "@/lib/references";
 
 function SceneReferences({
   guideId,
@@ -37,14 +33,10 @@ function SceneReferences({
       {references.length > 0 ? (
         <div className="mb-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
           {(() => {
-            const imageReferences = references.filter(isShowableAsImage);
-            const gallery = imageReferences.map((r) => ({
-              id: r.id,
-              src: r.image_url,
-              alt: r.caption || "Referência visual",
-              sourceUrl: r.source_url,
-              selected: r.selected,
-            }));
+            const { gallery, indexOf } = buildGallery(
+              references,
+              "Referência visual"
+            );
 
             return references.map((reference) => {
             const showAsImage = isShowableAsImage(reference);
@@ -64,9 +56,7 @@ function SceneReferences({
                     selected={reference.selected}
                     className="h-20 w-full object-cover"
                     gallery={gallery}
-                    index={imageReferences.findIndex(
-                      (r) => r.id === reference.id
-                    )}
+                    index={indexOf(reference.id)}
                     onToggleSelected={toggleVisualReferenceSelectedAction.bind(
                       null,
                       guideId

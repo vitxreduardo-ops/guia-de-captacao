@@ -10,10 +10,13 @@ import { ChecklistSection } from "@/components/admin/ChecklistSection";
 import {
   addCardItemAction,
   addPhotoItemAction,
+  addVideoReferenceItemAction,
   deleteCardItemAction,
   deletePhotoItemAction,
+  deleteVideoReferenceItemAction,
   toggleCardItemSelectedAction,
   togglePhotoItemSelectedAction,
+  toggleVideoReferenceItemSelectedAction,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +53,19 @@ export default async function GuideEditPage({
           guideSlug={guide.slug}
           videos={guide.videos}
           references={guide.visual_references}
+        />
+        <MediaGridSection
+          title="Referências de vídeo"
+          emptyLabel="Nenhuma referência de vídeo adicionada ainda."
+          linkPlaceholder="Ou link (Instagram, YouTube, Vimeo...)"
+          guideId={guide.id}
+          items={guide.video_reference_items}
+          addAction={addVideoReferenceItemAction}
+          deleteAction={deleteVideoReferenceItemAction}
+          toggleSelectedAction={toggleVideoReferenceItemSelectedAction.bind(
+            null,
+            guide.id
+          )}
         />
         <MediaGridSection
           title="Fotos"

@@ -20,14 +20,17 @@ export function PublishBox({ guide }: { guide: GuideWithSections }) {
             </span>
           </p>
           {isPublished ? (
-            <a
-              href={publicPath}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm text-neutral-500 underline hover:text-neutral-800"
-            >
-              {publicPath}
-            </a>
+            <p className="text-sm text-neutral-500">
+              <a
+                href={publicPath}
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-neutral-800"
+              >
+                {publicPath}
+              </a>{" "}
+              · o que você salvar aqui aparece na hora para o cliente
+            </p>
           ) : (
             <p className="text-sm text-neutral-500">
               Publique para gerar o link compartilhável com o cliente.
@@ -42,20 +45,18 @@ export function PublishBox({ guide }: { guide: GuideWithSections }) {
           >
             Baixar PDF
           </a>
-          <form action={setStatusAction}>
-            <input type="hidden" name="id" value={guide.id} />
-            <input
-              type="hidden"
-              name="status"
-              value={isPublished ? "draft" : "published"}
-            />
-            <button
-              type="submit"
-              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
-            >
-              {isPublished ? "Voltar para rascunho" : "Publicar"}
-            </button>
-          </form>
+          {isPublished ? null : (
+            <form action={setStatusAction}>
+              <input type="hidden" name="id" value={guide.id} />
+              <input type="hidden" name="status" value="published" />
+              <button
+                type="submit"
+                className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+              >
+                Publicar
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </section>
