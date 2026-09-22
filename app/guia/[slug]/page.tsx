@@ -3,16 +3,90 @@ import {
   toggleCardItemSelectedAction,
   togglePhotoItemSelectedAction,
   toggleSceneRecordedAction,
+  toggleVideoReferenceItemSelectedAction,
   toggleVisualReferenceSelectedAction,
 } from "./actions";
-import { getGuideBySlugWithSections } from "@/lib/guides";
-import { isLikelyImageUrl } from "@/lib/references";
+import {
+  getGuideBySlugWithSections,
+  type MediaItem,
+  type VisualReference,
+} from "@/lib/guides";
+import { buildGallery, isShowableAsImage } from "@/lib/references";
 import { TatuLogo } from "@/components/TatuLogo";
 import { LightboxImage } from "@/components/LightboxImage";
 import { Accordion } from "@/components/Accordion";
+import { AutoRefresh } from "@/components/AutoRefresh";
 
-function isShowableAsImage(item: { source_url: string | null; image_url: string }) {
-  return Boolean(item.source_url) || isLikelyImageUrl(item.image_url);
+// Pro cliente, "Ver original" só nos vídeos: em foto e carrossel o link pro
+// post tira a pessoa do guia sem mostrar nada a mais.
+function clientGallery(
+  items: MediaItem[] | VisualReference[],
+  fallbackAlt: string
+) {
+  const built = buildGallery(items, fallbackAlt);
+  return {
+    gallery: built.gallery.map((g) =>
+      g.embedUrl ? g : { ...g, sourceUrl: null }
+    ),
+    indexOf: built.indexOf,
+  };
+}
+
+function PublicMediaSection({
+  title,
+  fallbackAlt,
+  items,
+  onToggleSelected,
+}: {
+  title: string;
+  fallbackAlt: string;
+  items: MediaItem[];
+  onToggleSelected: (id: string, selected: boolean) => Promise<void>;
+}) {
+  if (items.length === 0) return null;
+  const { gallery, indexOf } = clientGallery(items, fallbackAlt);
+
+  return (
+    <section className="mb-10">
+      <h2 className="mb-4 text-lg font-semibold text-neutral-900">{title}</h2>
+      <div className="columns-2 gap-2 sm:columns-3 [&>figure]:mb-2 [&>figure]:break-inside-avoid">
+        {items.map((item) => (
+          <figure
+            key={item.id}
+            className="overflow-hidden rounded-md border border-neutral-200 bg-white"
+          >
+            {isShowableAsImage(item) ? (
+              <LightboxImage
+                id={item.id}
+                src={item.image_url}
+                alt={item.caption || fallbackAlt}
+                sourceUrl={item.source_url}
+                selected={item.selected}
+                className="h-auto w-full"
+                gallery={gallery}
+                index={indexOf(item.id)}
+                onToggleSelected={onToggleSelected}
+              />
+            ) : (
+              <a
+                href={item.source_url ?? item.image_url}
+                target="_blank"
+                rel="noreferrer"
+                className="flex h-32 w-full items-center justify-center bg-neutral-100 px-2 text-center text-xs font-medium text-neutral-600 underline"
+              >
+                Abrir link ↗
+              </a>
+            )}
+            {item.caption ? (
+              <figcaption className="p-1.5 text-xs text-neutral-500">
+                {item.caption}
+              </figcaption>
+            ) : null}
+          </figure>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export const dynamic = "force-dynamic";
@@ -57,6 +131,7 @@ export default async function PublicGuidePage({
 
   return (
     <div className="min-h-svh bg-neutral-50">
+      <AutoRefresh />
       <div className="mx-auto max-w-3xl px-4 py-12">
         <header className="mb-10 border-b border-neutral-200 pb-6">
           <TatuLogo className="mx-auto mb-10 block h-9 w-auto text-black" />
@@ -173,16 +248,10 @@ export default async function PublicGuidePage({
                           {sceneReferences.length > 0 ? (
                             <div className="mt-3 columns-2 gap-2 sm:columns-3 [&>figure]:mb-2 [&>figure]:break-inside-avoid">
                               {(() => {
-                                const imageReferences = sceneReferences.filter(
-                                  isShowableAsImage
+                                const { gallery, indexOf } = clientGallery(
+                                  sceneReferences,
+                                  "Referência visual"
                                 );
-                                const gallery = imageReferences.map((r) => ({
-                                  id: r.id,
-                                  src: r.image_url,
-                                  alt: r.caption || "Referência visual",
-                                  sourceUrl: r.source_url,
-                                  selected: r.selected,
-                                }));
 
                                 return sceneReferences.map((reference) => {
                                 const showAsImage = isShowableAsImage(reference);
@@ -206,9 +275,7 @@ export default async function PublicGuidePage({
                                       selected={reference.selected}
                                       className="h-auto w-full"
                                       gallery={gallery}
-                                      index={imageReferences.findIndex(
-                                        (r) => r.id === reference.id
-                                      )}
+                                      index={indexOf(reference.id)}
                                       onToggleSelected={toggleVisualReferenceSelectedAction.bind(
                                         null,
                                         guide.slug
@@ -246,131 +313,27 @@ export default async function PublicGuidePage({
           </section>
         ) : null}
 
-        {guide.photo_items.length > 0 ? (
-          <section className="mb-10">
-            <h2 className="mb-4 text-lg font-semibold text-neutral-900">
-              Fotos
-            </h2>
-            <div className="columns-2 gap-2 sm:columns-3 [&>figure]:mb-2 [&>figure]:break-inside-avoid">
-              {(() => {
-                const imagePhotos = guide.photo_items.filter(isShowableAsImage);
-                const gallery = imagePhotos.map((i) => ({
-                  id: i.id,
-                  src: i.image_url,
-                  alt: i.caption || "Foto",
-                  sourceUrl: i.source_url,
-                  selected: i.selected,
-                }));
-
-                return guide.photo_items.map((item) => {
-                const showAsImage = isShowableAsImage(item);
-                const href = item.source_url ?? item.image_url;
-
-                return (
-                  <figure
-                    key={item.id}
-                    className="overflow-hidden rounded-md border border-neutral-200 bg-white"
-                  >
-                    {showAsImage ? (
-                      <LightboxImage
-                        id={item.id}
-                        src={item.image_url}
-                        alt={item.caption || "Foto"}
-                        sourceUrl={item.source_url}
-                        selected={item.selected}
-                        className="h-auto w-full"
-                        gallery={gallery}
-                        index={imagePhotos.findIndex((i) => i.id === item.id)}
-                        onToggleSelected={togglePhotoItemSelectedAction.bind(
-                          null,
-                          guide.slug
-                        )}
-                      />
-                    ) : (
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex h-32 w-full items-center justify-center bg-neutral-100 px-2 text-center text-xs font-medium text-neutral-600 underline"
-                      >
-                        Abrir link ↗
-                      </a>
-                    )}
-                    {item.caption ? (
-                      <figcaption className="p-1.5 text-xs text-neutral-500">
-                        {item.caption}
-                      </figcaption>
-                    ) : null}
-                  </figure>
-                );
-                });
-              })()}
-            </div>
-          </section>
-        ) : null}
-
-        {guide.card_items.length > 0 ? (
-          <section className="mb-10">
-            <h2 className="mb-4 text-lg font-semibold text-neutral-900">
-              Cards
-            </h2>
-            <div className="columns-2 gap-2 sm:columns-3 [&>figure]:mb-2 [&>figure]:break-inside-avoid">
-              {(() => {
-                const imageCards = guide.card_items.filter(isShowableAsImage);
-                const gallery = imageCards.map((i) => ({
-                  id: i.id,
-                  src: i.image_url,
-                  alt: i.caption || "Card",
-                  sourceUrl: i.source_url,
-                  selected: i.selected,
-                }));
-
-                return guide.card_items.map((item) => {
-                const showAsImage = isShowableAsImage(item);
-                const href = item.source_url ?? item.image_url;
-
-                return (
-                  <figure
-                    key={item.id}
-                    className="overflow-hidden rounded-md border border-neutral-200 bg-white"
-                  >
-                    {showAsImage ? (
-                      <LightboxImage
-                        id={item.id}
-                        src={item.image_url}
-                        alt={item.caption || "Card"}
-                        sourceUrl={item.source_url}
-                        selected={item.selected}
-                        className="h-auto w-full"
-                        gallery={gallery}
-                        index={imageCards.findIndex((i) => i.id === item.id)}
-                        onToggleSelected={toggleCardItemSelectedAction.bind(
-                          null,
-                          guide.slug
-                        )}
-                      />
-                    ) : (
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex h-32 w-full items-center justify-center bg-neutral-100 px-2 text-center text-xs font-medium text-neutral-600 underline"
-                      >
-                        Abrir link ↗
-                      </a>
-                    )}
-                    {item.caption ? (
-                      <figcaption className="p-1.5 text-xs text-neutral-500">
-                        {item.caption}
-                      </figcaption>
-                    ) : null}
-                  </figure>
-                );
-                });
-              })()}
-            </div>
-          </section>
-        ) : null}
+        <PublicMediaSection
+          title="Referências de vídeo"
+          fallbackAlt="Referência de vídeo"
+          items={guide.video_reference_items}
+          onToggleSelected={toggleVideoReferenceItemSelectedAction.bind(
+            null,
+            guide.slug
+          )}
+        />
+        <PublicMediaSection
+          title="Fotos"
+          fallbackAlt="Foto"
+          items={guide.photo_items}
+          onToggleSelected={togglePhotoItemSelectedAction.bind(null, guide.slug)}
+        />
+        <PublicMediaSection
+          title="Cards"
+          fallbackAlt="Card"
+          items={guide.card_items}
+          onToggleSelected={toggleCardItemSelectedAction.bind(null, guide.slug)}
+        />
 
         {guide.shot_list_items.length > 0 ? (
           <section className="mb-10">
