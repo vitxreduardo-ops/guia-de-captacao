@@ -2,12 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentSession } from "@/lib/session";
-import { chatJson, MODELO_ROTEIRO, MODELO_TRIAGEM } from "@/lib/roteiroAi";
+import {
+  chatJson,
+  chatTexto,
+  MODELO_ROTEIRO,
+  MODELO_TRIAGEM,
+  type MensagemChat,
+} from "@/lib/roteiroAi";
 import {
   prompt6Chapeus,
   promptAIDA,
   promptMidtrack,
   promptPAS,
+  PROMPT_CHAT,
   PROMPT_TRIAGEM,
 } from "@/lib/roteiroPrompts";
 import { getSchemaPorFramework, schemaTriagem } from "@/lib/roteiroSchemas";
@@ -153,6 +160,43 @@ export async function atualizarRoteiroAction(
     await updateRoteiro(id, updates);
     revalidatePath("/admin/roteiros/historico");
     return { ok: true, data: null };
+  } catch (err) {
+    return { ok: false, error: mensagem(err) };
+  }
+}
+
+// Teto do que vai pra IA por chamada: a conversa inteira segue a cada
+// mensagem, e sem corte uma conversa longa encarece cada resposta.
+const MAX_MENSAGENS = 30;
+const MAX_CARACTERES = 8000;
+
+export async function conversarAction(
+  mensagens: MensagemChat[]
+): Promise<Resultado<string>> {
+  if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
+
+  const validas = (Array.isArray(mensagens) ? mensagens : [])
+    .filter(
+      (m) =>
+        (m?.role === "user" || m?.role === "assistant") &&
+        typeof m.content === "string" &&
+        m.content.trim() !== ""
+    )
+    .slice(-MAX_MENSAGENS)
+    .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_CARACTERES) }));
+
+  if (validas.at(-1)?.role !== "user") {
+    return { ok: false, error: "Mensagem vazia." };
+  }
+
+  try {
+    const resposta = await chatTexto({
+      model: MODELO_ROTEIRO,
+      system: PROMPT_CHAT,
+      mensagens: validas,
+      temperature: 0.8,
+    });
+    return { ok: true, data: resposta };
   } catch (err) {
     return { ok: false, error: mensagem(err) };
   }

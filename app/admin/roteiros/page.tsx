@@ -14,12 +14,20 @@ export default function RoteirosPage() {
         <p className="text-sm text-neutral-500">
           AIDA · PAS · Midtrack · 6 Chapéus — roteiros de até 90s para redes sociais
         </p>
-        <Link
-          href="/admin/roteiros/historico"
-          className="shrink-0 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
-        >
-          Histórico
-        </Link>
+        <div className="flex shrink-0 gap-2">
+          <Link
+            href="/admin/roteiros/chat"
+            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+          >
+            Chat
+          </Link>
+          <Link
+            href="/admin/roteiros/historico"
+            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+          >
+            Histórico
+          </Link>
+        </div>
       </div>
 
       <GeradorRoteiro />
