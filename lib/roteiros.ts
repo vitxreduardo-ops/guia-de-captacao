@@ -41,3 +41,14 @@ export async function updateRoteiro(
     .eq("id", id);
   if (error) throw new Error(`Erro ao atualizar roteiro: ${error.message}`);
 }
+
+export async function getRoteiro(id: string): Promise<Roteiro | null> {
+  const { data, error } = await getSupabaseServerClient()
+    .from("roteiros")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  // Id malformado na URL volta erro de sintaxe do uuid: tratado como "não achou".
+  if (error) return null;
+  return data as Roteiro | null;
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { Framework, RoteiroJson } from "@/lib/roteiroTypes";
 import { atualizarRoteiroAction } from "@/app/admin/roteiros/actions";
@@ -117,7 +118,7 @@ export default function CardHistorico(props: Props) {
         </div>
       )}
 
-      <div className="flex gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         {STATUS_OPCOES.map((opt) => (
           <button
             key={opt.valor}
@@ -136,6 +137,13 @@ export default function CardHistorico(props: Props) {
             {opt.rotulo}
           </button>
         ))}
+        <Link
+          href={`/admin/roteiros?de=${props.id}`}
+          className="ml-auto rounded-md border border-neutral-300 px-2 py-1 text-[11px] text-neutral-700 hover:bg-neutral-50"
+          title="Abre o gerador com os mesmos campos, sem gerar"
+        >
+          Usar como base
+        </Link>
       </div>
 
       <TagEditor

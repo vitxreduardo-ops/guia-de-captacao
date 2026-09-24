@@ -12,20 +12,34 @@ import CamposEspecificos, {
 import ResultadoRoteiro from "@/components/admin/roteiros/ResultadoRoteiro";
 import TagEditor from "@/components/admin/roteiros/TagEditor";
 import ControlesSalvos from "@/components/admin/roteiros/ControlesSalvos";
-import { ComumParams, Framework, nichoFinal, type RoteiroJson } from "@/lib/roteiroTypes";
+import {
+  ComumParams,
+  Framework,
+  nichoFinal,
+  type PreenchimentoInicial,
+  type RoteiroJson,
+} from "@/lib/roteiroTypes";
 
-export default function GeradorRoteiro() {
-  const [comum, setComum] = useState<ComumParams>({
-    tema: "",
-    objetivo: "",
-    contexto: "",
-    duracaoSegundos: 60,
-    tom: "",
-    nicho: "",
-    nichoCustom: "",
-  });
+export default function GeradorRoteiro({
+  inicial,
+}: {
+  inicial?: PreenchimentoInicial | null;
+}) {
+  const [comum, setComum] = useState<ComumParams>(
+    inicial?.comum ?? {
+      tema: "",
+      objetivo: "",
+      contexto: "",
+      duracaoSegundos: 60,
+      tom: "",
+      nicho: "",
+      nichoCustom: "",
+    }
+  );
 
-  const [framework, setFramework] = useState<Framework | null>(null);
+  const [framework, setFramework] = useState<Framework | null>(
+    inicial?.framework ?? null
+  );
   const [justificativa, setJustificativa] = useState<string | null>(null);
 
   const [extraAIDA, setExtraAIDA] = useState<ExtraAIDA>({ cta: "", numHooks: 3 });
@@ -40,7 +54,7 @@ export default function GeradorRoteiro() {
     payoffDesejado: "",
   });
   const [extra6Chapeus, setExtra6Chapeus] = useState<Extra6Chapeus>({ angulos: [] });
-  const [tags, setTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>(inicial?.tags ?? []);
 
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);

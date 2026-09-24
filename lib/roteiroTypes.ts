@@ -147,3 +147,29 @@ export type Roteiro6Chapeus = {
   roteiros: { angulo: string; hook: string; corpo: string; cta: string }[];
 };
 export type RoteiroJson = RoteiroAIDA | RoteiroPAS | RoteiroMidtrack | Roteiro6Chapeus;
+
+export type PreenchimentoInicial = {
+  comum: ComumParams;
+  framework: Framework;
+  tags: string[];
+};
+
+/** Formulário do gerador a partir de um roteiro do histórico ("Usar como base"). */
+export function preenchimentoDe(r: Roteiro): PreenchimentoInicial {
+  const nicho = r.nicho ?? "";
+  // O banco guarda o nicho já resolvido: o que não está na lista veio do "Outro".
+  const naLista = nicho === "" || NICHOS.includes(nicho);
+  return {
+    comum: {
+      tema: r.tema,
+      objetivo: r.objetivo,
+      contexto: r.contexto ?? "",
+      duracaoSegundos: r.duracao_segundos,
+      tom: r.tom ?? "",
+      nicho: naLista ? nicho : "Outro",
+      nichoCustom: naLista ? "" : nicho,
+    },
+    framework: r.framework,
+    tags: r.tags ?? [],
+  };
+}
