@@ -3,6 +3,7 @@ export type Framework = "AIDA" | "PAS" | "Midtrack" | "6Chapeus";
 export type ComumParams = {
   tema: string;
   objetivo: string;
+  contexto: string;
   duracaoSegundos: number;
   tom: string;
   nicho: string; // um dos NICHOS, ou "Outro"
@@ -29,6 +30,27 @@ export const NICHOS = [
   "Agronegócio",
   "Outro",
 ];
+
+export const TONS = [
+  "Direto",
+  "Descontraído",
+  "Acolhedor",
+  "Inspirador",
+  "Provocador",
+  "Divertido",
+  "Educativo",
+  "Sofisticado",
+  "Urgente",
+  "Emocional",
+];
+
+/** O campo de tom é texto livre; os botões ligam e desligam itens separados por vírgula. */
+export function separarTons(tom: string): string[] {
+  return tom.split(",").map((t) => t.trim()).filter(Boolean);
+}
+
+export const DURACAO_MIN = 5;
+export const DURACAO_MAX = 600;
 
 export const CTAS = [
   "Comentar",
@@ -85,6 +107,7 @@ export type Roteiro = {
   framework: Framework;
   tema: string;
   objetivo: string;
+  contexto: string;
   duracao_segundos: number;
   tom: string | null;
   nicho: string | null;

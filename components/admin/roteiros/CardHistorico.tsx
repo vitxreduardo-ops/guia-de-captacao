@@ -12,6 +12,7 @@ type Props = {
   framework: string;
   tema: string;
   objetivo: string;
+  contexto: string;
   favorito: boolean;
   status: string;
   preview: string;
@@ -102,6 +103,12 @@ export default function CardHistorico(props: Props) {
 
       {expandido && (
         <div className="mb-3">
+          {props.contexto && (
+            <div className="mb-3 rounded-md bg-neutral-50 p-3 text-xs text-neutral-600">
+              <strong className="text-neutral-700">Contexto:</strong>{" "}
+              <span className="whitespace-pre-wrap">{props.contexto}</span>
+            </div>
+          )}
           <ResultadoRoteiro
             framework={props.framework as Framework}
             roteiro={props.roteiro}

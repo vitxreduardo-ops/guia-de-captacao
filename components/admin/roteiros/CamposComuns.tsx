@@ -2,7 +2,17 @@
 
 import { useState } from "react";
 import { sugerirFrameworkAction } from "@/app/admin/roteiros/actions";
-import { ComumParams, Framework, NICHOS } from "@/lib/roteiroTypes";
+import {
+  ComumParams,
+  DURACAO_MAX,
+  DURACAO_MIN,
+  Framework,
+  NICHOS,
+  separarTons,
+  TONS,
+} from "@/lib/roteiroTypes";
+
+const DURACOES = [30, 60, 90];
 
 type Props = {
   comum: ComumParams;
@@ -39,7 +49,11 @@ export default function CamposComuns({
     setErroTriagem(null);
     setCarregandoTriagem(true);
     try {
-      const res = await sugerirFrameworkAction(comum.tema, comum.objetivo);
+      const res = await sugerirFrameworkAction(
+        comum.tema,
+        comum.objetivo,
+        comum.contexto
+      );
       if (!res.ok) {
         setErroTriagem(res.error);
         return;
@@ -85,10 +99,24 @@ export default function CamposComuns({
           />
         </div>
 
+        <div className="sm:col-span-2">
+          <label htmlFor="roteiro-contexto" className="mb-1 block text-sm text-neutral-500">
+            Contexto da empresa e da campanha
+          </label>
+          <textarea
+            id="roteiro-contexto"
+            value={comum.contexto}
+            onChange={(e) => setComum({ ...comum, contexto: e.target.value })}
+            rows={5}
+            placeholder="Quem é a empresa, o que faz, diferenciais, público, momento da campanha e o que dá pra explorar. Ex: escola infantil com feira de empreendedorismo e campeonatos esportivos; matrículas abertas para 2027."
+            className="w-full rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-neutral-500 focus:outline-none"
+          />
+        </div>
+
         <div>
           <label className="mb-1 block text-sm text-neutral-500">Duração alvo</label>
           <div className="flex gap-2">
-            {[30, 60, 90].map((d) => (
+            {DURACOES.map((d) => (
               <button
                 key={d}
                 type="button"
@@ -102,19 +130,64 @@ export default function CamposComuns({
                 {d}s
               </button>
             ))}
+            <input
+              type="number"
+              min={DURACAO_MIN}
+              max={DURACAO_MAX}
+              inputMode="numeric"
+              aria-label="Outra duração, em segundos"
+              placeholder="outra (s)"
+              value={DURACOES.includes(comum.duracaoSegundos) ? "" : comum.duracaoSegundos}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                // Vazio volta pro padrão em vez de mandar 0s pra IA.
+                setComum({ ...comum, duracaoSegundos: n > 0 ? n : 60 });
+              }}
+              className={`font-mono w-24 rounded-md border px-2 py-2 text-sm focus:border-neutral-500 focus:outline-none ${
+                DURACOES.includes(comum.duracaoSegundos)
+                  ? "border-neutral-200 bg-neutral-50 text-neutral-900"
+                  : "border-neutral-900 bg-white text-neutral-900"
+              }`}
+            />
           </div>
         </div>
 
-        <div>
+        <div className="sm:col-span-2">
           <label htmlFor="roteiro-tom" className="mb-1 block text-sm text-neutral-500">Tom de voz</label>
           <input
             id="roteiro-tom"
             type="text"
             value={comum.tom}
             onChange={(e) => setComum({ ...comum, tom: e.target.value })}
-            placeholder="Ex: direto, provocador"
+            placeholder="Escolha abaixo ou escreva o seu"
             className="w-full rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-neutral-500 focus:outline-none"
           />
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {TONS.map((t) => {
+              const ativos = separarTons(comum.tom);
+              const ativo = ativos.some((x) => x.toLowerCase() === t.toLowerCase());
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  aria-pressed={ativo}
+                  onClick={() => {
+                    const novos = ativo
+                      ? ativos.filter((x) => x.toLowerCase() !== t.toLowerCase())
+                      : [...ativos, t];
+                    setComum({ ...comum, tom: novos.join(", ") });
+                  }}
+                  className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                    ativo
+                      ? "border-neutral-900 bg-neutral-900 text-white"
+                      : "border-neutral-200 bg-neutral-50 text-neutral-600 hover:border-neutral-400"
+                  }`}
+                >
+                  {t}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="sm:col-span-2">

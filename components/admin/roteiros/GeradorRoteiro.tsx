@@ -18,6 +18,7 @@ export default function GeradorRoteiro() {
   const [comum, setComum] = useState<ComumParams>({
     tema: "",
     objetivo: "",
+    contexto: "",
     duracaoSegundos: 60,
     tom: "",
     nicho: "",

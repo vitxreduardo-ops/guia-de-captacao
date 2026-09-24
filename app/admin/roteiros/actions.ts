@@ -20,6 +20,8 @@ import {
 import { getSchemaPorFramework, schemaTriagem } from "@/lib/roteiroSchemas";
 import { insertRoteiro, updateRoteiro } from "@/lib/roteiros";
 import {
+  DURACAO_MAX,
+  DURACAO_MIN,
   STATUS_ROTEIRO,
   type Framework,
   type RoteiroJson,
@@ -29,6 +31,7 @@ import {
 type Comum = {
   tema: string;
   objetivo: string;
+  contexto: string;
   duracaoSegundos: number;
   tom: string;
   nicho: string;
@@ -44,7 +47,8 @@ function mensagem(err: unknown) {
 
 export async function sugerirFrameworkAction(
   tema: string,
-  objetivo: string
+  objetivo: string,
+  contexto = ""
 ): Promise<Resultado<{ framework_sugerido: Framework; justificativa: string }>> {
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
   if (!tema || !objetivo) {
@@ -57,7 +61,9 @@ export async function sugerirFrameworkAction(
     }>({
       model: MODELO_TRIAGEM,
       system: PROMPT_TRIAGEM,
-      user: `Tema: ${tema}\nObjetivo: ${objetivo}`,
+      user: `Tema: ${tema}\nObjetivo: ${objetivo}${
+        contexto.trim() ? `\nContexto: ${contexto.trim()}` : ""
+      }`,
       schema: schemaTriagem,
       temperature: 0.3,
     });
@@ -76,7 +82,14 @@ export async function gerarRoteiroAction(input: {
   tags: string[];
 }): Promise<Resultado<{ roteiro: RoteiroJson; id: string | null }>> {
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
-  const { framework, comum, extra, tags } = input;
+  const { framework, extra, tags } = input;
+  const comum = {
+    ...input.comum,
+    duracaoSegundos: Math.min(
+      DURACAO_MAX,
+      Math.max(DURACAO_MIN, Math.round(Number(input.comum.duracaoSegundos) || 60))
+    ),
+  };
 
   let system: string;
   switch (framework) {
@@ -117,6 +130,7 @@ export async function gerarRoteiroAction(input: {
       framework,
       tema: comum.tema,
       objetivo: comum.objetivo,
+      contexto: comum.contexto ?? "",
       duracao_segundos: comum.duracaoSegundos,
       tom: comum.tom,
       nicho: comum.nicho,

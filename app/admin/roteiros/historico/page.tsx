@@ -82,6 +82,7 @@ export default async function HistoricoRoteirosPage({
               framework={r.framework}
               tema={r.tema}
               objetivo={r.objetivo}
+              contexto={r.contexto ?? ""}
               favorito={r.favorito}
               status={r.status}
               preview={extrairPreview(r.framework, r.roteiro)}

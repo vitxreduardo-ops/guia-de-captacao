@@ -3,9 +3,26 @@
 // documento original. Cada função recebe os parâmetros do formulário e
 // devolve o system prompt completo pronto pra chamada da API.
 
+// Sem o contexto da empresa o modelo só tem tema e objetivo, e devolve o
+// roteiro genérico que serviria pra qualquer cliente do nicho.
+function blocoContexto(comum: ComumParams) {
+  const contexto = comum.contexto?.trim();
+  if (!contexto) return "";
+  return `CONTEXTO DA EMPRESA E DA CAMPANHA (matéria-prima do roteiro):
+${contexto}
+
+COMO USAR O CONTEXTO:
+- Construa o roteiro a partir de detalhes concretos do contexto (eventos, serviços, diferenciais, público, momento da campanha), não de afirmações que serviriam para qualquer empresa do nicho.
+- Prefira uma cena, situação ou pequena história real do dia a dia da empresa a uma lista de benefícios.
+- Não invente fatos, números, nomes ou serviços que não estejam no contexto.
+
+`;
+}
+
 type ComumParams = {
   tema: string;
   objetivo: string;
+  contexto?: string;
   duracaoSegundos: number;
   tom: string;
   nicho: string;
@@ -30,7 +47,7 @@ REGRAS DE ESTILO:
 - Nunca comece com: "Hoje eu quero falar...", "Nesse vídeo...", "Você precisa entender...", "Vamos falar sobre...", "É muito importante...", "Fica comigo até o final...".
 - Cada frase precisa ter função clara. Se puder ser removida sem prejuízo, remova.
 
-PARÂMETROS DESTE ROTEIRO:
+${blocoContexto(comum)}PARÂMETROS DESTE ROTEIRO:
 - Tema: ${comum.tema}
 - Objetivo: ${comum.objetivo}
 - Duração alvo: ${comum.duracaoSegundos} segundos (aproximadamente ${Math.round(comum.duracaoSegundos * 2.6)} palavras faladas)
@@ -63,7 +80,7 @@ REGRAS DE ESTILO:
 - Evite frases robóticas, excesso de adjetivos, linguagem corporativa, promessas irreais.
 - Sempre comece pelo problema, nunca pela empresa ou pela solução.
 
-PARÂMETROS DESTE ROTEIRO:
+${blocoContexto(comum)}PARÂMETROS DESTE ROTEIRO:
 - Tema: ${comum.tema}
 - Objetivo: ${comum.objetivo}
 - Duração alvo: ${comum.duracaoSegundos} segundos (aproximadamente ${Math.round(comum.duracaoSegundos * 2.6)} palavras faladas)
@@ -102,7 +119,7 @@ REGRAS DE ESTILO:
 - Evite: "Além disso", "Portanto", "Vale ressaltar", "É importante destacar", "Nesse sentido", "Dessa forma", "Com isso".
 - Evite estruturas repetitivas como "Não era sobre X. Era sobre Y." e metáforas desnecessárias.
 
-PARÂMETROS DESTE ROTEIRO:
+${blocoContexto(comum)}PARÂMETROS DESTE ROTEIRO:
 - Tema: ${comum.tema}
 - Objetivo: ${comum.objetivo}
 - Duração alvo: ${comum.duracaoSegundos} segundos (aproximadamente ${Math.round(comum.duracaoSegundos * 2.6)} palavras faladas)
@@ -134,7 +151,7 @@ DEFINIÇÃO DE CADA ÂNGULO (gere apenas os solicitados):
 
 ÂNGULOS A GERAR NESTA RODADA: ${extra.angulos.join(", ")}
 
-PARÂMETROS COMUNS A TODOS OS ROTEIROS:
+${blocoContexto(comum)}PARÂMETROS COMUNS A TODOS OS ROTEIROS:
 - Tema: ${comum.tema}
 - Objetivo: ${comum.objetivo}
 - Duração alvo por roteiro: ${comum.duracaoSegundos} segundos (aproximadamente ${Math.round(comum.duracaoSegundos * 2.6)} palavras faladas)
