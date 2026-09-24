@@ -11,6 +11,7 @@ import {
   Library,
   PenLine,
   Receipt,
+  ScrollText,
   Radar,
   Target,
   Users,
@@ -36,6 +37,7 @@ const ACTIONS: AdminAction[] = [
   { href: "/admin/clientes", label: "Clientes", icon: Briefcase },
   { href: "/admin/agenda", label: "Agenda", icon: CalendarClock },
   { href: "/admin/lettering", label: "Lettering", icon: PenLine },
+  { href: "/admin/roteiros", label: "Roteiros", icon: ScrollText },
 ];
 
 const ADMIN_ONLY_ACTIONS: AdminAction[] = [
