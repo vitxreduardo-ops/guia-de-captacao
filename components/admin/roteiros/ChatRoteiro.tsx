@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { conversarAction } from "@/app/admin/roteiros/actions";
+import { slugify } from "@/lib/slug";
 import {
   ThoughtChain,
   ThoughtChainContent,
@@ -42,11 +43,47 @@ function gravarConversa(mensagens: Mensagem[]) {
   }
 }
 
+function baixar(blob: Blob, nome: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nome;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function nomeArquivo(pergunta: string, extensao: string) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  return `${slugify(pergunta) || "roteiro"}-${hoje}.${extensao}`;
+}
+
+function baixarTxt(pergunta: string, resposta: string) {
+  const texto = pergunta ? `Pedido: ${pergunta}\n\n${resposta}\n` : `${resposta}\n`;
+  baixar(new Blob([texto], { type: "text/plain;charset=utf-8" }), nomeArquivo(pergunta, "txt"));
+}
+
+async function baixarPdf(pergunta: string, resposta: string) {
+  // Biblioteca de PDF só carrega no clique: é pesada e quase ninguém baixa.
+  const [{ pdf }, { default: RespostaChatPdf }] = await Promise.all([
+    import("@react-pdf/renderer"),
+    import("@/components/pdf/RespostaChatPdf"),
+  ]);
+  const data = new Date().toLocaleDateString("pt-BR");
+  const blob = await pdf(
+    <RespostaChatPdf pergunta={pergunta} resposta={resposta} data={data} />
+  ).toBlob();
+  baixar(blob, nomeArquivo(pergunta, "pdf"));
+}
+
+const BOTAO_BAIXAR =
+  "rounded-md border border-neutral-300 px-2 py-1 text-[11px] text-neutral-700 hover:bg-neutral-50 disabled:opacity-50";
+
 export default function ChatRoteiro() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [texto, setTexto] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [gerandoPdf, setGerandoPdf] = useState<number | null>(null);
   const fimRef = useRef<HTMLDivElement>(null);
 
   // Lido depois de montar: no servidor não existe localStorage, e ler no
@@ -138,6 +175,34 @@ export default function ChatRoteiro() {
               <span className="sr-only">{m.role === "user" ? "Você: " : "Assistente: "}</span>
               {m.content}
             </div>
+            {m.role === "assistant" && (
+              <div className="mt-1 flex gap-1.5">
+                <button
+                  type="button"
+                  className={BOTAO_BAIXAR}
+                  onClick={() => baixarTxt(mensagens[i - 1]?.content ?? "", m.content)}
+                >
+                  Baixar .txt
+                </button>
+                <button
+                  type="button"
+                  className={BOTAO_BAIXAR}
+                  disabled={gerandoPdf === i}
+                  onClick={async () => {
+                    setGerandoPdf(i);
+                    try {
+                      await baixarPdf(mensagens[i - 1]?.content ?? "", m.content);
+                    } catch {
+                      setErro("Não deu pra gerar o PDF. Tente o .txt.");
+                    } finally {
+                      setGerandoPdf(null);
+                    }
+                  }}
+                >
+                  {gerandoPdf === i ? "Gerando PDF..." : "Baixar PDF"}
+                </button>
+              </div>
+            )}
           </div>
         ))}
 
