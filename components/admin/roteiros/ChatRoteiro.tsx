@@ -2,8 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import { conversarAction } from "@/app/admin/roteiros/actions";
+import { slugify } from "@/lib/slug";
+import {
+  ThoughtChain,
+  ThoughtChainContent,
+  ThoughtChainItem,
+  ThoughtChainStep,
+  ThoughtChainTrigger,
+} from "@/components/ui/thought-chain";
 
-type Mensagem = { role: "user" | "assistant"; content: string };
+type Mensagem = {
+  role: "user" | "assistant";
+  content: string;
+  /** Etapas que a IA listou antes de responder; só nas mensagens dela. */
+  raciocinio?: string[];
+};
 
 // A conversa fica neste navegador por 24h e depois some sozinha. Não vai pro
 // banco: é rascunho de ideia, não registro.
@@ -30,11 +43,47 @@ function gravarConversa(mensagens: Mensagem[]) {
   }
 }
 
+function baixar(blob: Blob, nome: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nome;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function nomeArquivo(pergunta: string, extensao: string) {
+  const hoje = new Date().toISOString().slice(0, 10);
+  return `${slugify(pergunta) || "roteiro"}-${hoje}.${extensao}`;
+}
+
+function baixarTxt(pergunta: string, resposta: string) {
+  // Só a resposta vai no arquivo; o pedido serve só pra dar nome a ele.
+  baixar(new Blob([`${resposta}\n`], { type: "text/plain;charset=utf-8" }), nomeArquivo(pergunta, "txt"));
+}
+
+async function baixarPdf(pergunta: string, resposta: string) {
+  // Biblioteca de PDF só carrega no clique: é pesada e quase ninguém baixa.
+  const [{ pdf }, { default: RespostaChatPdf }] = await Promise.all([
+    import("@react-pdf/renderer"),
+    import("@/components/pdf/RespostaChatPdf"),
+  ]);
+  const data = new Date().toLocaleDateString("pt-BR");
+  const blob = await pdf(
+    <RespostaChatPdf titulo={pergunta} resposta={resposta} data={data} />
+  ).toBlob();
+  baixar(blob, nomeArquivo(pergunta, "pdf"));
+}
+
+const BOTAO_BAIXAR =
+  "rounded-md border border-neutral-300 px-2 py-1 text-[11px] text-neutral-700 hover:bg-neutral-50 disabled:opacity-50";
+
 export default function ChatRoteiro() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [texto, setTexto] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [gerandoPdf, setGerandoPdf] = useState<number | null>(null);
   const fimRef = useRef<HTMLDivElement>(null);
 
   // Lido depois de montar: no servidor não existe localStorage, e ler no
@@ -59,12 +108,16 @@ export default function ChatRoteiro() {
     setErro(null);
     setCarregando(true);
     try {
-      const res = await conversarAction(novas);
+      // O raciocínio é só pra tela: a IA recebe a conversa sem ele.
+      const res = await conversarAction(novas.map(({ role, content }) => ({ role, content })));
       if (!res.ok) {
         setErro(res.error);
         return;
       }
-      const comResposta: Mensagem[] = [...novas, { role: "assistant", content: res.data }];
+      const comResposta: Mensagem[] = [
+        ...novas,
+        { role: "assistant", content: res.data.resposta, raciocinio: res.data.raciocinio },
+      ];
       setMensagens(comResposta);
       gravarConversa(comResposta);
     } finally {
@@ -94,8 +147,24 @@ export default function ChatRoteiro() {
         {mensagens.map((m, i) => (
           <div
             key={i}
-            className={m.role === "user" ? "flex justify-end" : "flex justify-start"}
+            className={m.role === "user" ? "flex justify-end" : "flex flex-col items-start"}
           >
+            {m.role === "assistant" && m.raciocinio && m.raciocinio.length > 0 && (
+              <div className="mb-1 max-w-[85%]">
+                <ThoughtChain>
+                  <ThoughtChainStep status="done" defaultOpen={false}>
+                    <ThoughtChainTrigger>
+                      {`Pensou em ${m.raciocinio.length} etapas`}
+                    </ThoughtChainTrigger>
+                    <ThoughtChainContent>
+                      {m.raciocinio.map((etapa, j) => (
+                        <ThoughtChainItem key={j}>{etapa}</ThoughtChainItem>
+                      ))}
+                    </ThoughtChainContent>
+                  </ThoughtChainStep>
+                </ThoughtChain>
+              </div>
+            )}
             <div
               className={`max-w-[85%] whitespace-pre-wrap rounded-lg px-3 py-2 text-sm leading-relaxed ${
                 m.role === "user"
@@ -106,10 +175,49 @@ export default function ChatRoteiro() {
               <span className="sr-only">{m.role === "user" ? "Você: " : "Assistente: "}</span>
               {m.content}
             </div>
+            {m.role === "assistant" && (
+              <div className="mt-1 flex gap-1.5">
+                <button
+                  type="button"
+                  className={BOTAO_BAIXAR}
+                  onClick={() => baixarTxt(mensagens[i - 1]?.content ?? "", m.content)}
+                >
+                  Baixar .txt
+                </button>
+                <button
+                  type="button"
+                  className={BOTAO_BAIXAR}
+                  disabled={gerandoPdf === i}
+                  onClick={async () => {
+                    setGerandoPdf(i);
+                    try {
+                      await baixarPdf(mensagens[i - 1]?.content ?? "", m.content);
+                    } catch {
+                      setErro("Não deu pra gerar o PDF. Tente o .txt.");
+                    } finally {
+                      setGerandoPdf(null);
+                    }
+                  }}
+                >
+                  {gerandoPdf === i ? "Gerando PDF..." : "Baixar PDF"}
+                </button>
+              </div>
+            )}
           </div>
         ))}
 
-        {carregando && <p className="text-sm text-neutral-500">Escrevendo...</p>}
+        {carregando && (
+          // Sem streaming não dá pra mostrar as etapas enquanto acontecem:
+          // elas chegam junto com a resposta e aparecem recolhidas acima dela.
+          <ThoughtChain>
+            <ThoughtChainStep status="done" defaultOpen={false}>
+              <ThoughtChainTrigger collapsible={false}>Lendo a conversa</ThoughtChainTrigger>
+            </ThoughtChainStep>
+            <ThoughtChainStep status="active" defaultOpen={false}>
+              <ThoughtChainTrigger collapsible={false}>Pensando na resposta</ThoughtChainTrigger>
+            </ThoughtChainStep>
+          </ThoughtChain>
+        )}
         <div ref={fimRef} />
       </div>
 

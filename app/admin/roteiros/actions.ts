@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentSession } from "@/lib/session";
 import {
   chatJson,
-  chatTexto,
+  chatConversaJson,
   MODELO_ROTEIRO,
   MODELO_TRIAGEM,
   type MensagemChat,
@@ -17,7 +17,11 @@ import {
   PROMPT_CHAT,
   PROMPT_TRIAGEM,
 } from "@/lib/roteiroPrompts";
-import { getSchemaPorFramework, schemaTriagem } from "@/lib/roteiroSchemas";
+import {
+  getSchemaPorFramework,
+  schemaChat,
+  schemaTriagem,
+} from "@/lib/roteiroSchemas";
 import { insertRoteiro, updateRoteiro } from "@/lib/roteiros";
 import {
   DURACAO_MAX,
@@ -186,7 +190,7 @@ const MAX_CARACTERES = 8000;
 
 export async function conversarAction(
   mensagens: MensagemChat[]
-): Promise<Resultado<string>> {
+): Promise<Resultado<{ resposta: string; raciocinio: string[] }>> {
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
 
   const validas = (Array.isArray(mensagens) ? mensagens : [])
@@ -204,13 +208,14 @@ export async function conversarAction(
   }
 
   try {
-    const resposta = await chatTexto({
+    const data = await chatConversaJson<{ resposta: string; raciocinio: string[] }>({
       model: MODELO_ROTEIRO,
       system: PROMPT_CHAT,
       mensagens: validas,
+      schema: schemaChat,
       temperature: 0.8,
     });
-    return { ok: true, data: resposta };
+    return { ok: true, data };
   } catch (err) {
     return { ok: false, error: mensagem(err) };
   }

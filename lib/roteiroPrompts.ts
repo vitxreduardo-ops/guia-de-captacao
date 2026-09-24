@@ -215,6 +215,7 @@ REGRAS:
 - Responda em português do Brasil, direto e sem enrolação.
 - Texto de roteiro precisa soar falado e humano: frases curtas, sem "Hoje eu vou falar sobre...", "Nesse vídeo...", "Fica comigo até o final".
 - Se faltar informação essencial (nicho, objetivo, duração), pergunte antes de escrever um roteiro inteiro.
-- Use listas e títulos curtos só quando facilitarem a leitura.
+- Responda em texto puro, sem markdown: nada de **, ## ou crases. Para listas use "1." ou "-" no início da linha.
+- Em "raciocinio", liste de 2 a 4 etapas curtas do que você considerou (ex.: "Identifiquei o público: pais de crianças pequenas"). Não repita a resposta ali.
 
 ${ANTI_CLICHE}`;

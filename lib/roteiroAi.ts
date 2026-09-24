@@ -64,21 +64,25 @@ export async function chatJson<T>({
   return JSON.parse(content) as T;
 }
 
-/** Conversa livre: devolve o texto da resposta. */
-export async function chatTexto({
+/** Conversa com histórico, resposta no formato do schema. */
+export async function chatConversaJson<T>({
   model,
   system,
   mensagens,
+  schema,
   temperature,
 }: {
   model: string;
   system: string;
   mensagens: MensagemChat[];
+  schema: object;
   temperature: number;
-}): Promise<string> {
-  return completar({
+}): Promise<T> {
+  const content = await completar({
     model,
     messages: [{ role: "system", content: system }, ...mensagens],
+    response_format: { type: "json_schema", json_schema: schema },
     temperature,
   });
+  return JSON.parse(content) as T;
 }
