@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { gerarRoteiroAction } from "@/app/admin/roteiros/actions";
 import CamposComuns from "@/components/admin/roteiros/CamposComuns";
 import CamposEspecificos, {
@@ -46,6 +46,47 @@ export default function GeradorRoteiro() {
   const [erro, setErro] = useState<string | null>(null);
   const [resultado, setResultado] = useState<RoteiroJson | null>(null);
   const [resultadoId, setResultadoId] = useState<string | null>(null);
+
+  // Nada disso vai pro banco antes de gerar, e o roteiro gerado só fica no
+  // histórico: sair da página apaga o formulário. Pergunta antes.
+  const temAlgo = Boolean(
+    comum.tema.trim() || comum.objetivo.trim() || comum.contexto.trim() || resultado
+  );
+
+  useEffect(() => {
+    if (!temAlgo) return;
+
+    // Recarregar, fechar a aba ou digitar outro endereço: diálogo do navegador.
+    function avisarAoFechar(event: BeforeUnloadEvent) {
+      event.preventDefault();
+    }
+
+    // Links do app (barra lateral, Histórico, Chat) trocam de página sem
+    // recarregar, então o beforeunload não dispara. Na fase de captura o
+    // clique é barrado antes de chegar no <Link> do Next.
+    function avisarAoNavegar(event: MouseEvent) {
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = (event.target as Element | null)?.closest("a[href]");
+      if (!(link instanceof HTMLAnchorElement) || link.target === "_blank") return;
+      if (link.origin !== location.origin || link.pathname === location.pathname) return;
+
+      const sair = window.confirm(
+        "Sair desta página? O que está preenchido no formulário será perdido.\n\nOK para sair, Cancelar para permanecer."
+      );
+      if (!sair) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }
+
+    window.addEventListener("beforeunload", avisarAoFechar);
+    document.addEventListener("click", avisarAoNavegar, true);
+    return () => {
+      window.removeEventListener("beforeunload", avisarAoFechar);
+      document.removeEventListener("click", avisarAoNavegar, true);
+    };
+  }, [temAlgo]);
 
   function extraAtual() {
     switch (framework) {
