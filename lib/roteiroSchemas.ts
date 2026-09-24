@@ -197,6 +197,26 @@ export const schemaTriagem = {
   },
 };
 
+// Chat: as etapas aparecem no "pensamento" acima da resposta.
+export const schemaChat = {
+  name: "resposta_chat",
+  strict: true,
+  schema: {
+    type: "object",
+    properties: {
+      raciocinio: {
+        type: "array",
+        description:
+          "De 2 a 4 etapas curtas (até 12 palavras cada) do que você considerou para responder, em português.",
+        items: { type: "string" },
+      },
+      resposta: { type: "string" },
+    },
+    required: ["raciocinio", "resposta"],
+    additionalProperties: false,
+  },
+};
+
 export function getSchemaPorFramework(framework: string) {
   switch (framework) {
     case "AIDA":

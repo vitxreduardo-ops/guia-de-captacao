@@ -2,8 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import { conversarAction } from "@/app/admin/roteiros/actions";
+import {
+  ThoughtChain,
+  ThoughtChainContent,
+  ThoughtChainItem,
+  ThoughtChainStep,
+  ThoughtChainTrigger,
+} from "@/components/ui/thought-chain";
 
-type Mensagem = { role: "user" | "assistant"; content: string };
+type Mensagem = {
+  role: "user" | "assistant";
+  content: string;
+  /** Etapas que a IA listou antes de responder; só nas mensagens dela. */
+  raciocinio?: string[];
+};
 
 // A conversa fica neste navegador por 24h e depois some sozinha. Não vai pro
 // banco: é rascunho de ideia, não registro.
@@ -59,12 +71,16 @@ export default function ChatRoteiro() {
     setErro(null);
     setCarregando(true);
     try {
-      const res = await conversarAction(novas);
+      // O raciocínio é só pra tela: a IA recebe a conversa sem ele.
+      const res = await conversarAction(novas.map(({ role, content }) => ({ role, content })));
       if (!res.ok) {
         setErro(res.error);
         return;
       }
-      const comResposta: Mensagem[] = [...novas, { role: "assistant", content: res.data }];
+      const comResposta: Mensagem[] = [
+        ...novas,
+        { role: "assistant", content: res.data.resposta, raciocinio: res.data.raciocinio },
+      ];
       setMensagens(comResposta);
       gravarConversa(comResposta);
     } finally {
@@ -94,8 +110,24 @@ export default function ChatRoteiro() {
         {mensagens.map((m, i) => (
           <div
             key={i}
-            className={m.role === "user" ? "flex justify-end" : "flex justify-start"}
+            className={m.role === "user" ? "flex justify-end" : "flex flex-col items-start"}
           >
+            {m.role === "assistant" && m.raciocinio && m.raciocinio.length > 0 && (
+              <div className="mb-1 max-w-[85%]">
+                <ThoughtChain>
+                  <ThoughtChainStep status="done" defaultOpen={false}>
+                    <ThoughtChainTrigger>
+                      {`Pensou em ${m.raciocinio.length} etapas`}
+                    </ThoughtChainTrigger>
+                    <ThoughtChainContent>
+                      {m.raciocinio.map((etapa, j) => (
+                        <ThoughtChainItem key={j}>{etapa}</ThoughtChainItem>
+                      ))}
+                    </ThoughtChainContent>
+                  </ThoughtChainStep>
+                </ThoughtChain>
+              </div>
+            )}
             <div
               className={`max-w-[85%] whitespace-pre-wrap rounded-lg px-3 py-2 text-sm leading-relaxed ${
                 m.role === "user"
@@ -109,7 +141,18 @@ export default function ChatRoteiro() {
           </div>
         ))}
 
-        {carregando && <p className="text-sm text-neutral-500">Escrevendo...</p>}
+        {carregando && (
+          // Sem streaming não dá pra mostrar as etapas enquanto acontecem:
+          // elas chegam junto com a resposta e aparecem recolhidas acima dela.
+          <ThoughtChain>
+            <ThoughtChainStep status="done" defaultOpen={false}>
+              <ThoughtChainTrigger collapsible={false}>Lendo a conversa</ThoughtChainTrigger>
+            </ThoughtChainStep>
+            <ThoughtChainStep status="active" defaultOpen={false}>
+              <ThoughtChainTrigger collapsible={false}>Pensando na resposta</ThoughtChainTrigger>
+            </ThoughtChainStep>
+          </ThoughtChain>
+        )}
         <div ref={fimRef} />
       </div>
 
