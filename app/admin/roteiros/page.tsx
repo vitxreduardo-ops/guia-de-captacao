@@ -12,7 +12,7 @@ export default function RoteirosPage() {
 
       <div className="mb-6 flex items-baseline justify-between gap-4">
         <p className="text-sm text-neutral-500">
-          AIDA · PAS · Midtrack · 6 Chapéus — roteiros de até 90s para redes sociais
+          AIDA · PAS · Midtrack · 6 Chapéus — roteiros de vídeos curtos para redes sociais
         </p>
         <div className="flex shrink-0 gap-2">
           <Link
