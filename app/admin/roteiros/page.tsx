@@ -1,8 +1,17 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import GeradorRoteiro from "@/components/admin/roteiros/GeradorRoteiro";
+import { getRoteiro } from "@/lib/roteiros";
+import { preenchimentoDe } from "@/lib/roteiroTypes";
 
-export default function RoteirosPage() {
+export default async function RoteirosPage({
+  searchParams,
+}: PageProps<"/admin/roteiros">) {
+  // ?de=<id> vem do "Usar como base" do histórico: abre o formulário
+  // preenchido com aquele roteiro, sem gerar nada.
+  const { de } = await searchParams;
+  const base = typeof de === "string" ? await getRoteiro(de) : null;
+
   return (
     <div className="mx-auto w-full max-w-3xl pb-10">
       <AdminHeader
@@ -30,7 +39,8 @@ export default function RoteirosPage() {
         </div>
       </div>
 
-      <GeradorRoteiro />
+      {/* key: trocar de base remonta o formulário em vez de manter o anterior. */}
+      <GeradorRoteiro key={base?.id ?? "novo"} inicial={base ? preenchimentoDe(base) : null} />
     </div>
   );
 }
