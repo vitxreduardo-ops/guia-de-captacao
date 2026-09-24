@@ -12,23 +12,22 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   data: { fontSize: 8, color: "#737373", textTransform: "uppercase", letterSpacing: 1 },
-  rotulo: { fontSize: 8, color: "#737373", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 },
-  pergunta: { fontSize: 14, fontWeight: 700, lineHeight: 1.4, marginBottom: 20 },
   resposta: { lineHeight: 1.6, marginBottom: 10 },
 });
 
 /** Uma resposta do chat de roteiros, baixada pelo botão "PDF". */
 export default function RespostaChatPdf({
-  pergunta,
+  titulo,
   resposta,
   data,
 }: {
-  pergunta: string;
+  /** Só metadado do arquivo: o pedido não aparece na página. */
+  titulo: string;
   resposta: string;
   data: string;
 }) {
   return (
-    <Document title={pergunta.slice(0, 80) || "Roteiro"} author="Tatú Estúdio Criativo">
+    <Document title={titulo.slice(0, 80) || "Roteiro"} author="Tatú Estúdio Criativo">
       <Page size="A4" style={styles.page}>
         <View style={styles.header} fixed>
           <Svg viewBox={LOGO_VIEWBOX} style={{ width: 130, height: 25 }}>
@@ -37,12 +36,6 @@ export default function RespostaChatPdf({
           <Text style={styles.data}>{data}</Text>
         </View>
 
-        {pergunta ? (
-          <View>
-            <Text style={styles.rotulo}>Pedido</Text>
-            <Text style={styles.pergunta}>{pergunta}</Text>
-          </View>
-        ) : null}
 
         {/* Uma linha em branco vira um parágrafo: sem isso o react-pdf dá a
             altura de linha inteira a cada "\n" vazio e o respiro dobra. */}

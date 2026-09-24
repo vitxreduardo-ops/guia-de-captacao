@@ -58,8 +58,8 @@ function nomeArquivo(pergunta: string, extensao: string) {
 }
 
 function baixarTxt(pergunta: string, resposta: string) {
-  const texto = pergunta ? `Pedido: ${pergunta}\n\n${resposta}\n` : `${resposta}\n`;
-  baixar(new Blob([texto], { type: "text/plain;charset=utf-8" }), nomeArquivo(pergunta, "txt"));
+  // Só a resposta vai no arquivo; o pedido serve só pra dar nome a ele.
+  baixar(new Blob([`${resposta}\n`], { type: "text/plain;charset=utf-8" }), nomeArquivo(pergunta, "txt"));
 }
 
 async function baixarPdf(pergunta: string, resposta: string) {
@@ -70,7 +70,7 @@ async function baixarPdf(pergunta: string, resposta: string) {
   ]);
   const data = new Date().toLocaleDateString("pt-BR");
   const blob = await pdf(
-    <RespostaChatPdf pergunta={pergunta} resposta={resposta} data={data} />
+    <RespostaChatPdf titulo={pergunta} resposta={resposta} data={data} />
   ).toBlob();
   baixar(blob, nomeArquivo(pergunta, "pdf"));
 }
