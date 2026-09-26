@@ -45,7 +45,11 @@ export function PastasClientes({
   // Estado local muda no mesmo quadro do clique; a URL vem atrás. Derivar só
   // da URL deixava a troca numa transição do router, e o Motion media o
   // "antes" tarde demais: o morph partia do tamanho final, não do cartão.
-  const [pedida, setPedida] = useState(naUrl);
+  // Pasta única no resultado já nasce aberta, mas como escolha inicial: se a
+  // pessoa fechar, fica fechada (antes reabria na hora e o ← não fazia nada).
+  const [pedida, setPedida] = useState(
+    naUrl ?? (abrirSozinha ? pastas[0]?.cliente ?? null : null)
+  );
   // Cada fechamento troca a "geração" dos layoutIds dos cartões: o painel que
   // sai fica com o id antigo e o cartão que volta não herda a forma dele, então
   // não há morph de volta. O próximo abrir usa o id novo dos dois lados.
@@ -86,8 +90,7 @@ export function PastasClientes({
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, [mudar]);
-  const aberta =
-    pastas.find((p) => p.cliente === pedida) ?? (abrirSozinha ? pastas[0] : null);
+  const aberta = pastas.find((p) => p.cliente === pedida) ?? null;
 
   const urlTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => {

@@ -1,3 +1,4 @@
+import { Search } from "lucide-react";
 import Link from "next/link";
 import { PastasClientes } from "@/components/admin/PastasClientes";
 import { agruparPorCliente, formatMonthLabel, monthKey } from "@/lib/guideFolders";
@@ -13,10 +14,23 @@ function uniqueSorted(values: string[]) {
   );
 }
 
+/** Sem acento e em minúscula: "cantinho" acha "Cantinho da Infância". */
+function fold(texto: string) {
+  return texto.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
+
 function matchesFilters(
   guide: Guide,
-  filters: { month: string; status: string; tag: string }
+  filters: { q: string; month: string; status: string; tag: string }
 ) {
+  if (filters.q) {
+    const alvo = fold(
+      [guide.title, guide.client_name, guide.location, ...guide.tags].join(" ")
+    );
+    // Cada palavra da busca precisa aparecer, em qualquer ordem.
+    if (!fold(filters.q).split(/\s+/).every((palavra) => alvo.includes(palavra)))
+      return false;
+  }
   if (filters.month && (!guide.shoot_date || monthKey(guide.shoot_date) !== filters.month))
     return false;
   if (filters.status && guide.status !== filters.status) return false;
@@ -31,6 +45,7 @@ export default async function AdminDashboard({
 }) {
   const params = await searchParams;
   const filters = {
+    q: String(params.q ?? "").trim(),
     month: String(params.month ?? ""),
     status: String(params.status ?? ""),
     tag: String(params.tag ?? ""),
@@ -81,6 +96,25 @@ export default async function AdminDashboard({
       >
         {/* Filtrar não fecha a pasta que estava aberta. */}
         {params.pasta ? <input type="hidden" name="pasta" value={String(params.pasta)} /> : null}
+        <div className="min-w-[14rem] flex-1">
+          <label htmlFor="busca-guias" className="mb-1 block text-xs font-medium text-neutral-600">
+            Buscar
+          </label>
+          <div className="relative">
+            <Search
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral-400"
+              aria-hidden
+            />
+            <input
+              id="busca-guias"
+              type="search"
+              name="q"
+              defaultValue={filters.q}
+              placeholder="Título, cliente, local ou tag"
+              className="w-full rounded-md border border-neutral-300 py-2 pr-3 pl-9 text-sm focus:border-neutral-500 focus:outline-none"
+            />
+          </div>
+        </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-neutral-600">
             Mês
@@ -152,7 +186,13 @@ export default async function AdminDashboard({
             : "Nenhum guia encontrado com esses filtros."}
         </p>
       ) : (
-        <PastasClientes pastas={pastas} abrirSozinha={pastas.length === 1} />
+        // key: busca/filtro novo recomeça o componente, e a pasta única do
+        // resultado abre sozinha em vez de herdar a da busca anterior.
+        <PastasClientes
+          key={JSON.stringify(filters)}
+          pastas={pastas}
+          abrirSozinha={pastas.length === 1}
+        />
       )}
     </div>
   );
