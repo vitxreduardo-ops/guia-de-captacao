@@ -14,7 +14,10 @@ export default async function RoteirosPage({
   const base = typeof de === "string" ? await getRoteiro(de) : null;
 
   return (
-    <div className="mx-auto w-full max-w-3xl pb-10 xl:max-w-[88rem]">
+    // No desktop a página inteira cabe na janela (o cartão do admin tem 0,5rem
+    // de margem e 1px de borda em cima e embaixo): o formulário rola por dentro
+    // e o chat fica inteiro à vista, com o campo de mensagem sempre visível.
+    <div className="mx-auto w-full max-w-3xl pb-10 xl:flex xl:h-[calc(100svh-1rem-2px)] xl:max-w-[88rem] xl:flex-col xl:pb-4">
       <AdminHeader
         title="Roteiros"
         trail={[{ label: "Admin", href: "/admin" }, { label: "Roteiros" }]}
@@ -42,17 +45,18 @@ export default async function RoteirosPage({
       </div>
 
       {/* Em tela larga o formulário sozinho deixava metade da tela vazia:
-          o chat vai pra coluna da direita e acompanha a rolagem. */}
-      <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] xl:items-start xl:gap-6">
-        {/* key: trocar de base remonta o formulário em vez de manter o anterior. */}
-        <GeradorRoteiro key={base?.id ?? "novo"} inicial={base ? preenchimentoDe(base) : null} />
+          o chat vai pra coluna da direita. */}
+      {/* A altura da linha vem só do formulário (o chat é absoluto e não
+          empurra): formulário curto, chat do mesmo tamanho; formulário maior
+          que a janela, os dois param na janela e o formulário rola. */}
+      <div className="xl:grid xl:min-h-0 xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] xl:grid-rows-[minmax(0,1fr)] xl:gap-6">
+        <div className="xl:min-h-0 xl:overflow-y-auto xl:pr-1">
+          {/* key: trocar de base remonta o formulário em vez de manter o anterior. */}
+          <GeradorRoteiro key={base?.id ?? "novo"} inicial={base ? preenchimentoDe(base) : null} />
+        </div>
 
-        <aside
-          aria-label="Chat de roteiros"
-          className="sticky top-4 hidden h-[calc(100svh-2rem)] flex-col xl:flex"
-        >
-          <h2 className="mb-2 text-sm font-medium text-neutral-700">Chat</h2>
-          <div className="min-h-0 flex-1">
+        <aside aria-label="Chat de roteiros" className="relative hidden xl:block">
+          <div className="absolute inset-0">
             <ChatRoteiro preencher />
           </div>
         </aside>

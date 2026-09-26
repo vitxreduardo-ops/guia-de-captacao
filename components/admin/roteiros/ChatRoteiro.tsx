@@ -142,6 +142,14 @@ export default function ChatRoteiro({
         preencher ? "h-full min-h-0" : ""
       }`}
     >
+      {preencher && (
+        // Mesmo cabeçalho do "01 · Roteiro" ao lado, pra os dois quadros
+        // começarem na mesma linha e pesarem igual.
+        <div className="flex items-baseline justify-between border-b border-neutral-200 px-6 pt-6 pb-4">
+          <h2 className="text-lg font-bold tracking-tight text-neutral-900">Chat</h2>
+          <span className="font-mono text-xs text-neutral-500">ideias e ganchos</span>
+        </div>
+      )}
       <div
         className={`space-y-3 overflow-y-auto p-4 ${
           preencher ? "min-h-0 flex-1" : "min-h-[18rem] max-h-[60svh]"
