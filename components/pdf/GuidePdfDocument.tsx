@@ -144,6 +144,33 @@ function GuidePdfDocument({ guide }: { guide: GuideWithSections }) {
                         </>
                       ) : null}
 
+                      {scene.hooks_alternativos.length > 0 ? (
+                        <>
+                          <Text style={styles.sceneLabel}>Hooks alternativos</Text>
+                          {scene.hooks_alternativos.map((hook, i) => (
+                            <Text key={i} style={styles.sceneScript}>
+                              • {hook}
+                            </Text>
+                          ))}
+                        </>
+                      ) : null}
+                      {scene.ctas_alternativos.length > 0 ? (
+                        <>
+                          <Text style={styles.sceneLabel}>CTAs alternativos</Text>
+                          {scene.ctas_alternativos.map((cta, i) => (
+                            <Text key={i} style={styles.sceneScript}>
+                              • {cta}
+                            </Text>
+                          ))}
+                        </>
+                      ) : null}
+                      {scene.notas_producao ? (
+                        <>
+                          <Text style={styles.sceneLabel}>Notas de produção</Text>
+                          <Text style={styles.sceneScript}>{scene.notas_producao}</Text>
+                        </>
+                      ) : null}
+
                       {sceneReferences.length > 0 ? (
                         <View style={styles.referencesGrid}>
                           {sceneReferences.map((reference) => {

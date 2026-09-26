@@ -31,7 +31,19 @@ export interface Scene {
   script: string;
   description: string;
   recorded: boolean;
+  hooks_alternativos: string[];
+  ctas_alternativos: string[];
+  notas_producao: string;
 }
+
+/** Campos editáveis de uma cena; os três últimos são opcionais. */
+export type SceneFields = {
+  script: string;
+  description: string;
+  hooks_alternativos?: string[];
+  ctas_alternativos?: string[];
+  notas_producao?: string;
+};
 
 export interface VisualReference {
   id: string;
@@ -347,7 +359,7 @@ export async function deleteVideo(id: string) {
 
 export async function addScene(
   videoId: string,
-  fields: { script: string; description: string }
+  fields: SceneFields
 ): Promise<Scene> {
   const supabase = getSupabaseServerClient();
   const position = await nextPosition("scenes", "video_id", videoId);
@@ -356,8 +368,7 @@ export async function addScene(
     .insert({
       video_id: videoId,
       position,
-      script: fields.script,
-      description: fields.description,
+      ...fields,
     })
     .select("*")
     .single();
@@ -365,10 +376,7 @@ export async function addScene(
   return data;
 }
 
-export async function updateScene(
-  id: string,
-  fields: { script: string; description: string }
-) {
+export async function updateScene(id: string, fields: SceneFields) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase.from("scenes").update(fields).eq("id", id);
   if (error) throw error;
