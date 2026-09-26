@@ -1,9 +1,9 @@
 import { AlternativasCena, NotasProducao } from "@/components/AlternativasCena";
+import { CartaoCena } from "@/components/CartaoCena";
 import { notFound } from "next/navigation";
 import {
   toggleCardItemSelectedAction,
   togglePhotoItemSelectedAction,
-  toggleSceneRecordedAction,
   toggleVideoReferenceItemSelectedAction,
   toggleVisualReferenceSelectedAction,
 } from "./actions";
@@ -190,47 +190,13 @@ export default async function PublicGuidePage({
                         (reference) => reference.scene_id === scene.id
                       );
                       return (
-                        <div
+                        <CartaoCena
                           key={scene.id}
-                          className={`rounded-md border p-3 ${
-                            scene.recorded
-                              ? "border-green-300 bg-green-50"
-                              : "border-neutral-200 bg-neutral-50"
-                          }`}
+                          id={scene.id}
+                          slug={guide.slug}
+                          gravada={scene.recorded}
+                          titulo={`Cena ${sceneIndex + 1}`}
                         >
-                          <div className="mb-1 flex items-start justify-between gap-2">
-                            <p className="text-sm font-medium text-neutral-900">
-                              Cena {sceneIndex + 1}
-                            </p>
-                            <form action={toggleSceneRecordedAction}>
-                              <input type="hidden" name="id" value={scene.id} />
-                              <input type="hidden" name="slug" value={guide.slug} />
-                              <input
-                                type="hidden"
-                                name="recorded"
-                                value={(!scene.recorded).toString()}
-                              />
-                              <button
-                                type="submit"
-                                className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium ${
-                                  scene.recorded
-                                    ? "border-green-300 bg-green-100 text-green-700"
-                                    : "border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-100"
-                                }`}
-                              >
-                                <span
-                                  className={`flex h-4 w-4 items-center justify-center rounded border ${
-                                    scene.recorded
-                                      ? "border-green-600 bg-green-600 text-white"
-                                      : "border-neutral-300"
-                                  }`}
-                                >
-                                  {scene.recorded ? "✓" : ""}
-                                </span>
-                                {scene.recorded ? "Gravada" : "Gravar"}
-                              </button>
-                            </form>
-                          </div>
                           <p className="whitespace-pre-wrap text-sm text-neutral-600">
                             {scene.script || "—"}
                           </p>
@@ -305,7 +271,7 @@ export default async function PublicGuidePage({
                               })()}
                             </div>
                           ) : null}
-                        </div>
+                        </CartaoCena>
                       );
                     })}
 

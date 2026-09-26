@@ -29,7 +29,7 @@ export function AlternativasCena({ scene }: { scene: Scene }) {
   // Fechado por padrão: o roteiro da cena é o que importa na gravação, as
   // alternativas são consulta. <details> nativo dispensa JS no guia público.
   return (
-    <details className="group mt-2">
+    <details className="group detalhes-animados mt-2">
       <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded text-xs text-neutral-500 hover:text-neutral-800 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
         <span aria-hidden className="transition-transform group-open:rotate-90 motion-reduce:transition-none">
           ▸

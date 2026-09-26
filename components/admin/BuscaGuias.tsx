@@ -53,7 +53,7 @@ export function BuscaGuias({
 
   return (
     <div
-      className="mb-8 space-y-3"
+      className="mb-8"
       onKeyDown={(e) => {
         // Esc fecha quando não há nada aplicado (aplicado, fechar esconderia
         // o motivo de a lista estar filtrada).
@@ -68,6 +68,21 @@ export function BuscaGuias({
           method="get"
           action="/admin/guias"
           role="search"
+          onSubmit={(e) => {
+            // A pasta aberta muda a URL sem passar pelo servidor, então o
+            // valor que veio de lá pode estar velho: lê da URL de agora.
+            const form = e.currentTarget;
+            const pasta = new URLSearchParams(window.location.search).get("pasta");
+            let campo = form.querySelector<HTMLInputElement>('input[name="pasta"]');
+            if (!pasta) return campo?.remove();
+            if (!campo) {
+              campo = document.createElement("input");
+              campo.type = "hidden";
+              campo.name = "pasta";
+              form.appendChild(campo);
+            }
+            campo.value = pasta;
+          }}
           className={`flex shrink-0 items-center overflow-hidden rounded-lg border border-neutral-200 bg-white transition-[width] duration-300 ease-out motion-reduce:transition-none ${
             aberta ? "w-full sm:w-80" : "w-[4.4rem]"
           }`}
@@ -125,14 +140,21 @@ export function BuscaGuias({
         </form>
       </div>
 
-      {aberta ? (
-        <div
-          id="filtros-guias"
-          className="animate-in fade-in slide-in-from-top-1 duration-200 motion-reduce:animate-none"
-        >
-          {filtros}
+      {/* Sempre montado, só recolhido: abre e fecha pelo mesmo caminho
+          (altura + opacidade + 4px), em vez de entrar animado e sumir seco.
+          E como não monta de novo, não anima ao carregar com filtro ativo.
+          inert tira os campos recolhidos do Tab e do leitor de tela. */}
+      <div
+        id="filtros-guias"
+        inert={!aberta}
+        className={`grid transition-[grid-template-rows,opacity,translate] duration-200 ease-out motion-reduce:transition-none ${
+          aberta ? "grid-rows-[1fr] opacity-100" : "-translate-y-1 grid-rows-[0fr] opacity-0"
+        }`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="pt-3">{filtros}</div>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }

@@ -790,3 +790,36 @@ a {
   transform: scale(calc(1 / var(--zoom, 1)))
     translate(var(--alca-x, 0), var(--alca-y, 0));
 }
+
+/*
+  <details> que abre com a altura animada, sem JS. `interpolate-size` deixa a
+  transição ir de 0 até `auto`, e `::details-content` é a caixa do conteúdo.
+  Onde o navegador não tem os dois (Safari, por ora), abre seco como antes —
+  melhoria progressiva, nada quebra. Fechar faz o caminho inverso: o
+  `content-visibility ... allow-discrete` segura o conteúdo visível até a
+  altura chegar a 0.
+*/
+@utility detalhes-animados {
+  interpolate-size: allow-keywords;
+
+  &::details-content {
+    block-size: 0;
+    opacity: 0;
+    overflow-y: clip;
+    transition:
+      block-size 0.25s ease-out,
+      opacity 0.2s ease-out,
+      content-visibility 0.25s allow-discrete;
+  }
+
+  &[open]::details-content {
+    block-size: auto;
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::details-content {
+      transition: none;
+    }
+  }
+}

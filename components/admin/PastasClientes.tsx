@@ -55,6 +55,9 @@ export function PastasClientes({
   // não há morph de volta. O próximo abrir usa o id novo dos dois lados.
   const [geracao, setGeracao] = useState(0);
   const fechadaRef = useRef<string | null>(null);
+  // Última pasta fechada: o cartão dela assenta por último quando a grade
+  // volta, pra ficar claro de onde se saiu (o fechar não tem morph de volta).
+  const [ultimaFechada, setUltimaFechada] = useState<string | null>(null);
   // Sempre o valor atual: o listener de popstate é registrado uma vez só e
   // leria a pasta do primeiro render.
   const pedidaRef = useRef(pedida);
@@ -65,6 +68,7 @@ export function PastasClientes({
   const mudar = useCallback((cliente: string | null) => {
     if (!cliente && pedidaRef.current) {
       fechadaRef.current = pedidaRef.current;
+      setUltimaFechada(pedidaRef.current);
       setGeracao((g) => g + 1);
     }
     pedidaRef.current = cliente;
@@ -92,29 +96,25 @@ export function PastasClientes({
   }, [mudar]);
   const aberta = pastas.find((p) => p.cliente === pedida) ?? null;
 
-  const urlTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => {
-    if (urlTimer.current) clearTimeout(urlTimer.current);
-  }, []);
-
   function ir(cliente: string | null) {
     mudar(cliente);
     const q = new URLSearchParams(window.location.search);
     if (cliente) q.set("pasta", cliente);
     else q.delete("pasta");
     const qs = q.toString();
-    const empurrar = () => {
-      // Abrir e fechar antes de a URL mudar: não cria entrada repetida.
-      if (window.location.search.replace(/^\?/, "") === qs) return;
-      window.history.pushState(null, "", qs ? `${pathname}?${qs}` : pathname);
-    };
-
-    if (urlTimer.current) clearTimeout(urlTimer.current);
-    // O pushState faz o router do Next re-renderizar a página, e isso corta
-    // o morph no segundo quadro. Na abertura a URL espera a forma assentar;
-    // no fechamento (só fade) vai na hora. Abrir e fechar rápido cancela.
-    if (cliente) urlTimer.current = setTimeout(empurrar, 500);
-    else empurrar();
+    if (window.location.search.replace(/^\?/, "") === qs) return;
+    // pushState original do navegador, não o do Next: o do Next avisa o
+    // router, que re-renderiza a página e cortava o morph no 2º quadro (por
+    // isso a URL chegou a esperar 0,5s, e o Voltar nesse meio tempo saía da
+    // página). A pasta aberta é estado deste componente, e Voltar/Avançar
+    // chegam pelo popstate; o state do Next vai junto pra o router dele
+    // continuar reconhecendo a entrada.
+    History.prototype.pushState.call(
+      window.history,
+      window.history.state,
+      "",
+      qs ? `${pathname}?${qs}` : pathname
+    );
   }
 
   // Esc fecha, como qualquer painel que cresceu por cima do conteúdo.
@@ -176,6 +176,13 @@ export function PastasClientes({
                   style={{ borderRadius: 8 }}
                   className="flex items-center gap-3 border border-neutral-200 bg-white p-4 text-left transition-colors hover:bg-neutral-50 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none active:bg-neutral-100"
                   whileTap={{ scale: 0.98 }}
+                  {...(pasta.cliente === ultimaFechada
+                    ? {
+                        initial: { opacity: 0, scale: 0.98 },
+                        animate: { opacity: 1, scale: 1 },
+                        transition: { ...MOLA, delay: 0.08 },
+                      }
+                    : {})}
                 >
                   <motion.span layoutId={`icone-${pasta.cliente}-${geracao}`} className="shrink-0">
                     <Clapperboard className="size-5 text-neutral-400" aria-hidden />
