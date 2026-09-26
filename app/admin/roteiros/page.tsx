@@ -23,21 +23,23 @@ export default async function RoteirosPage({
         trail={[{ label: "Admin", href: "/admin" }, { label: "Roteiros" }]}
       />
 
+      {/* No celular a linha é só dos dois botões, dividindo a largura; a
+          descrição volta a partir do sm, onde cabe ao lado deles. */}
       <div className="mb-6 flex items-baseline justify-between gap-4">
-        <p className="text-sm text-neutral-500">
+        <p className="hidden text-sm text-neutral-500 sm:block">
           AIDA · PAS · Midtrack · 6 Chapéus — roteiros de vídeos curtos para redes sociais
         </p>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex flex-1 gap-2 sm:flex-none sm:shrink-0">
           {/* Em tela larga o chat já está ao lado: o botão só existe onde não cabe. */}
           <Link
             href="/admin/roteiros/chat"
-            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 xl:hidden"
+            className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-center text-sm text-neutral-700 hover:bg-neutral-50 sm:flex-none sm:py-1.5 xl:hidden"
           >
             Chat
           </Link>
           <Link
             href="/admin/roteiros/historico"
-            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+            className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-center text-sm text-neutral-700 hover:bg-neutral-50 sm:flex-none sm:py-1.5"
           >
             Histórico
           </Link>
