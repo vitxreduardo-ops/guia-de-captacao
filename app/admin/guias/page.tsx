@@ -1,4 +1,4 @@
-import { Folder, FolderOpen, Plus } from "lucide-react";
+import { Clapperboard, Plus } from "lucide-react";
 import Link from "next/link";
 import { agruparPorCliente, SEM_CLIENTE, type PastaCliente } from "@/lib/guideFolders";
 import { listGuides, type Guide } from "@/lib/guides";
@@ -82,6 +82,20 @@ export default async function AdminDashboard({
   // "Hoje" no fuso do estúdio: o servidor roda em UTC e virava o dia às 21h.
   const hoje = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
   const pastas = agruparPorCliente(filteredGuides, hoje);
+  // Pasta aberta vem da URL (?pasta=), pra sobreviver a recarregar e aos
+  // filtros. Uma pasta só no resultado já abre sozinha.
+  const pastaAberta =
+    pastas.find((p) => p.cliente === String(params.pasta ?? "")) ??
+    (pastas.length === 1 ? pastas[0] : null);
+
+  function hrefPasta(cliente: string | null) {
+    const q = new URLSearchParams(
+      Object.entries(filters).filter(([, v]) => v) as [string, string][]
+    );
+    if (cliente) q.set("pasta", cliente);
+    const qs = q.toString();
+    return qs ? `/admin/guias?${qs}` : "/admin/guias";
+  }
 
   return (
     <div className="mx-auto w-full max-w-6xl pb-10">
@@ -112,6 +126,8 @@ export default async function AdminDashboard({
         method="get"
         className="mb-8 flex flex-wrap items-end gap-3 rounded-lg border border-neutral-200 bg-white p-4"
       >
+        {/* Filtrar não fecha a pasta que estava aberta. */}
+        {pastaAberta ? <input type="hidden" name="pasta" value={pastaAberta.cliente} /> : null}
         <div>
           <label className="mb-1 block text-xs font-medium text-neutral-600">
             Mês
@@ -183,16 +199,49 @@ export default async function AdminDashboard({
             : "Nenhum guia encontrado com esses filtros."}
         </p>
       ) : (
-        <div className="space-y-3">
-          {pastas.map((pasta) => (
-            <PastaDoCliente
-              key={pasta.cliente}
-              pasta={pasta}
-              // Filtro ativo ou pasta única: abre pra mostrar o resultado.
-              aberta={hasActiveFilters || pastas.length === 1}
-            />
-          ))}
-        </div>
+        <>
+          {/* O grid não muda ao abrir uma pasta: o conteúdo aparece num
+              painel largo embaixo, em vez de a pasta crescer e empurrar as
+              vizinhas (deixava buraco na linha). */}
+          <nav aria-label="Clientes" className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-3">
+            {pastas.map((pasta) => {
+              const ativa = pasta.cliente === pastaAberta?.cliente;
+              return (
+                <Link
+                  key={pasta.cliente}
+                  href={hrefPasta(ativa ? null : pasta.cliente)}
+                  scroll={false}
+                  aria-current={ativa ? "true" : undefined}
+                  className={`flex items-center gap-2 rounded-lg border p-3 transition-colors sm:gap-3 sm:p-4 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none ${
+                    ativa
+                      ? "border-neutral-900 bg-neutral-900 text-white"
+                      : "border-neutral-200 bg-white hover:bg-neutral-50"
+                  }`}
+                >
+                  <Clapperboard
+                    className={`size-5 shrink-0 ${ativa ? "text-white" : "text-neutral-400"}`}
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className={`line-clamp-2 block font-medium leading-snug break-words ${
+                        ativa ? "text-white" : pasta.cliente === SEM_CLIENTE ? "text-neutral-500" : "text-neutral-900"
+                      }`}
+                    >
+                      {pasta.cliente}
+                    </span>
+                    <span className={`block text-xs ${ativa ? "text-neutral-300" : "text-neutral-500"}`}>
+                      {pasta.total} {pasta.total === 1 ? "guia" : "guias"}
+                      {pasta.proxima ? ` · próxima ${formatShootDate(pasta.proxima)}` : ""}
+                    </span>
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {pastaAberta ? <PainelPasta pasta={pastaAberta} /> : null}
+        </>
       )}
     </div>
   );
@@ -247,41 +296,28 @@ function GuideCard({ guide }: { guide: Guide }) {
   );
 }
 
-function PastaDoCliente({ pasta, aberta }: { pasta: PastaCliente; aberta: boolean }) {
+function PainelPasta({ pasta }: { pasta: PastaCliente }) {
   const semCliente = pasta.cliente === SEM_CLIENTE;
   return (
-    <details open={aberta} className="group rounded-lg border border-neutral-200 bg-white">
-      <summary className="flex cursor-pointer list-none items-center gap-3 rounded-lg p-4 hover:bg-neutral-50 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
-        <Folder
-          className="size-5 shrink-0 text-neutral-400 group-open:hidden"
-          aria-hidden
-        />
-        <FolderOpen
-          className="hidden size-5 shrink-0 text-neutral-400 group-open:block"
-          aria-hidden
-        />
-        <span className="min-w-0 flex-1">
-          <span className={`font-medium ${semCliente ? "text-neutral-500" : "text-neutral-900"}`}>
-            {pasta.cliente}
-          </span>
-          <span className="ml-2 text-sm text-neutral-500">
-            {pasta.total} {pasta.total === 1 ? "guia" : "guias"}
-          </span>
+    <section
+      aria-label={`Guias de ${pasta.cliente}`}
+      className="mt-4 rounded-lg border border-neutral-200 bg-white"
+    >
+      <h2 className="flex items-center gap-2 border-b border-neutral-200 p-4 font-medium text-neutral-900">
+        <Clapperboard className="size-5 text-neutral-900" aria-hidden />
+        {pasta.cliente}
+        <span className="text-sm font-normal text-neutral-500">
+          {pasta.total} {pasta.total === 1 ? "guia" : "guias"}
         </span>
-        {pasta.proxima ? (
-          <span className="shrink-0 text-xs text-neutral-500">
-            Próxima gravação {formatShootDate(pasta.proxima)}
-          </span>
-        ) : null}
-      </summary>
+      </h2>
 
-      <div className="space-y-4 border-t border-neutral-200 p-4">
+      <div className="space-y-4 p-4">
         {pasta.meses.map((mes) => (
           <section key={mes.chave}>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
               {mes.chave === "sem-data" ? "Sem data de gravação" : formatMonthLabel(mes.chave)}
             </h3>
-            <ul className="grid gap-3 lg:grid-cols-2">
+            <ul className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {mes.guias.map((guide) => (
                 <GuideCard key={guide.id} guide={guide} />
               ))}
@@ -309,6 +345,6 @@ function PastaDoCliente({ pasta, aberta }: { pasta: PastaCliente; aberta: boolea
           </form>
         )}
       </div>
-    </details>
+    </section>
   );
 }
