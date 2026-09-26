@@ -22,6 +22,8 @@ export interface Video {
   guide_id: string;
   position: number;
   title: string;
+  /** Notas de produção do vídeo inteiro, mostradas depois da última cena. */
+  notas_producao: string;
 }
 
 export interface Scene {
@@ -31,7 +33,17 @@ export interface Scene {
   script: string;
   description: string;
   recorded: boolean;
+  hooks_alternativos: string[];
+  ctas_alternativos: string[];
 }
+
+/** Campos editáveis de uma cena; os dois últimos são opcionais. */
+export type SceneFields = {
+  script: string;
+  description: string;
+  hooks_alternativos?: string[];
+  ctas_alternativos?: string[];
+};
 
 export interface VisualReference {
   id: string;
@@ -318,13 +330,14 @@ async function nextPosition(table: string, column: string, value: string) {
 
 export async function addVideo(
   guideId: string,
-  title: string
+  title: string,
+  notasProducao = ""
 ): Promise<Video> {
   const supabase = getSupabaseServerClient();
   const position = await nextPosition("videos", "guide_id", guideId);
   const { data, error } = await supabase
     .from("videos")
-    .insert({ guide_id: guideId, position, title })
+    .insert({ guide_id: guideId, position, title, notas_producao: notasProducao })
     .select("*")
     .single();
   if (error) throw error;
@@ -334,6 +347,15 @@ export async function addVideo(
 export async function updateVideo(id: string, title: string) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase.from("videos").update({ title }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateVideoNotas(id: string, notasProducao: string) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("videos")
+    .update({ notas_producao: notasProducao })
+    .eq("id", id);
   if (error) throw error;
 }
 
@@ -347,7 +369,7 @@ export async function deleteVideo(id: string) {
 
 export async function addScene(
   videoId: string,
-  fields: { script: string; description: string }
+  fields: SceneFields
 ): Promise<Scene> {
   const supabase = getSupabaseServerClient();
   const position = await nextPosition("scenes", "video_id", videoId);
@@ -356,8 +378,7 @@ export async function addScene(
     .insert({
       video_id: videoId,
       position,
-      script: fields.script,
-      description: fields.description,
+      ...fields,
     })
     .select("*")
     .single();
@@ -365,10 +386,7 @@ export async function addScene(
   return data;
 }
 
-export async function updateScene(
-  id: string,
-  fields: { script: string; description: string }
-) {
+export async function updateScene(id: string, fields: SceneFields) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase.from("scenes").update(fields).eq("id", id);
   if (error) throw error;

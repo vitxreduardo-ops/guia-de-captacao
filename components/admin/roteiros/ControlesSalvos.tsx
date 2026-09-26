@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { atualizarRoteiroAction } from "@/app/admin/roteiros/actions";
+import EnviarParaGuia from "@/components/admin/roteiros/EnviarParaGuia";
 import TagEditor from "@/components/admin/roteiros/TagEditor";
 
 type Props = {
@@ -93,6 +94,8 @@ export default function ControlesSalvos({ id }: Props) {
           compact
         />
       </div>
+
+      <EnviarParaGuia roteiroId={id} />
     </div>
   );
 }

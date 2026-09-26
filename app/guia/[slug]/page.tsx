@@ -1,3 +1,4 @@
+import { AlternativasCena, NotasProducao } from "@/components/AlternativasCena";
 import { notFound } from "next/navigation";
 import {
   toggleCardItemSelectedAction,
@@ -245,6 +246,8 @@ export default async function PublicGuidePage({
                             </div>
                           ) : null}
 
+                          <AlternativasCena scene={scene} />
+
                           {sceneReferences.length > 0 ? (
                             <div className="mt-3 columns-2 gap-2 sm:columns-3 [&>figure]:mb-2 [&>figure]:break-inside-avoid">
                               {(() => {
@@ -305,6 +308,8 @@ export default async function PublicGuidePage({
                         </div>
                       );
                     })}
+
+                    <NotasProducao notas={video.notas_producao} />
                   </div>
                 </Accordion>
                 );

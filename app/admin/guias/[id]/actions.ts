@@ -28,6 +28,7 @@ import {
   updateGuideInfo,
   updateScene,
   updateVideo,
+  updateVideoNotas,
   type ChecklistCategory,
 } from "@/lib/guides";
 import {
@@ -134,6 +135,13 @@ export async function updateVideoAction(formData: FormData) {
   revalidateGuide(guideId);
 }
 
+export async function updateVideoNotasAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const guideId = String(formData.get("guide_id"));
+  await updateVideoNotas(id, String(formData.get("notas_producao") ?? "").trim());
+  revalidateGuide(guideId);
+}
+
 export async function deleteVideoAction(formData: FormData) {
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
@@ -180,12 +188,25 @@ export async function addSceneAction(formData: FormData) {
   revalidateGuide(guideId);
 }
 
+/** Textarea "um por linha" vira lista, sem linhas vazias. */
+function linhas(value: FormDataEntryValue | null): string[] {
+  return String(value ?? "")
+    .split("\n")
+    .map((linha) => linha.trim())
+    .filter(Boolean);
+}
+
 export async function updateSceneAction(formData: FormData) {
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
   const script = String(formData.get("script") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
-  await updateScene(id, { script, description });
+  await updateScene(id, {
+    script,
+    description,
+    hooks_alternativos: linhas(formData.get("hooks_alternativos")),
+    ctas_alternativos: linhas(formData.get("ctas_alternativos")),
+  });
   revalidateGuide(guideId);
 }
 

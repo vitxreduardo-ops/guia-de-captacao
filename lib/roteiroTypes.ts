@@ -173,3 +173,77 @@ export function preenchimentoDe(r: Roteiro): PreenchimentoInicial {
     tags: r.tags ?? [],
   };
 }
+
+export type CenaImportada = {
+  script: string;
+  hooks_alternativos: string[];
+  ctas_alternativos: string[];
+};
+export type VideoImportado = { titulo: string; cenas: CenaImportada[]; notas_producao: string };
+
+function cena(script: string, extra: Partial<CenaImportada> = {}): CenaImportada {
+  return { script, hooks_alternativos: [], ctas_alternativos: [], ...extra };
+}
+
+/**
+ * Roteiro do gerador vira vídeo(s) do guia: cada bloco é uma cena. Os hooks
+ * alternativos vão na primeira cena (onde está o hook), os CTAs na última e
+ * as notas de produção no vídeo. 6 Chapéus vira um vídeo por ângulo.
+ */
+export function roteiroParaVideos(
+  framework: Framework,
+  tema: string,
+  json: RoteiroJson
+): VideoImportado[] {
+  switch (framework) {
+    case "AIDA": {
+      const r = json as RoteiroAIDA;
+      return [
+        {
+          titulo: tema,
+          cenas: [
+            cena(r.attention.texto, { hooks_alternativos: r.attention.hooks_alternativos ?? [] }),
+            cena(r.interest.texto),
+            cena(r.desire.texto),
+            cena(r.action.texto, { ctas_alternativos: r.action.cta_alternativos ?? [] }),
+          ],
+          notas_producao: r.notas_producao ?? "",
+        },
+      ];
+    }
+    case "PAS": {
+      const r = json as RoteiroPAS;
+      return [
+        {
+          titulo: tema,
+          cenas: [r.hook, r.problem, r.agitate, r.solution, r.cta].map((b) => cena(b.texto)),
+          notas_producao: "",
+        },
+      ];
+    }
+    case "Midtrack": {
+      const r = json as RoteiroMidtrack;
+      return [
+        {
+          titulo: tema,
+          cenas: [
+            r.hook,
+            r.contexto,
+            ...r.desenvolvimento,
+            r.climax,
+            r.payoff,
+          ].map((b) => cena(b.texto)),
+          notas_producao: "",
+        },
+      ];
+    }
+    case "6Chapeus": {
+      const r = json as Roteiro6Chapeus;
+      return r.roteiros.map((a) => ({
+        titulo: `${tema} — ${a.angulo}`,
+        cenas: [cena(a.hook), cena(a.corpo), cena(a.cta)],
+        notas_producao: "",
+      }));
+    }
+  }
+}

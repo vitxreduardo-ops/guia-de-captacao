@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { Framework, RoteiroJson } from "@/lib/roteiroTypes";
 import { atualizarRoteiroAction } from "@/app/admin/roteiros/actions";
+import EnviarParaGuia from "@/components/admin/roteiros/EnviarParaGuia";
 import TagEditor from "@/components/admin/roteiros/TagEditor";
 import ResultadoRoteiro from "@/components/admin/roteiros/ResultadoRoteiro";
 
@@ -153,6 +154,8 @@ export default function CardHistorico(props: Props) {
           atualizar({ tags: novasTags });
         }}
       />
+
+      <EnviarParaGuia roteiroId={props.id} />
     </div>
   );
 }

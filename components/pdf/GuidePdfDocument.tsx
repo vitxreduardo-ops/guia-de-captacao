@@ -144,6 +144,27 @@ function GuidePdfDocument({ guide }: { guide: GuideWithSections }) {
                         </>
                       ) : null}
 
+                      {scene.hooks_alternativos.length > 0 ? (
+                        <>
+                          <Text style={styles.sceneLabel}>Hooks alternativos</Text>
+                          {scene.hooks_alternativos.map((hook, i) => (
+                            <Text key={i} style={styles.sceneScript}>
+                              • {hook}
+                            </Text>
+                          ))}
+                        </>
+                      ) : null}
+                      {scene.ctas_alternativos.length > 0 ? (
+                        <>
+                          <Text style={styles.sceneLabel}>CTAs alternativos</Text>
+                          {scene.ctas_alternativos.map((cta, i) => (
+                            <Text key={i} style={styles.sceneScript}>
+                              • {cta}
+                            </Text>
+                          ))}
+                        </>
+                      ) : null}
+
                       {sceneReferences.length > 0 ? (
                         <View style={styles.referencesGrid}>
                           {sceneReferences.map((reference) => {
@@ -189,6 +210,15 @@ function GuidePdfDocument({ guide }: { guide: GuideWithSections }) {
                     </View>
                   );
                 })}
+
+                {video.notas_producao ? (
+                  // Pode quebrar entre páginas: preso inteiro, ia sozinho pra
+                  // próxima folha e deixava um buraco embaixo da última cena.
+                  <View style={styles.sceneBox}>
+                    <Text style={styles.sceneTitle}>Notas de produção</Text>
+                    <Text style={styles.sceneScript}>{video.notas_producao}</Text>
+                  </View>
+                ) : null}
               </View>
             ))}
           </View>

@@ -22,7 +22,8 @@ import {
   schemaChat,
   schemaTriagem,
 } from "@/lib/roteiroSchemas";
-import { insertRoteiro, updateRoteiro } from "@/lib/roteiros";
+import { addScene, addVideo, listGuides } from "@/lib/guides";
+import { getRoteiro, insertRoteiro, updateRoteiro } from "@/lib/roteiros";
 import {
   DURACAO_MAX,
   DURACAO_MIN,
@@ -30,6 +31,7 @@ import {
   type Framework,
   type RoteiroJson,
   type StatusRoteiro,
+  roteiroParaVideos,
 } from "@/lib/roteiroTypes";
 
 type Comum = {
@@ -216,6 +218,51 @@ export async function conversarAction(
       temperature: 0.8,
     });
     return { ok: true, data };
+  } catch (err) {
+    return { ok: false, error: mensagem(err) };
+  }
+}
+
+export async function listarGuiasAction(): Promise<
+  Resultado<{ id: string; titulo: string; cliente: string }[]>
+> {
+  if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
+  try {
+    const guias = await listGuides();
+    return {
+      ok: true,
+      data: guias.map((g) => ({ id: g.id, titulo: g.title, cliente: g.client_name })),
+    };
+  } catch (err) {
+    return { ok: false, error: mensagem(err) };
+  }
+}
+
+/**
+ * Manda um roteiro do histórico pra um guia: vira vídeo(s) novo(s) no fim do
+ * guia, uma cena por bloco. Lê o roteiro do banco pelo id em vez de confiar
+ * no que o navegador mandar.
+ */
+export async function enviarParaGuiaAction(
+  roteiroId: string,
+  guiaId: string
+): Promise<Resultado<{ videos: number }>> {
+  if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
+  try {
+    const roteiro = await getRoteiro(roteiroId);
+    if (!roteiro) return { ok: false, error: "Roteiro não encontrado." };
+
+    const videos = roteiroParaVideos(roteiro.framework, roteiro.tema, roteiro.roteiro);
+    // ponytail: vídeos e cenas entram um a um, sem transação; se cair no meio
+    // o vídeo fica pela metade no guia e dá pra apagar pelo editor.
+    for (const video of videos) {
+      const criado = await addVideo(guiaId, video.titulo, video.notas_producao);
+      for (const cena of video.cenas) {
+        await addScene(criado.id, { description: "", ...cena });
+      }
+    }
+    revalidatePath(`/admin/guias/${guiaId}`);
+    return { ok: true, data: { videos: videos.length } };
   } catch (err) {
     return { ok: false, error: mensagem(err) };
   }
