@@ -284,14 +284,33 @@ export async function createGuide(title: string, clientName = ""): Promise<Guide
   return data;
 }
 
-/** Nomes de cliente já usados nos guias, pra sugerir no campo e não duplicar pasta. */
-export async function listGuideClientNames(): Promise<string[]> {
+export type SugestaoCliente = { nome: string; cadastrado: boolean };
+
+/**
+ * Sugestões do campo Cliente do guia: clientes do cadastro (gallery_clients)
+ * mais os nomes já usados em guias, sem repetir (ignora maiúscula/acento de
+ * borda). Cada nome vira uma pasta na home, então sugerir evita duplicata.
+ */
+export async function listGuideClientNames(): Promise<SugestaoCliente[]> {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase.from("guides").select("client_name");
-  if (error) throw error;
-  return Array.from(
-    new Set((data ?? []).map((g) => String(g.client_name ?? "").trim()).filter(Boolean))
-  ).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const [guias, cadastro] = await Promise.all([
+    supabase.from("guides").select("client_name"),
+    supabase.from("gallery_clients").select("name"),
+  ]);
+  if (guias.error) throw guias.error;
+  if (cadastro.error) throw cadastro.error;
+
+  const porChave = new Map<string, SugestaoCliente>();
+  const chave = (nome: string) => nome.toLocaleLowerCase("pt-BR");
+  for (const c of cadastro.data ?? []) {
+    const nome = String(c.name ?? "").trim();
+    if (nome) porChave.set(chave(nome), { nome, cadastrado: true });
+  }
+  for (const g of guias.data ?? []) {
+    const nome = String(g.client_name ?? "").trim();
+    if (nome && !porChave.has(chave(nome))) porChave.set(chave(nome), { nome, cadastrado: false });
+  }
+  return [...porChave.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 }
 
 export async function updateGuideInfo(

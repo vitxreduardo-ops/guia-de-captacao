@@ -1,13 +1,13 @@
 import { updateGuideInfoAction } from "@/app/admin/guias/[id]/actions";
-import type { GuideWithSections } from "@/lib/guides";
+import type { GuideWithSections, SugestaoCliente } from "@/lib/guides";
 
 export function GeneralInfoForm({
   guide,
   clientes = [],
 }: {
   guide: GuideWithSections;
-  /** Clientes já usados em outros guias: cada nome é uma pasta na home. */
-  clientes?: string[];
+  /** Cadastro de clientes + nomes já usados em guias: cada nome é uma pasta na home. */
+  clientes?: SugestaoCliente[];
 }) {
   return (
     <section className="rounded-lg border border-neutral-200 bg-white p-4">
@@ -37,11 +37,16 @@ export function GeneralInfoForm({
               defaultValue={guide.client_name}
               list="clientes-dos-guias"
               autoComplete="off"
+              placeholder="Escolha um cliente cadastrado ou digite um nome"
               className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
             />
             <datalist id="clientes-dos-guias">
               {clientes.map((c) => (
-                <option key={c} value={c} />
+                <option
+                  key={c.nome}
+                  value={c.nome}
+                  label={c.cadastrado ? "Cliente cadastrado" : "Usado em guias"}
+                />
               ))}
             </datalist>
           </div>
