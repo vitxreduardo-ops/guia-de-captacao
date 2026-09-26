@@ -6,7 +6,9 @@ import { createGuide, deleteGuide } from "@/lib/guides";
 
 export async function createGuideAction(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
-  const guide = await createGuide(title || "Novo guia");
+  // Vem preenchido quando o guia é criado de dentro da pasta de um cliente.
+  const clientName = String(formData.get("client_name") ?? "").trim();
+  const guide = await createGuide(title || "Novo guia", clientName);
   revalidatePath("/admin/guias");
   redirect(`/admin/guias/${guide.id}`);
 }
