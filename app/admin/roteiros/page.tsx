@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import ChatRoteiro from "@/components/admin/roteiros/ChatRoteiro";
 import GeradorRoteiro from "@/components/admin/roteiros/GeradorRoteiro";
 import { getRoteiro } from "@/lib/roteiros";
 import { preenchimentoDe } from "@/lib/roteiroTypes";
@@ -13,7 +14,7 @@ export default async function RoteirosPage({
   const base = typeof de === "string" ? await getRoteiro(de) : null;
 
   return (
-    <div className="mx-auto w-full max-w-3xl pb-10">
+    <div className="mx-auto w-full max-w-3xl pb-10 xl:max-w-[88rem]">
       <AdminHeader
         title="Roteiros"
         trail={[{ label: "Admin", href: "/admin" }, { label: "Roteiros" }]}
@@ -24,9 +25,10 @@ export default async function RoteirosPage({
           AIDA · PAS · Midtrack · 6 Chapéus — roteiros de vídeos curtos para redes sociais
         </p>
         <div className="flex shrink-0 gap-2">
+          {/* Em tela larga o chat já está ao lado: o botão só existe onde não cabe. */}
           <Link
             href="/admin/roteiros/chat"
-            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 xl:hidden"
           >
             Chat
           </Link>
@@ -39,8 +41,22 @@ export default async function RoteirosPage({
         </div>
       </div>
 
-      {/* key: trocar de base remonta o formulário em vez de manter o anterior. */}
-      <GeradorRoteiro key={base?.id ?? "novo"} inicial={base ? preenchimentoDe(base) : null} />
+      {/* Em tela larga o formulário sozinho deixava metade da tela vazia:
+          o chat vai pra coluna da direita e acompanha a rolagem. */}
+      <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] xl:items-start xl:gap-6">
+        {/* key: trocar de base remonta o formulário em vez de manter o anterior. */}
+        <GeradorRoteiro key={base?.id ?? "novo"} inicial={base ? preenchimentoDe(base) : null} />
+
+        <aside
+          aria-label="Chat de roteiros"
+          className="sticky top-4 hidden h-[calc(100svh-2rem)] flex-col xl:flex"
+        >
+          <h2 className="mb-2 text-sm font-medium text-neutral-700">Chat</h2>
+          <div className="min-h-0 flex-1">
+            <ChatRoteiro preencher />
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

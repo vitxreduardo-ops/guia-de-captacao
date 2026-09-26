@@ -78,7 +78,12 @@ async function baixarPdf(pergunta: string, resposta: string) {
 const BOTAO_BAIXAR =
   "rounded-md border border-neutral-300 px-2 py-1 text-[11px] text-neutral-700 hover:bg-neutral-50 disabled:opacity-50";
 
-export default function ChatRoteiro() {
+export default function ChatRoteiro({
+  preencher = false,
+}: {
+  /** Ocupa a altura do pai (coluna ao lado do gerador) em vez de ter altura própria. */
+  preencher?: boolean;
+}) {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [texto, setTexto] = useState("");
   const [carregando, setCarregando] = useState(false);
@@ -132,9 +137,15 @@ export default function ChatRoteiro() {
   }
 
   return (
-    <div className="flex flex-col rounded-lg border border-neutral-200 bg-white">
+    <div
+      className={`flex flex-col rounded-lg border border-neutral-200 bg-white ${
+        preencher ? "h-full min-h-0" : ""
+      }`}
+    >
       <div
-        className="min-h-[18rem] max-h-[60svh] space-y-3 overflow-y-auto p-4"
+        className={`space-y-3 overflow-y-auto p-4 ${
+          preencher ? "min-h-0 flex-1" : "min-h-[18rem] max-h-[60svh]"
+        }`}
         aria-live="polite"
       >
         {mensagens.length === 0 && !carregando && (
