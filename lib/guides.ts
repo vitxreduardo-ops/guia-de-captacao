@@ -270,18 +270,28 @@ export async function getGuideBySlugWithSections(
   return attachSections(data);
 }
 
-export async function createGuide(title: string): Promise<Guide> {
+export async function createGuide(title: string, clientName = ""): Promise<Guide> {
   const supabase = getSupabaseServerClient();
   const slug = await generateUniqueSlug(title || "novo-guia");
 
   const { data, error } = await supabase
     .from("guides")
-    .insert({ title: title || "Novo guia", slug })
+    .insert({ title: title || "Novo guia", slug, client_name: clientName })
     .select("*")
     .single();
 
   if (error) throw error;
   return data;
+}
+
+/** Nomes de cliente já usados nos guias, pra sugerir no campo e não duplicar pasta. */
+export async function listGuideClientNames(): Promise<string[]> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase.from("guides").select("client_name");
+  if (error) throw error;
+  return Array.from(
+    new Set((data ?? []).map((g) => String(g.client_name ?? "").trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
 export async function updateGuideInfo(

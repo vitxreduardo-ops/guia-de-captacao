@@ -1,4 +1,6 @@
+import { Folder, FolderOpen, Plus } from "lucide-react";
 import Link from "next/link";
+import { agruparPorCliente, SEM_CLIENTE, type PastaCliente } from "@/lib/guideFolders";
 import { listGuides, type Guide } from "@/lib/guides";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { DeleteButton } from "@/components/admin/DeleteButton";
@@ -6,8 +8,10 @@ import { createGuideAction, deleteGuideAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("pt-BR");
+/** "2026-12-05" -> "05/12/2026" sem passar por Date (evita virar o dia no fuso). */
+function formatShootDate(value: string) {
+  const [ano, mes, dia] = value.split("-");
+  return `${dia}/${mes}/${ano}`;
 }
 
 const MONTH_LABELS = [
@@ -43,9 +47,8 @@ function uniqueSorted(values: string[]) {
 
 function matchesFilters(
   guide: Guide,
-  filters: { client: string; month: string; status: string; tag: string }
+  filters: { month: string; status: string; tag: string }
 ) {
-  if (filters.client && guide.client_name !== filters.client) return false;
   if (filters.month && (!guide.shoot_date || monthKey(guide.shoot_date) !== filters.month))
     return false;
   if (filters.status && guide.status !== filters.status) return false;
@@ -60,7 +63,6 @@ export default async function AdminDashboard({
 }) {
   const params = await searchParams;
   const filters = {
-    client: String(params.client ?? ""),
     month: String(params.month ?? ""),
     status: String(params.status ?? ""),
     tag: String(params.tag ?? ""),
@@ -70,7 +72,6 @@ export default async function AdminDashboard({
     listGuides(),
   ]);
 
-  const clientOptions = uniqueSorted(guides.map((g) => g.client_name));
   const monthOptions = Array.from(
     new Set(guides.map((g) => (g.shoot_date ? monthKey(g.shoot_date) : "")).filter(Boolean))
   ).sort((a, b) => b.localeCompare(a));
@@ -78,6 +79,9 @@ export default async function AdminDashboard({
 
   const hasActiveFilters = Object.values(filters).some(Boolean);
   const filteredGuides = guides.filter((guide) => matchesFilters(guide, filters));
+  // "Hoje" no fuso do estúdio: o servidor roda em UTC e virava o dia às 21h.
+  const hoje = new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+  const pastas = agruparPorCliente(filteredGuides, hoje);
 
   return (
     <div className="mx-auto w-full max-w-6xl pb-10">
@@ -108,23 +112,6 @@ export default async function AdminDashboard({
         method="get"
         className="mb-8 flex flex-wrap items-end gap-3 rounded-lg border border-neutral-200 bg-white p-4"
       >
-        <div>
-          <label className="mb-1 block text-xs font-medium text-neutral-600">
-            Cliente
-          </label>
-          <select
-            name="client"
-            defaultValue={filters.client}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-          >
-            <option value="">Todos</option>
-            {clientOptions.map((client) => (
-              <option key={client} value={client}>
-                {client}
-              </option>
-            ))}
-          </select>
-        </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-neutral-600">
             Mês
@@ -196,63 +183,132 @@ export default async function AdminDashboard({
             : "Nenhum guia encontrado com esses filtros."}
         </p>
       ) : (
-        <ul className="grid gap-3 lg:grid-cols-2">
-          {filteredGuides.map((guide) => (
-            <li
-              key={guide.id}
-              className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-4"
-            >
-              <div>
-                <Link
-                  href={`/admin/guias/${guide.id}`}
-                  className="font-medium text-neutral-900 hover:underline"
-                >
-                  {guide.title}
-                </Link>
-                <p className="mt-0.5 text-sm text-neutral-500">
-                  {guide.client_name || "Sem cliente definido"} ·{" "}
-                  {formatDate(guide.created_at)} ·{" "}
-                  <span
-                    className={
-                      guide.status === "published"
-                        ? "text-emerald-600"
-                        : "text-amber-600"
-                    }
-                  >
-                    {guide.status === "published" ? "Publicado" : "Rascunho"}
-                  </span>
-                </p>
-                {guide.tags.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {guide.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-3">
-                <Link
-                  href={`/admin/guias/${guide.id}`}
-                  className="text-sm text-neutral-600 hover:text-neutral-900"
-                >
-                  Editar
-                </Link>
-                <form action={deleteGuideAction}>
-                  <input type="hidden" name="id" value={guide.id} />
-                  <DeleteButton
-                    confirmMessage={`Excluir o guia "${guide.title}"? Essa ação não pode ser desfeita.`}
-                  />
-                </form>
-              </div>
-            </li>
+        <div className="space-y-3">
+          {pastas.map((pasta) => (
+            <PastaDoCliente
+              key={pasta.cliente}
+              pasta={pasta}
+              // Filtro ativo ou pasta única: abre pra mostrar o resultado.
+              aberta={hasActiveFilters || pastas.length === 1}
+            />
           ))}
-        </ul>
+        </div>
       )}
     </div>
+  );
+}
+
+function GuideCard({ guide }: { guide: Guide }) {
+  return (
+    <li className="flex items-center justify-between gap-3 rounded-lg border border-neutral-200 bg-white p-4">
+      <div className="min-w-0">
+        <Link
+          href={`/admin/guias/${guide.id}`}
+          className="font-medium text-neutral-900 hover:underline"
+        >
+          {guide.title}
+        </Link>
+        <p className="mt-0.5 text-sm text-neutral-500">
+          {guide.shoot_date ? `Gravação ${formatShootDate(guide.shoot_date)}` : "Sem data"} ·{" "}
+          <span
+            className={guide.status === "published" ? "text-emerald-600" : "text-amber-600"}
+          >
+            {guide.status === "published" ? "Publicado" : "Rascunho"}
+          </span>
+        </p>
+        {guide.tags.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {guide.tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-600"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <div className="flex shrink-0 items-center gap-3">
+        <Link
+          href={`/admin/guias/${guide.id}`}
+          className="text-sm text-neutral-600 hover:text-neutral-900"
+        >
+          Editar
+        </Link>
+        <form action={deleteGuideAction}>
+          <input type="hidden" name="id" value={guide.id} />
+          <DeleteButton
+            confirmMessage={`Excluir o guia "${guide.title}"? Essa ação não pode ser desfeita.`}
+          />
+        </form>
+      </div>
+    </li>
+  );
+}
+
+function PastaDoCliente({ pasta, aberta }: { pasta: PastaCliente; aberta: boolean }) {
+  const semCliente = pasta.cliente === SEM_CLIENTE;
+  return (
+    <details open={aberta} className="group rounded-lg border border-neutral-200 bg-white">
+      <summary className="flex cursor-pointer list-none items-center gap-3 rounded-lg p-4 hover:bg-neutral-50 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+        <Folder
+          className="size-5 shrink-0 text-neutral-400 group-open:hidden"
+          aria-hidden
+        />
+        <FolderOpen
+          className="hidden size-5 shrink-0 text-neutral-400 group-open:block"
+          aria-hidden
+        />
+        <span className="min-w-0 flex-1">
+          <span className={`font-medium ${semCliente ? "text-neutral-500" : "text-neutral-900"}`}>
+            {pasta.cliente}
+          </span>
+          <span className="ml-2 text-sm text-neutral-500">
+            {pasta.total} {pasta.total === 1 ? "guia" : "guias"}
+          </span>
+        </span>
+        {pasta.proxima ? (
+          <span className="shrink-0 text-xs text-neutral-500">
+            Próxima gravação {formatShootDate(pasta.proxima)}
+          </span>
+        ) : null}
+      </summary>
+
+      <div className="space-y-4 border-t border-neutral-200 p-4">
+        {pasta.meses.map((mes) => (
+          <section key={mes.chave}>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              {mes.chave === "sem-data" ? "Sem data de gravação" : formatMonthLabel(mes.chave)}
+            </h3>
+            <ul className="grid gap-3 lg:grid-cols-2">
+              {mes.guias.map((guide) => (
+                <GuideCard key={guide.id} guide={guide} />
+              ))}
+            </ul>
+          </section>
+        ))}
+
+        {semCliente ? null : (
+          <form action={createGuideAction} className="flex gap-2 pt-1">
+            <input type="hidden" name="client_name" value={pasta.cliente} />
+            <input
+              name="title"
+              required
+              aria-label={`Título do novo guia de ${pasta.cliente}`}
+              placeholder={`Novo guia de ${pasta.cliente} (ex: Campanha Dezembro)`}
+              className="min-w-0 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+            />
+            <button
+              type="submit"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-neutral-300 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+            >
+              <Plus className="size-4" aria-hidden />
+              Novo guia
+            </button>
+          </form>
+        )}
+      </div>
+    </details>
   );
 }
