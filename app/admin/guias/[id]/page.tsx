@@ -37,7 +37,10 @@ export default async function GuideEditPage({
   if (!guide) notFound();
 
   return (
-    <div className="mx-auto w-full max-w-6xl pb-10">
+    // Todo botão do editor afunda um pouco no toque (e os links com cara de
+    // botão). Regra no contêiner em vez de em cada um dos ~30 botões: um
+    // botão novo já nasce com o retorno.
+    <div className="mx-auto w-full max-w-6xl pb-10 [&_a.rounded-md]:transition-[scale] [&_button]:transition-[scale,background-color,border-color,color] [&_button]:duration-150 motion-safe:[&_a.rounded-md:active]:scale-[0.97] motion-safe:[&_button:not(:disabled):active]:scale-[0.97]">
       <AdminHeader
         title={guide.title}
         trail={[
