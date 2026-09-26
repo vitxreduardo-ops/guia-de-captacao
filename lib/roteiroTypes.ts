@@ -178,18 +178,17 @@ export type CenaImportada = {
   script: string;
   hooks_alternativos: string[];
   ctas_alternativos: string[];
-  notas_producao: string;
 };
-export type VideoImportado = { titulo: string; cenas: CenaImportada[] };
+export type VideoImportado = { titulo: string; cenas: CenaImportada[]; notas_producao: string };
 
 function cena(script: string, extra: Partial<CenaImportada> = {}): CenaImportada {
-  return { script, hooks_alternativos: [], ctas_alternativos: [], notas_producao: "", ...extra };
+  return { script, hooks_alternativos: [], ctas_alternativos: [], ...extra };
 }
 
 /**
  * Roteiro do gerador vira vídeo(s) do guia: cada bloco é uma cena. Os hooks
  * alternativos vão na primeira cena (onde está o hook), os CTAs na última e
- * as notas de produção também na primeira. 6 Chapéus vira um vídeo por ângulo.
+ * as notas de produção no vídeo. 6 Chapéus vira um vídeo por ângulo.
  */
 export function roteiroParaVideos(
   framework: Framework,
@@ -203,14 +202,12 @@ export function roteiroParaVideos(
         {
           titulo: tema,
           cenas: [
-            cena(r.attention.texto, {
-              hooks_alternativos: r.attention.hooks_alternativos ?? [],
-              notas_producao: r.notas_producao ?? "",
-            }),
+            cena(r.attention.texto, { hooks_alternativos: r.attention.hooks_alternativos ?? [] }),
             cena(r.interest.texto),
             cena(r.desire.texto),
             cena(r.action.texto, { ctas_alternativos: r.action.cta_alternativos ?? [] }),
           ],
+          notas_producao: r.notas_producao ?? "",
         },
       ];
     }
@@ -220,6 +217,7 @@ export function roteiroParaVideos(
         {
           titulo: tema,
           cenas: [r.hook, r.problem, r.agitate, r.solution, r.cta].map((b) => cena(b.texto)),
+          notas_producao: "",
         },
       ];
     }
@@ -235,6 +233,7 @@ export function roteiroParaVideos(
             r.climax,
             r.payoff,
           ].map((b) => cena(b.texto)),
+          notas_producao: "",
         },
       ];
     }
@@ -243,6 +242,7 @@ export function roteiroParaVideos(
       return r.roteiros.map((a) => ({
         titulo: `${tema} — ${a.angulo}`,
         cenas: [cena(a.hook), cena(a.corpo), cena(a.cta)],
+        notas_producao: "",
       }));
     }
   }

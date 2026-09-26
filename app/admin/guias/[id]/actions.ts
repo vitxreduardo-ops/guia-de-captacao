@@ -28,6 +28,7 @@ import {
   updateGuideInfo,
   updateScene,
   updateVideo,
+  updateVideoNotas,
   type ChecklistCategory,
 } from "@/lib/guides";
 import {
@@ -134,6 +135,13 @@ export async function updateVideoAction(formData: FormData) {
   revalidateGuide(guideId);
 }
 
+export async function updateVideoNotasAction(formData: FormData) {
+  const id = String(formData.get("id"));
+  const guideId = String(formData.get("guide_id"));
+  await updateVideoNotas(id, String(formData.get("notas_producao") ?? "").trim());
+  revalidateGuide(guideId);
+}
+
 export async function deleteVideoAction(formData: FormData) {
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
@@ -198,7 +206,6 @@ export async function updateSceneAction(formData: FormData) {
     description,
     hooks_alternativos: linhas(formData.get("hooks_alternativos")),
     ctas_alternativos: linhas(formData.get("ctas_alternativos")),
-    notas_producao: String(formData.get("notas_producao") ?? "").trim(),
   });
   revalidateGuide(guideId);
 }

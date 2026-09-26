@@ -256,7 +256,7 @@ export async function enviarParaGuiaAction(
     // ponytail: vídeos e cenas entram um a um, sem transação; se cair no meio
     // o vídeo fica pela metade no guia e dá pra apagar pelo editor.
     for (const video of videos) {
-      const criado = await addVideo(guiaId, video.titulo);
+      const criado = await addVideo(guiaId, video.titulo, video.notas_producao);
       for (const cena of video.cenas) {
         await addScene(criado.id, { description: "", ...cena });
       }

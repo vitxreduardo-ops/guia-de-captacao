@@ -164,12 +164,6 @@ function GuidePdfDocument({ guide }: { guide: GuideWithSections }) {
                           ))}
                         </>
                       ) : null}
-                      {scene.notas_producao ? (
-                        <>
-                          <Text style={styles.sceneLabel}>Notas de produção</Text>
-                          <Text style={styles.sceneScript}>{scene.notas_producao}</Text>
-                        </>
-                      ) : null}
 
                       {sceneReferences.length > 0 ? (
                         <View style={styles.referencesGrid}>
@@ -216,6 +210,15 @@ function GuidePdfDocument({ guide }: { guide: GuideWithSections }) {
                     </View>
                   );
                 })}
+
+                {video.notas_producao ? (
+                  // Pode quebrar entre páginas: preso inteiro, ia sozinho pra
+                  // próxima folha e deixava um buraco embaixo da última cena.
+                  <View style={styles.sceneBox}>
+                    <Text style={styles.sceneTitle}>Notas de produção</Text>
+                    <Text style={styles.sceneScript}>{video.notas_producao}</Text>
+                  </View>
+                ) : null}
               </View>
             ))}
           </View>

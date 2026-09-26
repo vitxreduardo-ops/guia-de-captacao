@@ -1,4 +1,4 @@
-import { AlternativasCena } from "@/components/AlternativasCena";
+import { AlternativasCena, NotasProducao } from "@/components/AlternativasCena";
 import { notFound } from "next/navigation";
 import {
   toggleCardItemSelectedAction,
@@ -308,6 +308,8 @@ export default async function PublicGuidePage({
                         </div>
                       );
                     })}
+
+                    <NotasProducao notas={video.notas_producao} />
                   </div>
                 </Accordion>
                 );

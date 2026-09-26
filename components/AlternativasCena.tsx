@@ -14,21 +14,26 @@ function Lista({ titulo, itens }: { titulo: string; itens: string[] }) {
   );
 }
 
-/** Hooks e CTAs alternativos e notas de produção de uma cena do guia. */
+/** Hooks e CTAs alternativos de uma cena do guia. */
 export function AlternativasCena({ scene }: { scene: Scene }) {
-  const { hooks_alternativos: hooks, ctas_alternativos: ctas, notas_producao: notas } = scene;
-  if (hooks.length === 0 && ctas.length === 0 && !notas) return null;
+  const { hooks_alternativos: hooks, ctas_alternativos: ctas } = scene;
+  if (hooks.length === 0 && ctas.length === 0) return null;
 
   return (
     <div className="mt-3 space-y-2">
       <Lista titulo="Hooks alternativos" itens={hooks} />
       <Lista titulo="CTAs alternativos" itens={ctas} />
-      {notas ? (
-        <p className="rounded-md border border-neutral-200 bg-white p-3 text-xs leading-relaxed text-neutral-600">
-          <strong className="text-neutral-700">Notas de produção:</strong>{" "}
-          <span className="whitespace-pre-wrap">{notas}</span>
-        </p>
-      ) : null}
     </div>
+  );
+}
+
+/** Notas de produção do vídeo, depois da última cena. */
+export function NotasProducao({ notas }: { notas: string }) {
+  if (!notas) return null;
+  return (
+    <p className="rounded-md border border-neutral-200 bg-neutral-50 p-3 text-xs leading-relaxed text-neutral-600">
+      <strong className="text-neutral-700">Notas de produção:</strong>{" "}
+      <span className="whitespace-pre-wrap">{notas}</span>
+    </p>
   );
 }

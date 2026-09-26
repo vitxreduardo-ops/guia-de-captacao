@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { roteiroParaVideos } from "@/lib/roteiroTypes";
 
 describe("roteiroParaVideos", () => {
-  it("AIDA: hooks e notas na primeira cena, CTAs na última", () => {
+  it("AIDA: hooks na primeira cena, CTAs na última, notas no vídeo", () => {
     const [video] = roteiroParaVideos("AIDA", "Matrícula", {
       attention: { texto: "a", hooks_alternativos: ["h1", "h2"] },
       interest: { texto: "i" },
@@ -13,7 +13,7 @@ describe("roteiroParaVideos", () => {
     expect(video.titulo).toBe("Matrícula");
     expect(video.cenas.map((c) => c.script)).toEqual(["a", "i", "d", "c"]);
     expect(video.cenas[0].hooks_alternativos).toEqual(["h1", "h2"]);
-    expect(video.cenas[0].notas_producao).toBe("n");
+    expect(video.notas_producao).toBe("n");
     expect(video.cenas[3].ctas_alternativos).toEqual(["c1"]);
     expect(video.cenas[1].hooks_alternativos).toEqual([]);
   });
