@@ -56,3 +56,18 @@ describe("agrupadoPorCategoria", () => {
     ]);
   });
 });
+
+describe("ordem dos pesos", () => {
+  it("segue PESOS_FONTE, e não a alfabética", () => {
+    const grupo = catalogoDeFontes([], [
+      { family: "a", label: "Instrument Serif", category: "serif", weight: "Italic" },
+      { family: "b", label: "Instrument Serif", category: "serif", weight: "Regular" },
+      { family: "c", label: "Instrument Serif", category: "serif", weight: "Light" },
+    ]).find((g) => g.label === "Instrument Serif");
+    expect(grupo?.opcoes.map((o) => o.weight)).toEqual([
+      "Light",
+      "Regular",
+      "Italic",
+    ]);
+  });
+});
