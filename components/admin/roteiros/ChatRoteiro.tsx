@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { conversarAction } from "@/app/admin/roteiros/actions";
+import { FileDown, FileText, Loader2, MessageSquare, SendHorizontal, Trash2 } from "lucide-react";
 import { slugify } from "@/lib/slug";
 import {
   ThoughtChain,
@@ -76,7 +77,7 @@ async function baixarPdf(pergunta: string, resposta: string) {
 }
 
 const BOTAO_BAIXAR =
-  "rounded-md border border-neutral-300 px-2 py-1 text-[11px] text-neutral-700 hover:bg-neutral-50 disabled:opacity-50";
+  "inline-flex items-center gap-1 rounded-md border border-neutral-300 px-2 py-1 text-[11px] text-neutral-700 hover:bg-neutral-50 disabled:opacity-50";
 
 export default function ChatRoteiro({
   preencher = false,
@@ -146,7 +147,10 @@ export default function ChatRoteiro({
         // Mesmo cabeçalho do "01 · Roteiro" ao lado, pra os dois quadros
         // começarem na mesma linha e pesarem igual.
         <div className="flex items-baseline justify-between border-b border-neutral-200 px-6 pt-6 pb-4">
-          <h2 className="text-lg font-bold tracking-tight text-neutral-900">Chat</h2>
+          <h2 className="flex items-center gap-2 text-lg font-bold tracking-tight text-neutral-900">
+            <MessageSquare className="size-4.5 text-neutral-500" aria-hidden />
+            Chat
+          </h2>
           <span className="font-mono text-xs text-neutral-500">ideias e ganchos</span>
         </div>
       )}
@@ -201,6 +205,7 @@ export default function ChatRoteiro({
                   className={BOTAO_BAIXAR}
                   onClick={() => baixarTxt(mensagens[i - 1]?.content ?? "", m.content)}
                 >
+                  <FileText className="size-3" aria-hidden />
                   Baixar .txt
                 </button>
                 <button
@@ -218,6 +223,11 @@ export default function ChatRoteiro({
                     }
                   }}
                 >
+                  {gerandoPdf === i ? (
+                    <Loader2 className="size-3 animate-spin motion-reduce:animate-none" aria-hidden />
+                  ) : (
+                    <FileDown className="size-3" aria-hidden />
+                  )}
                   {gerandoPdf === i ? "Gerando PDF..." : "Baixar PDF"}
                 </button>
               </div>
@@ -272,16 +282,18 @@ export default function ChatRoteiro({
           <button
             type="submit"
             disabled={carregando || !texto.trim()}
-            className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-1.5 rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
           >
+            <SendHorizontal className="size-3.5" aria-hidden />
             Enviar
           </button>
           {mensagens.length > 0 && (
             <button
               type="button"
               onClick={limpar}
-              className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50"
+              className="inline-flex items-center justify-center gap-1 rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50"
             >
+              <Trash2 className="size-3" aria-hidden />
               Limpar
             </button>
           )}

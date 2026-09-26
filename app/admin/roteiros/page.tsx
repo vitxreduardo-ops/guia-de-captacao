@@ -1,3 +1,4 @@
+import { History, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import ChatRoteiro from "@/components/admin/roteiros/ChatRoteiro";
@@ -33,14 +34,16 @@ export default async function RoteirosPage({
           {/* Em tela larga o chat já está ao lado: o botão só existe onde não cabe. */}
           <Link
             href="/admin/roteiros/chat"
-            className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-center text-sm text-neutral-700 hover:bg-neutral-50 sm:flex-none sm:py-1.5 xl:hidden"
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 sm:flex-none sm:py-1.5 xl:hidden"
           >
+            <MessageSquare className="size-4" aria-hidden />
             Chat
           </Link>
           <Link
             href="/admin/roteiros/historico"
-            className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-center text-sm text-neutral-700 hover:bg-neutral-50 sm:flex-none sm:py-1.5"
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 sm:flex-none sm:py-1.5"
           >
+            <History className="size-4" aria-hidden />
             Histórico
           </Link>
         </div>
