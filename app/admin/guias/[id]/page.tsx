@@ -43,6 +43,16 @@ export default async function GuideEditPage({
         trail={[
           { label: "Admin", href: "/admin" },
           { label: "Guias", href: "/admin/guias" },
+          // A pasta do cliente na trilha: voltar cai no mesmo lugar de onde
+          // o guia foi aberto, com a pasta já aberta.
+          ...(guide.client_name.trim()
+            ? [
+                {
+                  label: guide.client_name.trim(),
+                  href: `/admin/guias?pasta=${encodeURIComponent(guide.client_name.trim())}`,
+                },
+              ]
+            : []),
         ]}
       />
 

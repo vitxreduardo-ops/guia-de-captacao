@@ -2,6 +2,38 @@ import type { Guide } from "@/lib/guides";
 
 export const SEM_CLIENTE = "Sem cliente";
 
+/** "2026-12-05" -> "05/12/2026" sem passar por Date (evita virar o dia no fuso). */
+export function formatShootDate(value: string) {
+  const [ano, mes, dia] = value.split("-");
+  return `${dia}/${mes}/${ano}`;
+}
+
+const MONTH_LABELS = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
+
+export function monthKey(dateValue: string) {
+  return dateValue.slice(0, 7); // "YYYY-MM"
+}
+
+export function formatMonthLabel(key: string) {
+  const [year, month] = key.split("-");
+  const label = MONTH_LABELS[Number(month) - 1] ?? month;
+  return `${label}/${year}`;
+}
+
+
 export type GrupoMes = { chave: string; guias: Guide[] };
 export type PastaCliente = {
   cliente: string;
