@@ -113,15 +113,15 @@ export default function CamposComuns({
           />
         </div>
 
-        <div>
+        <div className="sm:col-span-2">
           <label className="mb-1 block text-sm text-neutral-500">Duração alvo</label>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {DURACOES.map((d) => (
               <button
                 key={d}
                 type="button"
                 onClick={() => setComum({ ...comum, duracaoSegundos: d })}
-                className={`font-mono flex-1 rounded-md border px-3 py-2 text-sm transition-colors ${
+                className={`font-mono flex-1 rounded-md border px-3 py-2 text-sm transition-colors sm:w-20 sm:flex-none ${
                   comum.duracaoSegundos === d
                     ? "border-neutral-900 bg-neutral-900 text-white"
                     : "border-neutral-200 bg-neutral-50 text-neutral-500 hover:border-neutral-400"
@@ -130,25 +130,34 @@ export default function CamposComuns({
                 {d}s
               </button>
             ))}
-            <input
-              type="number"
-              min={DURACAO_MIN}
-              max={DURACAO_MAX}
-              inputMode="numeric"
-              aria-label="Outra duração, em segundos"
-              placeholder="outra (s)"
-              value={DURACOES.includes(comum.duracaoSegundos) ? "" : comum.duracaoSegundos}
-              onChange={(e) => {
-                const n = Number(e.target.value);
-                // Vazio volta pro padrão em vez de mandar 0s pra IA.
-                setComum({ ...comum, duracaoSegundos: n > 0 ? n : 60 });
-              }}
-              className={`font-mono w-24 rounded-md border px-2 py-2 text-sm focus:border-neutral-500 focus:outline-none ${
+            {/* Mesma largura dos botões ao lado. A unidade fica fora do
+                placeholder pra continuar visível depois de digitar. */}
+            <div
+              className={`flex basis-full items-center rounded-md border focus-within:border-neutral-500 sm:w-36 sm:basis-auto ${
                 DURACOES.includes(comum.duracaoSegundos)
-                  ? "border-neutral-200 bg-neutral-50 text-neutral-900"
-                  : "border-neutral-900 bg-white text-neutral-900"
+                  ? "border-neutral-200 bg-neutral-50"
+                  : "border-neutral-900 bg-white"
               }`}
-            />
+            >
+              <input
+                type="number"
+                min={DURACAO_MIN}
+                max={DURACAO_MAX}
+                inputMode="numeric"
+                aria-label="Outra duração, em segundos"
+                placeholder="outra"
+                value={DURACOES.includes(comum.duracaoSegundos) ? "" : comum.duracaoSegundos}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  // Vazio volta pro padrão em vez de mandar 0s pra IA.
+                  setComum({ ...comum, duracaoSegundos: n > 0 ? n : 60 });
+                }}
+                className="font-mono w-full min-w-0 bg-transparent py-2 pl-3 text-center text-sm text-neutral-900 placeholder-neutral-400 [appearance:textfield] focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+              <span className="pr-3 font-mono text-xs text-neutral-500" aria-hidden>
+                seg
+              </span>
+            </div>
           </div>
         </div>
 
