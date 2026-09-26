@@ -106,6 +106,18 @@ export function catalogoDeFontes(
     grupos.set(chave, grupo);
   }
 
+  // Dentro do grupo o peso segue a ordem de PESOS_FONTE, não a alfabética: o
+  // seletor tem que ler do mais fino pro mais grosso, e não Bold antes de Light.
+  for (const grupo of grupos.values()) {
+    grupo.opcoes.sort(
+      (a, b) =>
+        (PESOS_FONTE.indexOf(a.weight as (typeof PESOS_FONTE)[number]) + 1 ||
+          Number.MAX_SAFE_INTEGER) -
+        (PESOS_FONTE.indexOf(b.weight as (typeof PESOS_FONTE)[number]) + 1 ||
+          Number.MAX_SAFE_INTEGER),
+    );
+  }
+
   const ordem = [...CATEGORIAS_FONTE, ""];
   return [...grupos.values()].sort(
     (a, b) =>
