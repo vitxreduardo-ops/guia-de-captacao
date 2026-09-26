@@ -1,3 +1,4 @@
+import { Eye } from "lucide-react";
 import { setStatusAction } from "@/app/admin/guias/[id]/actions";
 import type { GuideWithSections } from "@/lib/guides";
 
@@ -39,6 +40,20 @@ export function PublishBox({ guide }: { guide: GuideWithSections }) {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Só publicado: em rascunho o link público mostra "ainda não foi
+              publicado", e o botão levaria a uma página vazia. */}
+          {isPublished ? (
+            <a
+              href={publicPath}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+            >
+              <Eye className="size-4" aria-hidden />
+              Visualizar
+              <span className="sr-only">(abre em nova aba)</span>
+            </a>
+          ) : null}
           <a
             href={`/api/guias/${guide.slug}/pdf`}
             className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
