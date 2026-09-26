@@ -1,5 +1,5 @@
-import { Search } from "lucide-react";
 import Link from "next/link";
+import { BuscaGuias } from "@/components/admin/BuscaGuias";
 import { PastasClientes } from "@/components/admin/PastasClientes";
 import { agruparPorCliente, formatMonthLabel, monthKey } from "@/lib/guideFolders";
 import { listGuides, type Guide } from "@/lib/guides";
@@ -72,112 +72,103 @@ export default async function AdminDashboard({
         trail={[{ label: "Admin", href: "/admin" }, { label: "Guias" }]}
       />
 
-      <form
-        action={createGuideAction}
-        className="mb-6 flex gap-2 rounded-lg border border-neutral-200 bg-white p-4"
-      >
-        <input
-          name="title"
-          placeholder="Título do novo guia (ex: Gravação — Cliente X)"
-          required
-          className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-        />
-        <button
-          type="submit"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
-        >
-          Novo guia
-        </button>
-      </form>
-
-      <form
-        method="get"
-        className="mb-8 flex flex-wrap items-end gap-3 rounded-lg border border-neutral-200 bg-white p-4"
-      >
-        {/* Filtrar não fecha a pasta que estava aberta. */}
-        {params.pasta ? <input type="hidden" name="pasta" value={String(params.pasta)} /> : null}
-        <div className="min-w-[14rem] flex-1">
-          <label htmlFor="busca-guias" className="mb-1 block text-xs font-medium text-neutral-600">
-            Buscar
-          </label>
-          <div className="relative">
-            <Search
-              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral-400"
-              aria-hidden
-            />
-            <input
-              id="busca-guias"
-              type="search"
-              name="q"
-              defaultValue={filters.q}
-              placeholder="Título, cliente, local ou tag"
-              className="w-full rounded-md border border-neutral-300 py-2 pr-3 pl-9 text-sm focus:border-neutral-500 focus:outline-none"
-            />
+      <BuscaGuias
+        busca={filters.q}
+        ativo={hasActiveFilters}
+        manter={params.pasta ? { pasta: String(params.pasta) } : {}}
+        filtros={
+          <div className="flex flex-wrap items-end gap-3 rounded-lg border border-neutral-200 bg-white p-4">
+            {/* Os campos são do form da busca (form="busca-guias"): Filtrar ou
+                Enter na busca mandam busca e filtros juntos. */}
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">
+                Mês
+              </label>
+              <select
+                form="busca-guias"
+                name="month"
+                defaultValue={filters.month}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              >
+                <option value="">Todos</option>
+                {monthOptions.map((month) => (
+                  <option key={month} value={month}>
+                    {formatMonthLabel(month)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">
+                Status
+              </label>
+              <select
+                form="busca-guias"
+                name="status"
+                defaultValue={filters.status}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              >
+                <option value="">Todos</option>
+                <option value="draft">Rascunho</option>
+                <option value="published">Publicado</option>
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-neutral-600">
+                Tag
+              </label>
+              <select
+                form="busca-guias"
+                name="tag"
+                defaultValue={filters.tag}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+              >
+                <option value="">Todas</option>
+                {tagOptions.map((tag) => (
+                  <option key={tag} value={tag}>
+                    {tag}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="submit"
+              form="busca-guias"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+            >
+              Filtrar
+            </button>
+            {hasActiveFilters ? (
+              <Link
+                href="/admin/guias"
+                className="text-sm text-neutral-500 hover:text-neutral-800"
+              >
+                Limpar filtros
+              </Link>
+            ) : null}
           </div>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-neutral-600">
-            Mês
-          </label>
-          <select
-            name="month"
-            defaultValue={filters.month}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-          >
-            <option value="">Todos</option>
-            {monthOptions.map((month) => (
-              <option key={month} value={month}>
-                {formatMonthLabel(month)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-neutral-600">
-            Status
-          </label>
-          <select
-            name="status"
-            defaultValue={filters.status}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-          >
-            <option value="">Todos</option>
-            <option value="draft">Rascunho</option>
-            <option value="published">Publicado</option>
-          </select>
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-neutral-600">
-            Tag
-          </label>
-          <select
-            name="tag"
-            defaultValue={filters.tag}
-            className="rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
-          >
-            <option value="">Todas</option>
-            {tagOptions.map((tag) => (
-              <option key={tag} value={tag}>
-                {tag}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button
-          type="submit"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+        }
+      >
+        <form
+          action={createGuideAction}
+          className="flex gap-2 rounded-lg border border-neutral-200 bg-white p-4"
         >
-          Filtrar
-        </button>
-        {hasActiveFilters ? (
-          <Link
-            href="/admin/guias"
-            className="text-sm text-neutral-500 hover:text-neutral-800"
+          <input
+            name="title"
+            placeholder="Título do novo guia (ex: Gravação — Cliente X)"
+            required
+            className="min-w-0 flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none"
+          />
+          <button
+            type="submit"
+            className="shrink-0 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium whitespace-nowrap text-white hover:bg-neutral-800"
           >
-            Limpar filtros
-          </Link>
-        ) : null}
-      </form>
+            Novo guia
+          </button>
+        </form>
+      </BuscaGuias>
+
+
 
       {filteredGuides.length === 0 ? (
         <p className="text-sm text-neutral-500">
