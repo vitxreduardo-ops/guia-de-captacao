@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { notifyDailyTodoAssigneesAction } from "@/app/admin/actions";
 import { UserInitials } from "@/components/admin/UserInitials";
 import {
   Popover,
@@ -15,16 +16,50 @@ import type { TodoUser } from "@/lib/dailyTodoTypes";
  * lista, dona do estado otimista.
  */
 export function TodoAssigneeMenu({
+  todoId,
   assignees,
   users,
   onAssign,
 }: {
+  todoId: string;
   assignees: TodoUser[];
   users: TodoUser[];
   onAssign: (assignees: TodoUser[]) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpenState] = useState(false);
   const selectedIds = new Set(assignees.map((user) => user.id));
+
+  // Quem já era responsável quando a lista abriu. Cada toque grava na hora,
+  // mas o aviso só sai ao fechar, pra quem entrou de fato: marcar e desmarcar
+  // alguém no meio da escolha não manda notificação.
+  // `null` = fechada.
+  const openedWith = useRef<string[] | null>(null);
+  const latest = useRef({ todoId, assignees });
+  useEffect(() => {
+    latest.current = { todoId, assignees };
+  });
+
+  const notifyAdded = useCallback(() => {
+    const before = openedWith.current;
+    openedWith.current = null;
+    if (!before) return;
+    const added = latest.current.assignees
+      .map((user) => user.id)
+      .filter((id) => !before.includes(id));
+    if (added.length > 0) {
+      notifyDailyTodoAssigneesAction(latest.current.todoId, added);
+    }
+  }, []);
+
+  // A lista pode sumir ainda aberta (a gaveta da tarefa fechou por cima): o
+  // aviso sai do mesmo jeito.
+  useEffect(() => notifyAdded, [notifyAdded]);
+
+  function setOpen(next: boolean) {
+    if (next && !open) openedWith.current = assignees.map((user) => user.id);
+    if (!next && open) notifyAdded();
+    setOpenState(next);
+  }
 
   /** Marca/desmarca sem fechar: escolher vários é o caso normal aqui. */
   function toggle(user: TodoUser) {

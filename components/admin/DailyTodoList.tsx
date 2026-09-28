@@ -974,6 +974,7 @@ function TodoRow({
 
         <div className="flex items-center gap-1 sm:contents">
           <TodoAssigneeMenu
+            todoId={todo.id}
             assignees={todo.assignees}
             users={users}
             onAssign={onAssign}

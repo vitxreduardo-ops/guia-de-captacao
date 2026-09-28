@@ -212,6 +212,25 @@ export async function setDailyTodoAssignees(
   return { text: todoResult.data.text as string, added };
 }
 
+/** Texto e responsáveis atuais, pra conferir quem pode ser avisado. */
+export async function getDailyTodoBrief(
+  id: string
+): Promise<{ text: string; assigneeIds: string[] }> {
+  const supabase = getSupabaseServerClient();
+  const [todoResult, assigneesResult] = await Promise.all([
+    supabase.from("daily_todos").select("text").eq("id", id).single(),
+    supabase.from("daily_todo_assignees").select("user_id").eq("todo_id", id),
+  ]);
+  if (todoResult.error) throw todoResult.error;
+  if (assigneesResult.error) throw assigneesResult.error;
+  return {
+    text: todoResult.data.text as string,
+    assigneeIds: (assigneesResult.data ?? []).map(
+      (row) => row.user_id as string
+    ),
+  };
+}
+
 export async function deleteDailyTodo(id: string) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase.from("daily_todos").delete().eq("id", id);
