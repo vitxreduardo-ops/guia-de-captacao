@@ -34,8 +34,13 @@ export function isoDayFromToday(offsetDays = 0) {
  * Não filtra por coluna: o nome das colunas é editável pelo admin, então não
  * existe jeito confiável de saber que um card já foi publicado. A janela mostra
  * tudo que tem data marcada nela.
+ *
+ * `clientScope` (quando não nulo) esconde os posts de cliente fora da lista.
+ * Os sem cliente ficam — são do backlog do Instagram, que não é restrito.
  */
-export async function listUpcomingPosts(): Promise<UpcomingPost[]> {
+export async function listUpcomingPosts(
+  clientScope: string[] | null = null
+): Promise<UpcomingPost[]> {
   const supabase = getSupabaseServerClient();
 
   const [cardsResult, clientsResult] = await Promise.all([
@@ -60,14 +65,22 @@ export async function listUpcomingPosts(): Promise<UpcomingPost[]> {
     ])
   );
 
-  return (cardsResult.data ?? []).map((card) => ({
+  const rows = (cardsResult.data ?? []).map((card) => ({
     id: card.id as string,
     title: card.title as string,
     format: card.format as BacklogFormat,
     post_date: card.post_date as string,
     post_time: (card.post_time as string | null) ?? null,
+    client_id: card.client_id as string | null,
     client_name: card.client_id
       ? clientNameById.get(card.client_id as string) ?? null
       : null,
   }));
+
+  const visible =
+    clientScope === null
+      ? rows
+      : rows.filter((row) => row.client_id === null || clientScope.includes(row.client_id));
+
+  return visible.map(({ client_id: _client_id, ...post }) => post);
 }

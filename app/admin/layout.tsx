@@ -38,6 +38,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       {session ? (
         <AdminSidebar
           isAdmin={session.role === "admin"}
+          allowedSections={session.allowedSections}
           colapsada={colapsada}
         />
       ) : null}
@@ -62,7 +63,10 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           // e de um degradê curto — não de uma linha de 1px que corta a tela
           // mesmo quando não há nada passando por baixo.
           <div className="sticky top-0 z-30 -mx-painel flex items-center gap-3 bg-white/80 px-painel py-3 backdrop-blur-md after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-4 after:bg-gradient-to-b after:from-white/80 after:to-transparent lg:hidden">
-            <AdminMenuButton isAdmin={session.role === "admin"} />
+            <AdminMenuButton
+              isAdmin={session.role === "admin"}
+              allowedSections={session.allowedSections}
+            />
             <Link
               href="/admin"
               aria-label="Ir para o Painel"

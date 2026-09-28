@@ -11,9 +11,12 @@ import { adminActions, isActive } from "@/components/admin/adminActions";
  */
 export function AdminNavList({
   isAdmin,
+  allowedSections = null,
   onNavigate,
 }: {
   isAdmin: boolean;
+  /** `null` (padrão) = sem restrição, vê todas as seções. */
+  allowedSections?: string[] | null;
   /** A gaveta usa pra se fechar quando a pessoa escolhe pra onde vai. */
   onNavigate?: () => void;
 }) {
@@ -21,7 +24,7 @@ export function AdminNavList({
 
   return (
     <ul className="space-y-0.5">
-      {adminActions(isAdmin).map((action) => {
+      {adminActions(isAdmin, allowedSections).map((action) => {
         const active = isActive(pathname, action.href);
         return (
           <li key={action.href} className="group/atalho relative">

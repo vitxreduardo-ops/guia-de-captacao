@@ -236,13 +236,18 @@ async function generateUniqueSlug(name: string) {
 }
 
 export async function listGalleryClients(
-  options: { includeArchived?: boolean } = {}
+  options: {
+    includeArchived?: boolean;
+    /** `null` (padrão) = sem restrição, vê todos os clientes. */
+    clientScope?: string[] | null;
+  } = {}
 ): Promise<GalleryClient[]> {
   const supabase = getSupabaseServerClient();
   const query = supabase.from("gallery_clients").select("*");
   // Arquivado só aparece quem pede: as telas do dia a dia mostram quem está
   // ativo, e o cadastro lista os arquivados numa seção à parte.
   if (!options.includeArchived) query.is("archived_at", null);
+  if (options.clientScope) query.in("id", options.clientScope);
 
   const { data, error } = await query.order("created_at", { ascending: false });
 

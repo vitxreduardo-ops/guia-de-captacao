@@ -88,8 +88,14 @@ export function ProspectDetail({
 
 // ------------------------------------------------------------ próximo passo
 
+type TouchMode = "falei" | "reagendar";
+
 function NextContact({ prospect }: { prospect: ProspectRow }) {
-  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<TouchMode | null>(null);
+
+  function toggle(next: TouchMode) {
+    setMode((current) => (current === next ? null : next));
+  }
 
   return (
     <section className="rounded-xl border border-neutral-900 px-4 py-3.5">
@@ -114,16 +120,28 @@ function NextContact({ prospect }: { prospect: ProspectRow }) {
             </p>
           ) : null}
         </div>
-        <button
-          type="button"
-          onClick={() => setOpen((value) => !value)}
-          className="ml-auto inline-flex min-h-11 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 sm:min-h-0 sm:px-3.5 sm:py-2 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
-        >
-          {open ? "Fechar" : "Falei"}
-        </button>
+        <div className="ml-auto flex gap-2">
+          {/* Desmarcou, mudou de dia, trocou o formato — nada disso é uma
+              conversa que aconteceu, então fica separado do "Falei" e não
+              pede o que foi dito. */}
+          <button
+            type="button"
+            onClick={() => toggle("reagendar")}
+            className="inline-flex min-h-11 items-center rounded-md border border-neutral-300 px-3.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 sm:min-h-0 sm:px-3 sm:py-2 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            {mode === "reagendar" ? "Fechar" : "Reagendar"}
+          </button>
+          <button
+            type="button"
+            onClick={() => toggle("falei")}
+            className="inline-flex min-h-11 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 sm:min-h-0 sm:px-3.5 sm:py-2 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+          >
+            {mode === "falei" ? "Fechar" : "Falei"}
+          </button>
+        </div>
       </div>
-      {open ? (
-        <TouchForm prospectId={prospect.id} onDone={() => setOpen(false)} />
+      {mode ? (
+        <TouchForm prospectId={prospect.id} mode={mode} onDone={() => setMode(null)} />
       ) : null}
     </section>
   );
@@ -131,9 +149,11 @@ function NextContact({ prospect }: { prospect: ProspectRow }) {
 
 function TouchForm({
   prospectId,
+  mode,
   onDone,
 }: {
   prospectId: string;
+  mode: TouchMode;
   onDone: () => void;
 }) {
   const [pending, startTransition] = useTransition();
@@ -158,11 +178,16 @@ function TouchForm({
       className="mt-3 space-y-2.5 border-t border-neutral-200 pt-3"
     >
       <input type="hidden" name="prospect_id" value={prospectId} />
+      <input type="hidden" name="kind" value={mode === "falei" ? "contato" : "nota"} />
       <textarea
         name="message"
         rows={3}
         autoFocus
-        placeholder="O que ele disse, com as palavras dele."
+        placeholder={
+          mode === "falei"
+            ? "O que ele disse, com as palavras dele."
+            : "Motivo do reagendamento (opcional)."
+        }
         className={inputClass}
         aria-label="O que aconteceu"
       />

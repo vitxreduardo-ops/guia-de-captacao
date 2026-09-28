@@ -9,6 +9,10 @@ export interface User {
   email: string;
   password_hash: string;
   role: UserRole;
+  /** Seções do menu liberadas. `null` = todas (sem restrição). */
+  allowed_sections: string[] | null;
+  /** Clientes liberados em Clientes/Galerias. `null` = todos. */
+  allowed_client_ids: string[] | null;
   created_at: string;
 }
 
@@ -159,7 +163,14 @@ export async function createUser(fields: {
 
 export async function updateUser(
   id: string,
-  fields: { username: string; email: string; role: UserRole; password?: string }
+  fields: {
+    username: string;
+    email: string;
+    role: UserRole;
+    password?: string;
+    allowedSections?: string[] | null;
+    allowedClientIds?: string[] | null;
+  }
 ): Promise<PublicUser> {
   const supabase = getSupabaseServerClient();
   const update: Record<string, unknown> = {
@@ -169,6 +180,12 @@ export async function updateUser(
   };
   if (fields.password) {
     update.password_hash = await hashPassword(fields.password);
+  }
+  if (fields.allowedSections !== undefined) {
+    update.allowed_sections = fields.allowedSections;
+  }
+  if (fields.allowedClientIds !== undefined) {
+    update.allowed_client_ids = fields.allowedClientIds;
   }
 
   const { data, error } = await supabase

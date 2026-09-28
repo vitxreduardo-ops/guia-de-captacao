@@ -21,6 +21,15 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Admin sempre passa; `allowedSections` nula é "sem restrição" (o padrão).
+  // `/admin/usuarios` é sempre admin-only, checado à parte em requireAdmin().
+  if (session.role !== "admin" && session.allowedSections !== null) {
+    const section = request.nextUrl.pathname.split("/")[2];
+    if (section && !session.allowedSections.includes(section)) {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 

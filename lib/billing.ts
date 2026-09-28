@@ -205,6 +205,18 @@ export async function closeMonth(params: {
   return invoiceId;
 }
 
+/** Só o `client_id` da nota — pra checar acesso antes de reabrir/excluir. */
+export async function getInvoiceClientId(id: string): Promise<string | null> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("monthly_invoices")
+    .select("client_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.client_id as string | undefined) ?? null;
+}
+
 export async function getInvoice(
   clientId: string,
   month: string
@@ -220,11 +232,17 @@ export async function getInvoice(
   return data ? toInvoiceWithItems(data) : null;
 }
 
-export async function listInvoices(limit = 24): Promise<MonthlyInvoiceWithItems[]> {
+export async function listInvoices(
+  limit = 24,
+  clientScope: string[] | null = null
+): Promise<MonthlyInvoiceWithItems[]> {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
+  const query = supabase
     .from("monthly_invoices")
-    .select("*, gallery_clients(name), monthly_invoice_items(*)")
+    .select("*, gallery_clients(name), monthly_invoice_items(*)");
+  if (clientScope !== null) query.in("client_id", clientScope);
+
+  const { data, error } = await query
     .order("month", { ascending: false })
     .limit(limit);
   if (error) throw error;
@@ -274,13 +292,18 @@ export interface YearClientTotals {
  * que de fato foi cobrado), e a contagem de entregas vem do quadro — meses
  * ainda abertos aparecem no número de entregas mas não no total faturado.
  */
-export async function getYearTotals(year: number): Promise<YearClientTotals[]> {
+export async function getYearTotals(
+  year: number,
+  clientScope: string[] | null = null
+): Promise<YearClientTotals[]> {
   const supabase = getSupabaseServerClient();
   const from = `${year}-01-01`;
   const to = `${year + 1}-01-01`;
 
+  const clientsQuery = supabase.from("gallery_clients").select("id, name").order("name");
+
   const [clientsResult, invoicesResult, columnsResult] = await Promise.all([
-    supabase.from("gallery_clients").select("id, name").order("name"),
+    clientScope !== null ? clientsQuery.in("id", clientScope) : clientsQuery,
     supabase
       .from("monthly_invoices")
       .select("client_id, month, total_cents")
@@ -361,15 +384,20 @@ export interface BillingDue extends OverdueClient {
  * dias, porque lembrete que só aparece no dia do vencimento chega junto com o
  * atraso.
  */
-export async function getBillingDue(windowDays = 0): Promise<BillingDue[]> {
+export async function getBillingDue(
+  windowDays = 0,
+  clientScope: string[] | null = null
+): Promise<BillingDue[]> {
   const supabase = getSupabaseServerClient();
 
+  const clientsQuery = supabase
+    .from("gallery_clients")
+    .select("id, name, payment_day")
+    .not("payment_day", "is", null)
+    .is("archived_at", null);
+
   const [clientsResult, columnsResult] = await Promise.all([
-    supabase
-      .from("gallery_clients")
-      .select("id, name, payment_day")
-      .not("payment_day", "is", null)
-      .is("archived_at", null),
+    clientScope !== null ? clientsQuery.in("id", clientScope) : clientsQuery,
     supabase
       .from("backlog_columns")
       .select("id")
@@ -450,9 +478,11 @@ function isoDate(date: Date): string {
  * pergunta: lá a lista se chama "atrasado", e cobrar alguém no próprio dia do
  * vencimento é o jeito mais rápido de perder o cliente que ia pagar à tarde.
  */
-export async function getOverdueByClient(): Promise<OverdueClient[]> {
+export async function getOverdueByClient(
+  clientScope: string[] | null = null
+): Promise<OverdueClient[]> {
   const hoje = isoDate(new Date());
-  return (await getBillingDue(0)).filter((row) => row.dueDate < hoje);
+  return (await getBillingDue(0, clientScope)).filter((row) => row.dueDate < hoje);
 }
 
 /**

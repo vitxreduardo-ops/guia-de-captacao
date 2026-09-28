@@ -23,7 +23,7 @@ export async function login(formData: FormData) {
   }
 
   const cookieValue = await createSessionCookieValue(
-    { userId: user.id, role: user.role },
+    { userId: user.id, role: user.role, allowedSections: user.allowed_sections },
     secret
   );
   const cookieStore = await cookies();

@@ -4,6 +4,8 @@ import { listPendingInvites } from "@/lib/invites";
 import { requireAdmin } from "@/lib/session";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { DeleteButton } from "@/components/admin/DeleteButton";
+import { restrictableSections } from "@/components/admin/adminActions";
+import { listGalleryClients } from "@/lib/galleries";
 import {
   createInviteAction,
   createUserAction,
@@ -27,11 +29,13 @@ async function getSiteOrigin() {
 
 export default async function UsersPage() {
   const session = await requireAdmin();
-  const [users, invites, origin] = await Promise.all([
+  const [users, invites, origin, clients] = await Promise.all([
     listUsers(),
     listPendingInvites(),
     getSiteOrigin(),
+    listGalleryClients(),
   ]);
+  const sections = restrictableSections();
 
   return (
     <div className="mx-auto w-full max-w-6xl pb-10">
@@ -224,6 +228,76 @@ export default async function UsersPage() {
                   <option value="admin">Admin</option>
                 </select>
               </div>
+              <details className="w-full rounded-md border border-neutral-200 bg-neutral-50 p-2.5">
+                <summary className="cursor-pointer text-xs font-medium text-neutral-600">
+                  Seções e clientes liberados
+                </summary>
+
+                <div className="mt-2.5 space-y-3">
+                  <div>
+                    <label className="flex items-center gap-2 text-xs font-medium text-neutral-700">
+                      <input
+                        type="checkbox"
+                        name="sections_all"
+                        defaultChecked={user.allowed_sections === null}
+                      />
+                      Acesso completo (todas as seções)
+                    </label>
+                    <div className="mt-1.5 grid grid-cols-2 gap-1 pl-1 sm:grid-cols-3">
+                      {sections.map((section) => (
+                        <label
+                          key={section.code}
+                          className="flex items-center gap-1.5 text-xs text-neutral-600"
+                        >
+                          <input
+                            type="checkbox"
+                            name="sections"
+                            value={section.code}
+                            defaultChecked={
+                              user.allowed_sections === null ||
+                              user.allowed_sections.includes(section.code)
+                            }
+                          />
+                          {section.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="flex items-center gap-2 text-xs font-medium text-neutral-700">
+                      <input
+                        type="checkbox"
+                        name="clients_all"
+                        defaultChecked={user.allowed_client_ids === null}
+                      />
+                      Todos os clientes (em Clientes e Galerias)
+                    </label>
+                    {clients.length > 0 ? (
+                      <div className="mt-1.5 grid grid-cols-2 gap-1 pl-1 sm:grid-cols-3">
+                        {clients.map((client) => (
+                          <label
+                            key={client.id}
+                            className="flex items-center gap-1.5 text-xs text-neutral-600"
+                          >
+                            <input
+                              type="checkbox"
+                              name="clients"
+                              value={client.id}
+                              defaultChecked={
+                                user.allowed_client_ids === null ||
+                                user.allowed_client_ids.includes(client.id)
+                              }
+                            />
+                            {client.name}
+                          </label>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </details>
+
               <p className="w-full text-xs text-neutral-400">
                 Desde {formatDate(user.created_at)}
               </p>

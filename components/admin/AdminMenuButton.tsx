@@ -15,7 +15,13 @@ import {
  * esquerda em vez de caixa no meio da tela: a lista tem doze itens e precisa
  * da altura toda.
  */
-export function AdminMenuButton({ isAdmin }: { isAdmin: boolean }) {
+export function AdminMenuButton({
+  isAdmin,
+  allowedSections = null,
+}: {
+  isAdmin: boolean;
+  allowedSections?: string[] | null;
+}) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -37,7 +43,11 @@ export function AdminMenuButton({ isAdmin }: { isAdmin: boolean }) {
         <DialogTitle className="px-2 pb-3 text-sm text-neutral-500">
           Atalhos
         </DialogTitle>
-        <AdminNavList isAdmin={isAdmin} onNavigate={() => setOpen(false)} />
+        <AdminNavList
+          isAdmin={isAdmin}
+          allowedSections={allowedSections}
+          onNavigate={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );

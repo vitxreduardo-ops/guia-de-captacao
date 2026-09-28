@@ -44,8 +44,34 @@ const ADMIN_ONLY_ACTIONS: AdminAction[] = [
   { href: "/admin/usuarios", label: "Usuários", icon: Users },
 ];
 
-export function adminActions(isAdmin: boolean): AdminAction[] {
-  return isAdmin ? [...ACTIONS, ...ADMIN_ONLY_ACTIONS] : ACTIONS;
+/** Código de seção a partir do href, pro filtro por `allowed_sections` e pro proxy.ts. */
+function sectionCode(href: string): string {
+  return href.replace("/admin/", "").replace("/admin", "");
+}
+
+/** As seções que dá pra restringir por usuário — Painel fica fora, é sempre visível. */
+export function restrictableSections(): { code: string; label: string }[] {
+  return ACTIONS.filter((action) => action.href !== "/admin").map((action) => ({
+    code: sectionCode(action.href),
+    label: action.label,
+  }));
+}
+
+/**
+ * Admin nunca é restrito, mesmo que `allowed_sections` esteja preenchido por
+ * engano. Pra quem não é admin, `allowedSections` nulo é "sem restrição" (o
+ * padrão hoje); quando não é nulo, filtra pros códigos liberados — o mesmo
+ * código usado no `proxy.ts` pra bloquear acesso direto por URL.
+ */
+export function adminActions(
+  isAdmin: boolean,
+  allowedSections: string[] | null = null
+): AdminAction[] {
+  const base =
+    isAdmin || allowedSections === null
+      ? ACTIONS
+      : ACTIONS.filter((action) => allowedSections.includes(sectionCode(action.href)));
+  return isAdmin ? [...base, ...ADMIN_ONLY_ACTIONS] : base;
 }
 
 /**

@@ -7,6 +7,7 @@ import {
   deleteGalleryClient,
 } from "@/lib/galleries";
 import { disconnectGoogleAccount } from "@/lib/googleDrive";
+import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
 
 export async function createGalleryClientAction(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
@@ -17,6 +18,8 @@ export async function createGalleryClientAction(formData: FormData) {
 
 export async function deleteGalleryClientAction(formData: FormData) {
   const id = String(formData.get("id"));
+  assertClientAllowed(await getCurrentClientScope(), id);
+
   await deleteGalleryClient(id);
   revalidatePath("/admin/galerias");
 }
