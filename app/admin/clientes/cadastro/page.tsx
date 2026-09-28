@@ -3,14 +3,16 @@ import { ClientTabs } from "@/components/admin/ClientTabs";
 import { ClientRegistry, type ClientSummary } from "@/components/admin/ClientRegistry";
 import { getYearTotals } from "@/lib/billing";
 import { listGalleryClients } from "@/lib/galleries";
+import { getCurrentClientScope } from "@/lib/clientAccess";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClientesCadastroPage() {
   const year = new Date().getFullYear();
+  const clientScope = await getCurrentClientScope();
   const [todos, totals] = await Promise.all([
-    listGalleryClients({ includeArchived: true }),
-    getYearTotals(year),
+    listGalleryClients({ includeArchived: true, clientScope }),
+    getYearTotals(year, clientScope),
   ]);
 
   const clients = todos.filter((client) => !client.archived_at);

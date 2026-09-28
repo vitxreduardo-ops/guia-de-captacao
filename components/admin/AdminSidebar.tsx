@@ -19,9 +19,11 @@ import { TatuLogo } from "@/components/TatuLogo";
  */
 export function AdminSidebar({
   isAdmin,
+  allowedSections = null,
   colapsada,
 }: {
   isAdmin: boolean;
+  allowedSections?: string[] | null;
   colapsada: boolean;
 }) {
   return (
@@ -48,7 +50,7 @@ export function AdminSidebar({
         aria-label="Atalhos"
         className="min-h-0 flex-1 overflow-y-auto px-3 group-data-[colapsada=true]/barra:overflow-visible group-data-[colapsada=true]/barra:px-2"
       >
-        <AdminNavList isAdmin={isAdmin} />
+        <AdminNavList isAdmin={isAdmin} allowedSections={allowedSections} />
       </nav>
     </SidebarFrame>
   );

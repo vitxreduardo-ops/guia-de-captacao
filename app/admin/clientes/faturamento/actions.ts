@@ -5,10 +5,12 @@ import {
   closeMonth,
   createService,
   deleteService,
+  getInvoiceClientId,
   reopenInvoice,
   updateService,
 } from "@/lib/billing";
 import { getCurrentSession } from "@/lib/session";
+import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
 
 function revalidateBilling() {
   revalidatePath("/admin/clientes/faturamento");
@@ -44,8 +46,11 @@ export async function deleteServiceAction(formData: FormData) {
 
 export async function closeMonthAction(formData: FormData) {
   const session = await getCurrentSession();
+  const clientId = String(formData.get("client_id"));
+  assertClientAllowed(await getCurrentClientScope(), clientId);
+
   await closeMonth({
-    clientId: String(formData.get("client_id")),
+    clientId,
     month: String(formData.get("month")),
     notes: String(formData.get("notes") ?? ""),
     userId: session?.userId ?? null,
@@ -54,6 +59,10 @@ export async function closeMonthAction(formData: FormData) {
 }
 
 export async function reopenInvoiceAction(formData: FormData) {
-  await reopenInvoice(String(formData.get("id")));
+  const id = String(formData.get("id"));
+  const clientId = await getInvoiceClientId(id);
+  if (clientId) assertClientAllowed(await getCurrentClientScope(), clientId);
+
+  await reopenInvoice(id);
   revalidateBilling();
 }

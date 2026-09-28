@@ -2,12 +2,14 @@ import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ClientTabs } from "@/components/admin/ClientTabs";
 import { getBacklogBoard } from "@/lib/backlog";
 import { KanbanBoard } from "@/components/admin/KanbanBoard";
+import { getCurrentClientScope } from "@/lib/clientAccess";
 
 export const dynamic = "force-dynamic";
 
 export default async function EntregasPage() {
+  const clientScope = await getCurrentClientScope();
   const [board] = await Promise.all([
-    getBacklogBoard("entregas"),
+    getBacklogBoard("entregas", clientScope),
   ]);
 
   return (

@@ -83,10 +83,17 @@ function normalizeText(value: unknown): string | null {
 
 // ---------------------------------------------------------------- leitura
 
+/**
+ * `clientScope` só vale pro quadro `entregas` — o Instagram não tem noção de
+ * cliente e nunca é restrito (decisão do produto: a restrição por cliente é
+ * só em Clientes/Galerias). `null` = sem restrição, vê todos os clientes.
+ */
 export async function getBacklogBoard(
-  board: BacklogBoardKind = "instagram"
+  board: BacklogBoardKind = "instagram",
+  clientScope: string[] | null = null
 ): Promise<BacklogBoard> {
   const supabase = getSupabaseServerClient();
+  const restrictByClient = board === "entregas" && clientScope !== null;
 
   // Os cards vêm filtrados pelas colunas do quadro pedido, então o kanban de
   // entregas nunca carrega o backlog do Instagram (e vice-versa).
@@ -103,10 +110,16 @@ export async function getBacklogBoard(
   if (columnIds.length === 0) {
     const [clientsResult, guidesResult, usersResult, servicesResult] =
       await Promise.all([
-        supabase
-      .from("gallery_clients")
-      .select("id, name, payment_day")
-      .order("name"),
+        restrictByClient
+          ? supabase
+              .from("gallery_clients")
+              .select("id, name, payment_day")
+              .in("id", clientScope as string[])
+              .order("name")
+          : supabase
+              .from("gallery_clients")
+              .select("id, name, payment_day")
+              .order("name"),
         supabase.from("guides").select("id, title").order("title"),
         supabase.from("users").select("id, username").order("username"),
         supabase
@@ -136,7 +149,14 @@ export async function getBacklogBoard(
     .order("position");
   if (cardsError) throw cardsError;
 
-  const rawCards = (cardRows ?? []) as Omit<BacklogCard, "assignee_ids">[];
+  const allRawCards = (cardRows ?? []) as Omit<BacklogCard, "assignee_ids">[];
+  // Restrito a alguns clientes: cards sem cliente (trabalho interno) também
+  // ficam escondidos, não só os de cliente fora da lista.
+  const rawCards = restrictByClient
+    ? allRawCards.filter(
+        (card) => card.client_id && (clientScope as string[]).includes(card.client_id)
+      )
+    : allRawCards;
   const cardIds = rawCards.map((card) => card.id);
 
   const { data: assigneeRows, error: assigneesError } = cardIds.length
@@ -183,10 +203,16 @@ export async function getBacklogBoard(
           .in("card_id", cardIds)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [], error: null }),
-    supabase
-      .from("gallery_clients")
-      .select("id, name, payment_day")
-      .order("name"),
+    restrictByClient
+      ? supabase
+          .from("gallery_clients")
+          .select("id, name, payment_day")
+          .in("id", clientScope as string[])
+          .order("name")
+      : supabase
+          .from("gallery_clients")
+          .select("id, name, payment_day")
+          .order("name"),
     supabase.from("guides").select("id, title").order("title"),
     supabase.from("users").select("id, username").order("username"),
     supabase

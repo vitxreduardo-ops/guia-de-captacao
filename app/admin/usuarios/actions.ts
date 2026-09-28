@@ -30,7 +30,21 @@ export async function updateUserAction(formData: FormData) {
 
   if (!id || !username) return;
 
-  await updateUser(id, { username, email, role, password: password || undefined });
+  const allowedSections = formData.get("sections_all") === "on"
+    ? null
+    : formData.getAll("sections").map(String);
+  const allowedClientIds = formData.get("clients_all") === "on"
+    ? null
+    : formData.getAll("clients").map(String);
+
+  await updateUser(id, {
+    username,
+    email,
+    role,
+    password: password || undefined,
+    allowedSections,
+    allowedClientIds,
+  });
   revalidatePath("/admin/usuarios");
 }
 

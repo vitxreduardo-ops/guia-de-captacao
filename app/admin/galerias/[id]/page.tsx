@@ -5,6 +5,7 @@ import {
   type GalleryFolderNode,
 } from "@/lib/galleries";
 import { getConnectedGoogleAccount } from "@/lib/googleDrive";
+import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { Accordion } from "@/components/Accordion";
 import { DeleteButton } from "@/components/admin/DeleteButton";
@@ -89,6 +90,12 @@ function FolderList({
 
 export default async function GalleryClientPage({ params }: { params: Params }) {
   const { id } = await params;
+  try {
+    assertClientAllowed(await getCurrentClientScope(), id);
+  } catch {
+    notFound();
+  }
+
   const [client, googleAccount] = await Promise.all([
     getGalleryClientWithImages(id),
     getConnectedGoogleAccount(),

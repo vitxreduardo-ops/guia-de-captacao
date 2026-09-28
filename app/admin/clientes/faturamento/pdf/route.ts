@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getInvoice } from "@/lib/billing";
 import { renderInvoicePdfBuffer } from "@/components/pdf/InvoicePdfDocument";
 import { DEFAULT_INVOICE_CLOSING } from "@/lib/billingTypes";
+import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,12 @@ export async function GET(request: Request) {
 
   if (!clientId || !month) {
     return NextResponse.json({ error: "Informe cliente e mês" }, { status: 400 });
+  }
+
+  try {
+    assertClientAllowed(await getCurrentClientScope(), clientId);
+  } catch {
+    return NextResponse.json({ error: "Cliente fora do seu acesso" }, { status: 403 });
   }
 
   const invoice = await getInvoice(clientId, month);

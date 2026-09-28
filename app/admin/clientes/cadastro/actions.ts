@@ -9,6 +9,7 @@ import {
   setGalleryClientStatus,
   updateGalleryClientDetails,
 } from "@/lib/galleries";
+import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
 
 /**
  * O cadastro de cliente é o mesmo de Galerias (`gallery_clients`) — aqui só
@@ -29,6 +30,8 @@ export async function createClientAction(formData: FormData) {
 
 export async function updateClientAction(formData: FormData) {
   const id = String(formData.get("id"));
+  assertClientAllowed(await getCurrentClientScope(), id);
+
   await updateGalleryClientDetails(id, readGalleryClientDetails(formData));
   await setGalleryClientStatus(
     id,
@@ -39,10 +42,10 @@ export async function updateClientAction(formData: FormData) {
 }
 
 export async function setClientArchivedAction(formData: FormData) {
-  await setGalleryClientArchived(
-    String(formData.get("id")),
-    formData.get("archived") === "true"
-  );
+  const id = String(formData.get("id"));
+  assertClientAllowed(await getCurrentClientScope(), id);
+
+  await setGalleryClientArchived(id, formData.get("archived") === "true");
   revalidateClients();
   revalidatePath("/admin/clientes/entregas");
   revalidatePath("/admin/clientes/resumo");
@@ -54,7 +57,10 @@ export async function setClientArchivedAction(formData: FormData) {
  * isso antes, e aqui não há volta.
  */
 export async function deleteClientAction(formData: FormData) {
-  await deleteGalleryClient(String(formData.get("id")));
+  const id = String(formData.get("id"));
+  assertClientAllowed(await getCurrentClientScope(), id);
+
+  await deleteGalleryClient(id);
   revalidateClients();
   revalidatePath("/admin/clientes/entregas");
   revalidatePath("/admin/clientes/resumo");

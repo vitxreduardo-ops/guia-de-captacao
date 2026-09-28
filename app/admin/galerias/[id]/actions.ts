@@ -12,6 +12,7 @@ import {
 import { fetchOgImage, isLikelyImageUrl, resolveDriveImageUrl } from "@/lib/references";
 import { extractDriveFolderId, listDriveFolderMediaRecursive } from "@/lib/googleDrive";
 import { mirrorRemoteImage } from "@/lib/storage";
+import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
 
 function revalidateClient(id: string, slug?: string | null) {
   revalidatePath(`/admin/galerias/${id}`);
@@ -49,6 +50,8 @@ async function resolveGalleryImage(
 
 export async function updateGalleryClientNameAction(formData: FormData) {
   const id = String(formData.get("id"));
+  assertClientAllowed(await getCurrentClientScope(), id);
+
   const name = String(formData.get("name") ?? "").trim() || "Sem nome";
   await updateGalleryClientName(id, name);
   revalidateClient(id);
@@ -56,6 +59,8 @@ export async function updateGalleryClientNameAction(formData: FormData) {
 
 export async function setGalleryClientStatusAction(formData: FormData) {
   const id = String(formData.get("id"));
+  assertClientAllowed(await getCurrentClientScope(), id);
+
   const status = String(formData.get("status")) as "draft" | "published";
   await setGalleryClientStatus(id, status);
   const client = await getGalleryClientWithImages(id);
@@ -64,6 +69,8 @@ export async function setGalleryClientStatusAction(formData: FormData) {
 
 export async function addGalleryImageAction(formData: FormData) {
   const clientId = String(formData.get("guide_id"));
+  assertClientAllowed(await getCurrentClientScope(), clientId);
+
   const caption = String(formData.get("caption") ?? "").trim();
   const urlInput = String(formData.get("image_url") ?? "").trim();
   if (!urlInput) return;
@@ -78,6 +85,8 @@ export async function addGalleryImageAction(formData: FormData) {
 export async function deleteGalleryImageAction(formData: FormData) {
   const id = String(formData.get("id"));
   const clientId = String(formData.get("guide_id"));
+  assertClientAllowed(await getCurrentClientScope(), clientId);
+
   await deleteGalleryImage(id);
   const client = await getGalleryClientWithImages(clientId);
   revalidateClient(clientId, client?.slug);
@@ -85,6 +94,8 @@ export async function deleteGalleryImageAction(formData: FormData) {
 
 export async function syncDriveFolderAction(formData: FormData) {
   const clientId = String(formData.get("guide_id"));
+  assertClientAllowed(await getCurrentClientScope(), clientId);
+
   const folderUrlInput = String(formData.get("drive_folder_url") ?? "").trim();
   if (!folderUrlInput) return;
 

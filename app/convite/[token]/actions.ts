@@ -38,7 +38,7 @@ export async function acceptInviteAction(formData: FormData) {
   await markInviteUsed(invite.id, user.id);
 
   const cookieValue = await createSessionCookieValue(
-    { userId: user.id, role: user.role },
+    { userId: user.id, role: user.role, allowedSections: user.allowed_sections },
     secret
   );
   const cookieStore = await cookies();

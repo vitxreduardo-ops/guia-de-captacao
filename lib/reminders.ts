@@ -23,12 +23,14 @@ export interface Reminders {
  * aberto só aparece quando alguém vai conferir. Nenhum dos dois grita
  * sozinho.
  */
-export async function getReminders(): Promise<Reminders> {
+export async function getReminders(
+  clientScope: string[] | null = null
+): Promise<Reminders> {
   const today = todayISO();
 
   const [board, payments] = await Promise.all([
     getProspects(),
-    getBillingDue(REMINDER_WINDOW_DAYS),
+    getBillingDue(REMINDER_WINDOW_DAYS, clientScope),
   ]);
 
   const followups = board.prospects

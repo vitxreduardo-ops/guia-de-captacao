@@ -15,17 +15,19 @@ import { getReminders } from "@/lib/reminders";
 import { listUpcomingPosts } from "@/lib/upcomingPosts";
 import { getCurrentSession, getCurrentUsername } from "@/lib/session";
 import { getUserCalendarAccount } from "@/lib/userCalendars";
+import { getCurrentClientScope } from "@/lib/clientAccess";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminHub() {
+  const clientScope = await getCurrentClientScope();
   const [session, username, { todos, users }, upcoming, reminders] =
     await Promise.all([
       getCurrentSession(),
       getCurrentUsername(),
       listDailyTodos(),
-      listUpcomingPosts(),
-      getReminders(),
+      listUpcomingPosts(clientScope),
+      getReminders(clientScope),
     ]);
 
   // Quem não conectou agenda não vê o bloco de hoje — e nem paga a consulta.

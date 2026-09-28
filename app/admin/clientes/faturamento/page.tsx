@@ -27,15 +27,15 @@ import {
 import { CloseMonthForm } from "@/components/admin/CloseMonthForm";
 import { ClientSelect } from "@/components/admin/ClientSelect";
 import { MonthTimeline } from "@/components/admin/MonthTimeline";
+import { getCurrentClientScope } from "@/lib/clientAccess";
 
 export const dynamic = "force-dynamic";
 
-async function listClients() {
+async function listClients(clientScope: string[] | null) {
   const supabase = getSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("gallery_clients")
-    .select("id, name")
-    .order("name");
+  const query = supabase.from("gallery_clients").select("id, name");
+  if (clientScope !== null) query.in("id", clientScope);
+  const { data, error } = await query.order("name");
   if (error) throw error;
   return (data ?? []) as { id: string; name: string }[];
 }
@@ -46,14 +46,21 @@ export default async function FaturamentoPage({
   searchParams: Promise<{ cliente?: string; mes?: string }>;
 }) {
   const params = await searchParams;
+  const clientScope = await getCurrentClientScope();
 
   const [clients, services, invoices] = await Promise.all([
-    listClients(),
+    listClients(clientScope),
     listServices(),
-    listInvoices(),
+    listInvoices(24, clientScope),
   ]);
 
-  const clientId = params.cliente || clients[0]?.id || null;
+  // `params.cliente` vem da URL — só aceita se estiver entre os clientes já
+  // filtrados pelo escopo desta pessoa, senão cai pro primeiro liberado.
+  const requested = params.cliente;
+  const clientId =
+    (requested && clients.some((client) => client.id === requested)
+      ? requested
+      : clients[0]?.id) || null;
 
   // A faixa mostra só os meses com movimento deste cliente. O mês aberto entra
   // sempre, senão a própria seleção sumiria da linha do tempo.
