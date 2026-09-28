@@ -6,6 +6,7 @@ import {
   createDailyTodoChecklistItem,
   deleteDailyTodo,
   deleteDailyTodoChecklistItem,
+  getDailyTodoBrief,
   renameDailyTodoChecklistItem,
   reorderDailyTodos,
   setDailyTodoAssignees,
@@ -36,17 +37,34 @@ export async function setDailyTodoAssigneesAction(
   id: string,
   userIds: string[]
 ) {
-  const { text, added } = await setDailyTodoAssignees(id, userIds);
+  // Grava na hora, mas não avisa: cada toque na lista de responsáveis passa
+  // por aqui, e avisar a cada toque mandava push pra quem foi marcado e
+  // desmarcado no meio da escolha. O aviso sai quando a lista fecha.
+  await setDailyTodoAssignees(id, userIds);
+  revalidatePath("/admin");
+}
+
+/**
+ * Chamado quando a lista de responsáveis fecha, com quem entrou desde que ela
+ * abriu. Os ids vêm do navegador, então só é avisado quem de fato é
+ * responsável agora — e nunca quem fez a ação, que seria avisar a pessoa do
+ * que ela mesma acabou de clicar.
+ */
+export async function notifyDailyTodoAssigneesAction(
+  id: string,
+  userIds: string[]
+) {
   const session = await getCurrentSession();
-  // Só quem entrou agora recebe aviso — quem já era responsável não é
-  // notificado de novo a cada mexida na lista — e nunca quem fez a ação, que
-  // seria avisar a pessoa do que ela mesma acabou de clicar.
-  const toNotify = added.filter((userId) => userId !== session?.userId);
+  if (!session) return;
+  const { text, assigneeIds } = await getDailyTodoBrief(id);
+  const toNotify = userIds.filter(
+    (userId) => assigneeIds.includes(userId) && userId !== session.userId
+  );
   await Promise.all(
     toNotify.map((userId) =>
       notifyUser({
         userId,
-        actorId: session?.userId ?? null,
+        actorId: session.userId,
         kind: "todo_assigned",
         title: "Tarefa atribuída a você",
         body: text,

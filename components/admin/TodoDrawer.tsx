@@ -344,6 +344,7 @@ export function TodoDrawer({
               <p className={labelClass}>Responsáveis</p>
               <div className="flex items-center gap-2 rounded-md border border-neutral-200 px-3 py-1.5">
                 <TodoAssigneeMenu
+                  todoId={todo.id}
                   assignees={todo.assignees}
                   users={users}
                   onAssign={onAssign}
