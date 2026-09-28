@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Guia de Captação",
   description: "Guias de gravação: roteiros, referências e checklist por projeto.",
+  // Aberto pela Tela de Início do iPhone, vira app sem a barra do Safari —
+  // condição do iOS pra entregar notificações push.
+  appleWebApp: { capable: true, title: "Tatú" },
 };
 
 /**

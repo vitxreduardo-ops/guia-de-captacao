@@ -5,6 +5,11 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/lib/notifications";
+import {
+  deletePushSubscription,
+  savePushSubscription,
+  type PushSubscriptionJSON,
+} from "@/lib/push";
 import { getCurrentSession } from "@/lib/session";
 
 // O `userId` vem sempre da sessão, nunca do cliente: é o que impede alguém de
@@ -22,4 +27,26 @@ export async function markAllNotificationsReadAction() {
   if (!session) return;
   await markAllNotificationsRead(session.userId);
   revalidatePath("/admin", "layout");
+}
+
+export async function subscribePushAction(sub: PushSubscriptionJSON) {
+  const session = await getCurrentSession();
+  if (!session) return;
+  // Vem do navegador: sem endpoint https e as duas chaves, o envio falharia
+  // depois sem dizer por quê.
+  if (
+    typeof sub?.endpoint !== "string" ||
+    !sub.endpoint.startsWith("https://") ||
+    typeof sub.keys?.p256dh !== "string" ||
+    typeof sub.keys?.auth !== "string"
+  ) {
+    throw new Error("Inscrição de push inválida");
+  }
+  await savePushSubscription(session.userId, sub);
+}
+
+export async function unsubscribePushAction(endpoint: string) {
+  const session = await getCurrentSession();
+  if (!session) return;
+  await deletePushSubscription(session.userId, endpoint);
 }
