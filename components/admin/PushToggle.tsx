@@ -9,7 +9,14 @@ import {
 const FOCUS_RING =
   "focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none";
 
-type State = "loading" | "iphone-browser" | "unsupported" | "denied" | "off" | "on";
+export type PushState =
+  | "loading"
+  | "iphone-browser"
+  | "unsupported"
+  | "denied"
+  | "off"
+  | "on";
+type State = PushState;
 
 /** A chave VAPID pública vem em base64url; o navegador quer os bytes. */
 function keyToBytes(base64: string) {
@@ -19,7 +26,25 @@ function keyToBytes(base64: string) {
   return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
 }
 
-async function detectState(): Promise<State> {
+/**
+ * Pede a permissão e inscreve este aparelho. Tem que ser chamado dentro de um
+ * clique: o iOS recusa pedir permissão sem gesto.
+ */
+export async function enablePush(): Promise<State> {
+  const permission = await Notification.requestPermission();
+  if (permission !== "granted") {
+    return permission === "denied" ? "denied" : "off";
+  }
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: keyToBytes(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!),
+  });
+  await subscribePushAction(JSON.parse(JSON.stringify(sub)));
+  return "on";
+}
+
+export async function detectState(): Promise<State> {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     return /iPhone|iPad|iPod/.test(navigator.userAgent)
       ? "iphone-browser"
@@ -54,21 +79,7 @@ export function PushToggle() {
   async function enable() {
     setBusy(true);
     try {
-      // Pedido dentro do clique: o iOS recusa pedir permissão sem gesto.
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        setState(permission === "denied" ? "denied" : "off");
-        return;
-      }
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: keyToBytes(
-          process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
-        ),
-      });
-      await subscribePushAction(JSON.parse(JSON.stringify(sub)));
-      setState("on");
+      setState(await enablePush());
     } finally {
       setBusy(false);
     }

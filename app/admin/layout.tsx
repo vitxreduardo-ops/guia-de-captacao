@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AdminAccount } from "@/components/admin/AdminAccount";
 import { AdminMenuButton } from "@/components/admin/AdminMenuButton";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { MobileOnboarding } from "@/components/admin/MobileOnboarding";
 import { TatuLogo } from "@/components/TatuLogo";
 import { getCurrentSession } from "@/lib/session";
 import { isSidebarCollapsed } from "@/lib/sidebarState";
@@ -82,6 +83,8 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
 
         {children}
       </div>
+
+      {session ? <MobileOnboarding /> : null}
     </div>
   );
 }
