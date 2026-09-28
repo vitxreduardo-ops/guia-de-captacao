@@ -1,7 +1,7 @@
 "use client";
 
-import { Bell, Share, SquarePlus, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Bell, Share, SquarePlus, Smartphone, X } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   detectState,
   enablePush,
@@ -13,14 +13,14 @@ const FOCUS_RING =
 
 const DISMISSED_KEY = "onboarding-celular-dispensado";
 
-type Step = "install" | "notify" | null;
+type Flow = "install" | "notify" | null;
 
 /**
  * Onde parar. Só no celular: no computador o botão do sino já basta.
  * No iPhone pelo Safari o primeiro passo é instalar, porque sem isso o iOS
  * nem oferece push; aberto pelo ícone (ou no Android), é ativar.
  */
-async function detectStep(): Promise<Step> {
+async function detectFlow(): Promise<Flow> {
   if (!window.matchMedia("(pointer: coarse)").matches) return null;
   try {
     if (localStorage.getItem(DISMISSED_KEY)) return null;
@@ -39,6 +39,25 @@ function dismiss() {
   } catch {}
 }
 
+/** Uma tela por passo: ícone grande e uma frase só, fácil de seguir no Safari. */
+const INSTALL_PAGES: { icon: ReactNode; title: string; text: ReactNode }[] = [
+  {
+    icon: <Share aria-hidden="true" className="size-7" />,
+    title: "Toque em Compartilhar",
+    text: "É o quadrado com a seta pra cima, na barra do Safari.",
+  },
+  {
+    icon: <SquarePlus aria-hidden="true" className="size-7" />,
+    title: "Adicionar à Tela de Início",
+    text: "Role a lista que abrir até achar essa opção e confirme em Adicionar.",
+  },
+  {
+    icon: <Smartphone aria-hidden="true" className="size-7" />,
+    title: "Abra pelo ícone novo",
+    text: "Feche o Safari, abra o painel pelo ícone na Tela de Início e entre de novo. Lá você ativa as notificações.",
+  },
+];
+
 /**
  * Passo a passo da primeira vez no celular: instalar na Tela de Início e
  * permitir notificações. Some de vez ao concluir ou ao tocar em "Agora não" —
@@ -48,18 +67,19 @@ function dismiss() {
  * a instrução de instalar não esconde o passo de notificações lá dentro.
  */
 export function MobileOnboarding() {
-  const [step, setStep] = useState<Step>(null);
+  const [flow, setFlow] = useState<Flow>(null);
+  const [page, setPage] = useState(0);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    detectStep().then(setStep);
+    detectFlow().then(setFlow);
   }, []);
 
-  if (!step) return null;
+  if (!flow) return null;
 
   function close() {
     dismiss();
-    setStep(null);
+    setFlow(null);
   }
 
   async function activate() {
@@ -72,108 +92,114 @@ export function MobileOnboarding() {
     }
   }
 
-  return (
-    <div
-      role="dialog"
-      aria-labelledby="onboarding-titulo"
-      className="fixed inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-50 rounded-xl border border-neutral-200 bg-white p-4 shadow-lg lg:hidden"
-    >
-      <button
-        type="button"
-        onClick={close}
-        aria-label="Fechar"
-        className={`absolute top-2 right-2 flex size-11 items-center justify-center rounded-md text-neutral-400 hover:text-neutral-900 ${FOCUS_RING}`}
-      >
-        <X aria-hidden="true" className="size-4" />
-      </button>
+  const current = INSTALL_PAGES[page];
+  const isLast = page === INSTALL_PAGES.length - 1;
 
-      {step === "install" ? (
-        <>
-          <h2
-            id="onboarding-titulo"
-            className="pr-10 text-base font-semibold text-neutral-900"
-          >
-            Receba os avisos no iPhone
-          </h2>
-          <p className="mt-1 text-sm text-neutral-500">
-            Instale o painel na Tela de Início. Leva 10 segundos.
-          </p>
-          <ol className="mt-3 space-y-2.5 text-sm text-neutral-700">
-            <li className="flex items-center gap-3">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-xs font-semibold">
-                1
-              </span>
-              <span>
-                Toque em{" "}
-                <Share
-                  aria-label="Compartilhar"
-                  className="inline size-4 align-[-2px]"
-                />{" "}
-                na barra do Safari
-              </span>
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-xs font-semibold">
-                2
-              </span>
-              <span>
-                Escolha{" "}
-                <SquarePlus
-                  aria-hidden="true"
-                  className="inline size-4 align-[-2px]"
-                />{" "}
-                <strong className="font-medium">
-                  Adicionar à Tela de Início
-                </strong>
-              </span>
-            </li>
-            <li className="flex items-center gap-3">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-xs font-semibold">
-                3
-              </span>
-              <span>Abra o painel pelo ícone novo e entre de novo</span>
-            </li>
-          </ol>
-          <button
-            type="button"
-            onClick={close}
-            className={`mt-4 min-h-11 w-full rounded-md border border-neutral-300 text-sm text-neutral-600 active:scale-[0.97] ${FOCUS_RING}`}
-          >
-            Agora não
-          </button>
-        </>
-      ) : (
-        <>
-          <h2
-            id="onboarding-titulo"
-            className="flex items-center gap-2 pr-10 text-base font-semibold text-neutral-900"
-          >
-            <Bell aria-hidden="true" className="size-4" />
-            Ative as notificações
-          </h2>
-          <p className="mt-1 text-sm text-neutral-500">
-            Avisamos quando um card ou uma tarefa for passada pra você. Depois
-            dá pra desligar pelo sino.
-          </p>
-          <div className="mt-4 flex gap-2">
-            <button
-              type="button"
-              onClick={close}
-              className={`min-h-11 flex-1 rounded-md border border-neutral-300 text-sm text-neutral-600 active:scale-[0.97] ${FOCUS_RING}`}
+  return (
+    // Centralizado com fundo escurecido: é a primeira coisa a fazer no
+    // celular, e no rodapé passava por aviso qualquer.
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 lg:hidden">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-titulo"
+        className="relative w-full max-w-sm rounded-xl border border-neutral-200 bg-white p-5 text-center shadow-lg"
+      >
+        <button
+          type="button"
+          onClick={close}
+          aria-label="Fechar"
+          className={`absolute top-2 right-2 flex size-11 items-center justify-center rounded-md text-neutral-400 hover:text-neutral-900 ${FOCUS_RING}`}
+        >
+          <X aria-hidden="true" className="size-4" />
+        </button>
+
+        {flow === "install" ? (
+          <>
+            <p className="text-xs font-medium tracking-wide text-neutral-400 uppercase">
+              Passo {page + 1} de {INSTALL_PAGES.length}
+            </p>
+            <div className="mx-auto mt-4 flex size-14 items-center justify-center rounded-full bg-neutral-100 text-neutral-900">
+              {current.icon}
+            </div>
+            <h2
+              id="onboarding-titulo"
+              className="mt-3 text-lg font-semibold text-neutral-900"
             >
-              Agora não
-            </button>
-            <button
-              type="button"
-              onClick={activate}
-              disabled={busy}
-              className={`min-h-11 flex-1 rounded-md bg-neutral-900 text-sm font-medium text-white active:scale-[0.97] disabled:opacity-50 ${FOCUS_RING}`}
+              {current.title}
+            </h2>
+            <p className="mt-1 min-h-[4lh] text-sm text-neutral-500">
+              {current.text}
+            </p>
+
+            <div
+              aria-hidden="true"
+              className="mt-3 flex justify-center gap-1.5"
             >
-              Ativar
-            </button>
-          </div>
-        </>
-      )}
+              {INSTALL_PAGES.map((_, i) => (
+                <span
+                  key={i}
+                  className={`size-1.5 rounded-full ${
+                    i === page ? "bg-neutral-900" : "bg-neutral-300"
+                  }`}
+                />
+              ))}
+            </div>
+
+            <div className="mt-4 flex gap-2">
+              {/* No primeiro passo não há pra onde voltar: o lugar do Voltar
+                  vira a saída. */}
+              <button
+                type="button"
+                onClick={page === 0 ? close : () => setPage(page - 1)}
+                className={`min-h-11 flex-1 rounded-md border border-neutral-300 text-sm text-neutral-600 active:scale-[0.97] ${FOCUS_RING}`}
+              >
+                {page === 0 ? "Agora não" : "Voltar"}
+              </button>
+              <button
+                type="button"
+                onClick={isLast ? close : () => setPage(page + 1)}
+                className={`min-h-11 flex-1 rounded-md bg-neutral-900 text-sm font-medium text-white active:scale-[0.97] ${FOCUS_RING}`}
+              >
+                {isLast ? "Entendi" : "Próximo"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-neutral-100 text-neutral-900">
+              <Bell aria-hidden="true" className="size-7" />
+            </div>
+            <h2
+              id="onboarding-titulo"
+              className="mt-3 text-lg font-semibold text-neutral-900"
+            >
+              Ative as notificações
+            </h2>
+            <p className="mt-1 text-sm text-neutral-500">
+              Avisamos quando um card ou uma tarefa for passada pra você. Depois
+              dá pra desligar pelo sino.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={close}
+                className={`min-h-11 flex-1 rounded-md border border-neutral-300 text-sm text-neutral-600 active:scale-[0.97] ${FOCUS_RING}`}
+              >
+                Agora não
+              </button>
+              <button
+                type="button"
+                onClick={activate}
+                disabled={busy}
+                className={`min-h-11 flex-1 rounded-md bg-neutral-900 text-sm font-medium text-white active:scale-[0.97] disabled:opacity-50 ${FOCUS_RING}`}
+              >
+                Ativar
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
