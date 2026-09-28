@@ -4,6 +4,7 @@ import {
   type Notification,
   type NotificationKind,
 } from "@/lib/notificationTypes";
+import { sendPushToUser } from "@/lib/push";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export { NOTIFICATION_LIMIT };
@@ -37,6 +38,14 @@ export async function notifyUser(params: {
     entity_id: params.entityId ?? null,
   });
   if (error) throw error;
+
+  // O push é extra: se o serviço da Apple/Google falhar, a notificação já está
+  // gravada e aparece na campainha, então a ação que a causou não pode quebrar.
+  await sendPushToUser(userId, {
+    title: params.title,
+    body: params.body ?? "",
+    url: params.link ?? "/admin",
+  }).catch((err) => console.error("Falha no push", err));
 }
 
 export async function listNotifications(
