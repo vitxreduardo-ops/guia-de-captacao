@@ -92,15 +92,19 @@ export async function deleteProspectAction(formData: FormData) {
 }
 
 /**
- * "Falei" — registra o que aconteceu e marca o próximo contato de uma vez.
- * A próxima data é obrigatória: é a regra que este funil existe pra impor.
- * Sem ela a ação não grava nada e a tela devolve o aviso.
+ * "Falei" (registra a conversa) ou "Reagendar" (só muda a data, sem fingir
+ * que houve conversa) — as duas passam pelo mesmo formulário e marcam o
+ * próximo contato de uma vez. A próxima data é obrigatória: é a regra que
+ * este funil existe pra impor. Sem ela a ação não grava nada e a tela
+ * devolve o aviso.
  */
 export async function logTouchAction(
   formData: FormData
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const id = String(formData.get("prospect_id") ?? "");
   if (!id) return { ok: false, message: "Contato não encontrado." };
+
+  const kind = formData.get("kind") === "nota" ? "nota" : "contato";
 
   const nextDate = String(formData.get("next_contact_date") ?? "").trim();
   const keepOpen = formData.get("no_next") === "on";
@@ -121,7 +125,7 @@ export async function logTouchAction(
   await logTouch({
     prospectId: id,
     authorId: await authorId(),
-    kind: "contato",
+    kind,
     message: String(formData.get("message") ?? "").trim(),
     next: {
       date: keepOpen ? null : nextDate || null,
