@@ -8,9 +8,12 @@ export async function proxy(request: NextRequest) {
   const cookie = request.cookies.get(COOKIE_NAME)?.value;
   const session = secret ? await getSession(cookie, secret) : null;
 
+  const isPortal = request.nextUrl.pathname.startsWith("/cliente");
+  const home = session?.role === "client" ? "/cliente" : "/admin";
+
   if (isLoginPage) {
     if (session) {
-      return NextResponse.redirect(new URL("/admin", request.url));
+      return NextResponse.redirect(new URL(home, request.url));
     }
     return NextResponse.next();
   }
@@ -20,6 +23,12 @@ export async function proxy(request: NextRequest) {
     loginUrl.searchParams.set("next", request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
   }
+
+  // Cliente só existe no portal; o resto do sistema é interno.
+  if (session.role === "client" && !isPortal) {
+    return NextResponse.redirect(new URL("/cliente", request.url));
+  }
+  if (isPortal) return NextResponse.next();
 
   // Admin sempre passa; `allowedSections` nula é "sem restrição" (o padrão).
   // `/admin/usuarios` é sempre admin-only, checado à parte em requireAdmin().
@@ -34,5 +43,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/cliente/:path*"],
 };

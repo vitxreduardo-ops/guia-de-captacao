@@ -1,7 +1,7 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
-export type UserRole = "admin" | "member";
+export type UserRole = "admin" | "member" | "client";
 
 export interface User {
   id: string;
@@ -13,6 +13,8 @@ export interface User {
   allowed_sections: string[] | null;
   /** Clientes liberados em Clientes/Galerias. `null` = todos. */
   allowed_client_ids: string[] | null;
+  /** Só para role "client": o cliente a que este acesso pertence. */
+  client_id: string | null;
   created_at: string;
 }
 
@@ -83,6 +85,7 @@ export async function listUsers(): Promise<PublicUser[]> {
   const { data, error } = await supabase
     .from("users")
     .select("*")
+    .neq("role", "client")
     .order("created_at", { ascending: true });
 
   if (error) throw error;
@@ -143,6 +146,7 @@ export async function createUser(fields: {
   email: string;
   password: string;
   role: UserRole;
+  clientId?: string;
 }): Promise<PublicUser> {
   const supabase = getSupabaseServerClient();
   const password_hash = await hashPassword(fields.password);
@@ -153,6 +157,7 @@ export async function createUser(fields: {
       email: fields.email.trim(),
       password_hash,
       role: fields.role,
+      client_id: fields.clientId ?? null,
     })
     .select("*")
     .single();
@@ -205,4 +210,18 @@ export async function deleteUser(id: string) {
   const { error } = await supabase.from("users").delete().eq("id", id);
   if (error) throw error;
   forgetUser(id);
+}
+
+/** Acesso do portal de um cliente, se já foi criado. */
+export async function getClientUser(clientId: string): Promise<PublicUser | null> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("role", "client")
+    .eq("client_id", clientId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ? toPublicUser(data) : null;
 }

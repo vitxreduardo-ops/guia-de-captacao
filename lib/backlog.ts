@@ -121,7 +121,11 @@ export async function getBacklogBoard(
               .select("id, name, payment_day")
               .order("name"),
         supabase.from("guides").select("id, title").order("title"),
-        supabase.from("users").select("id, username").order("username"),
+        supabase
+          .from("users")
+          .select("id, username")
+          .neq("role", "client")
+          .order("username"),
         supabase
           .from("services")
           .select("id, name, price_cents")
@@ -214,7 +218,11 @@ export async function getBacklogBoard(
           .select("id, name, payment_day")
           .order("name"),
     supabase.from("guides").select("id, title").order("title"),
-    supabase.from("users").select("id, username").order("username"),
+    supabase
+          .from("users")
+          .select("id, username")
+          .neq("role", "client")
+          .order("username"),
     supabase
       .from("services")
       .select("id, name, price_cents")
