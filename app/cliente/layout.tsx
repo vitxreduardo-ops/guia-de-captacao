@@ -1,7 +1,7 @@
 import { TatuLogo } from "@/components/TatuLogo";
 import { logout } from "@/app/admin/login/actions";
 
-export default function ClienteLayout({ children }: LayoutProps<"/cliente">) {
+export default function ClienteLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-svh bg-neutral-100 text-neutral-900">
       <header className="mx-auto flex w-full max-w-3xl items-center justify-between px-5 py-5">
