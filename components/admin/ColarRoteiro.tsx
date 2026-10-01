@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { ClipboardPaste, TriangleAlert } from "lucide-react";
 import {
@@ -7,6 +8,8 @@ import {
   salvarVideosNoGuiaAction,
 } from "@/app/admin/roteiros/actions";
 import type { VideoImportado } from "@/lib/roteiroTypes";
+
+export type GuiaDestino = { id: string; titulo: string; cliente: string };
 
 type Previa = { videos: VideoImportado[]; alterados: string[]; deFora: string[] };
 
@@ -19,9 +22,17 @@ const botaoPrimario =
  * Roteiro que o cliente já aprovou, colado do jeito que veio: a IA só recorta
  * em vídeos e cenas, a prévia mostra o que ela mudou ou deixou de fora, e só
  * grava no guia quando a pessoa confirma.
+ *
+ * No editor do guia recebe `guideId` e abre por botão. Em Roteiros recebe a
+ * lista de `guias`: fica sempre aberto e o guia de destino é escolhido na prévia.
  */
-export function ColarRoteiro({ guideId }: { guideId: string }) {
-  const [aberto, setAberto] = useState(false);
+export function ColarRoteiro(
+  props: { guideId: string; guias?: never } | { guias: GuiaDestino[]; guideId?: never }
+) {
+  const guias = props.guias;
+  const [aberto, setAberto] = useState(Boolean(guias));
+  const [destino, setDestino] = useState(guias?.[0]?.id ?? "");
+  const [enviadoPara, setEnviadoPara] = useState<GuiaDestino | null>(null);
   const [texto, setTexto] = useState("");
   const [previa, setPrevia] = useState<Previa | null>(null);
   const [carregando, setCarregando] = useState(false);
@@ -30,7 +41,7 @@ export function ColarRoteiro({ guideId }: { guideId: string }) {
   const raiz = useRef<HTMLDivElement>(null);
 
   function fechar() {
-    setAberto(false);
+    setAberto(Boolean(guias));
     setTexto("");
     setPrevia(null);
     setErro(null);
@@ -38,6 +49,7 @@ export function ColarRoteiro({ guideId }: { guideId: string }) {
 
   async function organizar() {
     setErro(null);
+    setEnviadoPara(null);
     setCarregando(true);
     try {
       const res = await organizarRoteiroAction(texto);
@@ -49,14 +61,17 @@ export function ColarRoteiro({ guideId }: { guideId: string }) {
   }
 
   async function adicionar() {
-    if (!previa) return;
+    const guiaId = props.guideId ?? destino;
+    if (!previa || !guiaId) return;
     setErro(null);
     setCarregando(true);
     try {
-      const res = await salvarVideosNoGuiaAction(guideId, previa.videos);
+      const res = await salvarVideosNoGuiaAction(guiaId, previa.videos);
       if (!res.ok) return setErro(res.error);
       setAdicionados(res.data.videos);
+      setEnviadoPara(guias?.find((g) => g.id === guiaId) ?? null);
       fechar();
+      if (guias) return;
       // A prévia some e a página encolhe: traz de volta pro vídeo novo, que
       // entra logo acima deste bloco.
       requestAnimationFrame(() =>
@@ -92,6 +107,15 @@ export function ColarRoteiro({ guideId }: { guideId: string }) {
 
   return (
     <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+      {enviadoPara && adicionados !== null && previa === null ? (
+        <p className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900" role="status">
+          {adicionados === 1 ? "1 vídeo adicionado" : `${adicionados} vídeos adicionados`} em{" "}
+          <Link href={`/admin/guias/${enviadoPara.id}`} className="font-medium underline">
+            {enviadoPara.titulo || "o guia"}
+          </Link>
+          .
+        </p>
+      ) : null}
       {previa === null ? (
         <>
           <label className="block text-xs font-medium text-neutral-600">
@@ -114,8 +138,8 @@ export function ColarRoteiro({ guideId }: { guideId: string }) {
             >
               {carregando ? "Organizando..." : "Organizar"}
             </button>
-            <button type="button" onClick={fechar} disabled={carregando} className={botao}>
-              Cancelar
+            <button type="button" onClick={fechar} disabled={carregando || (guias && !texto)} className={botao}>
+              {guias ? "Limpar" : "Cancelar"}
             </button>
           </div>
         </>
@@ -193,8 +217,37 @@ export function ColarRoteiro({ guideId }: { guideId: string }) {
             ))}
           </div>
 
+          {guias ? (
+            <label className="mt-3 block text-xs font-medium text-neutral-600">
+              Guia de destino
+              {guias.length === 0 ? (
+                <span className="mt-1 block font-normal text-neutral-500">
+                  Nenhum guia criado ainda. Crie em Guias e volte aqui.
+                </span>
+              ) : (
+                <select
+                  value={destino}
+                  onChange={(e) => setDestino(e.target.value)}
+                  className="mt-1 block w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm font-normal text-neutral-900 focus:border-neutral-500 focus:outline-none sm:max-w-md"
+                >
+                  {guias.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.titulo || "Sem título"}
+                      {g.cliente ? ` — ${g.cliente}` : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </label>
+          ) : null}
+
           <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" onClick={adicionar} disabled={carregando} className={botaoPrimario}>
+            <button
+              type="button"
+              onClick={adicionar}
+              disabled={carregando || !(props.guideId ?? destino)}
+              className={botaoPrimario}
+            >
               {carregando
                 ? "Adicionando..."
                 : previa.alterados.length > 0
