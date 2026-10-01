@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import ChatRoteiro from "@/components/admin/roteiros/ChatRoteiro";
-import { listGuideClientNames } from "@/lib/guides";
+import { clientesDoChat } from "@/lib/roteiroContexto";
 
 export default async function ChatRoteirosPage() {
   return (
@@ -24,7 +24,7 @@ export default async function ChatRoteirosPage() {
         </Link>
       </div>
 
-      <ChatRoteiro clientes={(await listGuideClientNames()).map((c) => c.nome)} />
+      <ChatRoteiro clientes={await clientesDoChat()} />
     </div>
   );
 }

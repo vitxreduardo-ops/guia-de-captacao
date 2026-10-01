@@ -10,7 +10,9 @@ import {
   MessageSquare,
   SendHorizontal,
   Trash2,
+  UserRound,
 } from "lucide-react";
+import PerfilCliente from "@/components/admin/roteiros/PerfilCliente";
 import { slugify } from "@/lib/slug";
 import { useFormularioAtual } from "@/lib/roteiroFormularioAtual";
 import {
@@ -105,6 +107,7 @@ export default function ChatRoteiro({
 }) {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [cliente, setCliente] = useState("");
+  const [perfilAberto, setPerfilAberto] = useState(false);
   const formulario = useFormularioAtual();
   const [texto, setTexto] = useState("");
   const [carregando, setCarregando] = useState(false);
@@ -187,6 +190,7 @@ export default function ChatRoteiro({
             value={cliente}
             onChange={(e) => {
               setCliente(e.target.value);
+              if (!e.target.value) setPerfilAberto(false);
               gravarConversa({ mensagens, cliente: e.target.value });
             }}
             className="min-w-0 max-w-[14rem] rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-900 focus:border-neutral-500 focus:outline-none"
@@ -199,6 +203,21 @@ export default function ChatRoteiro({
             ))}
           </select>
         </label>
+        {cliente ? (
+          <button
+            type="button"
+            onClick={() => setPerfilAberto((a) => !a)}
+            aria-expanded={perfilAberto}
+            className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs ${
+              perfilAberto
+                ? "border-neutral-900 bg-neutral-900 text-white"
+                : "border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+            }`}
+          >
+            <UserRound className="size-3" aria-hidden />
+            Perfil
+          </button>
+        ) : null}
         {formulario ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-600">
             <ClipboardList className="size-3" aria-hidden />
@@ -206,6 +225,8 @@ export default function ChatRoteiro({
           </span>
         ) : null}
       </div>
+
+      {cliente && perfilAberto ? <PerfilCliente key={cliente} cliente={cliente} /> : null}
 
       <div
         className={`space-y-3 overflow-y-auto p-4 ${

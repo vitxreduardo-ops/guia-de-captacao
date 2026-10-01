@@ -26,7 +26,12 @@ import {
 } from "@/lib/roteiroSchemas";
 import { addScene, addVideo, listGuides } from "@/lib/guides";
 import { getRoteiro, insertRoteiro, updateRoteiro } from "@/lib/roteiros";
-import { contextoDoCliente } from "@/lib/roteiroContexto";
+import {
+  clientePermitido,
+  contextoDoCliente,
+  perfilDoCliente,
+  salvarDescricaoDoCliente,
+} from "@/lib/roteiroContexto";
 import {
   DURACAO_MAX,
   DURACAO_MIN,
@@ -222,13 +227,16 @@ export async function conversarAction(
   }
 
   try {
-    const cliente = typeof contexto.cliente === "string" ? contexto.cliente.trim().slice(0, 200) : "";
+    const pedido = typeof contexto.cliente === "string" ? contexto.cliente.trim().slice(0, 200) : "";
+    // Cliente fora do acesso da pessoa é ignorado, não vira erro no meio da conversa.
+    const cliente = pedido && (await clientePermitido(pedido)) ? pedido : "";
     const formulario =
       typeof contexto.formulario === "string" ? contexto.formulario.slice(0, MAX_CARACTERES) : "";
     const data = await chatConversaJson<{ resposta: string; raciocinio: string[] }>({
       model: MODELO_ROTEIRO,
       system: promptChat({
         cliente,
+        descricaoDoCliente: cliente ? ((await perfilDoCliente(cliente))?.descricao ?? "") : "",
         roteirosDoCliente: cliente ? await contextoDoCliente(cliente) : "",
         formulario,
       }),
@@ -355,6 +363,46 @@ export async function salvarVideosNoGuiaAction(
   try {
     await inserirVideos(guiaId, limpos);
     return { ok: true, data: { videos: limpos.length } };
+  } catch (err) {
+    return { ok: false, error: mensagem(err) };
+  }
+}
+
+const MAX_DESCRICAO = 5000;
+
+/**
+ * Perfil do cliente aberto pelo chat. `cadastrado: false` quando o nome só
+ * existe nos guias: aí não há onde guardar a descrição.
+ */
+export async function lerPerfilClienteAction(
+  nome: string
+): Promise<Resultado<{ cadastrado: boolean; descricao: string }>> {
+  if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
+  try {
+    if (typeof nome !== "string" || !(await clientePermitido(nome))) {
+      return { ok: false, error: "Cliente fora do seu acesso." };
+    }
+    const perfil = await perfilDoCliente(nome);
+    return { ok: true, data: { cadastrado: perfil !== null, descricao: perfil?.descricao ?? "" } };
+  } catch (err) {
+    return { ok: false, error: mensagem(err) };
+  }
+}
+
+export async function salvarPerfilClienteAction(
+  nome: string,
+  descricao: string
+): Promise<Resultado<null>> {
+  if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
+  if (typeof descricao !== "string") return { ok: false, error: "Descrição inválida." };
+  try {
+    if (typeof nome !== "string" || !(await clientePermitido(nome))) {
+      return { ok: false, error: "Cliente fora do seu acesso." };
+    }
+    const perfil = await perfilDoCliente(nome);
+    if (!perfil) return { ok: false, error: "Cliente não está no cadastro." };
+    await salvarDescricaoDoCliente(perfil.id, descricao.trim().slice(0, MAX_DESCRICAO));
+    return { ok: true, data: null };
   } catch (err) {
     return { ok: false, error: mensagem(err) };
   }

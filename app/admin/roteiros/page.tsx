@@ -3,7 +3,7 @@ import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import ChatRoteiro from "@/components/admin/roteiros/ChatRoteiro";
 import GeradorRoteiro from "@/components/admin/roteiros/GeradorRoteiro";
-import { listGuideClientNames } from "@/lib/guides";
+import { clientesDoChat } from "@/lib/roteiroContexto";
 import { getRoteiro } from "@/lib/roteiros";
 import { preenchimentoDe } from "@/lib/roteiroTypes";
 
@@ -13,11 +13,10 @@ export default async function RoteirosPage({
   // ?de=<id> vem do "Usar como base" do histórico: abre o formulário
   // preenchido com aquele roteiro, sem gerar nada.
   const { de } = await searchParams;
-  const [base, sugestoes] = await Promise.all([
+  const [base, clientes] = await Promise.all([
     typeof de === "string" ? getRoteiro(de) : null,
-    listGuideClientNames(),
+    clientesDoChat(),
   ]);
-  const clientes = sugestoes.map((c) => c.nome);
 
   return (
     // No desktop a página inteira cabe na janela (o cartão do admin tem 0,5rem
