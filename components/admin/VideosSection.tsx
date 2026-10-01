@@ -11,6 +11,7 @@ import {
   updateVideoNotasAction,
 } from "@/app/admin/guias/[id]/actions";
 import { Accordion } from "@/components/Accordion";
+import { ColarRoteiro } from "@/components/admin/ColarRoteiro";
 import { DeleteButton } from "@/components/admin/DeleteButton";
 import { LightboxImage } from "@/components/LightboxImage";
 import type { Scene, VideoWithScenes, VisualReference } from "@/lib/guides";
@@ -429,6 +430,10 @@ export function VideosSection({
             Salvar vídeo {nextVideoNumber} e adicionar o próximo
           </button>
         </form>
+
+        <div className="mt-3 border-t border-neutral-200 pt-3">
+          <ColarRoteiro guideId={guideId} />
+        </div>
 
         {videos.length > 0 ? (
           <div className="mt-3 border-t border-neutral-200 pt-3">
