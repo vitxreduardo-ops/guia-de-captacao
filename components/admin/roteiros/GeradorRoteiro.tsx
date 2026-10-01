@@ -12,10 +12,12 @@ import CamposEspecificos, {
 import ResultadoRoteiro from "@/components/admin/roteiros/ResultadoRoteiro";
 import TagEditor from "@/components/admin/roteiros/TagEditor";
 import ControlesSalvos from "@/components/admin/roteiros/ControlesSalvos";
+import { publicarFormulario } from "@/lib/roteiroFormularioAtual";
 import {
   ComumParams,
   Framework,
   nichoFinal,
+  resumoFormulario,
   type PreenchimentoInicial,
   type RoteiroJson,
 } from "@/lib/roteiroTypes";
@@ -101,6 +103,12 @@ export default function GeradorRoteiro({
       document.removeEventListener("click", avisarAoNavegar, true);
     };
   }, [temAlgo]);
+
+  // O chat ao lado lê o formulário e o roteiro gerado a cada mensagem.
+  useEffect(() => {
+    publicarFormulario(resumoFormulario(comum, framework, resultado));
+  }, [comum, framework, resultado]);
+  useEffect(() => () => publicarFormulario(""), []);
 
   function extraAtual() {
     switch (framework) {

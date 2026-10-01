@@ -335,3 +335,40 @@ export function verificarIntocado(original: string, r: RoteiroOrganizado) {
 
   return { alterados, deFora };
 }
+
+/**
+ * O que está no gerador, em texto, pro chat ler junto da conversa ("melhora
+ * esse hook" sem colar nada). Vazio quando o formulário está em branco.
+ */
+export function resumoFormulario(
+  comum: ComumParams,
+  framework: Framework | null,
+  resultado: RoteiroJson | null
+): string {
+  const linhas = [
+    ["Tema", comum.tema],
+    ["Objetivo", comum.objetivo],
+    ["Contexto da empresa/campanha", comum.contexto],
+    ["Tom", comum.tom],
+    ["Nicho", nichoFinal(comum)],
+    ["Framework", framework ?? ""],
+  ]
+    .filter(([, valor]) => valor.trim())
+    .map(([campo, valor]) => `- ${campo}: ${valor.trim()}`);
+  if (linhas.length === 0 && !resultado) return "";
+  linhas.push(`- Duração alvo: ${comum.duracaoSegundos} segundos`);
+
+  if (resultado && framework) {
+    linhas.push("", "Roteiro gerado:");
+    for (const video of roteiroParaVideos(framework, comum.tema, resultado)) {
+      linhas.push(`Vídeo: ${video.titulo}`);
+      video.cenas.forEach((c, i) => {
+        linhas.push(`  Cena ${i + 1}: ${c.script}`);
+        if (c.hooks_alternativos.length) linhas.push(`    Hooks alternativos: ${c.hooks_alternativos.join(" | ")}`);
+        if (c.ctas_alternativos.length) linhas.push(`    CTAs alternativos: ${c.ctas_alternativos.join(" | ")}`);
+      });
+      if (video.notas_producao) linhas.push(`  Notas de produção: ${video.notas_producao}`);
+    }
+  }
+  return linhas.join("\n");
+}

@@ -14,7 +14,7 @@ import {
   promptAIDA,
   promptMidtrack,
   promptPAS,
-  PROMPT_CHAT,
+  promptChat,
   PROMPT_ORGANIZAR,
   PROMPT_TRIAGEM,
 } from "@/lib/roteiroPrompts";
@@ -26,6 +26,7 @@ import {
 } from "@/lib/roteiroSchemas";
 import { addScene, addVideo, listGuides } from "@/lib/guides";
 import { getRoteiro, insertRoteiro, updateRoteiro } from "@/lib/roteiros";
+import { contextoDoCliente } from "@/lib/roteiroContexto";
 import {
   DURACAO_MAX,
   DURACAO_MIN,
@@ -196,8 +197,13 @@ export async function atualizarRoteiroAction(
 const MAX_MENSAGENS = 30;
 const MAX_CARACTERES = 8000;
 
+/**
+ * O chat recebe, além da conversa, o cliente escolhido (roteiros dos guias
+ * dele, lidos aqui no servidor) e o que está no gerador ao lado.
+ */
 export async function conversarAction(
-  mensagens: MensagemChat[]
+  mensagens: MensagemChat[],
+  contexto: { cliente?: string; formulario?: string } = {}
 ): Promise<Resultado<{ resposta: string; raciocinio: string[] }>> {
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
 
@@ -216,9 +222,16 @@ export async function conversarAction(
   }
 
   try {
+    const cliente = typeof contexto.cliente === "string" ? contexto.cliente.trim().slice(0, 200) : "";
+    const formulario =
+      typeof contexto.formulario === "string" ? contexto.formulario.slice(0, MAX_CARACTERES) : "";
     const data = await chatConversaJson<{ resposta: string; raciocinio: string[] }>({
       model: MODELO_ROTEIRO,
-      system: PROMPT_CHAT,
+      system: promptChat({
+        cliente,
+        roteirosDoCliente: cliente ? await contextoDoCliente(cliente) : "",
+        formulario,
+      }),
       mensagens: validas,
       schema: schemaChat,
       temperature: 0.8,
