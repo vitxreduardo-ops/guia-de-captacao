@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { ExternalLink, Loader2 } from "lucide-react";
 import {
   lerPerfilClienteAction,
   salvarPerfilClienteAction,
@@ -11,8 +10,9 @@ import {
 type Perfil = { cadastrado: boolean; descricao: string };
 
 /**
- * Descrição do cliente que o chat lê a cada mensagem, editada sem sair da
- * conversa. Montado com key={cliente}: trocar de cliente recarrega.
+ * Descrição do cliente que o chat lê a cada mensagem — o mesmo campo de
+ * Clientes > Cadastro, editado sem sair da conversa. Cliente que só existe
+ * nos guias é cadastrado ao salvar. Montado com key={cliente}.
  */
 export default function PerfilCliente({ cliente }: { cliente: string }) {
   const [perfil, setPerfil] = useState<Perfil | null>(null);
@@ -41,8 +41,12 @@ export default function PerfilCliente({ cliente }: { cliente: string }) {
     try {
       const res = await salvarPerfilClienteAction(cliente, descricao);
       if (!res.ok) return setErro(res.error);
+      setAviso(
+        perfil?.cadastrado
+          ? "Salvo. O chat já usa na próxima mensagem."
+          : `Salvo e ${cliente} cadastrado em Clientes.`
+      );
       setPerfil({ cadastrado: true, descricao });
-      setAviso("Salvo. O chat já usa na próxima mensagem.");
     } finally {
       setSalvando(false);
     }
@@ -59,20 +63,15 @@ export default function PerfilCliente({ cliente }: { cliente: string }) {
         </p>
       ) : null}
 
-      {perfil && !perfil.cadastrado ? (
-        <p className="text-xs text-neutral-600">
-          {cliente} só aparece nos guias, não está no cadastro de clientes. Cadastre em{" "}
-          <Link href="/admin/clientes/cadastro" className="font-medium underline">
-            Clientes
-          </Link>{" "}
-          para guardar uma descrição.
-        </p>
-      ) : null}
-
-      {perfil?.cadastrado ? (
+      {perfil ? (
         <>
           <label className="block text-xs font-medium text-neutral-600">
-            Descrição de {cliente} para o chat
+            Descrição de {cliente}
+            <span className="font-normal text-neutral-500">
+              {perfil.cadastrado
+                ? " · a mesma de Clientes"
+                : " · ainda não está em Clientes; salvar já cadastra"}
+            </span>
             <textarea
               value={descricao}
               onChange={(e) => {
@@ -94,12 +93,19 @@ export default function PerfilCliente({ cliente }: { cliente: string }) {
             >
               {salvando ? "Salvando..." : "Salvar descrição"}
             </button>
-            <Link
-              href="/admin/clientes/cadastro"
-              className="text-xs text-neutral-500 underline hover:text-neutral-800"
-            >
-              Cadastro completo
-            </Link>
+            {perfil.cadastrado ? (
+              // Nova aba: o formulário e a conversa ficam aqui.
+              <a
+                href="/admin/clientes/cadastro"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-neutral-500 underline hover:text-neutral-800"
+              >
+                Cadastro completo
+                <ExternalLink className="size-3" aria-hidden />
+                <span className="sr-only">(abre em nova aba)</span>
+              </a>
+            ) : null}
             {aviso ? (
               <span className="text-xs text-emerald-700" role="status">
                 {aviso}

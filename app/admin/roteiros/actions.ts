@@ -25,6 +25,7 @@ import {
   schemaTriagem,
 } from "@/lib/roteiroSchemas";
 import { addScene, addVideo, listGuides } from "@/lib/guides";
+import { createGalleryClient } from "@/lib/galleries";
 import { getRoteiro, insertRoteiro, updateRoteiro } from "@/lib/roteiros";
 import {
   clientePermitido,
@@ -371,8 +372,8 @@ export async function salvarVideosNoGuiaAction(
 const MAX_DESCRICAO = 5000;
 
 /**
- * Perfil do cliente aberto pelo chat. `cadastrado: false` quando o nome só
- * existe nos guias: aí não há onde guardar a descrição.
+ * Perfil do cliente aberto pelo chat: a mesma descrição de Clientes >
+ * Cadastro. `cadastrado: false` quando o nome só existe nos guias.
  */
 export async function lerPerfilClienteAction(
   nome: string
@@ -399,9 +400,11 @@ export async function salvarPerfilClienteAction(
     if (typeof nome !== "string" || !(await clientePermitido(nome))) {
       return { ok: false, error: "Cliente fora do seu acesso." };
     }
-    const perfil = await perfilDoCliente(nome);
-    if (!perfil) return { ok: false, error: "Cliente não está no cadastro." };
-    await salvarDescricaoDoCliente(perfil.id, descricao.trim().slice(0, MAX_DESCRICAO));
+    // Nome que só existe nos guias: salvar já cadastra o cliente, sem passar
+    // por Clientes. (Acesso restrito nem chega aqui: clientePermitido barra.)
+    const id = (await perfilDoCliente(nome))?.id ?? (await createGalleryClient(nome.trim())).id;
+    await salvarDescricaoDoCliente(id, descricao.trim().slice(0, MAX_DESCRICAO));
+    revalidatePath("/admin/clientes/cadastro");
     return { ok: true, data: null };
   } catch (err) {
     return { ok: false, error: mensagem(err) };
