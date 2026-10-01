@@ -19,6 +19,8 @@ export interface GalleryClient {
   document: string | null;
   address: string | null;
   notes: string | null;
+  /** Quem é o cliente, pro chat de roteiros. Fica fora de `notes`, que não vai pra IA. */
+  descricao_roteiro: string;
   /** Dia do mês em que costuma pagar; vale para o mês seguinte ao da entrega. */
   payment_day: number | null;
   /** Cliente fora de atividade: sai das listas, mantém o histórico. */
@@ -410,6 +412,8 @@ export interface GalleryClientDetails {
   document: string | null;
   address: string | null;
   notes: string | null;
+  /** Só vem quando o formulário tem o campo: sem ele, a descrição não é apagada. */
+  descricao_roteiro?: string;
   payment_day: number | null;
 }
 
@@ -433,6 +437,9 @@ export function readGalleryClientDetails(
     document: textOrNull(formData.get("document")),
     address: textOrNull(formData.get("address")),
     notes: textOrNull(formData.get("notes")),
+    ...(formData.has("descricao_roteiro")
+      ? { descricao_roteiro: String(formData.get("descricao_roteiro")).trim().slice(0, 5000) }
+      : {}),
     payment_day:
       Number.isInteger(day) && day >= 1 && day <= 31 ? day : null,
   };

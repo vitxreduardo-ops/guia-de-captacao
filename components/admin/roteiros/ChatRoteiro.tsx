@@ -2,8 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import { conversarAction } from "@/app/admin/roteiros/actions";
-import { FileDown, FileText, Loader2, MessageSquare, SendHorizontal, Trash2 } from "lucide-react";
+import {
+  ClipboardList,
+  FileDown,
+  FileText,
+  Loader2,
+  MessageSquare,
+  SendHorizontal,
+  Trash2,
+  UserRound,
+} from "lucide-react";
+import PerfilCliente from "@/components/admin/roteiros/PerfilCliente";
 import { slugify } from "@/lib/slug";
+import { useFormularioAtual } from "@/lib/roteiroFormularioAtual";
 import {
   ThoughtChain,
   ThoughtChainContent,
@@ -24,21 +35,27 @@ type Mensagem = {
 const CHAVE = "roteiros-chat";
 const VALIDADE_MS = 24 * 60 * 60 * 1000;
 
-function lerConversa(): Mensagem[] {
+// O cliente escolhido vale pra conversa toda, então fica salvo junto dela.
+type Conversa = { mensagens: Mensagem[]; cliente: string };
+
+function lerConversa(): Conversa {
   try {
     const salvo = JSON.parse(localStorage.getItem(CHAVE) ?? "null");
-    if (!salvo || Date.now() - salvo.salvoEm > VALIDADE_MS) return [];
-    return Array.isArray(salvo.mensagens) ? salvo.mensagens : [];
+    if (!salvo || Date.now() - salvo.salvoEm > VALIDADE_MS) return { mensagens: [], cliente: "" };
+    return {
+      mensagens: Array.isArray(salvo.mensagens) ? salvo.mensagens : [],
+      cliente: typeof salvo.cliente === "string" ? salvo.cliente : "",
+    };
   } catch {
-    return [];
+    return { mensagens: [], cliente: "" };
   }
 }
 
-function gravarConversa(mensagens: Mensagem[]) {
+function gravarConversa({ mensagens, cliente }: Conversa) {
   try {
-    if (mensagens.length === 0) localStorage.removeItem(CHAVE);
+    if (mensagens.length === 0 && !cliente) localStorage.removeItem(CHAVE);
     // O prazo conta da última mensagem: conversa em uso não expira no meio.
-    else localStorage.setItem(CHAVE, JSON.stringify({ salvoEm: Date.now(), mensagens }));
+    else localStorage.setItem(CHAVE, JSON.stringify({ salvoEm: Date.now(), mensagens, cliente }));
   } catch {
     // Sem armazenamento (aba anônima, bloqueio): a conversa só não sobrevive ao recarregar.
   }
@@ -81,11 +98,17 @@ const BOTAO_BAIXAR =
 
 export default function ChatRoteiro({
   preencher = false,
+  clientes = [],
 }: {
   /** Ocupa a altura do pai (coluna ao lado do gerador) em vez de ter altura própria. */
   preencher?: boolean;
+  /** Nomes pro seletor de cliente (cadastro + clientes dos guias). */
+  clientes?: string[];
 }) {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
+  const [cliente, setCliente] = useState("");
+  const [perfilAberto, setPerfilAberto] = useState(false);
+  const formulario = useFormularioAtual();
   const [texto, setTexto] = useState("");
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -95,8 +118,10 @@ export default function ChatRoteiro({
   // Lido depois de montar: no servidor não existe localStorage, e ler no
   // primeiro render daria HTML diferente entre servidor e navegador.
   useEffect(() => {
+    const salva = lerConversa();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMensagens(lerConversa());
+    setMensagens(salva.mensagens);
+    setCliente(salva.cliente);
   }, []);
 
   useEffect(() => {
@@ -109,13 +134,16 @@ export default function ChatRoteiro({
 
     const novas: Mensagem[] = [...mensagens, { role: "user", content: conteudo }];
     setMensagens(novas);
-    gravarConversa(novas);
+    gravarConversa({ mensagens: novas, cliente });
     setTexto("");
     setErro(null);
     setCarregando(true);
     try {
       // O raciocínio é só pra tela: a IA recebe a conversa sem ele.
-      const res = await conversarAction(novas.map(({ role, content }) => ({ role, content })));
+      const res = await conversarAction(
+        novas.map(({ role, content }) => ({ role, content })),
+        { cliente, formulario }
+      );
       if (!res.ok) {
         setErro(res.error);
         return;
@@ -125,7 +153,7 @@ export default function ChatRoteiro({
         { role: "assistant", content: res.data.resposta, raciocinio: res.data.raciocinio },
       ];
       setMensagens(comResposta);
-      gravarConversa(comResposta);
+      gravarConversa({ mensagens: comResposta, cliente });
     } finally {
       setCarregando(false);
     }
@@ -133,7 +161,7 @@ export default function ChatRoteiro({
 
   function limpar() {
     setMensagens([]);
-    gravarConversa([]);
+    gravarConversa({ mensagens: [], cliente });
     setErro(null);
   }
 
@@ -154,6 +182,52 @@ export default function ChatRoteiro({
           <span className="font-mono text-xs text-neutral-500">ideias e ganchos</span>
         </div>
       )}
+      {/* O que o chat sabe além da conversa: cliente escolhido e formulário ao lado. */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-neutral-200 px-4 py-2.5">
+        <label className="flex min-w-0 items-center gap-2 text-xs text-neutral-500">
+          Cliente
+          <select
+            value={cliente}
+            onChange={(e) => {
+              setCliente(e.target.value);
+              if (!e.target.value) setPerfilAberto(false);
+              gravarConversa({ mensagens, cliente: e.target.value });
+            }}
+            className="min-w-0 max-w-[14rem] rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-900 focus:border-neutral-500 focus:outline-none"
+          >
+            <option value="">Nenhum</option>
+            {clientes.map((nome) => (
+              <option key={nome} value={nome}>
+                {nome}
+              </option>
+            ))}
+          </select>
+        </label>
+        {cliente ? (
+          <button
+            type="button"
+            onClick={() => setPerfilAberto((a) => !a)}
+            aria-expanded={perfilAberto}
+            className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs ${
+              perfilAberto
+                ? "border-neutral-900 bg-neutral-900 text-white"
+                : "border-neutral-300 text-neutral-700 hover:bg-neutral-50"
+            }`}
+          >
+            <UserRound className="size-3" aria-hidden />
+            Perfil
+          </button>
+        ) : null}
+        {formulario ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-600">
+            <ClipboardList className="size-3" aria-hidden />
+            Lendo o formulário
+          </span>
+        ) : null}
+      </div>
+
+      {cliente && perfilAberto ? <PerfilCliente key={cliente} cliente={cliente} /> : null}
+
       <div
         className={`space-y-3 overflow-y-auto p-4 ${
           preencher ? "min-h-0 flex-1" : "min-h-[18rem] max-h-[60svh]"
@@ -242,6 +316,13 @@ export default function ChatRoteiro({
             <ThoughtChainStep status="done" defaultOpen={false}>
               <ThoughtChainTrigger collapsible={false}>Lendo a conversa</ThoughtChainTrigger>
             </ThoughtChainStep>
+            {cliente ? (
+              <ThoughtChainStep status="done" defaultOpen={false}>
+                <ThoughtChainTrigger collapsible={false}>
+                  {`Lendo os roteiros de ${cliente}`}
+                </ThoughtChainTrigger>
+              </ThoughtChainStep>
+            ) : null}
             <ThoughtChainStep status="active" defaultOpen={false}>
               <ThoughtChainTrigger collapsible={false}>Pensando na resposta</ThoughtChainTrigger>
             </ThoughtChainStep>

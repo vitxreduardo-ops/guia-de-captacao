@@ -220,6 +220,34 @@ REGRAS:
 
 ${ANTI_CLICHE}`;
 
+/** PROMPT_CHAT mais o que o chat sabe desta vez: cliente e formulário do gerador. */
+export function promptChat({
+  cliente,
+  descricaoDoCliente,
+  roteirosDoCliente,
+  formulario,
+}: {
+  cliente: string;
+  descricaoDoCliente: string;
+  roteirosDoCliente: string;
+  formulario: string;
+}) {
+  let prompt = PROMPT_CHAT;
+  if (cliente) {
+    prompt += `\n\nCLIENTE DESTA CONVERSA: ${cliente}\n`;
+    if (descricaoDoCliente) {
+      prompt += `Perfil do cliente (escrito pelo estúdio; vale mais que qualquer suposição sua):\n${descricaoDoCliente}\n\n`;
+    }
+    prompt += roteirosDoCliente
+      ? `Roteiros já planejados para este cliente (mais recentes primeiro). Use para pegar o tom, o vocabulário e o tipo de pauta dele, e evite repetir ideias já feitas. Copie o estilo, não a formatação: mesmo que estes roteiros tenham ** ou outras marcações, sua resposta continua em texto puro:\n${roteirosDoCliente}`
+      : "Ainda não há roteiros deste cliente nos guias.";
+  }
+  if (formulario) {
+    prompt += `\n\nFORMULÁRIO DO GERADOR (aberto ao lado do chat; quando a pessoa falar de "esse roteiro", "esse hook", "o tema", é disto):\n${formulario}`;
+  }
+  return prompt;
+}
+
 // "Colar roteiro" no editor do guia: o cliente já aprovou o texto, então a IA
 // só recorta e classifica. A checagem verificarIntocado confere depois.
 export const PROMPT_ORGANIZAR = `Você recebe um roteiro de vídeo curto que o cliente JÁ APROVOU, escrito do jeito que ele mandou (pode vir bagunçado, de WhatsApp, Docs, com marcações soltas). Sua tarefa é só ORGANIZAR esse texto no formato do guia de captação.
