@@ -30,6 +30,8 @@ export async function GET(request: Request) {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
+    // 30 dias: reabrir o app instalado volta pro mesmo cliente, sem escolher de novo.
+    maxAge: 60 * 60 * 24 * 30,
   });
   return response;
 }
