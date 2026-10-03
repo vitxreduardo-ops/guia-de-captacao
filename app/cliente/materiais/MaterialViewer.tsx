@@ -145,7 +145,10 @@ function MediaLightbox({
       role="dialog"
       aria-modal="true"
       aria-label={`Arquivo ${index + 1} de ${items.length}`}
-      className="fixed inset-0 z-50 flex flex-col bg-black/95 text-white"
+      // Margem em volta: a mídia não vai até a borda da tela. Tocar no fundo
+      // (fora da mídia e dos botões) fecha.
+      className="fixed inset-0 z-50 flex flex-col items-center gap-3 bg-black/90 px-[max(1rem,env(safe-area-inset-left),env(safe-area-inset-right))] pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] text-white"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
       // Arrastar a barra de progresso do vídeo não pode trocar de arquivo.
       onPointerDown={(e) => (startX.current = (e.target as HTMLElement).closest("video") ? null : e.clientX)}
       onPointerUp={(e) => {
@@ -155,12 +158,8 @@ function MediaLightbox({
         if (Math.abs(dx) > 60) go(dx < 0 ? 1 : -1);
       }}
     >
-      <div className="flex items-center justify-between gap-2 px-[max(0.75rem,env(safe-area-inset-left))] pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+      <div className="flex w-full max-w-3xl items-center justify-between gap-2">
         <span className="min-w-12 text-sm tabular-nums text-white/80">{many ? `${index + 1} de ${items.length}` : ""}</span>
-        <SaveToPhotosButton
-          className="!border-white/60 !text-white"
-          files={[{ url: item.downloadSrc, name: item.caption || `arquivo-${item.id}` }]}
-        />
         <button
           type="button"
           onClick={onClose}
@@ -171,7 +170,7 @@ function MediaLightbox({
         </button>
       </div>
 
-      <div className="relative min-h-0 flex-1">
+      <div className="relative min-h-0 w-full max-w-3xl flex-1 overflow-hidden rounded-2xl bg-black">
         {loadedId !== item.id ? (
           <span className="absolute inset-0 z-10 grid place-items-center" role="status" aria-label="Carregando">
             <span className="size-9 animate-spin rounded-full border-2 border-white/30 border-t-white" />
@@ -197,7 +196,7 @@ function MediaLightbox({
               type="button"
               onClick={() => go(-1)}
               aria-label="Anterior"
-              className="absolute left-[max(0.5rem,env(safe-area-inset-left))] top-1/2 z-20 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-black/55"
+              className="absolute left-2 top-1/2 z-20 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-black/55"
             >
               <ChevronLeft className="size-6" aria-hidden />
             </button>
@@ -205,7 +204,7 @@ function MediaLightbox({
               type="button"
               onClick={() => go(1)}
               aria-label="Próximo"
-              className="absolute right-[max(0.5rem,env(safe-area-inset-right))] top-1/2 z-20 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-black/55"
+              className="absolute right-2 top-1/2 z-20 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-black/55"
             >
               <ChevronRight className="size-6" aria-hidden />
             </button>
@@ -214,12 +213,18 @@ function MediaLightbox({
       </div>
 
       {many ? (
-        <div className="flex justify-center gap-1.5 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]" aria-hidden>
+        <div className="flex justify-center gap-1.5" aria-hidden>
           {items.map((it, i) => (
             <span key={it.id} className={`h-1.5 rounded-full ${i === index ? "w-5 bg-white" : "w-1.5 bg-white/40"}`} />
           ))}
         </div>
       ) : null}
+
+      {/* Embaixo, perto do polegar: vale para foto e para vídeo. */}
+      <SaveToPhotosButton
+        className="!border-white/60 !text-white"
+        files={[{ url: item.downloadSrc, name: item.caption || `arquivo-${item.id}` }]}
+      />
     </div>
   );
 }
