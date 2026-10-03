@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Check, Copy, RefreshCw } from "lucide-react";
-import { saveClientAccessAction } from "@/app/admin/area-do-cliente/acessos/actions";
+import { saveClientAccessAction } from "@/app/admin/area-do-cliente/actions";
 import { generatePassword } from "@/lib/passwords";
 
 /** "Dra. Juliana" → "dra.juliana"; sugestão, o admin pode trocar. */

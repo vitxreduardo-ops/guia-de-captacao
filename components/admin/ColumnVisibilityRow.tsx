@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setColumnClientVisibleAction } from "@/app/admin/area-do-cliente/materiais/actions";
+import { setColumnClientVisibleAction } from "@/app/admin/area-do-cliente/actions";
 
 /** Um interruptor por coluna: grava ao tocar, sem botão de salvar. */
 export function ColumnVisibilityRow({

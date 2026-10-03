@@ -66,5 +66,5 @@ export async function addIdeaAction(formData: FormData) {
     createdBy: user.id,
   });
   revalidatePath("/cliente", "layout");
-  revalidatePath("/admin/area-do-cliente/calendario");
+  revalidatePath("/admin/area-do-cliente", "layout");
 }

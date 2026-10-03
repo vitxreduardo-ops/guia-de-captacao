@@ -66,7 +66,7 @@ export async function getPortalSession(): Promise<{
     const clientId = (await cookies()).get(PREVIEW_COOKIE)?.value;
     // Sem prévia escolhida o admin não tem o que ver aqui; sair levaria a
     // sessão dele junto.
-    if (!clientId) redirect("/admin/area-do-cliente/calendario");
+    if (!clientId) redirect("/admin/area-do-cliente");
     return { clientId, preview: true };
   }
   redirect("/cliente/sair");

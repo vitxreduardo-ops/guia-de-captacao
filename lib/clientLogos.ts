@@ -1,5 +1,6 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { svgIsLight } from "@/lib/clientLogoMatch";
 
 /**
  * O acervo de logos de clientes, compartilhado por todas as propostas.
@@ -68,4 +69,15 @@ export async function deleteClientLogo(id: string) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase.from("client_logos").delete().eq("id", id);
   if (error) throw error;
+}
+
+/** Logo clara demais pra fundo branco? Só SVG é inspecionado; o resto conta como escura. */
+export async function isLightLogo(url: string): Promise<boolean> {
+  if (!url.split("?")[0].toLowerCase().endsWith(".svg")) return false;
+  try {
+    const res = await fetch(url, { cache: "force-cache" });
+    return res.ok ? svgIsLight(await res.text()) : false;
+  } catch {
+    return false;
+  }
 }

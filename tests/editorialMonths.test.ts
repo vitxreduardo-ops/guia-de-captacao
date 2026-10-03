@@ -50,3 +50,29 @@ describe("creatorColor", () => {
     expect(creatorColor("vitor.tatu")).toMatch(/^#[0-9a-f]{6}$/);
   });
 });
+
+import { findClientLogo } from "@/lib/clientLogoMatch";
+
+describe("findClientLogo", () => {
+  const logos = [{ name: "14bis", logo_url: "u1" }, { name: "Creative Home", logo_url: "u2" }];
+  it("casa sem ligar pra caixa, acento e espaço", () => {
+    expect(findClientLogo("14Bis", logos)).toBe("u1");
+    expect(findClientLogo("  creative  home ", logos)).toBe("u2");
+  });
+  it("sem logo no acervo devolve null", () => {
+    expect(findClientLogo("Aerobite", logos)).toBeNull();
+    expect(findClientLogo("", logos)).toBeNull();
+  });
+});
+
+import { svgIsLight } from "@/lib/clientLogoMatch";
+
+describe("svgIsLight", () => {
+  it("branco é claro, preto e sem cor não", () => {
+    expect(svgIsLight('<path style="fill: #fff"/>')).toBe(true);
+    expect(svgIsLight('<path fill="#ffffff"/><path fill="white"/>')).toBe(true);
+    expect(svgIsLight('<path fill="#000"/>')).toBe(false);
+    expect(svgIsLight('<path fill="#fff"/><path fill="#222"/>')).toBe(false);
+    expect(svgIsLight("<path/>")).toBe(false);
+  });
+});

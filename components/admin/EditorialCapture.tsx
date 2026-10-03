@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { ChevronDown, Plus } from "lucide-react";
-import { createIdeaAction } from "@/app/admin/area-do-cliente/calendario/actions";
+import { createIdeaAction } from "@/app/admin/area-do-cliente/actions";
 import { MONTH_NAMES } from "@/lib/editorialMonths";
 
 /**

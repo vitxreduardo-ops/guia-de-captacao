@@ -5,7 +5,7 @@ import { Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
 import {
   deleteIdeaAction,
   updateIdeaAction,
-} from "@/app/admin/area-do-cliente/calendario/actions";
+} from "@/app/admin/area-do-cliente/actions";
 import { CreatorTag } from "@/components/CreatorTag";
 import type { EditorialIdea } from "@/lib/editorialMonths";
 

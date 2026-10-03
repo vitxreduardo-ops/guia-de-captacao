@@ -15,8 +15,9 @@ export async function GET(request: Request) {
   }
 
   if (url.searchParams.get("sair")) {
+    const was = request.headers.get("cookie")?.match(/portal_preview=([^;]+)/)?.[1];
     const response = NextResponse.redirect(
-      new URL("/admin/area-do-cliente/calendario", url)
+      new URL(was ? `/admin/area-do-cliente/${was}` : "/admin/area-do-cliente", url)
     );
     response.cookies.delete(PREVIEW_COOKIE);
     return response;
