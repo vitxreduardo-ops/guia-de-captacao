@@ -155,7 +155,7 @@ function MediaLightbox({
         if (Math.abs(dx) > 60) go(dx < 0 ? 1 : -1);
       }}
     >
-      <div className="flex items-center justify-between gap-2 p-3">
+      <div className="flex items-center justify-between gap-2 px-[max(0.75rem,env(safe-area-inset-left))] pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <span className="min-w-12 text-sm tabular-nums text-white/80">{many ? `${index + 1} de ${items.length}` : ""}</span>
         <SaveToPhotosButton
           className="!border-white/60 !text-white"
@@ -197,7 +197,7 @@ function MediaLightbox({
               type="button"
               onClick={() => go(-1)}
               aria-label="Anterior"
-              className="absolute left-2 top-1/2 z-20 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-black/55"
+              className="absolute left-[max(0.5rem,env(safe-area-inset-left))] top-1/2 z-20 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-black/55"
             >
               <ChevronLeft className="size-6" aria-hidden />
             </button>
@@ -205,7 +205,7 @@ function MediaLightbox({
               type="button"
               onClick={() => go(1)}
               aria-label="Próximo"
-              className="absolute right-2 top-1/2 z-20 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-black/55"
+              className="absolute right-[max(0.5rem,env(safe-area-inset-right))] top-1/2 z-20 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-black/55"
             >
               <ChevronRight className="size-6" aria-hidden />
             </button>
@@ -254,7 +254,7 @@ export function MaterialViewer({
   return (
     <div className="space-y-3">
       {items.length ? (
-        <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+        <div className="-mx-[var(--gutter)] flex snap-x snap-mandatory gap-3 overflow-x-auto px-[var(--gutter)] pb-1 [scrollbar-width:none]">
           {items.map((item) => (
             <Tile key={item.id} item={item} onOpen={() => setOpen(viewable.findIndex((v) => v.id === item.id))} />
           ))}

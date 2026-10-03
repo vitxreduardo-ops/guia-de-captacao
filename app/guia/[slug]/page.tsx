@@ -138,7 +138,7 @@ export default async function PublicGuidePage({
       <AutoRefresh />
       {fromPortal ? (
         <div className="sticky top-0 z-30 border-b border-neutral-200 bg-white/95 backdrop-blur">
-          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-[max(1rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-[env(safe-area-inset-top)]">
             <a href="/cliente/roteiros" className="inline-flex min-h-12 items-center gap-1 text-sm font-medium">
               ← Roteiros
             </a>

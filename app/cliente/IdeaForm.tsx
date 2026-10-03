@@ -52,7 +52,7 @@ export function IdeaForm({
               setTimeout(() => setDone(false), 3500);
             });
           }}
-          className="space-y-3 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+          className="space-y-3 px-[max(1.25rem,env(safe-area-inset-left),env(safe-area-inset-right))] pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-5"
         >
           <div className="flex items-start justify-between gap-3">
             <h2 id="idea-heading" className="text-xl font-semibold">
@@ -127,7 +127,7 @@ export function IdeaForm({
 
       <p
         role="status"
-        className={`fixed inset-x-5 bottom-24 z-30 mx-auto max-w-sm rounded-full bg-[var(--tatu-ink)] px-4 py-3 text-center text-sm text-[var(--tatu-cream)] transition-opacity md:bottom-8 ${
+        className={`fixed inset-x-5 bottom-[calc(6rem+env(safe-area-inset-bottom))] z-30 mx-auto max-w-sm rounded-full bg-[var(--tatu-ink)] px-4 py-3 text-center text-sm text-[var(--tatu-cream)] transition-opacity md:bottom-8 ${
           done ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >

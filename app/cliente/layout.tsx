@@ -14,17 +14,23 @@ export default async function ClienteLayout({ children }: { children: React.Reac
   const preview = Boolean((await cookies()).get(PREVIEW_COOKIE)?.value);
 
   return (
-    <div className="min-h-svh bg-[var(--tatu-cream)] text-[var(--tatu-ink)] selection:bg-[var(--tatu-olive)] selection:text-[var(--tatu-cream)]">
+    <div
+      // Gutter único do portal: 1,25rem, ou a área segura do iPhone (notch,
+      // laterais em paisagem) quando ela for maior. O carrossel de arquivos
+      // usa a mesma variável pra sangrar até a borda sem passar dela.
+      style={{ "--gutter": "max(1.25rem, env(safe-area-inset-left), env(safe-area-inset-right))" } as React.CSSProperties}
+      className="min-h-svh bg-[var(--tatu-cream)] text-[var(--tatu-ink)] selection:bg-[var(--tatu-olive)] selection:text-[var(--tatu-cream)]"
+    >
       {preview ? (
-        <div className="flex items-center justify-between gap-3 bg-[var(--tatu-ink)] px-5 py-2 text-sm text-[var(--tatu-cream)]">
+        <div className="flex items-center justify-between gap-3 bg-[var(--tatu-ink)] px-[var(--gutter)] pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] text-sm text-[var(--tatu-cream)]">
           <span>Visualização do portal como o cliente o vê. Somente leitura.</span>
-          <Link href="/cliente/previa?sair=1" className="font-semibold underline underline-offset-4">
+          <Link href="/cliente/previa?sair=1" className="shrink-0 whitespace-nowrap font-semibold underline underline-offset-4">
             Voltar ao painel
           </Link>
         </div>
       ) : null}
 
-      <header className="mx-auto flex max-w-xl items-center justify-between px-5 pt-5 md:pt-8">
+      <header className={`mx-auto flex max-w-xl items-center justify-between px-[var(--gutter)] md:pt-8 ${preview ? "pt-5" : "pt-[max(1.25rem,env(safe-area-inset-top))]"}`}>
         <TatuLogo className="h-5 w-auto" />
         {preview ? null : (
           <form action={logout}>
@@ -35,7 +41,7 @@ export default async function ClienteLayout({ children }: { children: React.Reac
         )}
       </header>
 
-      <main className="mx-auto max-w-xl px-5 pb-28 pt-6 md:pb-16">
+      <main className="mx-auto max-w-xl px-[var(--gutter)] pb-[calc(7rem+env(safe-area-inset-bottom))] pt-6 md:pb-16">
         <div className="mb-6 hidden md:block">
           <PortalNav />
         </div>
