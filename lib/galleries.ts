@@ -413,7 +413,6 @@ export interface GalleryClientDetails {
   address: string | null;
   notes: string | null;
   payment_day: number | null;
-  gallery_article: "do" | "da";
 }
 
 /** Campo em branco vira null: string vazia esconde a falta do dado. */
@@ -438,8 +437,17 @@ export function readGalleryClientDetails(
     notes: textOrNull(formData.get("notes")),
     payment_day:
       Number.isInteger(day) && day >= 1 && day <= 31 ? day : null,
-    gallery_article: formData.get("gallery_article") === "da" ? "da" : "do",
   };
+}
+
+/** "do" ou "da" do título da galeria; mora na Área do cliente, não no cadastro. */
+export async function setGalleryClientArticle(id: string, article: "do" | "da") {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("gallery_clients")
+    .update({ gallery_article: article })
+    .eq("id", id);
+  if (error) throw error;
 }
 
 export async function updateGalleryClientDetails(

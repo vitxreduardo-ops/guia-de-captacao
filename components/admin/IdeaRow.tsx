@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Eye, EyeOff, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Pencil, Trash2 } from "lucide-react";
 import {
   deleteIdeaAction,
   updateIdeaAction,
-} from "@/app/admin/clientes/calendario/actions";
+} from "@/app/admin/area-do-cliente/calendario/actions";
 import type { EditorialIdea } from "@/lib/editorialMonths";
 
 const UNDO_MS = 5000;
@@ -26,10 +26,21 @@ export function IdeaRow({ idea, clientId }: { idea: EditorialIdea; clientId: str
 
   useEffect(() => () => clearTimeout(timer.current), []);
 
+  // O que está salvo, pra "Cancelar" voltar e "Salvar" saber se mudou algo.
+  const [saved, setSaved] = useState({ title: idea.title, notes: idea.notes });
+
   function save() {
+    if (!title.trim()) return;
     setEditing(false);
-    if (title === idea.title && notes === idea.notes) return;
+    if (title === saved.title && notes === saved.notes) return;
+    setSaved({ title, notes });
     startTransition(() => updateIdeaAction({ id: idea.id, clientId, title, notes }));
+  }
+
+  function cancel() {
+    setTitle(saved.title);
+    setNotes(saved.notes);
+    setEditing(false);
   }
 
   function toggleVisibility() {
@@ -66,14 +77,17 @@ export function IdeaRow({ idea, clientId }: { idea: EditorialIdea; clientId: str
     <li className="rounded-lg bg-neutral-50 px-3 py-2">
       <div className="flex items-start gap-2">
         {editing ? (
-          <div className="flex-1 space-y-1.5" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) save(); }}>
+          <div
+            className="flex-1 space-y-1.5"
+            onKeyDown={(e) => e.key === "Escape" && cancel()}
+          >
             <input
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && save()}
               aria-label="Título da ideia"
-              className="w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+              className="min-h-11 w-full rounded-md border border-neutral-300 px-2 text-sm"
             />
             <textarea
               value={notes}
@@ -83,12 +97,37 @@ export function IdeaRow({ idea, clientId }: { idea: EditorialIdea; clientId: str
               aria-label="Nota"
               className="w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
             />
+            <div className="flex gap-2">
+              <button
+                onClick={save}
+                disabled={!title.trim()}
+                className="min-h-11 rounded-md bg-neutral-900 px-4 text-sm font-medium text-white disabled:opacity-50"
+              >
+                Salvar
+              </button>
+              <button
+                onClick={cancel}
+                className="min-h-11 rounded-md border border-neutral-300 px-4 text-sm"
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         ) : (
-          <button onClick={() => setEditing(true)} className="min-h-9 flex-1 text-left text-sm">
-            <span className="font-medium">{title}</span>
-            {notes ? <span className="mt-0.5 block whitespace-pre-line text-neutral-600">{notes}</span> : null}
-          </button>
+          <>
+            <div className="min-h-9 flex-1 py-1.5 text-sm">
+              <span className="font-medium">{title}</span>
+              {notes ? <span className="mt-0.5 block whitespace-pre-line text-neutral-600">{notes}</span> : null}
+            </div>
+            <button
+              onClick={() => setEditing(true)}
+              aria-label={`Editar ${title}`}
+              title="Editar"
+              className="grid size-9 shrink-0 place-items-center rounded-md text-neutral-500 hover:bg-neutral-200 hover:text-neutral-900"
+            >
+              <Pencil className="size-4" aria-hidden />
+            </button>
+          </>
         )}
         <button
           onClick={toggleVisibility}

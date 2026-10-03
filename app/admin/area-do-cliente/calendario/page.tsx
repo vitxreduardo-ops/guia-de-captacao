@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Eye } from "lucide-react";
-import { AdminHeader } from "@/components/admin/AdminHeader";
-import { ClientTabs } from "@/components/admin/ClientTabs";
+import { ClientAreaHeader } from "@/components/admin/ClientAreaHeader";
 import { EditorialCapture } from "@/components/admin/EditorialCapture";
 import { EditorialClientSelect } from "@/components/admin/EditorialClientSelect";
 import { IdeaRow } from "@/components/admin/IdeaRow";
@@ -27,21 +26,11 @@ export default async function CalendarioPage({ searchParams }: { searchParams: S
   const filled = months.map((ideas, i) => ({ ideas, i })).filter((m) => m.ideas.length);
   const empty = months.map((ideas, i) => ({ ideas, i })).filter((m) => !m.ideas.length);
 
-  const yearLink = (y: number) => `/admin/clientes/calendario?cliente=${client?.id}&ano=${y}`;
+  const yearLink = (y: number) => `/admin/area-do-cliente/calendario?cliente=${client?.id}&ano=${y}`;
 
   return (
     <div className="mx-auto w-full max-w-3xl pb-10">
-      <AdminHeader
-        title="Clientes"
-        trail={[
-          { label: "Admin", href: "/admin" },
-          { label: "Clientes", href: "/admin/clientes" },
-          { label: "Calendário" },
-        ]}
-      />
-      <div className="mb-6">
-        <ClientTabs />
-      </div>
+      <ClientAreaHeader current="Calendário editorial" />
 
       {!client ? (
         <p className="text-sm text-neutral-500">Cadastre um cliente para anotar ideias.</p>

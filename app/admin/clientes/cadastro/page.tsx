@@ -3,7 +3,6 @@ import { ClientTabs } from "@/components/admin/ClientTabs";
 import { ClientRegistry, type ClientSummary } from "@/components/admin/ClientRegistry";
 import { getYearTotals } from "@/lib/billing";
 import { listGalleryClients } from "@/lib/galleries";
-import { listClientLogins } from "@/lib/users";
 import { getCurrentClientScope } from "@/lib/clientAccess";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +17,6 @@ export default async function ClientesCadastroPage() {
 
   const clients = todos.filter((client) => !client.archived_at);
   const archived = todos.filter((client) => client.archived_at);
-
-  const logins = await listClientLogins();
 
   const summaries: Record<string, ClientSummary> = {};
   for (const row of totals) {
@@ -49,7 +46,6 @@ export default async function ClientesCadastroPage() {
         archived={archived}
         summaries={summaries}
         year={year}
-        logins={logins}
       />
     </div>
   );

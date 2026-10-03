@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
   if (url.searchParams.get("sair")) {
     const response = NextResponse.redirect(
-      new URL("/admin/clientes/calendario", url)
+      new URL("/admin/area-do-cliente/calendario", url)
     );
     response.cookies.delete(PREVIEW_COOKIE);
     return response;

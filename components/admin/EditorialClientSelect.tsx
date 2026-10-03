@@ -14,7 +14,7 @@ export function EditorialClientSelect({
     <select
       value={current}
       aria-label="Cliente"
-      onChange={(e) => router.push(`/admin/clientes/calendario?cliente=${e.target.value}`)}
+      onChange={(e) => router.push(`/admin/area-do-cliente/calendario?cliente=${e.target.value}`)}
       className="min-h-11 rounded-lg border border-neutral-300 bg-white px-3 text-sm font-medium"
     >
       {clients.map((c) => (

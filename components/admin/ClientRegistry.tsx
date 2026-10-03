@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { formatBRL } from "@/lib/billingTypes";
 import type { GalleryClient } from "@/lib/galleries";
-import { PortalAccessPanel } from "@/components/admin/PortalAccessPanel";
 import {
   createClientAction,
   deleteClientAction,
@@ -50,14 +49,11 @@ export interface ClientSummary {
 function ClientRow({
   client,
   summary,
-  login,
 }: {
   client: GalleryClient;
   summary: ClientSummary;
-  login: string | null;
 }) {
   const [editing, setEditing] = useState(false);
-  const [portalOpen, setPortalOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
   if (editing) {
@@ -142,17 +138,6 @@ function ClientRow({
               placeholder="10"
               className={inputClass}
             />
-          </Campo>
-
-          <Campo label="Título da galeria" hint="Galeria do 14Bis · Galeria da Dra. Juliana">
-            <select
-              name="gallery_article"
-              defaultValue={client.gallery_article}
-              className={inputClass}
-            >
-              <option value="do">Galeria do…</option>
-              <option value="da">Galeria da…</option>
-            </select>
           </Campo>
 
           <Campo label="Endereço" className="sm:col-span-2">
@@ -295,26 +280,11 @@ function ClientRow({
       </Link>
       <button
         type="button"
-        onClick={() => setPortalOpen((v) => !v)}
-        aria-expanded={portalOpen}
-        className={`rounded-full px-2 py-0.5 text-xs pointer-coarse:min-h-11 ${
-          login
-            ? "bg-emerald-50 text-emerald-700"
-            : "border border-neutral-300 text-neutral-600 hover:bg-neutral-50"
-        }`}
-      >
-        {login ? "Portal ativo" : "Criar acesso ao portal"}
-      </button>
-      <button
-        type="button"
         onClick={() => setEditing(true)}
         className="text-xs text-neutral-500 opacity-0 transition-opacity hover:text-neutral-800 focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 pointer-coarse:min-h-11 pointer-coarse:px-2 pointer-coarse:inline-flex pointer-coarse:items-center focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none rounded-md"
       >
         Editar
       </button>
-      {portalOpen ? (
-        <PortalAccessPanel clientId={client.id} clientName={client.name} login={login} />
-      ) : null}
     </li>
   );
 }
@@ -358,10 +328,8 @@ export function ClientRegistry({
   clients,
   archived,
   summaries,
-  logins,
   year,
 }: {
-  logins: Record<string, string>;
   clients: GalleryClient[];
   archived: GalleryClient[];
   summaries: Record<string, ClientSummary>;
@@ -386,7 +354,6 @@ export function ClientRegistry({
                 key={client.id}
                 client={client}
                 summary={summaries[client.id] ?? vazio}
-                login={logins[client.id] ?? null}
               />
             ))}
           </ul>

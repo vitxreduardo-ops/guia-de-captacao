@@ -4,10 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
 
-const TABS = [
+export const CLIENT_TABS = [
   { href: "/admin/clientes/entregas", label: "Entregas" },
   { href: "/admin/clientes/faturamento", label: "Faturamento" },
-  { href: "/admin/clientes/calendario", label: "Calendário" },
   { href: "/admin/clientes/resumo", label: "Resumo" },
   { href: "/admin/clientes/cadastro", label: "Cadastro" },
 ];
@@ -20,19 +19,25 @@ const TABS = [
  * acompanha para onde foi. Mola sem repique (`bounce: 0`) porque nada aqui
  * vem de um gesto com inércia — é um toque, não um arremesso.
  */
-export function ClientTabs() {
+export function ClientTabs({
+  tabs = CLIENT_TABS,
+  label = "Seções de clientes",
+}: {
+  tabs?: { href: string; label: string }[];
+  label?: string;
+} = {}) {
   const pathname = usePathname();
   const reduceMotion = useReducedMotion();
 
   return (
     <nav
-      aria-label="Seções de clientes"
+      aria-label={label}
       // No celular as quatro abas não cabem numa linha e quebrando custavam
       // uma faixa inteira de altura antes do conteúdo: viram uma faixa que
       // rola. No desktop cabem e ficam todas à vista.
       className="flex items-center gap-1 overflow-x-auto rounded-lg border border-neutral-200 bg-white/90 p-1 backdrop-blur-md [scrollbar-width:none] sm:flex-wrap sm:overflow-visible"
     >
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const current = pathname === tab.href;
         return (
           <Link

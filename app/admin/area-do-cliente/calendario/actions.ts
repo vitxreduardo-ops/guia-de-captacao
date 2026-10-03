@@ -9,7 +9,7 @@ async function allowed(clientId: string) {
 }
 
 function revalidateCalendar() {
-  revalidatePath("/admin/clientes/calendario");
+  revalidatePath("/admin/area-do-cliente/calendario");
   revalidatePath("/cliente", "layout");
 }
 
