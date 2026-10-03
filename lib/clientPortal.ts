@@ -1,4 +1,5 @@
 import "server-only";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/session";
 import { getUserById, type PublicUser } from "@/lib/users";
@@ -24,13 +25,17 @@ export interface PortalClient {
   name: string;
   slug: string;
   status: "draft" | "published";
+  gallery_article: "do" | "da";
+  contact_name: string | null;
 }
 
+export const PREVIEW_COOKIE = "portal_preview";
+
 /**
- * Quem está no portal e de qual cliente. Sem sessão de cliente, volta pro
- * login — o proxy já barra, mas action/página não deve confiar só nele.
+ * Só o login do próprio cliente, pras ações que gravam (aprovar, pedir
+ * ajuste). A prévia do admin nunca passa por aqui: ela só lê.
  */
-export async function requirePortalUser(): Promise<
+export async function requireClientUser(): Promise<
   PublicUser & { client_id: string }
 > {
   const session = await getCurrentSession();
@@ -41,11 +46,37 @@ export async function requirePortalUser(): Promise<
   return user as PublicUser & { client_id: string };
 }
 
+/**
+ * Quem está olhando o portal e de qual cliente: o cliente logado, ou um admin
+ * em "ver como o cliente" (cookie de prévia, só leitura). Sessão que não é
+ * nenhuma das duas volta pro login — o proxy já barra, mas a página não deve
+ * confiar só nele.
+ */
+export async function getPortalSession(): Promise<{
+  clientId: string;
+  preview: boolean;
+}> {
+  const session = await getCurrentSession();
+  const user = session ? await getUserById(session.userId) : null;
+
+  if (user?.role === "client" && user.client_id) {
+    return { clientId: user.client_id, preview: false };
+  }
+  if (user?.role === "admin") {
+    const clientId = (await cookies()).get(PREVIEW_COOKIE)?.value;
+    // Sem prévia escolhida o admin não tem o que ver aqui; sair levaria a
+    // sessão dele junto.
+    if (!clientId) redirect("/admin/clientes/calendario");
+    return { clientId, preview: true };
+  }
+  redirect("/cliente/sair");
+}
+
 export async function getPortalClient(clientId: string): Promise<PortalClient> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("gallery_clients")
-    .select("id, name, slug, status")
+    .select("id, name, slug, status, gallery_article, contact_name")
     .eq("id", clientId)
     .single();
   if (error) throw error;
@@ -118,4 +149,19 @@ export async function listCardAssigneeIds(cardId: string): Promise<string[]> {
     .eq("card_id", cardId);
   if (error) throw error;
   return (data ?? []).map((row) => row.user_id as string);
+}
+
+/** Guias publicados ligados às entregas do cliente, sem repetir. */
+export function listPortalGuides(cards: PortalCard[]) {
+  const seen = new Map<string, { slug: string; title: string }>();
+  for (const card of cards) if (card.guide) seen.set(card.guide.slug, card.guide);
+  return [...seen.values()];
+}
+
+/** Postagens com data de hoje em diante, a mais próxima primeiro. */
+export function listUpcoming(cards: PortalCard[], today: string, limit = 4) {
+  return cards
+    .filter((c) => c.post_date && c.post_date >= today)
+    .sort((a, b) => (a.post_date! < b.post_date! ? -1 : 1))
+    .slice(0, limit);
 }

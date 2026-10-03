@@ -21,6 +21,8 @@ export interface GalleryClient {
   notes: string | null;
   /** Dia do mês em que costuma pagar; vale para o mês seguinte ao da entrega. */
   payment_day: number | null;
+  /** "do" ou "da", pro título "Galeria do 14Bis" / "Galeria da Dra. Juliana". */
+  gallery_article: "do" | "da";
   /** Cliente fora de atividade: sai das listas, mantém o histórico. */
   archived_at: string | null;
   drive_folder_id: string | null;
@@ -411,6 +413,7 @@ export interface GalleryClientDetails {
   address: string | null;
   notes: string | null;
   payment_day: number | null;
+  gallery_article: "do" | "da";
 }
 
 /** Campo em branco vira null: string vazia esconde a falta do dado. */
@@ -435,6 +438,7 @@ export function readGalleryClientDetails(
     notes: textOrNull(formData.get("notes")),
     payment_day:
       Number.isInteger(day) && day >= 1 && day <= 31 ? day : null,
+    gallery_article: formData.get("gallery_article") === "da" ? "da" : "do",
   };
 }
 

@@ -225,3 +225,16 @@ export async function getClientUser(clientId: string): Promise<PublicUser | null
   if (error) throw error;
   return data ? toPublicUser(data) : null;
 }
+
+/** clientId → usuário do portal, numa consulta só (a lista de clientes mostra o estado de todos). */
+export async function listClientLogins(): Promise<Record<string, string>> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("users")
+    .select("client_id, username")
+    .eq("role", "client");
+  if (error) throw error;
+  return Object.fromEntries(
+    (data ?? []).filter((r) => r.client_id).map((r) => [r.client_id, r.username])
+  );
+}

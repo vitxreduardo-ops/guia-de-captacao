@@ -1,134 +1,161 @@
 import Link from "next/link";
+import { ChevronRight, Images, BookOpenText } from "lucide-react";
 import {
   getPortalClient,
+  getPortalSession,
   listPortalCards,
-  requirePortalUser,
-  type PortalCard,
+  listPortalGuides,
+  listUpcoming,
 } from "@/lib/clientPortal";
-import { approveCardAction, requestChangesAction } from "./actions";
+import { listIdeas } from "@/lib/editorialCalendar";
+import {
+  galleryTitle,
+  groupByMonth,
+  MONTH_NAMES,
+  pendingSummary,
+} from "@/lib/editorialMonths";
 
 export const dynamic = "force-dynamic";
 
-function status(card: PortalCard) {
-  if (card.approved_at) return { label: "Aprovado", tone: "bg-emerald-100 text-emerald-800" };
-  if (card.changes_requested_at)
-    return { label: "Ajuste pedido", tone: "bg-amber-100 text-amber-800" };
-  return { label: "Aguardando você", tone: "bg-sky-100 text-sky-800" };
+const HEADING = { fontFamily: "Bootzy, sans-serif", letterSpacing: "0.02em" };
+
+function dayParts(date: string) {
+  const d = new Date(`${date}T12:00:00`);
+  return {
+    day: d.getDate(),
+    month: d.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
+    weekday: d.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", ""),
+  };
 }
 
-function formatDate(date: string) {
-  const [y, m, d] = date.split("-");
-  return `${d}/${m}/${y}`;
-}
-
-function CardItem({ card }: { card: PortalCard }) {
-  const s = status(card);
+function RowLink({ href, icon: Icon, children }: { href: string; icon: typeof Images; children: React.ReactNode }) {
   return (
-    <li className="rounded-xl border border-neutral-200 bg-white p-4">
-      <div className="flex items-start gap-3">
-        {card.cover_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={card.cover_url}
-            alt=""
-            className="h-20 w-20 shrink-0 rounded-lg object-cover"
-          />
-        ) : null}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-medium">{card.title || "Sem título"}</h3>
-            <span className={`rounded-full px-2 py-0.5 text-xs ${s.tone}`}>{s.label}</span>
-          </div>
-          <p className="mt-0.5 text-xs text-neutral-500">
-            {card.format}
-            {card.post_date ? ` · ${formatDate(card.post_date)}` : ""}
-          </p>
-          {card.caption ? (
-            <p className="mt-2 whitespace-pre-line text-sm text-neutral-700">{card.caption}</p>
-          ) : null}
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            {card.drive_url ? (
-              <a href={card.drive_url} target="_blank" rel="noreferrer" className="underline">
-                Ver material
-              </a>
-            ) : null}
-            {card.guide ? (
-              <Link href={`/guia/${card.guide.slug}`} className="underline">
-                Guia de captação
-              </Link>
-            ) : null}
-          </div>
-          {card.changes_requested_at && card.client_feedback ? (
-            <p className="mt-2 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
-              Você pediu: {card.client_feedback}
-            </p>
-          ) : null}
-        </div>
-      </div>
-
-      {!card.approved_at ? (
-        <div className="mt-3 flex flex-col gap-2 border-t border-neutral-100 pt-3 sm:flex-row sm:items-start">
-          <form action={approveCardAction}>
-            <input type="hidden" name="cardId" value={card.id} />
-            <button className="rounded-lg bg-neutral-900 px-4 py-2 text-sm text-white">
-              Aprovar
-            </button>
-          </form>
-          <form action={requestChangesAction} className="flex flex-1 gap-2">
-            <input type="hidden" name="cardId" value={card.id} />
-            <input
-              name="feedback"
-              required
-              placeholder="O que ajustar?"
-              className="min-w-0 flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm"
-            />
-            <button className="rounded-lg border border-neutral-300 px-4 py-2 text-sm">
-              Pedir ajuste
-            </button>
-          </form>
-        </div>
-      ) : null}
-    </li>
+    <Link
+      href={href}
+      className="flex min-h-14 items-center gap-3 border-b border-[var(--tatu-taupe)] py-3 last:border-b-0 hover:text-[var(--tatu-olive)]"
+    >
+      <Icon className="size-5 shrink-0 text-[var(--tatu-olive)]" strokeWidth={1.8} aria-hidden />
+      <span className="flex-1">{children}</span>
+      <ChevronRight className="size-4 text-[var(--tatu-muted)]" aria-hidden />
+    </Link>
   );
 }
 
 export default async function ClientePage() {
-  const user = await requirePortalUser();
-  const [client, cards] = await Promise.all([
-    getPortalClient(user.client_id),
-    listPortalCards(user.client_id),
+  const { clientId } = await getPortalSession();
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const [client, cards, ideas] = await Promise.all([
+    getPortalClient(clientId),
+    listPortalCards(clientId),
+    listIdeas(clientId, now.getFullYear(), { includeInternal: false }),
   ]);
-  const pending = cards.filter((c) => !c.approved_at);
-  const done = cards.filter((c) => c.approved_at);
+
+  const waiting = cards.filter((c) => !c.approved_at && !c.changes_requested_at).length;
+  const changes = cards.filter((c) => !c.approved_at && c.changes_requested_at).length;
+  const summary = pendingSummary(waiting, changes);
+  const upcoming = listUpcoming(cards, today);
+  const monthIdeas = groupByMonth(ideas)[now.getMonth()];
+  const guides = listPortalGuides(cards);
+  const firstName = (client.contact_name || client.name).split(" ")[0];
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold">{client.name}</h1>
-        {client.status === "published" ? (
-          <Link href={`/galeria/${client.slug}`} className="mt-1 inline-block text-sm underline">
-            Ver galeria de fotos
-          </Link>
-        ) : null}
-      </div>
+    <div className="space-y-10">
+      <header>
+        <h1 className="text-4xl leading-none" style={HEADING}>
+          Oi, {firstName}
+        </h1>
+        <p className="mt-2 text-[var(--tatu-muted)]">
+          Aqui você acompanha tudo que a gente está fazendo pra {client.name}.
+        </p>
+      </header>
 
-      <section>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-neutral-500">
-          Para aprovar ({pending.length})
+      {summary ? (
+        <Link
+          href="/cliente/materiais"
+          className="flex min-h-14 items-center justify-between gap-3 rounded-2xl bg-[var(--tatu-ink)] px-5 py-4 text-[var(--tatu-cream)] transition-transform active:scale-[0.99]"
+        >
+          <span className="font-medium">{summary}</span>
+          <span className="flex items-center gap-1 text-sm">
+            Conferir <ChevronRight className="size-4" aria-hidden />
+          </span>
+        </Link>
+      ) : null}
+
+      <section aria-labelledby="proximas">
+        <h2 id="proximas" className="mb-3 text-2xl" style={HEADING}>
+          Próximas postagens
         </h2>
-        {pending.length ? (
-          <ul className="space-y-3">{pending.map((c) => <CardItem key={c.id} card={c} />)}</ul>
+        {upcoming.length ? (
+          <ul>
+            {upcoming.map((card) => {
+              const { day, month, weekday } = dayParts(card.post_date!);
+              return (
+                <li key={card.id} className="flex items-center gap-4 border-b border-[var(--tatu-taupe)] py-3 last:border-b-0">
+                  <div className="flex w-14 shrink-0 flex-col items-center rounded-xl bg-[var(--tatu-ink)] py-1.5 text-[var(--tatu-cream)]">
+                    <span className="text-[11px] uppercase tracking-wide opacity-80">{month}</span>
+                    <span className="text-xl font-semibold leading-none">{day}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{card.title || "Sem título"}</p>
+                    <p className="text-sm capitalize text-[var(--tatu-muted)]">
+                      {weekday} · {card.format}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         ) : (
-          <p className="text-sm text-neutral-500">Nada esperando você.</p>
+          <p className="text-[var(--tatu-muted)]">
+            Quando a gente marcar a próxima postagem, ela aparece aqui.
+          </p>
         )}
       </section>
 
-      {done.length ? (
-        <section>
-          <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-neutral-500">
-            Aprovados ({done.length})
+      <section aria-labelledby="ideias">
+        <h2 id="ideias" className="mb-3 text-2xl" style={HEADING}>
+          Ideias para {MONTH_NAMES[now.getMonth()].toLowerCase()}
+        </h2>
+        {monthIdeas.length ? (
+          <ul className="space-y-2">
+            {monthIdeas.slice(0, 3).map((idea) => (
+              <li key={idea.id} className="rounded-2xl bg-white/60 px-4 py-3">
+                <p className="font-medium">{idea.title}</p>
+                {idea.notes ? <p className="text-sm text-[var(--tatu-muted)]">{idea.notes}</p> : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[var(--tatu-muted)]">
+            Ainda sem ideias para este mês. Quando surgirem, a gente anota aqui.
+          </p>
+        )}
+        <Link
+          href="/cliente/calendario"
+          className="mt-3 inline-flex min-h-11 items-center gap-1 font-medium underline underline-offset-4"
+        >
+          Ver o ano todo <ChevronRight className="size-4" aria-hidden />
+        </Link>
+      </section>
+
+      {client.status === "published" || guides.length ? (
+        <section aria-labelledby="tudo">
+          <h2 id="tudo" className="mb-1 text-2xl" style={HEADING}>
+            Seus arquivos
           </h2>
-          <ul className="space-y-3">{done.map((c) => <CardItem key={c.id} card={c} />)}</ul>
+          <div>
+            {client.status === "published" ? (
+              <RowLink href={`/galeria/${client.slug}`} icon={Images}>
+                {galleryTitle(client.name, client.gallery_article)}
+              </RowLink>
+            ) : null}
+            {guides.map((guide) => (
+              <RowLink key={guide.slug} href={`/guia/${guide.slug}`} icon={BookOpenText}>
+                Guia de captação: {guide.title}
+              </RowLink>
+            ))}
+          </div>
         </section>
       ) : null}
     </div>

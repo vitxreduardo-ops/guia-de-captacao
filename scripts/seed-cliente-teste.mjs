@@ -30,7 +30,7 @@ const km = await crypto.subtle.importKey("raw", new TextEncoder().encode("teste1
 const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" }, km, 256);
 const hash = `100000:${hex(salt)}:${hex(bits)}`;
 
-const client = ok(await sb.from("gallery_clients").insert({ slug: SLUG, name: "Cliente Teste (apagar)", status: "published" }).select().single());
+const client = ok(await sb.from("gallery_clients").insert({ slug: SLUG, name: "Cliente Teste (apagar)", status: "published", gallery_article: "da" }).select().single());
 const cols = ok(await sb.from("backlog_columns").select("id").eq("board", "entregas").order("position").limit(1));
 const guide = ok(await sb.from("guides").select("id").eq("status", "published").limit(1));
 
@@ -42,6 +42,13 @@ ok(
       { title: "Foto institucional", format: "foto", caption: "", post_date: "2026-10-01", approved_at: new Date().toISOString() },
     ].map((c, i) => ({ ...c, client_id: client.id, column_id: cols[0].id, position: 900 + i }))
   )
+);
+ok(
+  await sb.from("editorial_ideas").insert([
+    { client_id: client.id, month: "2026-12-01", title: "Retrospectiva do ano", notes: "Reel com os melhores momentos.", internal: false },
+    { client_id: client.id, month: "2027-02-01", title: "Campanha de Carnaval", notes: "", internal: false },
+    { client_id: client.id, month: "2026-12-01", title: "Ideia só da equipe", notes: "", internal: true },
+  ])
 );
 ok(await sb.from("users").insert({ username: "cliente-teste", email: "", password_hash: hash, role: "client", client_id: client.id }));
 console.log("Pronto. Entre em /admin/login com cliente-teste / teste123");

@@ -3,13 +3,13 @@
 import { revalidatePath } from "next/cache";
 import {
   listCardAssigneeIds,
-  requirePortalUser,
+  requireClientUser,
   reviewPortalCard,
 } from "@/lib/clientPortal";
 import { notifyUser } from "@/lib/notifications";
 
 async function review(cardId: string, feedback: string | null) {
-  const user = await requirePortalUser();
+  const user = await requireClientUser();
   const card = await reviewPortalCard({
     cardId,
     userId: user.id,

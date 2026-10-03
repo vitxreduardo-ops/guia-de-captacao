@@ -7,6 +7,7 @@ import { motion, useReducedMotion } from "motion/react";
 const TABS = [
   { href: "/admin/clientes/entregas", label: "Entregas" },
   { href: "/admin/clientes/faturamento", label: "Faturamento" },
+  { href: "/admin/clientes/calendario", label: "Calendário" },
   { href: "/admin/clientes/resumo", label: "Resumo" },
   { href: "/admin/clientes/cadastro", label: "Cadastro" },
 ];
