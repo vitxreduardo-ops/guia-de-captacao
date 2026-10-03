@@ -46,6 +46,9 @@ export function CardItem({ card, readOnly = false }: { card: PortalCard; readOnl
             {s.label}
           </span>
         </div>
+        {card.approved_at && card.approver && card.approver.role !== "client" ? (
+          <p className="text-sm text-[var(--tatu-muted)]">Aprovação registrada pela equipe da Tatú.</p>
+        ) : null}
         <p className="text-sm text-[var(--tatu-muted)]">
           <span className="capitalize">{card.format}</span>
           {card.post_date ? ` · ${new Date(`${card.post_date}T12:00:00`).toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}` : ""}

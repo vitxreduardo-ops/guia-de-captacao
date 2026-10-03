@@ -22,6 +22,13 @@ export default async function MateriaisPage() {
         </p>
       </header>
 
+      {preview ? (
+        <p className="rounded-2xl bg-white p-3 text-sm text-[var(--tatu-muted)]">
+          Você está na visualização do painel. Aprovações e solicitações feitas
+          aqui ficam registradas como da equipe, em nome do cliente.
+        </p>
+      ) : null}
+
       <section aria-labelledby="esperando" className="space-y-3">
         <h2 id="esperando" className="text-2xl" style={HEADING}>
           Aguardando aprovação
@@ -29,7 +36,7 @@ export default async function MateriaisPage() {
         {waiting.length ? (
           <ul className="space-y-4">
             {waiting.map((c) => (
-              <CardItem key={c.id} card={c} readOnly={preview} />
+              <CardItem key={c.id} card={c} />
             ))}
           </ul>
         ) : (

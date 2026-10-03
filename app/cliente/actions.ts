@@ -4,17 +4,18 @@ import { revalidatePath } from "next/cache";
 import {
   listCardAssigneeIds,
   requireClientUser,
+  requireReviewer,
   reviewPortalCard,
 } from "@/lib/clientPortal";
 import { createIdea } from "@/lib/editorialCalendar";
 import { notifyUser } from "@/lib/notifications";
 
 async function review(cardId: string, feedback: string | null) {
-  const user = await requireClientUser();
+  const reviewer = await requireReviewer();
   const card = await reviewPortalCard({
     cardId,
-    userId: user.id,
-    clientId: user.client_id,
+    userId: reviewer.userId,
+    clientId: reviewer.clientId,
     feedback,
   });
   if (!card) return; // card de outro cliente ou apagado: não faz nada
@@ -25,11 +26,15 @@ async function review(cardId: string, feedback: string | null) {
     assignees.map((userId) =>
       notifyUser({
         userId,
-        actorId: user.id,
+        actorId: reviewer.userId,
         kind: "card_approved",
-        title: approved
-          ? `Cliente aprovou: ${card.title}`
-          : `Cliente pediu ajuste: ${card.title}`,
+        title: reviewer.byTeam
+          ? approved
+            ? `Aprovação registrada pela equipe: ${card.title}`
+            : `Ajuste registrado pela equipe: ${card.title}`
+          : approved
+            ? `Cliente aprovou: ${card.title}`
+            : `Cliente pediu ajuste: ${card.title}`,
         body: feedback ?? "",
         link: "/admin/clientes/entregas",
         entityId: cardId,

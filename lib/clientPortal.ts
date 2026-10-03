@@ -16,6 +16,8 @@ export interface PortalCard {
   approved_at: string | null;
   changes_requested_at: string | null;
   client_feedback: string;
+  /** Quem aprovou: o próprio cliente ou alguém da equipe (em nome dele). */
+  approver: { username: string; role: string } | null;
   guide: { slug: string; title: string } | null;
   column: { name: string; color: string } | null;
 }
@@ -44,6 +46,24 @@ export async function requireClientUser(): Promise<
     redirect("/cliente/sair");
   }
   return user as PublicUser & { client_id: string };
+}
+
+/**
+ * Quem pode aprovar ou solicitar ajuste: o próprio cliente, ou um admin na
+ * prévia, agindo em nome do cliente da prévia (o registro guarda o admin como
+ * autor, então a tela mostra que foi a equipe).
+ */
+export async function requireReviewer(): Promise<{
+  userId: string;
+  clientId: string;
+  byTeam: boolean;
+}> {
+  const { clientId, preview, viewerId } = await getPortalSession();
+  if (!preview && viewerId) return { userId: viewerId, clientId, byTeam: false };
+
+  const session = await getCurrentSession();
+  if (!session || session.role !== "admin") redirect("/cliente/sair");
+  return { userId: session.userId, clientId, byTeam: true };
 }
 
 /**
@@ -96,7 +116,7 @@ export async function listPortalCards(clientId: string): Promise<PortalCard[]> {
   const { data, error } = await supabase
     .from("backlog_cards")
     .select(
-      "id, title, format, cover_url, drive_url, caption, post_date, approved_at, changes_requested_at, client_feedback, guide:guides(slug, title, status), column:backlog_columns!inner(name, color, client_visible)"
+      "id, title, format, cover_url, drive_url, caption, post_date, approved_at, changes_requested_at, client_feedback, approver:approved_by(username, role), guide:guides(slug, title, status), column:backlog_columns!inner(name, color, client_visible)"
     )
     .eq("client_id", clientId)
     .eq("column.client_visible", true)
@@ -115,6 +135,7 @@ export async function listPortalCards(clientId: string): Promise<PortalCard[]> {
           ? { slug: guide.slug, title: guide.title }
           : null,
       column: row.column as unknown as PortalCard["column"],
+      approver: row.approver as unknown as PortalCard["approver"],
     } as PortalCard;
   });
 }
