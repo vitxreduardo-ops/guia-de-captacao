@@ -23,6 +23,8 @@ export interface GalleryClient {
   descricao_roteiro: string;
   /** Dia do mês em que costuma pagar; vale para o mês seguinte ao da entrega. */
   payment_day: number | null;
+  /** "do" ou "da", pro título "Galeria do 14Bis" / "Galeria da Dra. Juliana". */
+  gallery_article: "do" | "da";
   /** Cliente fora de atividade: sai das listas, mantém o histórico. */
   archived_at: string | null;
   drive_folder_id: string | null;
@@ -443,6 +445,16 @@ export function readGalleryClientDetails(
     payment_day:
       Number.isInteger(day) && day >= 1 && day <= 31 ? day : null,
   };
+}
+
+/** "do" ou "da" do título da galeria; mora na Área do cliente, não no cadastro. */
+export async function setGalleryClientArticle(id: string, article: "do" | "da") {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("gallery_clients")
+    .update({ gallery_article: article })
+    .eq("id", id);
+  if (error) throw error;
 }
 
 export async function updateGalleryClientDetails(

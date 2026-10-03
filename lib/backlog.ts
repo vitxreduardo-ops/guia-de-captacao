@@ -121,7 +121,11 @@ export async function getBacklogBoard(
               .select("id, name, payment_day")
               .order("name"),
         supabase.from("guides").select("id, title").order("title"),
-        supabase.from("users").select("id, username").order("username"),
+        supabase
+          .from("users")
+          .select("id, username")
+          .neq("role", "client")
+          .order("username"),
         supabase
           .from("services")
           .select("id, name, price_cents")
@@ -214,7 +218,11 @@ export async function getBacklogBoard(
           .select("id, name, payment_day")
           .order("name"),
     supabase.from("guides").select("id, title").order("title"),
-    supabase.from("users").select("id, username").order("username"),
+    supabase
+          .from("users")
+          .select("id, username")
+          .neq("role", "client")
+          .order("username"),
     supabase
       .from("services")
       .select("id, name, price_cents")
@@ -278,7 +286,13 @@ export async function createBacklogColumn(fields: {
 
 export async function updateBacklogColumn(
   id: string,
-  fields: { name?: string; color?: string; billable?: boolean; paid?: boolean }
+  fields: {
+    name?: string;
+    color?: string;
+    billable?: boolean;
+    paid?: boolean;
+    clientVisible?: boolean;
+  }
 ) {
   const supabase = getSupabaseServerClient();
   const patch: Record<string, string | boolean> = {};
@@ -286,6 +300,7 @@ export async function updateBacklogColumn(
   if (fields.color !== undefined) patch.color = fields.color;
   if (fields.billable !== undefined) patch.billable = fields.billable;
   if (fields.paid !== undefined) patch.paid = fields.paid;
+  if (fields.clientVisible !== undefined) patch.client_visible = fields.clientVisible;
   if (Object.keys(patch).length === 0) return;
 
   const { error } = await supabase
@@ -947,4 +962,31 @@ async function requestBacklogCardsWithDate(): Promise<number> {
     .not("post_date", "is", null);
   if (error) throw error;
   return count ?? 0;
+}
+
+/** Colunas do quadro de entregas com a contagem de cards, pra Área do cliente escolher quais o portal mostra. */
+export async function listEntregasColumnsWithCounts() {
+  const supabase = getSupabaseServerClient();
+  const [columns, cards] = await Promise.all([
+    supabase
+      .from("backlog_columns")
+      .select("id, name, color, client_visible")
+      .eq("board", "entregas")
+      .order("position"),
+    supabase.from("backlog_cards").select("column_id, client_id").not("client_id", "is", null),
+  ]);
+  if (columns.error) throw columns.error;
+  if (cards.error) throw cards.error;
+
+  const counts = new Map<string, number>();
+  for (const card of cards.data ?? []) {
+    counts.set(card.column_id, (counts.get(card.column_id) ?? 0) + 1);
+  }
+  return (columns.data ?? []).map((c) => ({
+    id: c.id as string,
+    name: c.name as string,
+    color: c.color as string,
+    clientVisible: c.client_visible as boolean,
+    cards: counts.get(c.id) ?? 0,
+  }));
 }

@@ -68,7 +68,7 @@ export async function getSession(
   if (!cookieValue) return null;
   const [userId, role, sectionsToken, signature] = cookieValue.split(".");
   if (!userId || !role || !sectionsToken || !signature) return null;
-  if (role !== "admin" && role !== "member") return null;
+  if (role !== "admin" && role !== "member" && role !== "client") return null;
 
   const value = `${userId}.${role}.${sectionsToken}`;
   const expected = await sign(value, secret);

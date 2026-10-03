@@ -35,7 +35,7 @@ export async function login(formData: FormData) {
     maxAge: 60 * 60 * 24 * 30,
   });
 
-  redirect(next || "/admin");
+  redirect(user.role === "client" ? "/cliente" : next || "/admin");
 }
 
 export async function logout() {
