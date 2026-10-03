@@ -115,6 +115,9 @@ export async function updateBacklogColumnAction(formData: FormData) {
     paid: formData.has("billable_present")
       ? formData.get("paid") === "on"
       : undefined,
+    clientVisible: formData.has("billable_present")
+      ? formData.get("client_visible") === "on"
+      : undefined,
   });
   revalidateBacklog();
 }

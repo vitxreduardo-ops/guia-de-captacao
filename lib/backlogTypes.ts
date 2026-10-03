@@ -48,6 +48,8 @@ export interface BacklogColumn {
   billable: boolean;
   /** Entre as faturáveis, a que significa dinheiro já recebido. */
   paid: boolean;
+  /** Os cards desta coluna aparecem no portal do cliente. */
+  client_visible: boolean;
   created_at: string;
 }
 

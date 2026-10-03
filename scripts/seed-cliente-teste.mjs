@@ -16,10 +16,22 @@ const ok = (r) => {
   return r.data;
 };
 const SLUG = "cliente-teste-apagar";
+const COLUMN = "Teste do portal (apagar)";
 
 if (process.argv.includes("--limpar")) {
-  // cascata leva cards, notas e o usuário do cliente
+  // client_id dos cards é "on delete set null": sem apagar antes, eles ficam
+  // soltos no quadro. Os cards, a coluna de teste e depois o cliente.
+  const found = ok(await sb.from("gallery_clients").select("id").eq("slug", SLUG));
+  for (const c of found) ok(await sb.from("backlog_cards").delete().eq("client_id", c.id).select());
+  ok(await sb.from("backlog_columns").delete().eq("name", COLUMN).select());
   ok(await sb.from("gallery_clients").delete().eq("slug", SLUG).select());
+  // cartões soltos de seeds antigos (títulos, legendas e posição >= 900 dos exemplos)
+  const strays = ok(
+    await sb.from("backlog_cards").delete().is("client_id", null).gte("position", 900)
+      .in("caption", ["Legenda de exemplo do reel.", "Cinco dicas rápidas.", ""])
+      .in("title", ["Reel de lançamento", "Carrossel de dicas", "Foto institucional"]).select("id")
+  );
+  console.log(`Cartões soltos apagados: ${strays.length}`);
   console.log("Cliente de teste apagado.");
   process.exit(0);
 }
@@ -31,7 +43,11 @@ const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 
 const hash = `100000:${hex(salt)}:${hex(bits)}`;
 
 const client = ok(await sb.from("gallery_clients").insert({ slug: SLUG, name: "Cliente Teste (apagar)", status: "published", gallery_article: "da" }).select().single());
-const cols = ok(await sb.from("backlog_columns").select("id").eq("board", "entregas").order("position").limit(1));
+const cols = ok(
+  await sb.from("backlog_columns")
+    .insert({ name: COLUMN, board: "entregas", color: "#6b7280", position: 99, client_visible: true })
+    .select("id")
+);
 const guide = ok(await sb.from("guides").select("id").eq("status", "published").limit(1));
 
 ok(

@@ -286,7 +286,13 @@ export async function createBacklogColumn(fields: {
 
 export async function updateBacklogColumn(
   id: string,
-  fields: { name?: string; color?: string; billable?: boolean; paid?: boolean }
+  fields: {
+    name?: string;
+    color?: string;
+    billable?: boolean;
+    paid?: boolean;
+    clientVisible?: boolean;
+  }
 ) {
   const supabase = getSupabaseServerClient();
   const patch: Record<string, string | boolean> = {};
@@ -294,6 +300,7 @@ export async function updateBacklogColumn(
   if (fields.color !== undefined) patch.color = fields.color;
   if (fields.billable !== undefined) patch.billable = fields.billable;
   if (fields.paid !== undefined) patch.paid = fields.paid;
+  if (fields.clientVisible !== undefined) patch.client_visible = fields.clientVisible;
   if (Object.keys(patch).length === 0) return;
 
   const { error } = await supabase

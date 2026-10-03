@@ -603,3 +603,7 @@ create index if not exists editorial_ideas_client_month_idx
   on editorial_ideas(client_id, month);
 
 alter table editorial_ideas enable row level security;
+
+-- Coluna visível ao cliente no portal (ver supabase/migrations/0073_column_client_visible.sql).
+alter table backlog_columns
+  add column if not exists client_visible boolean not null default false;

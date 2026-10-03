@@ -663,6 +663,15 @@ function ColumnHeader({
               />
               O pagamento já entrou
             </label>
+            <label className="flex items-center gap-2 text-xs text-neutral-600">
+              <input
+                type="checkbox"
+                name="client_visible"
+                defaultChecked={column.client_visible}
+                className="size-3.5"
+              />
+              O cliente vê estas entregas no portal
+            </label>
           </div>
         ) : null}
         <div className="flex items-center gap-3">

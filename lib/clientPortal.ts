@@ -88,9 +88,10 @@ export async function listPortalCards(clientId: string): Promise<PortalCard[]> {
   const { data, error } = await supabase
     .from("backlog_cards")
     .select(
-      "id, title, format, cover_url, drive_url, caption, post_date, approved_at, changes_requested_at, client_feedback, guide:guides(slug, title, status), column:backlog_columns(name, color)"
+      "id, title, format, cover_url, drive_url, caption, post_date, approved_at, changes_requested_at, client_feedback, guide:guides(slug, title, status), column:backlog_columns!inner(name, color, client_visible)"
     )
     .eq("client_id", clientId)
+    .eq("column.client_visible", true)
     .order("post_date", { ascending: false, nullsFirst: true });
   if (error) throw error;
 
