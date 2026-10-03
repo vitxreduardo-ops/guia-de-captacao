@@ -23,13 +23,16 @@ const segments = (folder: string) => folder.split("/").map((s) => s.trim()).filt
 export function MediaPicker({
   images,
   selected,
-  onToggle,
+  onChange,
 }: {
   images: PickerImage[];
   selected: string[];
-  onToggle: (id: string) => void;
+  onChange: (next: string[]) => void;
 }) {
   const [path, setPath] = useState<string[]>([]);
+
+  const toggle = (id: string) =>
+    onChange(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
 
   const { folders, items } = useMemo(() => {
     const depth = path.length;
@@ -55,6 +58,18 @@ export function MediaPicker({
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { numeric: true }));
     return { folders, items: here };
   }, [images, path]);
+
+  // Tudo que está nesta pasta, subpastas incluídas (é o que "selecionar todos" leva).
+  const allHere = useMemo(() => [...items.map((i) => i.id), ...folders.flatMap((f) => f.ids)], [items, folders]);
+  const allPicked = allHere.length > 0 && allHere.every((id) => selected.includes(id));
+
+  function toggleAllHere() {
+    onChange(
+      allPicked
+        ? selected.filter((id) => !allHere.includes(id))
+        : [...selected, ...allHere.filter((id) => !selected.includes(id))]
+    );
+  }
 
   if (!images.length) {
     return (
@@ -92,6 +107,22 @@ export function MediaPicker({
         ))}
       </nav>
 
+      {path.length && allHere.length ? (
+        <div className="flex items-center justify-between gap-2 border-b border-neutral-200 px-2 py-1.5">
+          <span className="text-xs text-neutral-500">
+            {allHere.length} arquivo{allHere.length === 1 ? "" : "s"}
+            {folders.length ? " (com subpastas)" : ""}
+          </span>
+          <button
+            type="button"
+            onClick={toggleAllHere}
+            className="min-h-9 rounded-md border border-neutral-300 px-3 text-sm font-medium hover:bg-neutral-50"
+          >
+            {allPicked ? "Limpar seleção da pasta" : `Selecionar todos (${allHere.length})`}
+          </button>
+        </div>
+      ) : null}
+
       <div className="max-h-72 overflow-y-auto p-2">
         {folders.length ? (
           <ul className="mb-2 grid gap-1 sm:grid-cols-2">
@@ -125,12 +156,21 @@ export function MediaPicker({
                   <input
                     type="checkbox"
                     checked={selected.includes(img.id)}
-                    onChange={() => onToggle(img.id)}
+                    onChange={() => toggle(img.id)}
                     aria-label={img.caption || "Arquivo"}
                     className="peer sr-only"
                   />
+                  {img.video ? (
+                    <Film className="absolute inset-0 m-auto size-6 text-neutral-400" aria-hidden />
+                  ) : null}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img.thumb} alt={img.caption} loading="lazy" className="size-full object-cover" />
+                  <img
+                    src={img.thumb}
+                    alt={img.caption}
+                    loading="lazy"
+                    onError={(e) => (e.currentTarget.style.visibility = "hidden")}
+                    className="relative size-full object-cover"
+                  />
                   {img.video ? <Film className="absolute bottom-1 left-1 size-4 text-white drop-shadow" aria-hidden /> : null}
                   <span className="absolute inset-0 hidden bg-neutral-900/40 peer-checked:block" />
                   <span className="absolute right-1 top-1 hidden size-5 place-items-center rounded-full bg-neutral-900 text-white peer-checked:grid">

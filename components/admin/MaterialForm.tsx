@@ -54,10 +54,6 @@ export function MaterialForm({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function toggle(id: string) {
-    setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
-  }
-
   return (
     <form
       className="space-y-3"
@@ -127,7 +123,7 @@ export function MaterialForm({
 
       <fieldset>
         <legend className={label}>Arquivos da galeria ({selected.length} selecionado{selected.length === 1 ? "" : "s"})</legend>
-        <MediaPicker images={images} selected={selected} onToggle={toggle} />
+        <MediaPicker images={images} selected={selected} onChange={setSelected} />
       </fieldset>
 
       <label className={label}>

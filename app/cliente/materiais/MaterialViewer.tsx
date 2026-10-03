@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, ExternalLink, Play, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Film, Play, X } from "lucide-react";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 
 export interface ViewerItem {
@@ -23,6 +23,7 @@ function Spinner() {
 
 function Tile({ item, onOpen }: { item: ViewerItem; onOpen: () => void }) {
   const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   if (item.kind === "file") {
     return (
@@ -44,14 +45,27 @@ function Tile({ item, onOpen }: { item: ViewerItem; onOpen: () => void }) {
       {!loaded ? <Spinner /> : null}
       {item.kind === "video" ? (
         <>
-          <video
-            src={item.previewSrc}
-            muted
-            playsInline
-            preload="metadata"
-            onLoadedData={() => setLoaded(true)}
-            className="size-full bg-black object-cover"
-          />
+          {/* Miniatura gerada pelo Drive: o <video> não desenha o primeiro quadro em todo celular. */}
+          {failed ? (
+            // O Drive ainda não gerou miniatura deste vídeo: quadro de reserva com o nome.
+            <span className="flex size-full flex-col items-center justify-center gap-2 bg-neutral-900 p-4 text-center text-sm text-white/80">
+              <Film className="size-8" aria-hidden />
+              <span className="line-clamp-3">{item.caption || "Vídeo"}</span>
+            </span>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={item.thumbSrc}
+              alt=""
+              loading="lazy"
+              onLoad={() => setLoaded(true)}
+              onError={() => {
+                setFailed(true);
+                setLoaded(true);
+              }}
+              className="size-full bg-neutral-900 object-cover"
+            />
+          )}
           <span className="absolute inset-0 grid place-items-center">
             <span className="grid size-14 place-items-center rounded-full bg-black/60 text-white">
               <Play className="size-6 translate-x-0.5" aria-hidden />
@@ -146,6 +160,7 @@ function MediaLightbox({
           <video
             key={item.id}
             src={item.previewSrc}
+            poster={item.thumbSrc}
             controls
             autoPlay
             playsInline

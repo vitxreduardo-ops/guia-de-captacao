@@ -72,7 +72,7 @@ export function AttachMediaProvider({
           <MediaPicker
             images={images}
             selected={selected}
-            onToggle={(id) => setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))}
+            onChange={setSelected}
           />
 
           <label className="block text-xs font-medium text-neutral-600">
