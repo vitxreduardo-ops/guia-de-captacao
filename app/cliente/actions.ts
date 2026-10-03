@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import {
   listCardAssigneeIds,
+  listPortalCards,
   requireClientUser,
   requireReviewer,
   reviewPortalCard,
@@ -41,7 +43,13 @@ async function review(cardId: string, feedback: string | null) {
       }).catch((err) => console.error("Falha ao avisar", err))
     )
   );
-  revalidatePath("/cliente");
+  revalidatePath("/cliente", "layout");
+
+  // Segue para o próximo material que ainda não recebeu decisão; sem mais
+  // nenhum, volta para a lista.
+  const cards = await listPortalCards(reviewer.clientId);
+  const next = cards.find((c) => c.id !== cardId && !c.approved_at && !c.changes_requested_at);
+  redirect(next ? `/cliente/materiais/${next.id}` : "/cliente/materiais");
 }
 
 export async function approveCardAction(formData: FormData) {
