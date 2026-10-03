@@ -6,6 +6,7 @@ import {
   deleteIdeaAction,
   updateIdeaAction,
 } from "@/app/admin/area-do-cliente/calendario/actions";
+import { CreatorTag } from "@/components/CreatorTag";
 import type { EditorialIdea } from "@/lib/editorialMonths";
 
 const UNDO_MS = 5000;
@@ -116,7 +117,8 @@ export function IdeaRow({ idea, clientId }: { idea: EditorialIdea; clientId: str
         ) : (
           <>
             <div className="min-h-9 flex-1 py-1.5 text-sm">
-              <span className="font-medium">{title}</span>
+              <span className="font-medium">{title}</span>{" "}
+              <CreatorTag idea={idea} />
               {notes ? <span className="mt-0.5 block whitespace-pre-line text-neutral-600">{notes}</span> : null}
             </div>
             <button

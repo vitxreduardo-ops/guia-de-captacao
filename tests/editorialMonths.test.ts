@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { galleryTitle, groupByMonth, nextMonths, pendingSummary } from "@/lib/editorialMonths";
+import { creatorColor, galleryTitle, groupByMonth, nextMonths, pendingSummary } from "@/lib/editorialMonths";
 import { generatePassword } from "@/lib/passwords";
 
 describe("calendário editorial", () => {
@@ -39,5 +39,14 @@ describe("helpers do portal", () => {
     const p = generatePassword();
     expect(p).toHaveLength(8);
     expect(p).toMatch(/^[abcdefghjkmnpqrstuvwxyz23456789]+$/);
+  });
+});
+
+
+
+describe("creatorColor", () => {
+  it("é estável por pessoa", () => {
+    expect(creatorColor("vitor.tatu")).toBe(creatorColor("vitor.tatu"));
+    expect(creatorColor("vitor.tatu")).toMatch(/^#[0-9a-f]{6}$/);
   });
 });

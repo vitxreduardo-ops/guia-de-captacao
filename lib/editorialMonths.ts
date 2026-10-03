@@ -7,6 +7,9 @@ export interface EditorialIdea {
   title: string;
   notes: string;
   internal: boolean;
+  /** Quem anotou. Ideias antigas não têm autor. */
+  created_by_name?: string | null;
+  created_by_role?: "admin" | "member" | "client" | null;
 }
 
 export const MONTH_NAMES = [
@@ -47,4 +50,14 @@ export function pendingSummary(pending: number, changes: number): string | null 
   if (changes > 0)
     parts.push(changes === 1 ? "1 em ajuste" : `${changes} em ajuste`);
   return parts.length ? parts.join(" · ") : null;
+}
+
+// Pares fundo/texto com contraste AA entre si, todos no tom quente da marca.
+const CREATOR_COLORS = ["#2f3b1e", "#6b6a3f", "#8a4b2d", "#4a5d73", "#7a5c1e", "#5b3f6b"];
+
+/** A mesma pessoa tem sempre a mesma cor, em qualquer tela. */
+export function creatorColor(name: string): string {
+  let hash = 0;
+  for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return CREATOR_COLORS[hash % CREATOR_COLORS.length];
 }

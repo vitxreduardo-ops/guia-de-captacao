@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { CreatorTag } from "@/components/CreatorTag";
 import { getPortalSession } from "@/lib/clientPortal";
 import { listIdeas } from "@/lib/editorialCalendar";
-import { groupByMonth, MONTH_NAMES } from "@/lib/editorialMonths";
+import { groupByMonth, MONTH_NAMES, nextMonths } from "@/lib/editorialMonths";
+import { IdeaForm } from "../IdeaForm";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +15,7 @@ export default async function CalendarioPage({
 }: {
   searchParams: Promise<{ ano?: string }>;
 }) {
-  const { clientId } = await getPortalSession();
+  const { clientId, preview } = await getPortalSession();
   const now = new Date();
   const year = Number((await searchParams).ano) || now.getFullYear();
   const months = groupByMonth(await listIdeas(clientId, year, { includeInternal: false }));
@@ -47,6 +49,8 @@ export default async function CalendarioPage({
         </div>
       </header>
 
+      {preview ? null : <IdeaForm months={nextMonths(now, 12)} />}
+
       <div className="space-y-2">
         {months.map((ideas, index) => (
           <details
@@ -73,7 +77,9 @@ export default async function CalendarioPage({
                 <ul className="space-y-3">
                   {ideas.map((idea) => (
                     <li key={idea.id}>
-                      <p className="font-medium">{idea.title}</p>
+                      <p className="font-medium">
+                        {idea.title} <CreatorTag idea={idea} viewerIsClient />
+                      </p>
                       {idea.notes ? (
                         <p className="whitespace-pre-line text-sm text-[var(--tatu-muted)]">{idea.notes}</p>
                       ) : null}

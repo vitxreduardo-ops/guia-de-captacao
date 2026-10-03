@@ -3,6 +3,7 @@ import { ClientTabs } from "@/components/admin/ClientTabs";
 
 const TABS = [
   { href: "/admin/area-do-cliente/calendario", label: "Calendário editorial" },
+  { href: "/admin/area-do-cliente/materiais", label: "Materiais visíveis" },
   { href: "/admin/area-do-cliente/acessos", label: "Acessos e galeria" },
 ];
 

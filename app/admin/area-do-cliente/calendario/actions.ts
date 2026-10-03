@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createIdea, deleteIdea, updateIdea } from "@/lib/editorialCalendar";
+import { getCurrentSession } from "@/lib/session";
 import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
 
 async function allowed(clientId: string) {
@@ -29,6 +30,7 @@ export async function createIdeaAction(formData: FormData) {
     title,
     notes: String(formData.get("notes") ?? "").trim(),
     internal: formData.get("internal") === "on",
+    createdBy: (await getCurrentSession())?.userId ?? null,
   });
   revalidateCalendar();
 }

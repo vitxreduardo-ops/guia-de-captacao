@@ -7,15 +7,19 @@ import {
   listPortalGuides,
   listUpcoming,
 } from "@/lib/clientPortal";
-import { listIdeas } from "@/lib/editorialCalendar";
+import { CreatorTag } from "@/components/CreatorTag";
+import { listIdeasBetween } from "@/lib/editorialCalendar";
 import {
   galleryTitle,
-  groupByMonth,
   MONTH_NAMES,
+  nextMonths,
   pendingSummary,
 } from "@/lib/editorialMonths";
 
 export const dynamic = "force-dynamic";
+
+const firstOfMonth = (m: { year: number; month: number }) =>
+  `${m.year}-${String(m.month).padStart(2, "0")}-01`;
 
 const HEADING = { fontFamily: "Bootzy, sans-serif", letterSpacing: "0.02em" };
 
@@ -44,18 +48,22 @@ function RowLink({ href, icon: Icon, children }: { href: string; icon: typeof Im
 export default async function ClientePage() {
   const { clientId } = await getPortalSession();
   const now = new Date();
+  // Mês atual e os dois seguintes (pode virar o ano).
+  const span = nextMonths(now, 3);
   const today = now.toISOString().slice(0, 10);
   const [client, cards, ideas] = await Promise.all([
     getPortalClient(clientId),
     listPortalCards(clientId),
-    listIdeas(clientId, now.getFullYear(), { includeInternal: false }),
+    listIdeasBetween(clientId, firstOfMonth(span[0]), firstOfMonth(span[2]), {
+      includeInternal: false,
+    }),
   ]);
 
   const waiting = cards.filter((c) => !c.approved_at && !c.changes_requested_at).length;
   const changes = cards.filter((c) => !c.approved_at && c.changes_requested_at).length;
   const summary = pendingSummary(waiting, changes);
   const upcoming = listUpcoming(cards, today);
-  const monthIdeas = groupByMonth(ideas)[now.getMonth()];
+  const approved = cards.filter((c) => c.approved_at).length;
   const guides = listPortalGuides(cards);
   const firstName = (client.contact_name || client.name).split(" ")[0];
 
@@ -70,17 +78,28 @@ export default async function ClientePage() {
         </p>
       </header>
 
-      {summary ? (
-        <Link
-          href="/cliente/materiais"
-          className="flex min-h-14 items-center justify-between gap-3 rounded-2xl bg-[var(--tatu-ink)] px-5 py-4 text-[var(--tatu-cream)] transition-transform active:scale-[0.99]"
-        >
-          <span className="font-medium">{summary}</span>
-          <span className="flex items-center gap-1 text-sm">
-            Conferir <ChevronRight className="size-4" aria-hidden />
+      <Link
+        href="/cliente/materiais"
+        className={`flex min-h-14 items-center justify-between gap-3 rounded-2xl px-5 py-4 transition-transform active:scale-[0.99] ${
+          summary
+            ? "bg-[var(--tatu-ink)] text-[var(--tatu-cream)]"
+            : "bg-white text-[var(--tatu-ink)]"
+        }`}
+      >
+        <span>
+          <span className="block font-medium">
+            {summary ?? (cards.length ? "Tudo conferido por aqui" : "Seus materiais")}
           </span>
-        </Link>
-      ) : null}
+          <span className={`block text-sm ${summary ? "opacity-80" : "text-[var(--tatu-muted)]"}`}>
+            {cards.length
+              ? `${approved} ${approved === 1 ? "aprovado" : "aprovados"} de ${cards.length}`
+              : "Quando a gente liberar os primeiros, eles aparecem aqui."}
+          </span>
+        </span>
+        <span className="flex items-center gap-1 text-sm">
+          {summary ? "Conferir" : "Ver"} <ChevronRight className="size-4" aria-hidden />
+        </span>
+      </Link>
 
       <section aria-labelledby="proximas">
         <h2 id="proximas" className="mb-3 text-2xl" style={HEADING}>
@@ -115,27 +134,39 @@ export default async function ClientePage() {
 
       <section aria-labelledby="ideias">
         <h2 id="ideias" className="mb-3 text-2xl" style={HEADING}>
-          Ideias para {MONTH_NAMES[now.getMonth()].toLowerCase()}
+          Ideias para os próximos meses
         </h2>
-        {monthIdeas.length ? (
-          <ul className="space-y-2">
-            {monthIdeas.slice(0, 3).map((idea) => (
-              <li key={idea.id} className="rounded-2xl bg-white/60 px-4 py-3">
-                <p className="font-medium">{idea.title}</p>
-                {idea.notes ? <p className="text-sm text-[var(--tatu-muted)]">{idea.notes}</p> : null}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-[var(--tatu-muted)]">
-            Ainda sem ideias para este mês. Quando surgirem, a gente anota aqui.
-          </p>
-        )}
+        <div className="space-y-4">
+          {span.map(({ year, month }) => {
+            const list = ideas.filter((i) => i.month === `${year}-${String(month).padStart(2, "0")}-01`);
+            return (
+              <div key={`${year}-${month}`}>
+                <h3 className="mb-1.5 text-sm font-semibold uppercase tracking-wide text-[var(--tatu-muted)]">
+                  {MONTH_NAMES[month - 1]}
+                </h3>
+                {list.length ? (
+                  <ul className="space-y-2">
+                    {list.slice(0, 3).map((idea) => (
+                      <li key={idea.id} className="rounded-2xl bg-white/60 px-4 py-3">
+                        <p className="font-medium">
+                          {idea.title} <CreatorTag idea={idea} viewerIsClient />
+                        </p>
+                        {idea.notes ? <p className="text-sm text-[var(--tatu-muted)]">{idea.notes}</p> : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-[var(--tatu-muted)]">Ainda sem ideias.</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
         <Link
           href="/cliente/calendario"
           className="mt-3 inline-flex min-h-11 items-center gap-1 font-medium underline underline-offset-4"
         >
-          Ver o ano todo <ChevronRight className="size-4" aria-hidden />
+          Ver o ano todo e anotar uma ideia <ChevronRight className="size-4" aria-hidden />
         </Link>
       </section>
 

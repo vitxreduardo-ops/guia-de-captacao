@@ -2,24 +2,49 @@ import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { EditorialIdea } from "@/lib/editorialMonths";
 
-export async function listIdeas(
+const IDEA_SELECT =
+  "id, month, title, notes, internal, creator:created_by(username, role)";
+
+type IdeaRow = Omit<EditorialIdea, "created_by_name" | "created_by_role"> & {
+  creator: { username: string; role: EditorialIdea["created_by_role"] } | null;
+};
+
+function toIdea({ creator, ...idea }: IdeaRow): EditorialIdea {
+  return {
+    ...idea,
+    created_by_name: creator?.username ?? null,
+    created_by_role: creator?.role ?? null,
+  };
+}
+
+/** Ideias entre dois dias 1 (inclusive), `YYYY-MM-01`. */
+export async function listIdeasBetween(
   clientId: string,
-  year: number,
+  from: string,
+  to: string,
   options: { includeInternal: boolean }
 ): Promise<EditorialIdea[]> {
   const supabase = getSupabaseServerClient();
   const query = supabase
     .from("editorial_ideas")
-    .select("id, month, title, notes, internal")
+    .select(IDEA_SELECT)
     .eq("client_id", clientId)
-    .gte("month", `${year}-01-01`)
-    .lte("month", `${year}-12-31`)
+    .gte("month", from)
+    .lte("month", to)
     .order("created_at");
   if (!options.includeInternal) query.eq("internal", false);
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as EditorialIdea[];
+  return ((data ?? []) as unknown as IdeaRow[]).map(toIdea);
+}
+
+export function listIdeas(
+  clientId: string,
+  year: number,
+  options: { includeInternal: boolean }
+) {
+  return listIdeasBetween(clientId, `${year}-01-01`, `${year}-12-01`, options);
 }
 
 export async function createIdea(fields: {
@@ -29,6 +54,7 @@ export async function createIdea(fields: {
   title: string;
   notes: string;
   internal: boolean;
+  createdBy: string | null;
 }) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase.from("editorial_ideas").insert({
@@ -37,6 +63,7 @@ export async function createIdea(fields: {
     title: fields.title,
     notes: fields.notes,
     internal: fields.internal,
+    created_by: fields.createdBy,
   });
   if (error) throw error;
 }

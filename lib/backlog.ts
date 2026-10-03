@@ -963,3 +963,30 @@ async function requestBacklogCardsWithDate(): Promise<number> {
   if (error) throw error;
   return count ?? 0;
 }
+
+/** Colunas do quadro de entregas com a contagem de cards, pra Área do cliente escolher quais o portal mostra. */
+export async function listEntregasColumnsWithCounts() {
+  const supabase = getSupabaseServerClient();
+  const [columns, cards] = await Promise.all([
+    supabase
+      .from("backlog_columns")
+      .select("id, name, color, client_visible")
+      .eq("board", "entregas")
+      .order("position"),
+    supabase.from("backlog_cards").select("column_id, client_id").not("client_id", "is", null),
+  ]);
+  if (columns.error) throw columns.error;
+  if (cards.error) throw cards.error;
+
+  const counts = new Map<string, number>();
+  for (const card of cards.data ?? []) {
+    counts.set(card.column_id, (counts.get(card.column_id) ?? 0) + 1);
+  }
+  return (columns.data ?? []).map((c) => ({
+    id: c.id as string,
+    name: c.name as string,
+    color: c.color as string,
+    clientVisible: c.client_visible as boolean,
+    cards: counts.get(c.id) ?? 0,
+  }));
+}
