@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { ExternalLink, Maximize2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, ExternalLink, Play, X } from "lucide-react";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 
 export interface ViewerItem {
@@ -21,55 +21,186 @@ function Spinner() {
   );
 }
 
-function Tile({ item, onOpen }: { item: ViewerItem; onOpen: (item: ViewerItem) => void }) {
+function Tile({ item, onOpen }: { item: ViewerItem; onOpen: () => void }) {
   const [loaded, setLoaded] = useState(false);
+
+  if (item.kind === "file") {
+    return (
+      <a
+        href={item.downloadSrc}
+        className="grid aspect-[4/5] w-[78%] shrink-0 snap-center place-items-center rounded-2xl bg-white p-4 text-center text-sm underline sm:w-[60%]"
+      >
+        {item.caption || "Abrir arquivo"}
+      </a>
+    );
+  }
   return (
-    <div className="relative aspect-[4/5] w-[78%] shrink-0 snap-center overflow-hidden rounded-2xl bg-white sm:w-[60%]">
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={item.kind === "video" ? `Reproduzir ${item.caption || "vídeo"}` : `Ampliar ${item.caption || "foto"}`}
+      className="relative aspect-[4/5] w-[78%] shrink-0 snap-center overflow-hidden rounded-2xl bg-white sm:w-[60%]"
+    >
       {!loaded ? <Spinner /> : null}
       {item.kind === "video" ? (
-        <video
-          src={item.previewSrc}
-          controls
-          playsInline
-          preload="metadata"
-          onLoadedData={() => setLoaded(true)}
-          onCanPlay={() => setLoaded(true)}
-          className="size-full bg-black object-contain"
-        />
-      ) : item.kind === "image" ? (
         <>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={item.thumbSrc}
-            alt={item.caption}
-            onLoad={() => setLoaded(true)}
-            onError={() => setLoaded(true)}
-            className="size-full object-contain"
+          <video
+            src={item.previewSrc}
+            muted
+            playsInline
+            preload="metadata"
+            onLoadedData={() => setLoaded(true)}
+            className="size-full bg-black object-cover"
           />
-          <button
-            type="button"
-            onClick={() => onOpen(item)}
-            aria-label="Ver em tela cheia"
-            className="absolute inset-0 grid place-items-end justify-items-end p-2"
-          >
-            <span className="grid size-9 place-items-center rounded-full bg-black/55 text-white">
-              <Maximize2 className="size-4" aria-hidden />
+          <span className="absolute inset-0 grid place-items-center">
+            <span className="grid size-14 place-items-center rounded-full bg-black/60 text-white">
+              <Play className="size-6 translate-x-0.5" aria-hidden />
             </span>
-          </button>
+          </span>
         </>
       ) : (
-        <a href={item.downloadSrc} className="grid size-full place-items-center p-4 text-center text-sm underline" onClick={() => setLoaded(true)}>
-          {item.caption || "Abrir arquivo"}
-        </a>
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={item.thumbSrc}
+          alt={item.caption}
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+          onError={() => setLoaded(true)}
+          className="size-full object-contain"
+        />
       )}
+    </button>
+  );
+}
+
+/**
+ * Tela cheia dos arquivos do material. Com mais de um vira carrossel: setas,
+ * teclado, deslize no celular e contador. Foto e vídeo abrem aqui do mesmo
+ * jeito; o vídeo toca ao abrir e para ao trocar de arquivo.
+ */
+function MediaLightbox({
+  items,
+  index,
+  onIndex,
+  onClose,
+}: {
+  items: ViewerItem[];
+  index: number;
+  onIndex: (index: number) => void;
+  onClose: () => void;
+}) {
+  const [loadedId, setLoadedId] = useState<string | null>(null);
+  const startX = useRef<number | null>(null);
+  const item = items[index];
+  const many = items.length > 1;
+  const go = (delta: number) => onIndex((index + delta + items.length) % items.length);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+      else if (many && event.key === "ArrowRight") go(1);
+      else if (many && event.key === "ArrowLeft") go(-1);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Arquivo ${index + 1} de ${items.length}`}
+      className="fixed inset-0 z-50 flex flex-col bg-black/95 text-white"
+      // Arrastar a barra de progresso do vídeo não pode trocar de arquivo.
+      onPointerDown={(e) => (startX.current = (e.target as HTMLElement).closest("video") ? null : e.clientX)}
+      onPointerUp={(e) => {
+        if (startX.current === null || !many) return;
+        const dx = e.clientX - startX.current;
+        startX.current = null;
+        if (Math.abs(dx) > 60) go(dx < 0 ? 1 : -1);
+      }}
+    >
+      <div className="flex items-center justify-between gap-2 p-3">
+        <span className="min-w-12 text-sm tabular-nums text-white/80">{many ? `${index + 1} de ${items.length}` : ""}</span>
+        <SaveToPhotosButton
+          className="!border-white/60 !text-white"
+          files={[{ url: item.downloadSrc, name: item.caption || `arquivo-${item.id}` }]}
+        />
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fechar"
+          className="grid size-11 place-items-center rounded-full bg-white/15"
+        >
+          <X className="size-5" aria-hidden />
+        </button>
+      </div>
+
+      <div className="relative min-h-0 flex-1">
+        {loadedId !== item.id ? (
+          <span className="absolute inset-0 z-10 grid place-items-center" role="status" aria-label="Carregando">
+            <span className="size-9 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+          </span>
+        ) : null}
+        {item.kind === "video" ? (
+          <video
+            key={item.id}
+            src={item.previewSrc}
+            controls
+            autoPlay
+            playsInline
+            onLoadedData={() => setLoadedId(item.id)}
+            className="size-full object-contain"
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={item.id}
+            src={item.previewSrc}
+            alt={item.caption}
+            onLoad={() => setLoadedId(item.id)}
+            onError={() => setLoadedId(item.id)}
+            className="size-full object-contain"
+          />
+        )}
+
+        {many ? (
+          <>
+            <button
+              type="button"
+              onClick={() => go(-1)}
+              aria-label="Anterior"
+              className="absolute left-2 top-1/2 z-20 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-black/55"
+            >
+              <ChevronLeft className="size-6" aria-hidden />
+            </button>
+            <button
+              type="button"
+              onClick={() => go(1)}
+              aria-label="Próximo"
+              className="absolute right-2 top-1/2 z-20 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-black/55"
+            >
+              <ChevronRight className="size-6" aria-hidden />
+            </button>
+          </>
+        ) : null}
+      </div>
+
+      {many ? (
+        <div className="flex justify-center gap-1.5 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]" aria-hidden>
+          {items.map((it, i) => (
+            <span key={it.id} className={`h-1.5 rounded-full ${i === index ? "w-5 bg-white" : "w-1.5 bg-white/40"}`} />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
 
 /**
  * Prévia do material: os arquivos escolhidos pela equipe numa faixa que desliza
- * (cada um com seu "carregando"), tela cheia ao tocar numa foto e botão pra
- * salvar nas Fotos. Só é montado quando o acordeão abre.
+ * (cada um com seu "carregando"). Tocar em foto ou vídeo abre o lightbox, em
+ * carrossel quando há mais de um. O botão salva todos nas Fotos.
  */
 export function MaterialViewer({
   items,
@@ -80,11 +211,9 @@ export function MaterialViewer({
   coverUrl: string | null;
   driveUrl: string | null;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  const [open, setOpen] = useState<ViewerItem | null>(null);
+  const viewable = items.filter((i) => i.kind !== "file");
+  const [open, setOpen] = useState<number | null>(null);
   const [coverLoaded, setCoverLoaded] = useState(false);
-
-  const savable = items.filter((i) => i.kind !== "file");
 
   if (!items.length && !coverUrl && !driveUrl) {
     return (
@@ -100,14 +229,7 @@ export function MaterialViewer({
       {items.length ? (
         <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
           {items.map((item) => (
-            <Tile
-              key={item.id}
-              item={item}
-              onOpen={(i) => {
-                setOpen(i);
-                dialog.current?.showModal();
-              }}
-            />
+            <Tile key={item.id} item={item} onOpen={() => setOpen(viewable.findIndex((v) => v.id === item.id))} />
           ))}
         </div>
       ) : coverUrl ? (
@@ -125,9 +247,9 @@ export function MaterialViewer({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        {savable.length ? (
+        {viewable.length ? (
           <SaveToPhotosButton
-            files={savable.map((i) => ({ url: i.downloadSrc, name: i.caption || `arquivo-${i.id}` }))}
+            files={viewable.map((i) => ({ url: i.downloadSrc, name: i.caption || `arquivo-${i.id}` }))}
           />
         ) : null}
         {driveUrl ? (
@@ -142,33 +264,9 @@ export function MaterialViewer({
         ) : null}
       </div>
 
-      <dialog
-        ref={dialog}
-        onClose={() => setOpen(null)}
-        onClick={(e) => e.target === dialog.current && dialog.current?.close()}
-        className="m-0 h-svh max-h-none w-screen max-w-none bg-black/90 p-0 backdrop:bg-black"
-      >
-        {open ? (
-          <div className="flex h-full flex-col">
-            <div className="flex items-center justify-between p-3 text-white">
-              <SaveToPhotosButton
-                className="border-white/60 text-white"
-                files={[{ url: open.downloadSrc, name: open.caption || `arquivo-${open.id}` }]}
-              />
-              <button
-                type="button"
-                onClick={() => dialog.current?.close()}
-                aria-label="Fechar"
-                className="grid size-11 place-items-center rounded-full bg-white/15"
-              >
-                <X className="size-5" aria-hidden />
-              </button>
-            </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={open.previewSrc} alt={open.caption} className="min-h-0 flex-1 object-contain" />
-          </div>
-        ) : null}
-      </dialog>
+      {open !== null && viewable[open] ? (
+        <MediaLightbox items={viewable} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />
+      ) : null}
     </div>
   );
 }
