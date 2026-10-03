@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { ChevronRight, Clapperboard } from "lucide-react";
-import { getPortalSession, listPortalCards } from "@/lib/clientPortal";
-import { cardStatus, shortDate } from "./StatusChip";
+import { getPortalSession, listMediaForCards, listPortalCards } from "@/lib/clientPortal";
+import { MaterialItem } from "./MaterialItem";
+import { shortDate } from "./StatusChip";
 
 export const dynamic = "force-dynamic";
 
@@ -10,15 +10,17 @@ const HEADING = { fontFamily: "Bootzy, sans-serif", letterSpacing: "0.02em" };
 export default async function MateriaisPage({
   searchParams,
 }: {
-  searchParams: Promise<{ v?: string }>;
+  searchParams: Promise<{ v?: string; abrir?: string }>;
 }) {
   const { clientId, preview } = await getPortalSession();
-  const showApproved = (await searchParams).v === "aprovados";
+  const query = await searchParams;
+  const showApproved = query.v === "aprovados";
+  const open = query.abrir;
   const cards = await listPortalCards(clientId);
+  const media = await listMediaForCards(clientId, cards);
   const waiting = cards.filter((c) => !c.approved_at);
   const done = cards.filter((c) => c.approved_at);
   const list = showApproved ? done : waiting;
-  const view = showApproved ? "aprovados" : "aguardando";
 
   return (
     <div className="space-y-6">
@@ -58,40 +60,27 @@ export default async function MateriaisPage({
 
       {list.length ? (
         <ul>
-          {list.map((card) => {
-            const s = cardStatus(card);
-            return (
-              <li key={card.id} className="border-b border-[var(--tatu-taupe)] last:border-b-0">
-                <Link
-                  href={`/cliente/materiais/${card.id}?v=${view}`}
-                  className="flex min-h-[4.5rem] items-center gap-3 py-3 hover:text-[var(--tatu-olive)]"
-                >
-                  {card.cover_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={card.cover_url} alt="" className="size-14 shrink-0 rounded-xl object-cover" />
-                  ) : (
-                    <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-white/70 text-[var(--tatu-olive)]">
-                      <Clapperboard className="size-6" strokeWidth={1.6} aria-hidden />
-                    </span>
-                  )}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{card.title || "Sem título"}</span>
-                    <span className="block truncate text-sm text-[var(--tatu-muted)]">
-                      <span className="capitalize">{card.format}</span>
-                      {card.post_date ? ` · ${shortDate(card.post_date)}` : ""}
-                    </span>
-                    {card.changes_requested_at && !card.approved_at ? (
-                      <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-[var(--tatu-olive)]">
-                        <s.Icon className="size-3.5" aria-hidden />
-                        {s.label}
-                      </span>
-                    ) : null}
-                  </span>
-                  <ChevronRight className="size-4 shrink-0 text-[var(--tatu-muted)]" aria-hidden />
-                </Link>
-              </li>
-            );
-          })}
+          {list.map((card) => (
+            <MaterialItem
+              key={card.id}
+              defaultOpen={card.id === open}
+              material={{
+                id: card.id,
+                title: card.title,
+                format: card.format,
+                dateLabel: card.post_date ? shortDate(card.post_date) : null,
+                cover_url: card.cover_url,
+                drive_url: card.drive_url,
+                caption: card.caption,
+                approved: Boolean(card.approved_at),
+                changesRequested: Boolean(card.changes_requested_at),
+                feedback: card.client_feedback,
+                approvedByTeam: Boolean(card.approver && card.approver.role !== "client"),
+                guide: card.guide,
+                items: media[card.id] ?? [],
+              }}
+            />
+          ))}
         </ul>
       ) : (
         <p className="text-[var(--tatu-muted)]">

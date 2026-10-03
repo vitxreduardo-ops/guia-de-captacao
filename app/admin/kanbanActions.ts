@@ -34,8 +34,10 @@ import {
   setBacklogCardSchedule,
   updateBacklogCard,
   updateBacklogColumn,
+  getCardPortalInfo,
 } from "@/lib/backlog";
 import { notifyUser } from "@/lib/notifications";
+import { notifyClientUsers } from "@/lib/clientPush";
 import {
   removeBacklogCardFromCalendar,
   syncBacklogCardToCalendar,
@@ -190,6 +192,16 @@ export async function moveBacklogCardAction(params: {
     authorId: session?.userId ?? null,
   });
   if (result.moved) {
+    // Entrou numa coluna liberada ao cliente: ele passa a ver o material, e é
+    // avisado no celular.
+    const info = await getCardPortalInfo(params.cardId);
+    if (info?.clientId && info.columnVisible) {
+      await notifyClientUsers(info.clientId, {
+        title: "Novo material para aprovar",
+        body: info.title,
+        url: "/cliente/materiais",
+      });
+    }
     const { board } = await getBacklogCardBrief(params.cardId);
     await notifyAssignees({
       userIds: result.moved.assigneeIds,

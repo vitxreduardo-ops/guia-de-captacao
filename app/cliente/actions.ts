@@ -49,7 +49,7 @@ async function review(cardId: string, feedback: string | null) {
   // nenhum, volta para a lista.
   const cards = await listPortalCards(reviewer.clientId);
   const next = cards.find((c) => c.id !== cardId && !c.approved_at && !c.changes_requested_at);
-  redirect(next ? `/cliente/materiais/${next.id}` : "/cliente/materiais");
+  redirect(next ? `/cliente/materiais?abrir=${next.id}` : "/cliente/materiais");
 }
 
 export async function approveCardAction(formData: FormData) {

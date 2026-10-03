@@ -28,7 +28,7 @@ export default async function RoteirosPage() {
           {guides.map((guide) => (
             <li key={guide.slug} className="border-b border-[var(--tatu-taupe)] last:border-b-0">
               <Link
-                href={`/guia/${guide.slug}`}
+                href={`/guia/${guide.slug}?de=portal`}
                 className="flex min-h-16 items-center gap-3 py-3 hover:text-[var(--tatu-olive)]"
               >
                 <span className="min-w-0 flex-1">

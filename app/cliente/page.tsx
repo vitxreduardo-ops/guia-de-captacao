@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpenText, ChevronRight, HardDrive } from "lucide-react";
+import { ChevronRight, HardDrive } from "lucide-react";
 import {
   getPortalClient,
   getPortalSession,
@@ -9,7 +9,7 @@ import {
 import { CreatorTag } from "@/components/CreatorTag";
 import { listIdeasBetween } from "@/lib/editorialCalendar";
 import { driveTitle, MONTH_NAMES, nextMonths } from "@/lib/editorialMonths";
-import { listPublishedGuidesByClientName } from "@/lib/guides";
+import { PushPrompt } from "./PushPrompt";
 
 export const dynamic = "force-dynamic";
 
@@ -28,18 +28,17 @@ function dayParts(date: string) {
 }
 
 export default async function ClientePage() {
-  const { clientId, viewerId, viewerName } = await getPortalSession();
+  const { clientId, preview, viewerId, viewerName } = await getPortalSession();
   const now = new Date();
   // Mês atual e os dois seguintes (pode virar o ano).
   const span = nextMonths(now, 3);
   const today = now.toISOString().slice(0, 10);
   const client = await getPortalClient(clientId);
-  const [cards, ideas, guides] = await Promise.all([
+  const [cards, ideas] = await Promise.all([
     listPortalCards(clientId),
     listIdeasBetween(clientId, firstOfMonth(span[0]), firstOfMonth(span[2]), {
       includeInternal: false,
     }),
-    listPublishedGuidesByClientName(client.name),
   ]);
 
   const waiting = cards.filter((c) => !c.approved_at).length;
@@ -48,7 +47,7 @@ export default async function ClientePage() {
   const firstName = viewerName || (client.contact_name || client.name).split(" ")[0];
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <header>
         <h1 className="text-4xl leading-none" style={HEADING}>
           Olá, {firstName}
@@ -81,85 +80,70 @@ export default async function ClientePage() {
         </span>
       </Link>
 
-      <div className="space-y-2">
-        {client.status === "published" ? (
-          <Link
-            href={`/galeria/${client.slug}`}
-            className="flex min-h-14 items-center gap-3 rounded-2xl border border-[var(--tatu-border)] px-5 py-3 font-semibold transition-colors hover:bg-white/60"
-          >
-            <HardDrive className="size-5 text-[var(--tatu-olive)]" aria-hidden />
-            <span className="flex-1">{driveTitle(client.name, client.gallery_article)}</span>
-            <ChevronRight className="size-4 text-[var(--tatu-muted)]" aria-hidden />
-          </Link>
-        ) : null}
+      {preview ? null : <PushPrompt />}
+
+      {client.status === "published" ? (
         <Link
-          href="/cliente/roteiros"
+          href={`/galeria/${client.slug}?de=portal`}
           className="flex min-h-14 items-center gap-3 rounded-2xl border border-[var(--tatu-border)] px-5 py-3 font-semibold transition-colors hover:bg-white/60"
         >
-          <BookOpenText className="size-5 text-[var(--tatu-olive)]" aria-hidden />
-          <span className="flex-1">
-            Roteiros
-            <span className="block text-sm font-normal text-[var(--tatu-muted)]">
-              {guides.length
-                ? `${guides.length} ${guides.length === 1 ? "roteiro disponível" : "roteiros disponíveis"}`
-                : "Nenhum roteiro publicado até o momento"}
-            </span>
-          </span>
+          <HardDrive className="size-5 text-[var(--tatu-olive)]" aria-hidden />
+          <span className="flex-1">{driveTitle(client.name, client.gallery_article)}</span>
           <ChevronRight className="size-4 text-[var(--tatu-muted)]" aria-hidden />
         </Link>
-      </div>
+      ) : null}
 
+      {upcoming.length ? (
       <section aria-labelledby="proximas">
-        <h2 id="proximas" className="mb-3 text-2xl" style={HEADING}>
+        <h2 id="proximas" className="mb-2 text-2xl" style={HEADING}>
           Próximas postagens
         </h2>
-        {upcoming.length ? (
-          <ul>
-            {upcoming.map((card) => {
-              const { day, month, weekday } = dayParts(card.post_date!);
-              return (
-                <li key={card.id} className="flex items-center gap-4 border-b border-[var(--tatu-taupe)] py-3 last:border-b-0">
-                  <div className="flex w-14 shrink-0 flex-col items-center rounded-xl bg-[var(--tatu-ink)] py-1.5 text-[var(--tatu-cream)]">
-                    <span className="text-[11px] uppercase tracking-wide opacity-80">{month}</span>
-                    <span className="text-xl font-semibold leading-none">{day}</span>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{card.title || "Sem título"}</p>
-                    <p className="text-sm text-[var(--tatu-muted)]">
-                      <span className="capitalize">{weekday}</span> · <span className="capitalize">{card.format}</span>
-                    </p>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="text-[var(--tatu-muted)]">
-            As próximas postagens agendadas serão exibidas aqui.
-          </p>
-        )}
+        <ul>
+          {upcoming.map((card) => {
+            const { day, month, weekday } = dayParts(card.post_date!);
+            return (
+              <li key={card.id} className="flex items-center gap-4 border-b border-[var(--tatu-taupe)] py-3 last:border-b-0">
+                <div className="flex w-14 shrink-0 flex-col items-center rounded-xl bg-[var(--tatu-ink)] py-1.5 text-[var(--tatu-cream)]">
+                  <span className="text-[11px] uppercase tracking-wide opacity-80">{month}</span>
+                  <span className="text-xl font-semibold leading-none">{day}</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{card.title || "Sem título"}</p>
+                  <p className="text-sm text-[var(--tatu-muted)]">
+                    <span className="capitalize">{weekday}</span> · <span className="capitalize">{card.format}</span>
+                  </p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </section>
+      ) : null}
 
       <section aria-labelledby="ideias">
         <h2 id="ideias" className="mb-3 text-2xl" style={HEADING}>
           Ideias para os próximos meses
         </h2>
-        <div className="space-y-4">
+        <div className="space-y-5">
           {span.map(({ year, month }) => {
             const list = ideas.filter((i) => i.month === `${year}-${String(month).padStart(2, "0")}-01`);
             return (
               <div key={`${year}-${month}`}>
-                <h3 className="mb-1.5 text-sm font-semibold uppercase tracking-wide text-[var(--tatu-muted)]">
+                <h3 className="mb-1 flex items-baseline gap-2 text-lg font-semibold">
                   {MONTH_NAMES[month - 1]}
+                  {list.length ? (
+                    <span className="rounded-full bg-[var(--tatu-ink)] px-2 py-0.5 text-xs font-medium text-[var(--tatu-cream)]">
+                      {list.length}
+                    </span>
+                  ) : null}
                 </h3>
                 {list.length ? (
-                  <ul className="space-y-2">
-                    {list.slice(0, 3).map((idea) => (
-                      <li key={idea.id} className="rounded-2xl bg-white/60 px-4 py-3">
-                        <p className="font-medium">
-                          {idea.title} <CreatorTag idea={idea} viewerId={viewerId} />
-                        </p>
-                        {idea.notes ? <p className="text-sm text-[var(--tatu-muted)]">{idea.notes}</p> : null}
+                  <ul className="list-disc space-y-1.5 pl-5 marker:text-[var(--tatu-olive)]">
+                    {list.slice(0, 4).map((idea) => (
+                      <li key={idea.id}>
+                        <span className="font-medium">{idea.title}</span>{" "}
+                        <CreatorTag idea={idea} viewerId={viewerId} />
+                        {idea.notes ? <span className="block text-sm text-[var(--tatu-muted)]">{idea.notes}</span> : null}
                       </li>
                     ))}
                   </ul>

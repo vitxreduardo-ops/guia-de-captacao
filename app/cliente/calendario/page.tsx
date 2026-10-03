@@ -172,7 +172,7 @@ export default async function CalendarioPage({
             className="group rounded-2xl bg-white/60 open:bg-white"
           >
             <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-4 py-3 [&::-webkit-details-marker]:hidden">
-              <span className="text-lg font-semibold">
+              <span className={`text-xl ${ideas.length ? "font-semibold" : "font-medium text-[var(--tatu-muted)]"}`}>
                 {MONTH_NAMES[index]}
                 {index === currentMonth ? (
                   <span className="ml-2 rounded-full bg-[var(--tatu-ink)] px-2 py-0.5 align-middle text-[11px] font-medium text-[var(--tatu-cream)]">
@@ -181,20 +181,25 @@ export default async function CalendarioPage({
                 ) : null}
               </span>
               <span className="flex items-center gap-2 text-sm text-[var(--tatu-muted)]">
-                {ideas.length ? `${ideas.length} ${ideas.length === 1 ? "ideia" : "ideias"}` : "sem ideias"}
+                {ideas.length ? (
+                  <span className="rounded-full bg-[var(--tatu-ink)] px-3 py-1 text-sm font-semibold text-[var(--tatu-cream)]">
+                    {ideas.length} {ideas.length === 1 ? "ideia" : "ideias"}
+                  </span>
+                ) : (
+                  "sem ideias"
+                )}
                 <ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden />
               </span>
             </summary>
             <div className="space-y-3 px-4 pb-4">
               {ideas.length ? (
-                <ul className="space-y-3">
+                <ul className="list-disc space-y-2 pl-5 marker:text-[var(--tatu-olive)]">
                   {ideas.map((idea) => (
                     <li key={idea.id}>
-                      <p className="font-medium">
-                        {idea.title} <CreatorTag idea={idea} viewerId={viewerId} />
-                      </p>
+                      <span className="font-medium">{idea.title}</span>{" "}
+                      <CreatorTag idea={idea} viewerId={viewerId} />
                       {idea.notes ? (
-                        <p className="whitespace-pre-line text-sm text-[var(--tatu-muted)]">{idea.notes}</p>
+                        <span className="block whitespace-pre-line text-sm text-[var(--tatu-muted)]">{idea.notes}</span>
                       ) : null}
                     </li>
                   ))}

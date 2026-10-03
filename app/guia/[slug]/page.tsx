@@ -105,10 +105,13 @@ function formatDate(value: string | null) {
 
 export default async function PublicGuidePage({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: Promise<{ de?: string }>;
 }) {
   const { slug } = await params;
+  const fromPortal = (await searchParams).de === "portal";
   const guide = await getGuideBySlugWithSections(slug);
 
   if (!guide) notFound();
@@ -133,6 +136,18 @@ export default async function PublicGuidePage({
   return (
     <div className="min-h-svh bg-neutral-50">
       <AutoRefresh />
+      {fromPortal ? (
+        <div className="sticky top-0 z-30 border-b border-neutral-200 bg-white/95 backdrop-blur">
+          <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4">
+            <a href="/cliente/roteiros" className="inline-flex min-h-12 items-center gap-1 text-sm font-medium">
+              ← Roteiros
+            </a>
+            <a href="/cliente" className="inline-flex min-h-12 items-center text-sm text-neutral-600 underline underline-offset-4">
+              Portal
+            </a>
+          </div>
+        </div>
+      ) : null}
       <div className="mx-auto max-w-3xl px-4 py-12">
         <header className="mb-10 border-b border-neutral-200 pb-6">
           <TatuLogo className="mx-auto mb-10 block h-9 w-auto text-black" />

@@ -622,3 +622,7 @@ alter table invites
 alter table invites
   add column if not exists client_id uuid references gallery_clients(id) on delete cascade,
   add column if not exists label text not null default '';
+
+-- Arquivos da prévia do material no portal (ver supabase/migrations/0076_card_media.sql).
+alter table backlog_cards
+  add column if not exists media_image_ids uuid[] not null default '{}';

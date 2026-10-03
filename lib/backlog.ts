@@ -341,6 +341,7 @@ export interface BacklogCardInput {
   assignee_ids: string[];
   drive_url: string | null;
   cover_url: string | null;
+  media_image_ids: string[];
   caption: string;
   post_date: string | null;
   post_time: string | null;
@@ -369,6 +370,10 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
       .filter((value): value is string => Boolean(value)),
     drive_url: normalizeUrl(formData.get("drive_url")),
     cover_url: normalizeUrl(formData.get("cover_url")),
+    media_image_ids: formData
+      .getAll("media_image_ids")
+      .map((value) => normalizeUuid(value))
+      .filter((value): value is string => Boolean(value)),
     caption: String(formData.get("caption") ?? "").trim(),
     post_date: normalizeDate(formData.get("post_date")),
     post_time: normalizeTime(formData.get("post_time")),
@@ -413,6 +418,7 @@ export async function createBacklogCard(
 
       drive_url: fields.drive_url ?? null,
       cover_url: fields.cover_url ?? null,
+      media_image_ids: fields.media_image_ids ?? [],
       caption: fields.caption ?? "",
       post_date: fields.post_date ?? null,
       post_time: fields.post_time ?? null,
@@ -533,6 +539,7 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
 
       drive_url: fields.drive_url,
       cover_url: fields.cover_url,
+      media_image_ids: fields.media_image_ids,
       caption: fields.caption,
       post_date: fields.post_date,
       post_time: fields.post_time,
@@ -989,4 +996,73 @@ export async function listEntregasColumnsWithCounts() {
     clientVisible: c.client_visible as boolean,
     cards: counts.get(c.id) ?? 0,
   }));
+}
+
+/**
+ * Edição enxuta de um material pela Área do cliente. Filtra por `client_id`
+ * pra o id vindo do formulário nunca mexer em card de outro cliente.
+ */
+export async function updateClientMaterial(
+  id: string,
+  clientId: string,
+  fields: {
+    title: string;
+    format: BacklogFormat;
+    post_date: string | null;
+    caption: string;
+    guide_id: string | null;
+    drive_url: string | null;
+    media_image_ids: string[];
+    column_id: string;
+  }
+) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("backlog_cards")
+    .update({ ...fields, title: fields.title || "Novo material", updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("client_id", clientId);
+  if (error) throw error;
+}
+
+export async function deleteClientMaterial(id: string, clientId: string) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("backlog_cards")
+    .delete()
+    .eq("id", id)
+    .eq("client_id", clientId);
+  if (error) throw error;
+}
+
+/** A coluna é visível ao cliente? (pra decidir se avisa o portal) */
+export async function isColumnClientVisible(columnId: string): Promise<boolean> {
+  const supabase = getSupabaseServerClient();
+  const { data } = await supabase
+    .from("backlog_columns")
+    .select("client_visible")
+    .eq("id", columnId)
+    .maybeSingle();
+  return Boolean(data?.client_visible);
+}
+
+/** Cliente e título de um card, e se a coluna dele é visível ao cliente. */
+export async function getCardPortalInfo(cardId: string): Promise<{
+  clientId: string | null;
+  title: string;
+  columnVisible: boolean;
+} | null> {
+  const supabase = getSupabaseServerClient();
+  const { data } = await supabase
+    .from("backlog_cards")
+    .select("client_id, title, column:backlog_columns(client_visible)")
+    .eq("id", cardId)
+    .maybeSingle();
+  if (!data) return null;
+  const column = data.column as unknown as { client_visible: boolean } | null;
+  return {
+    clientId: data.client_id as string | null,
+    title: data.title as string,
+    columnVisible: Boolean(column?.client_visible),
+  };
 }

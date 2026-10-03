@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/session";
 import { getUserById, type PublicUser } from "@/lib/users";
+import { listDisplayItemsByIds, type GalleryDisplayItem } from "@/lib/galleries";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export interface PortalCard {
@@ -16,6 +17,7 @@ export interface PortalCard {
   approved_at: string | null;
   changes_requested_at: string | null;
   client_feedback: string;
+  media_image_ids: string[];
   /** Quem aprovou: o próprio cliente ou alguém da equipe (em nome dele). */
   approver: { username: string; role: string } | null;
   guide: { slug: string; title: string } | null;
@@ -116,7 +118,7 @@ export async function listPortalCards(clientId: string): Promise<PortalCard[]> {
   const { data, error } = await supabase
     .from("backlog_cards")
     .select(
-      "id, title, format, cover_url, drive_url, caption, post_date, approved_at, changes_requested_at, client_feedback, approver:approved_by(username, role), guide:guides(slug, title, status), column:backlog_columns!inner(name, color, client_visible)"
+      "id, title, format, cover_url, drive_url, caption, post_date, approved_at, changes_requested_at, client_feedback, media_image_ids, approver:approved_by(username, role), guide:guides(slug, title, status), column:backlog_columns!inner(name, color, client_visible)"
     )
     .eq("client_id", clientId)
     .eq("column.client_visible", true)
@@ -201,4 +203,20 @@ export async function getPortalClientName(clientId: string): Promise<string> {
   const supabase = getSupabaseServerClient();
   const { data } = await supabase.from("gallery_clients").select("name").eq("id", clientId).maybeSingle();
   return data?.name ?? "";
+}
+
+/** Arquivos da prévia de cada material, numa consulta só (cardId → itens). */
+export async function listMediaForCards(
+  clientId: string,
+  cards: PortalCard[]
+): Promise<Record<string, GalleryDisplayItem[]>> {
+  const ids = [...new Set(cards.flatMap((c) => c.media_image_ids ?? []))];
+  const items = await listDisplayItemsByIds(clientId, ids);
+  const byId = new Map(items.map((i) => [i.id, i]));
+  return Object.fromEntries(
+    cards.map((c) => [
+      c.id,
+      (c.media_image_ids ?? []).map((id) => byId.get(id)).filter((i): i is GalleryDisplayItem => Boolean(i)),
+    ])
+  );
 }

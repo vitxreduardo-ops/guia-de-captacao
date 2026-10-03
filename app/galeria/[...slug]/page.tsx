@@ -14,7 +14,14 @@ export const dynamic = "force-dynamic";
 // link próprio que pode ser mandado direto pro cliente.
 type Params = Promise<{ slug: string[] }>;
 
-export default async function PublicGalleryPage({ params }: { params: Params }) {
+export default async function PublicGalleryPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Promise<{ de?: string }>;
+}) {
+  const fromPortal = (await searchParams).de === "portal";
   const { slug: segments } = await params;
   const [slug, ...folderPath] = segments ?? [];
 
@@ -55,6 +62,7 @@ export default async function PublicGalleryPage({ params }: { params: Params }) 
             root={root}
             clientName={client.name}
             slug={client.slug}
+            fromPortal={fromPortal}
             initialPath={folderPath.map((segment) => decodeURIComponent(segment))}
           />
         )}
