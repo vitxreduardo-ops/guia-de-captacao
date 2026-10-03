@@ -718,5 +718,7 @@ export function toPickerImages(images: GalleryImage[]) {
     folder: img.drive_relative_path ?? "",
     caption: img.caption,
     video: isGalleryImageVideo(img),
+    /** Arquivo do vídeo (proxy do Drive), pra tirar uma capa quando o Drive não tem miniatura. */
+    videoSrc: isGalleryImageVideo(img) ? img.image_url : null,
   }));
 }

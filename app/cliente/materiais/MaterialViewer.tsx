@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, ExternalLink, Film, Play, X } from "lucide-react";
 import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
+import { useVideoPoster } from "@/components/useVideoPoster";
 
 export interface ViewerItem {
   id: string;
@@ -24,6 +25,8 @@ function Spinner() {
 function Tile({ item, onOpen }: { item: ViewerItem; onOpen: () => void }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Drive sem miniatura: tira um quadro do próprio vídeo.
+  const frame = useVideoPoster(item.previewSrc, failed && item.kind === "video");
 
   if (item.kind === "file") {
     return (
@@ -46,8 +49,11 @@ function Tile({ item, onOpen }: { item: ViewerItem; onOpen: () => void }) {
       {item.kind === "video" ? (
         <>
           {/* Miniatura gerada pelo Drive: o <video> não desenha o primeiro quadro em todo celular. */}
-          {failed ? (
-            // O Drive ainda não gerou miniatura deste vídeo: quadro de reserva com o nome.
+          {failed && frame ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={frame} alt="" className="size-full bg-neutral-900 object-cover" />
+          ) : failed ? (
+            // Sem miniatura no Drive e sem quadro (ainda): reserva com o nome.
             <span className="flex size-full flex-col items-center justify-center gap-2 bg-neutral-900 p-4 text-center text-sm text-white/80">
               <Film className="size-8" aria-hidden />
               <span className="line-clamp-3">{item.caption || "Vídeo"}</span>
@@ -92,6 +98,21 @@ function Tile({ item, onOpen }: { item: ViewerItem; onOpen: () => void }) {
  * teclado, deslize no celular e contador. Foto e vídeo abrem aqui do mesmo
  * jeito; o vídeo toca ao abrir e para ao trocar de arquivo.
  */
+function LightboxVideo({ item, onLoaded }: { item: ViewerItem; onLoaded: () => void }) {
+  return (
+    <video
+      key={item.id}
+      src={item.previewSrc}
+      poster={item.thumbSrc}
+      controls
+      autoPlay
+      playsInline
+      onLoadedData={onLoaded}
+      className="size-full object-contain"
+    />
+  );
+}
+
 function MediaLightbox({
   items,
   index,
@@ -157,16 +178,7 @@ function MediaLightbox({
           </span>
         ) : null}
         {item.kind === "video" ? (
-          <video
-            key={item.id}
-            src={item.previewSrc}
-            poster={item.thumbSrc}
-            controls
-            autoPlay
-            playsInline
-            onLoadedData={() => setLoadedId(item.id)}
-            className="size-full object-contain"
-          />
+          <LightboxVideo item={item} onLoaded={() => setLoadedId(item.id)} />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img

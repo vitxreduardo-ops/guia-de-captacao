@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Check, ChevronRight, Film, Folder, FolderOpen } from "lucide-react";
+import { useVideoPoster } from "@/components/useVideoPoster";
 
 export interface PickerImage {
   id: string;
@@ -10,6 +11,26 @@ export interface PickerImage {
   folder: string;
   caption: string;
   video: boolean;
+  /** Arquivo do vídeo, pra tirar uma capa se o Drive não tiver miniatura. */
+  videoSrc?: string | null;
+}
+
+/** Miniatura; se o Drive não tem (vídeo), tira um quadro do próprio vídeo. */
+function Thumb({ img }: { img: PickerImage }) {
+  const [failed, setFailed] = useState(false);
+  const frame = useVideoPoster(img.videoSrc ?? "", failed && Boolean(img.video && img.videoSrc));
+  const src = failed ? frame : img.thumb;
+  if (!src) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={img.caption}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="relative size-full object-cover"
+    />
+  );
 }
 
 const segments = (folder: string) => folder.split("/").map((s) => s.trim()).filter(Boolean);
@@ -163,14 +184,7 @@ export function MediaPicker({
                   {img.video ? (
                     <Film className="absolute inset-0 m-auto size-6 text-neutral-400" aria-hidden />
                   ) : null}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={img.thumb}
-                    alt={img.caption}
-                    loading="lazy"
-                    onError={(e) => (e.currentTarget.style.visibility = "hidden")}
-                    className="relative size-full object-cover"
-                  />
+                  <Thumb img={img} />
                   {img.video ? <Film className="absolute bottom-1 left-1 size-4 text-white drop-shadow" aria-hidden /> : null}
                   <span className="absolute inset-0 hidden bg-neutral-900/40 peer-checked:block" />
                   <span className="absolute right-1 top-1 hidden size-5 place-items-center rounded-full bg-neutral-900 text-white peer-checked:grid">
