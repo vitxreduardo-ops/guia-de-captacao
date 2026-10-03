@@ -36,7 +36,7 @@ export async function requirePortalUser(): Promise<
   const session = await getCurrentSession();
   const user = session ? await getUserById(session.userId) : null;
   if (!user || user.role !== "client" || !user.client_id) {
-    redirect("/admin/login?next=/cliente");
+    redirect("/cliente/sair");
   }
   return user as PublicUser & { client_id: string };
 }
