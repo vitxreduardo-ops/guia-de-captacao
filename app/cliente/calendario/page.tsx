@@ -31,7 +31,7 @@ export default async function CalendarioPage({
 }: {
   searchParams: Promise<{ vista?: string; ano?: string; mes?: string }>;
 }) {
-  const { clientId, preview } = await getPortalSession();
+  const { clientId, preview, viewerId } = await getPortalSession();
   const params = await searchParams;
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
@@ -137,7 +137,7 @@ export default async function CalendarioPage({
               {monthIdeas.map((idea) => (
                 <li key={idea.id} className="rounded-2xl bg-white/60 px-4 py-3">
                   <p className="font-medium">
-                    {idea.title} <CreatorTag idea={idea} viewerIsClient />
+                    {idea.title} <CreatorTag idea={idea} viewerId={viewerId} />
                   </p>
                   {idea.notes ? <p className="whitespace-pre-line text-sm text-[var(--tatu-muted)]">{idea.notes}</p> : null}
                 </li>
@@ -191,7 +191,7 @@ export default async function CalendarioPage({
                   {ideas.map((idea) => (
                     <li key={idea.id}>
                       <p className="font-medium">
-                        {idea.title} <CreatorTag idea={idea} viewerIsClient />
+                        {idea.title} <CreatorTag idea={idea} viewerId={viewerId} />
                       </p>
                       {idea.notes ? (
                         <p className="whitespace-pre-line text-sm text-[var(--tatu-muted)]">{idea.notes}</p>

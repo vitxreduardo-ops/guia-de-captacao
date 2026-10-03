@@ -6,15 +6,15 @@ import { creatorColor, type EditorialIdea } from "@/lib/editorialMonths";
  */
 export function CreatorTag({
   idea,
-  viewerIsClient = false,
+  viewerId = null,
 }: {
-  idea: Pick<EditorialIdea, "created_by_name" | "created_by_role">;
-  viewerIsClient?: boolean;
+  idea: Pick<EditorialIdea, "created_by" | "created_by_name" | "created_by_role">;
+  /** Quem está olhando: as ideias dele aparecem como "Você". */
+  viewerId?: string | null;
 }) {
   // Ideia antiga, de antes de guardarmos o autor: foi anotada pela equipe.
   const name = idea.created_by_name ?? "Equipe Tatú";
-  const label =
-    viewerIsClient && idea.created_by_role === "client" ? "Você" : name;
+  const label = viewerId && idea.created_by === viewerId ? "Você" : name;
   return (
     <span
       className="inline-block rounded px-1.5 py-0.5 align-middle text-[11px] font-medium leading-none text-white"

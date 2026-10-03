@@ -8,7 +8,7 @@ import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
 import { findClientLogo } from "@/lib/clientLogoMatch";
 import { isLightLogo, listClientLogos } from "@/lib/clientLogos";
 import { getGalleryClientWithImages } from "@/lib/galleries";
-import { getClientUser } from "@/lib/users";
+import { listClientUsers } from "@/lib/users";
 
 /**
  * Moldura de um cliente na Área do cliente: quem é, se o portal está ativo e
@@ -24,10 +24,10 @@ export default async function ClientAreaClientLayout({
   const { clientId } = await params;
   assertClientAllowed(await getCurrentClientScope(), clientId);
 
-  const [client, logos, login] = await Promise.all([
+  const [client, logos, logins] = await Promise.all([
     getGalleryClientWithImages(clientId),
     listClientLogos(),
-    getClientUser(clientId),
+    listClientUsers(clientId),
   ]);
   if (!client) notFound();
 
@@ -52,10 +52,12 @@ export default async function ClientAreaClientLayout({
           <h1 className="truncate text-xl font-semibold">{client.name}</h1>
           <span
             className={`mt-1 inline-block rounded px-1.5 py-0.5 text-xs ${
-              login ? "bg-emerald-50 text-emerald-700" : "bg-neutral-100 text-neutral-600"
+              logins.length ? "bg-emerald-50 text-emerald-700" : "bg-neutral-100 text-neutral-600"
             }`}
           >
-            {login ? "Portal ativo" : "Sem acesso ao portal"}
+            {logins.length
+              ? `${logins.length} ${logins.length === 1 ? "pessoa com acesso" : "pessoas com acesso"}`
+              : "Sem acesso ao portal"}
           </span>
         </div>
         <Link
@@ -72,7 +74,7 @@ export default async function ClientAreaClientLayout({
           label={`Área do cliente: ${client.name}`}
           tabs={[
             { href: `${base}/calendario`, label: "Calendário editorial" },
-            { href: `${base}/acesso`, label: "Acesso e galeria" },
+            { href: `${base}/acesso`, label: "Acessos e Drive" },
           ]}
         />
       </div>

@@ -8,6 +8,7 @@ export interface EditorialIdea {
   notes: string;
   internal: boolean;
   /** Quem anotou. Ideias antigas não têm autor. */
+  created_by?: string | null;
   created_by_name?: string | null;
   created_by_role?: "admin" | "member" | "client" | null;
 }

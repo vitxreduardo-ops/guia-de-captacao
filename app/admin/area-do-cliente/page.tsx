@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, SlidersHorizontal } from "lucide-react";
+import { ChevronRight, SlidersHorizontal, Users } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ClientAvatar } from "@/components/admin/ClientAvatar";
 import { getCurrentClientScope } from "@/lib/clientAccess";
@@ -7,7 +7,7 @@ import { getClientAreaSummaries } from "@/lib/clientArea";
 import { findClientLogo } from "@/lib/clientLogoMatch";
 import { isLightLogo, listClientLogos } from "@/lib/clientLogos";
 import { listGalleryClients } from "@/lib/galleries";
-import { listClientLogins } from "@/lib/users";
+import { countClientLogins } from "@/lib/users";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export default async function AreaDoClientePage() {
   const [clients, summaries, logins, logos] = await Promise.all([
     listGalleryClients({ clientScope: await getCurrentClientScope() }),
     getClientAreaSummaries(),
-    listClientLogins(),
+    countClientLogins(),
     listClientLogos(),
   ]);
 
@@ -40,19 +40,29 @@ export default async function AreaDoClientePage() {
           O portal que cada cliente vê: calendário editorial, materiais, galeria
           e guias. Escolha um cliente para cuidar do portal dele.
         </p>
-        <Link
-          href="/admin/area-do-cliente/materiais"
-          className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-neutral-300 px-3 text-sm font-medium hover:bg-neutral-50"
-        >
-          <SlidersHorizontal className="size-4" aria-hidden />
-          Materiais visíveis
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/admin/area-do-cliente/logins"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-neutral-300 px-3 text-sm font-medium hover:bg-neutral-50"
+          >
+            <Users className="size-4" aria-hidden />
+            Logins do portal
+          </Link>
+          <Link
+            href="/admin/area-do-cliente/materiais"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-neutral-300 px-3 text-sm font-medium hover:bg-neutral-50"
+          >
+            <SlidersHorizontal className="size-4" aria-hidden />
+            Materiais visíveis
+          </Link>
+        </div>
       </div>
 
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {clients.map((client) => {
           const s = summaries[client.id] ?? { ideas: 0, waiting: 0 };
-          const hasLogin = Boolean(logins[client.id]);
+          const loginCount = logins[client.id] ?? 0;
+          const hasLogin = loginCount > 0;
           return (
             <li key={client.id}>
               <Link
@@ -73,7 +83,7 @@ export default async function AreaDoClientePage() {
                         : "bg-neutral-100 text-neutral-600"
                     }`}
                   >
-                    {hasLogin ? "Portal ativo" : "Sem acesso"}
+                    {hasLogin ? `${loginCount} ${loginCount === 1 ? "acesso" : "acessos"}` : "Sem acesso"}
                   </span>
                   <p className="mt-1 text-xs text-neutral-500">
                     {s.ideas} {s.ideas === 1 ? "ideia" : "ideias"} nos próximos meses
