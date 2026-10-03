@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import ChatRoteiro from "@/components/admin/roteiros/ChatRoteiro";
+import { clientesDoChat } from "@/lib/roteiroContexto";
 
-export default function ChatRoteirosPage() {
+export default async function ChatRoteirosPage() {
   return (
     <div className="mx-auto w-full max-w-3xl pb-10">
       <AdminHeader
@@ -23,7 +24,7 @@ export default function ChatRoteirosPage() {
         </Link>
       </div>
 
-      <ChatRoteiro />
+      <ChatRoteiro clientes={await clientesDoChat()} />
     </div>
   );
 }

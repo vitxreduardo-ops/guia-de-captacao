@@ -14,24 +14,37 @@ import {
   promptAIDA,
   promptMidtrack,
   promptPAS,
-  PROMPT_CHAT,
+  promptChat,
+  PROMPT_ORGANIZAR,
   PROMPT_TRIAGEM,
 } from "@/lib/roteiroPrompts";
 import {
   getSchemaPorFramework,
   schemaChat,
+  schemaOrganizar,
   schemaTriagem,
 } from "@/lib/roteiroSchemas";
 import { addScene, addVideo, listGuides } from "@/lib/guides";
+import { createGalleryClient } from "@/lib/galleries";
 import { getRoteiro, insertRoteiro, updateRoteiro } from "@/lib/roteiros";
+import {
+  clientePermitido,
+  contextoDoCliente,
+  perfilDoCliente,
+  salvarDescricaoDoCliente,
+} from "@/lib/roteiroContexto";
 import {
   DURACAO_MAX,
   DURACAO_MIN,
   STATUS_ROTEIRO,
   type Framework,
   type RoteiroJson,
+  type RoteiroOrganizado,
   type StatusRoteiro,
+  type VideoImportado,
+  organizadoParaVideos,
   roteiroParaVideos,
+  verificarIntocado,
 } from "@/lib/roteiroTypes";
 
 type Comum = {
@@ -190,8 +203,13 @@ export async function atualizarRoteiroAction(
 const MAX_MENSAGENS = 30;
 const MAX_CARACTERES = 8000;
 
+/**
+ * O chat recebe, além da conversa, o cliente escolhido (roteiros dos guias
+ * dele, lidos aqui no servidor) e o que está no gerador ao lado.
+ */
 export async function conversarAction(
-  mensagens: MensagemChat[]
+  mensagens: MensagemChat[],
+  contexto: { cliente?: string; formulario?: string } = {}
 ): Promise<Resultado<{ resposta: string; raciocinio: string[] }>> {
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
 
@@ -210,9 +228,19 @@ export async function conversarAction(
   }
 
   try {
+    const pedido = typeof contexto.cliente === "string" ? contexto.cliente.trim().slice(0, 200) : "";
+    // Cliente fora do acesso da pessoa é ignorado, não vira erro no meio da conversa.
+    const cliente = pedido && (await clientePermitido(pedido)) ? pedido : "";
+    const formulario =
+      typeof contexto.formulario === "string" ? contexto.formulario.slice(0, MAX_CARACTERES) : "";
     const data = await chatConversaJson<{ resposta: string; raciocinio: string[] }>({
       model: MODELO_ROTEIRO,
-      system: PROMPT_CHAT,
+      system: promptChat({
+        cliente,
+        descricaoDoCliente: cliente ? ((await perfilDoCliente(cliente))?.descricao ?? "") : "",
+        roteirosDoCliente: cliente ? await contextoDoCliente(cliente) : "",
+        formulario,
+      }),
       mensagens: validas,
       schema: schemaChat,
       temperature: 0.8,
@@ -238,6 +266,18 @@ export async function listarGuiasAction(): Promise<
   }
 }
 
+// ponytail: vídeos e cenas entram um a um, sem transação; se cair no meio
+// o vídeo fica pela metade no guia e dá pra apagar pelo editor.
+async function inserirVideos(guiaId: string, videos: VideoImportado[]) {
+  for (const video of videos) {
+    const criado = await addVideo(guiaId, video.titulo, video.notas_producao);
+    for (const cena of video.cenas) {
+      await addScene(criado.id, { description: "", ...cena });
+    }
+  }
+  revalidatePath(`/admin/guias/${guiaId}`);
+}
+
 /**
  * Manda um roteiro do histórico pra um guia: vira vídeo(s) novo(s) no fim do
  * guia, uma cena por bloco. Lê o roteiro do banco pelo id em vez de confiar
@@ -253,16 +293,119 @@ export async function enviarParaGuiaAction(
     if (!roteiro) return { ok: false, error: "Roteiro não encontrado." };
 
     const videos = roteiroParaVideos(roteiro.framework, roteiro.tema, roteiro.roteiro);
-    // ponytail: vídeos e cenas entram um a um, sem transação; se cair no meio
-    // o vídeo fica pela metade no guia e dá pra apagar pelo editor.
-    for (const video of videos) {
-      const criado = await addVideo(guiaId, video.titulo, video.notas_producao);
-      for (const cena of video.cenas) {
-        await addScene(criado.id, { description: "", ...cena });
-      }
-    }
-    revalidatePath(`/admin/guias/${guiaId}`);
+    await inserirVideos(guiaId, videos);
     return { ok: true, data: { videos: videos.length } };
+  } catch (err) {
+    return { ok: false, error: mensagem(err) };
+  }
+}
+
+const MAX_ROTEIRO_COLADO = 20000;
+
+/**
+ * "Colar roteiro": a IA recorta o texto do cliente em vídeos e cenas sem
+ * mudar palavra. Só devolve a prévia, com o resultado da checagem; nada é
+ * gravado até a pessoa confirmar.
+ */
+export async function organizarRoteiroAction(texto: string): Promise<
+  Resultado<{ videos: VideoImportado[]; alterados: string[]; deFora: string[] }>
+> {
+  if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
+  const original = typeof texto === "string" ? texto.trim() : "";
+  if (!original) return { ok: false, error: "Cole o roteiro antes de organizar." };
+  if (original.length > MAX_ROTEIRO_COLADO) {
+    return { ok: false, error: "Roteiro longo demais: separe em partes de até 20 mil caracteres." };
+  }
+  try {
+    const organizado = await chatJson<RoteiroOrganizado>({
+      model: MODELO_ROTEIRO,
+      system: PROMPT_ORGANIZAR,
+      user: original,
+      schema: schemaOrganizar,
+      temperature: 0,
+    });
+    const videos = organizadoParaVideos(organizado).filter((v) => v.cenas.length > 0);
+    if (videos.length === 0) {
+      return { ok: false, error: "A IA não encontrou cenas nesse texto." };
+    }
+    return { ok: true, data: { videos, ...verificarIntocado(original, organizado) } };
+  } catch (err) {
+    return { ok: false, error: mensagem(err) };
+  }
+}
+
+const textos = (v: unknown) =>
+  Array.isArray(v) ? v.filter((t): t is string => typeof t === "string" && t.trim() !== "") : [];
+const texto = (v: unknown) => (typeof v === "string" ? v : "");
+
+/** Grava no guia a prévia confirmada. Os vídeos vêm do navegador: só passa o formato esperado. */
+export async function salvarVideosNoGuiaAction(
+  guiaId: string,
+  videos: VideoImportado[]
+): Promise<Resultado<{ videos: number }>> {
+  if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
+  if (typeof guiaId !== "string" || !guiaId) return { ok: false, error: "Guia inválido." };
+
+  const limpos: VideoImportado[] = (Array.isArray(videos) ? videos : [])
+    .slice(0, 20)
+    .map((v) => ({
+      titulo: texto(v?.titulo).trim() || "Sem título",
+      notas_producao: texto(v?.notas_producao),
+      cenas: (Array.isArray(v?.cenas) ? v.cenas : []).slice(0, 60).map((c) => ({
+        script: texto(c?.script),
+        description: texto(c?.description),
+        hooks_alternativos: textos(c?.hooks_alternativos),
+        ctas_alternativos: textos(c?.ctas_alternativos),
+      })),
+    }))
+    .filter((v) => v.cenas.length > 0);
+  if (limpos.length === 0) return { ok: false, error: "Nada para adicionar." };
+
+  try {
+    await inserirVideos(guiaId, limpos);
+    return { ok: true, data: { videos: limpos.length } };
+  } catch (err) {
+    return { ok: false, error: mensagem(err) };
+  }
+}
+
+const MAX_DESCRICAO = 5000;
+
+/**
+ * Perfil do cliente aberto pelo chat: a mesma descrição de Clientes >
+ * Cadastro. `cadastrado: false` quando o nome só existe nos guias.
+ */
+export async function lerPerfilClienteAction(
+  nome: string
+): Promise<Resultado<{ cadastrado: boolean; descricao: string }>> {
+  if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
+  try {
+    if (typeof nome !== "string" || !(await clientePermitido(nome))) {
+      return { ok: false, error: "Cliente fora do seu acesso." };
+    }
+    const perfil = await perfilDoCliente(nome);
+    return { ok: true, data: { cadastrado: perfil !== null, descricao: perfil?.descricao ?? "" } };
+  } catch (err) {
+    return { ok: false, error: mensagem(err) };
+  }
+}
+
+export async function salvarPerfilClienteAction(
+  nome: string,
+  descricao: string
+): Promise<Resultado<null>> {
+  if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
+  if (typeof descricao !== "string") return { ok: false, error: "Descrição inválida." };
+  try {
+    if (typeof nome !== "string" || !(await clientePermitido(nome))) {
+      return { ok: false, error: "Cliente fora do seu acesso." };
+    }
+    // Nome que só existe nos guias: salvar já cadastra o cliente, sem passar
+    // por Clientes. (Acesso restrito nem chega aqui: clientePermitido barra.)
+    const id = (await perfilDoCliente(nome))?.id ?? (await createGalleryClient(nome.trim())).id;
+    await salvarDescricaoDoCliente(id, descricao.trim().slice(0, MAX_DESCRICAO));
+    revalidatePath("/admin/clientes/cadastro");
+    return { ok: true, data: null };
   } catch (err) {
     return { ok: false, error: mensagem(err) };
   }

@@ -1,8 +1,9 @@
-import { History, MessageSquare } from "lucide-react";
+import { ClipboardPaste, History, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import ChatRoteiro from "@/components/admin/roteiros/ChatRoteiro";
 import GeradorRoteiro from "@/components/admin/roteiros/GeradorRoteiro";
+import { clientesDoChat } from "@/lib/roteiroContexto";
 import { getRoteiro } from "@/lib/roteiros";
 import { preenchimentoDe } from "@/lib/roteiroTypes";
 
@@ -12,7 +13,10 @@ export default async function RoteirosPage({
   // ?de=<id> vem do "Usar como base" do histórico: abre o formulário
   // preenchido com aquele roteiro, sem gerar nada.
   const { de } = await searchParams;
-  const base = typeof de === "string" ? await getRoteiro(de) : null;
+  const [base, clientes] = await Promise.all([
+    typeof de === "string" ? getRoteiro(de) : null,
+    clientesDoChat(),
+  ]);
 
   return (
     // No desktop a página inteira cabe na janela (o cartão do admin tem 0,5rem
@@ -24,7 +28,7 @@ export default async function RoteirosPage({
         trail={[{ label: "Admin", href: "/admin" }, { label: "Roteiros" }]}
       />
 
-      {/* No celular a linha é só dos dois botões, dividindo a largura; a
+      {/* No celular a linha é só dos botões, dividindo a largura; a
           descrição volta a partir do sm, onde cabe ao lado deles. */}
       <div className="mb-6 flex items-baseline justify-between gap-4">
         <p className="hidden text-sm text-neutral-500 sm:block">
@@ -46,6 +50,14 @@ export default async function RoteirosPage({
             <History className="size-4" aria-hidden />
             Histórico
           </Link>
+          <Link
+            href="/admin/roteiros/colar"
+            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 sm:flex-none sm:py-1.5"
+          >
+            <ClipboardPaste className="size-4" aria-hidden />
+            {/* No celular três botões dividem a linha: "roteiro" não cabe. */}
+            Colar<span className="max-sm:hidden"> roteiro</span>
+          </Link>
         </div>
       </div>
 
@@ -62,7 +74,7 @@ export default async function RoteirosPage({
 
         <aside aria-label="Chat de roteiros" className="relative hidden xl:block">
           <div className="absolute inset-0">
-            <ChatRoteiro preencher />
+            <ChatRoteiro preencher clientes={clientes} />
           </div>
         </aside>
       </div>

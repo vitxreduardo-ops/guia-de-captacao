@@ -148,6 +148,21 @@ function ClientRow({
             />
           </Campo>
 
+          <Campo
+            label="Descrição para roteiros"
+            hint="O chat de Roteiros lê isto ao escolher o cliente"
+            className="sm:col-span-2"
+          >
+            <textarea
+              name="descricao_roteiro"
+              defaultValue={client.descricao_roteiro}
+              rows={4}
+              maxLength={5000}
+              placeholder="Quem é o cliente, o que vende, público, tom de voz, bordões, o que já funcionou e o que evitar."
+              className={inputClass}
+            />
+          </Campo>
+
           <Campo label="Observações" className="sm:col-span-2">
             <textarea
               name="notes"
