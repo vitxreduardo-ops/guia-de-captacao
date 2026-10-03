@@ -55,19 +55,27 @@ export async function requireClientUser(): Promise<
 export async function getPortalSession(): Promise<{
   clientId: string;
   preview: boolean;
+  /** O login de quem olha (null na prévia do admin) e o primeiro nome dele. */
+  viewerId: string | null;
+  viewerName: string | null;
 }> {
   const session = await getCurrentSession();
   const user = session ? await getUserById(session.userId) : null;
 
   if (user?.role === "client" && user.client_id) {
-    return { clientId: user.client_id, preview: false };
+    return {
+      clientId: user.client_id,
+      preview: false,
+      viewerId: user.id,
+      viewerName: user.full_name.split(" ")[0] || null,
+    };
   }
   if (user?.role === "admin") {
     const clientId = (await cookies()).get(PREVIEW_COOKIE)?.value;
     // Sem prévia escolhida o admin não tem o que ver aqui; sair levaria a
     // sessão dele junto.
     if (!clientId) redirect("/admin/area-do-cliente");
-    return { clientId, preview: true };
+    return { clientId, preview: true, viewerId: null, viewerName: null };
   }
   redirect("/cliente/sair");
 }
@@ -165,4 +173,11 @@ export function listUpcoming(cards: PortalCard[], today: string, limit = 4) {
     .filter((c) => c.post_date && c.post_date >= today)
     .sort((a, b) => (a.post_date! < b.post_date! ? -1 : 1))
     .slice(0, limit);
+}
+
+/** Só o nome, pra página pública de convite (não expõe mais nada do cliente). */
+export async function getPortalClientName(clientId: string): Promise<string> {
+  const supabase = getSupabaseServerClient();
+  const { data } = await supabase.from("gallery_clients").select("name").eq("id", clientId).maybeSingle();
+  return data?.name ?? "";
 }

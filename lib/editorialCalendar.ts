@@ -3,16 +3,16 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { EditorialIdea } from "@/lib/editorialMonths";
 
 const IDEA_SELECT =
-  "id, month, title, notes, internal, creator:created_by(username, role)";
+  "id, month, title, notes, internal, created_by, creator:created_by(username, full_name, role)";
 
 type IdeaRow = Omit<EditorialIdea, "created_by_name" | "created_by_role"> & {
-  creator: { username: string; role: EditorialIdea["created_by_role"] } | null;
+  creator: { username: string; full_name: string; role: EditorialIdea["created_by_role"] } | null;
 };
 
 function toIdea({ creator, ...idea }: IdeaRow): EditorialIdea {
   return {
     ...idea,
-    created_by_name: creator?.username ?? null,
+    created_by_name: creator ? creator.full_name || creator.username : null,
     created_by_role: creator?.role ?? null,
   };
 }

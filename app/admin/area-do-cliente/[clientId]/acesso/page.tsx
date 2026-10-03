@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
-import { ClientAccessSection } from "@/components/admin/ClientAccessSection";
+import { ClientLoginsManager } from "@/components/admin/ClientLoginsManager";
 import { getGalleryClientWithImages } from "@/lib/galleries";
-import { getClientUser } from "@/lib/users";
+import { listPendingClientInvites } from "@/lib/invites";
+import { listClientUsers } from "@/lib/users";
 
 export const dynamic = "force-dynamic";
 
@@ -11,18 +12,30 @@ export default async function AcessoPage({
   params: Promise<{ clientId: string }>;
 }) {
   const { clientId } = await params;
-  const [client, login] = await Promise.all([
+  const [client, logins, invites] = await Promise.all([
     getGalleryClientWithImages(clientId),
-    getClientUser(clientId),
+    listClientUsers(clientId),
+    listPendingClientInvites(clientId),
   ]);
   if (!client) notFound();
 
   return (
-    <ClientAccessSection
+    <ClientLoginsManager
       clientId={clientId}
-      name={client.name}
-      login={login?.username ?? null}
+      clientName={client.name}
       article={client.gallery_article}
+      logins={logins.map((u) => ({
+        id: u.id,
+        username: u.username,
+        full_name: u.full_name,
+        portal_label: u.portal_label,
+      }))}
+      invites={invites.map((i) => ({
+        id: i.id,
+        token: i.token,
+        label: i.label,
+        created_at: i.created_at,
+      }))}
     />
   );
 }

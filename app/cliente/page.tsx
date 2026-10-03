@@ -28,7 +28,7 @@ function dayParts(date: string) {
 }
 
 export default async function ClientePage() {
-  const { clientId } = await getPortalSession();
+  const { clientId, viewerId, viewerName } = await getPortalSession();
   const now = new Date();
   // Mês atual e os dois seguintes (pode virar o ano).
   const span = nextMonths(now, 3);
@@ -45,7 +45,7 @@ export default async function ClientePage() {
   const waiting = cards.filter((c) => !c.approved_at).length;
   const approved = cards.length - waiting;
   const upcoming = listUpcoming(cards, today);
-  const firstName = (client.contact_name || client.name).split(" ")[0];
+  const firstName = viewerName || (client.contact_name || client.name).split(" ")[0];
 
   return (
     <div className="space-y-10">
@@ -157,7 +157,7 @@ export default async function ClientePage() {
                     {list.slice(0, 3).map((idea) => (
                       <li key={idea.id} className="rounded-2xl bg-white/60 px-4 py-3">
                         <p className="font-medium">
-                          {idea.title} <CreatorTag idea={idea} viewerIsClient />
+                          {idea.title} <CreatorTag idea={idea} viewerId={viewerId} />
                         </p>
                         {idea.notes ? <p className="text-sm text-[var(--tatu-muted)]">{idea.notes}</p> : null}
                       </li>

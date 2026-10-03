@@ -6,7 +6,8 @@ import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
 import { createIdea, deleteIdea, updateIdea } from "@/lib/editorialCalendar";
 import { setGalleryClientArticle } from "@/lib/galleries";
 import { requireAdmin, getCurrentSession } from "@/lib/session";
-import { createUser, getClientUser, updateUser } from "@/lib/users";
+import { createClientInvite, deleteInvite } from "@/lib/invites";
+import { createUser, deleteClientUser, getUserByUsername, updateClientUser } from "@/lib/users";
 
 async function allowed(clientId: string) {
   assertClientAllowed(await getCurrentClientScope(), clientId);
@@ -62,32 +63,72 @@ export async function deleteIdeaAction(id: string, clientId: string) {
 
 // ---------------------------------------------------------------- acesso
 
-/**
- * Cria (ou troca a senha de) o login do cliente no portal /cliente. Um
- * acesso por cliente: o usuário fica preso ao `client_id` e o proxy não deixa
- * ele sair do portal.
- */
-export async function saveClientAccessAction(formData: FormData) {
+function checkCredentials(username: string, password: string) {
+  if (!/^[a-z0-9._-]{3,}$/i.test(username)) {
+    throw new Error("Usuário com 3 ou mais caracteres (letras, números, ponto, hífen).");
+  }
+  if (password.length < 6) throw new Error("A senha precisa de 6 ou mais caracteres.");
+}
+
+/** Cria um login de cliente já pronto (nome, função, usuário e senha definidos pela equipe). */
+export async function createClientLoginAction(formData: FormData) {
   const clientId = String(formData.get("clientId"));
   await allowed(clientId);
 
   const username = String(formData.get("username") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  if (username.length < 3 || password.length < 6) {
-    throw new Error("Usuário com 3+ letras e senha com 6+ caracteres.");
-  }
+  checkCredentials(username, password);
+  if (await getUserByUsername(username)) throw new Error("Esse usuário já existe.");
 
-  const existing = await getClientUser(clientId);
-  if (existing) {
-    await updateUser(existing.id, {
-      username,
-      email: existing.email,
-      role: "client",
-      password,
-    });
-  } else {
-    await createUser({ username, email: "", password, role: "client", clientId });
+  await createUser({
+    username,
+    email: "",
+    password,
+    role: "client",
+    clientId,
+    fullName: String(formData.get("fullName") ?? ""),
+    portalLabel: String(formData.get("label") ?? ""),
+  });
+  revalidateArea();
+}
+
+export async function updateClientLoginAction(params: {
+  id: string;
+  clientId: string;
+  fullName?: string;
+  label?: string;
+  password?: string;
+}) {
+  await allowed(params.clientId);
+  if (params.password !== undefined && params.password.length < 6) {
+    throw new Error("A senha precisa de 6 ou mais caracteres.");
   }
+  await updateClientUser(params.id, params.clientId, {
+    fullName: params.fullName,
+    portalLabel: params.label,
+    password: params.password,
+  });
+  revalidateArea();
+}
+
+export async function deleteClientLoginAction(id: string, clientId: string) {
+  await allowed(clientId);
+  await deleteClientUser(id, clientId);
+  revalidateArea();
+}
+
+/** Gera o link de convite (14 dias, uso único). Devolve o token; a tela monta a URL. */
+export async function createClientInviteAction(clientId: string, label: string) {
+  await allowed(clientId);
+  const session = await requireAdmin();
+  const invite = await createClientInvite({ clientId, label, createdBy: session.userId });
+  revalidateArea();
+  return invite.token;
+}
+
+export async function revokeClientInviteAction(inviteId: string, clientId: string) {
+  await allowed(clientId);
+  await deleteInvite(inviteId);
   revalidateArea();
 }
 
