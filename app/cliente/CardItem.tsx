@@ -60,7 +60,7 @@ export function CardItem({ card, readOnly = false }: { card: PortalCard; readOnl
           ) : null}
           {card.guide ? (
             <Link href={`/guia/${card.guide.slug}`} className="inline-flex min-h-11 items-center underline underline-offset-4">
-              Guia de captação
+              Roteiros
             </Link>
           ) : null}
         </div>

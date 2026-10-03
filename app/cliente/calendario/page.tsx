@@ -69,11 +69,12 @@ export default async function CalendarioPage({
           Planejamento de conteúdo, programação de postagens e ideias de cada mês.
         </p>
       </div>
-      {tabs}
+      <div className="flex items-center justify-between gap-3">
+        {tabs}
+        <IdeaForm months={nextMonths(now, 12)} readOnly={preview} />
+      </div>
     </header>
   );
-
-  const form = <IdeaForm months={nextMonths(now, 12)} readOnly={preview} />;
 
   if (monthly) {
     const last = new Date(year, month, 0).getDate();
@@ -90,7 +91,6 @@ export default async function CalendarioPage({
     return (
       <div className="space-y-6">
         {header}
-        {form}
 
         <div className="flex items-center justify-between">
           <Arrow href={link(prev)} label="Mês anterior" dir="l" />
@@ -103,7 +103,9 @@ export default async function CalendarioPage({
         <MonthGrid year={year} month={month} postDates={visible.map((p) => p.post_date)} today={today} />
 
         <section aria-labelledby="programacao">
-          <h3 id="programacao" className="mb-2 text-xl font-semibold">Programação de postagens</h3>
+          <h3 id="programacao" className="mb-2 text-xl font-semibold">
+            Programação de postagens <span className="text-base font-normal text-[var(--tatu-muted)]">({visible.length})</span>
+          </h3>
           {visible.length ? (
             <ul>
               {visible.map((p) => (
@@ -127,7 +129,9 @@ export default async function CalendarioPage({
         </section>
 
         <section aria-labelledby="ideias-mes">
-          <h3 id="ideias-mes" className="mb-2 text-xl font-semibold">Ideias de {MONTH_NAMES[month - 1].toLowerCase()}</h3>
+          <h3 id="ideias-mes" className="mb-2 text-xl font-semibold">
+            Ideias de {MONTH_NAMES[month - 1].toLowerCase()} <span className="text-base font-normal text-[var(--tatu-muted)]">({monthIdeas.length})</span>
+          </h3>
           {monthIdeas.length ? (
             <ul className="space-y-2">
               {monthIdeas.map((idea) => (
@@ -153,7 +157,6 @@ export default async function CalendarioPage({
   return (
     <div className="space-y-6">
       {header}
-      {form}
 
       <div className="flex items-center gap-2">
         <Arrow href={`/cliente/calendario?vista=ano&ano=${year - 1}`} label={`Ver ${year - 1}`} dir="l" />

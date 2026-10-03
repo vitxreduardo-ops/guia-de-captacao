@@ -93,16 +93,16 @@ export default async function ClientePage() {
           </Link>
         ) : null}
         <Link
-          href="/cliente/guias"
+          href="/cliente/roteiros"
           className="flex min-h-14 items-center gap-3 rounded-2xl border border-[var(--tatu-border)] px-5 py-3 font-semibold transition-colors hover:bg-white/60"
         >
           <BookOpenText className="size-5 text-[var(--tatu-olive)]" aria-hidden />
           <span className="flex-1">
-            Guias de captação
+            Roteiros
             <span className="block text-sm font-normal text-[var(--tatu-muted)]">
               {guides.length
                 ? `${guides.length} ${guides.length === 1 ? "roteiro disponível" : "roteiros disponíveis"}`
-                : "Nenhum guia publicado até o momento"}
+                : "Nenhum roteiro publicado até o momento"}
             </span>
           </span>
           <ChevronRight className="size-4 text-[var(--tatu-muted)]" aria-hidden />

@@ -28,12 +28,12 @@ export function MonthGrid({
   }
 
   return (
-    <table className="w-full table-fixed border-separate border-spacing-y-1 text-center">
+    <table className="mx-auto w-full max-w-xs table-fixed border-separate border-spacing-y-0 text-center">
       <caption className="sr-only">Calendário do mês, com dias que têm postagens marcados</caption>
       <thead>
         <tr>
           {WEEKDAYS.map((d, i) => (
-            <th key={i} scope="col" className="pb-1 text-xs font-medium text-[var(--tatu-muted)]">
+            <th key={i} scope="col" className="pb-0.5 text-[11px] font-medium text-[var(--tatu-muted)]">
               <span aria-hidden>{d}</span>
               <span className="sr-only">{WEEKDAY_NAMES[i]}</span>
             </th>
@@ -48,10 +48,10 @@ export function MonthGrid({
               const iso = day ? `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` : "";
               const isToday = iso === today;
               return (
-                <td key={i} className="h-11 align-top">
+                <td key={i} className="h-8 align-top">
                   {day ? (
                     <div
-                      className={`mx-auto flex h-10 w-10 flex-col items-center justify-center rounded-full text-sm ${
+                      className={`mx-auto flex h-8 w-8 flex-col items-center justify-center rounded-full text-xs leading-none ${
                         isToday
                           ? "bg-[var(--tatu-ink)] font-semibold text-[var(--tatu-cream)]"
                           : n
@@ -66,7 +66,7 @@ export function MonthGrid({
                       {n ? (
                         <span
                           aria-hidden
-                          className={`-mt-0.5 h-1 w-1 rounded-full ${isToday ? "bg-[var(--tatu-cream)]" : "bg-[var(--tatu-olive)]"}`}
+                          className={`mt-0.5 h-1 w-1 rounded-full ${isToday ? "bg-[var(--tatu-cream)]" : "bg-[var(--tatu-olive)]"}`}
                         />
                       ) : null}
                     </div>

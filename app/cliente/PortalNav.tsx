@@ -8,7 +8,7 @@ const TABS = [
   { href: "/cliente", label: "Início", Icon: House },
   { href: "/cliente/calendario", label: "Calendário", Icon: CalendarDays },
   { href: "/cliente/materiais", label: "Materiais", Icon: Clapperboard },
-  { href: "/cliente/guias", label: "Guias", Icon: BookOpenText },
+  { href: "/cliente/roteiros", label: "Roteiros", Icon: BookOpenText },
 ];
 
 /**

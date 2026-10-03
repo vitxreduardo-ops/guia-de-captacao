@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 const HEADING = { fontFamily: "Bootzy, sans-serif", letterSpacing: "0.02em" };
 
-export default async function GuiasPage() {
+export default async function RoteirosPage() {
   const { clientId } = await getPortalSession();
   const client = await getPortalClient(clientId);
   const guides = await listPublishedGuidesByClientName(client.name);
@@ -16,10 +16,10 @@ export default async function GuiasPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-4xl leading-none" style={HEADING}>
-          Guias de captação
+          Roteiros
         </h1>
         <p className="mt-2 text-[var(--tatu-muted)]">
-          Roteiros, referências e orientações de cada gravação.
+          Roteiros, referências e orientações de cada gravação, reunidos no guia de captação.
         </p>
       </header>
 
@@ -47,7 +47,7 @@ export default async function GuiasPage() {
         </ul>
       ) : (
         <p className="text-[var(--tatu-muted)]">
-          Os guias de captação publicados para o seu projeto serão exibidos aqui.
+          Os roteiros publicados para o seu projeto serão exibidos aqui.
         </p>
       )}
     </div>
