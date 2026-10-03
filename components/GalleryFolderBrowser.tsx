@@ -521,7 +521,7 @@ export function GalleryFolderBrowser({
   return (
     <div className="pb-20">
       {fromPortal ? (
-        <div className="sticky top-0 z-30 -mx-4 mb-4 flex items-center justify-between gap-3 border-b border-neutral-200 bg-white/95 px-4 backdrop-blur">
+        <div className="sticky top-0 z-30 -mx-4 mb-4 flex items-center justify-between gap-3 border-b border-neutral-200 bg-white/95 px-4 pt-[env(safe-area-inset-top)] backdrop-blur">
           {path.length ? (
             <button
               type="button"

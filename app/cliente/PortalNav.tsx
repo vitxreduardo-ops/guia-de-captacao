@@ -21,7 +21,7 @@ export function PortalNav() {
   return (
     <nav
       aria-label="Portal do cliente"
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--tatu-taupe)] bg-[var(--tatu-cream)]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:static md:border-0 md:bg-transparent md:pb-0 md:backdrop-blur-none"
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--tatu-taupe)] bg-[var(--tatu-cream)]/95 pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] backdrop-blur md:static md:border-0 md:bg-transparent md:pb-0 md:backdrop-blur-none"
     >
       <ul className="mx-auto flex max-w-xl md:gap-2">
         {TABS.map(({ href, label, Icon }) => {

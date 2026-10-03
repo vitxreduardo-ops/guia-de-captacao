@@ -32,7 +32,7 @@ export default async function InvitePage({
     const input =
       "min-h-12 w-full rounded-xl border border-[var(--tatu-border)] bg-white px-3 text-base";
     return (
-      <div className="flex min-h-svh items-center justify-center bg-[var(--tatu-cream)] px-5 py-10 text-[var(--tatu-ink)]">
+      <div className="flex min-h-svh items-center justify-center bg-[var(--tatu-cream)] px-[max(1.25rem,env(safe-area-inset-left),env(safe-area-inset-right))] pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))] text-[var(--tatu-ink)]">
         <div className="w-full max-w-sm">
           <TatuLogo className="mb-8 h-6 w-auto" />
           <h1
