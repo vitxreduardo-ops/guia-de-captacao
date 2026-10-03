@@ -14,9 +14,9 @@ export default async function ClienteLayout({ children }: { children: React.Reac
     <div className="min-h-svh bg-[var(--tatu-cream)] text-[var(--tatu-ink)] selection:bg-[var(--tatu-olive)] selection:text-[var(--tatu-cream)]">
       {preview ? (
         <div className="flex items-center justify-between gap-3 bg-[var(--tatu-ink)] px-5 py-2 text-sm text-[var(--tatu-cream)]">
-          <span>Prévia, como o cliente vê. Só leitura.</span>
+          <span>Visualização do portal como o cliente o vê. Somente leitura.</span>
           <Link href="/cliente/previa?sair=1" className="font-semibold underline underline-offset-4">
-            Voltar ao admin
+            Voltar ao painel
           </Link>
         </div>
       ) : null}

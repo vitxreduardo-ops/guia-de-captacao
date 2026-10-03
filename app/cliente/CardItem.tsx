@@ -10,8 +10,8 @@ function status(card: PortalCard) {
   if (card.approved_at)
     return { label: "Aprovado", Icon: CheckCircle2, tone: "bg-[var(--tatu-olive)] text-white" };
   if (card.changes_requested_at)
-    return { label: "Ajuste pedido", Icon: MessageSquareMore, tone: "bg-[var(--tatu-taupe)] text-[var(--tatu-ink)]" };
-  return { label: "Esperando você", Icon: Clock, tone: "bg-[var(--tatu-ink)] text-[var(--tatu-cream)]" };
+    return { label: "Ajuste solicitado", Icon: MessageSquareMore, tone: "bg-[var(--tatu-taupe)] text-[var(--tatu-ink)]" };
+  return { label: "Aguardando sua aprovação", Icon: Clock, tone: "bg-[var(--tatu-ink)] text-[var(--tatu-cream)]" };
 }
 
 function Submit({ children, primary = false }: { children: string; primary?: boolean }) {
@@ -55,7 +55,7 @@ export function CardItem({ card, readOnly = false }: { card: PortalCard; readOnl
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm font-medium">
           {card.drive_url ? (
             <a href={card.drive_url} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center underline underline-offset-4">
-              Abrir o material
+              Abrir material
             </a>
           ) : null}
           {card.guide ? (
@@ -67,7 +67,7 @@ export function CardItem({ card, readOnly = false }: { card: PortalCard; readOnl
 
         {card.changes_requested_at && card.client_feedback ? (
           <p className="rounded-xl bg-[var(--tatu-cream)] p-3 text-sm">
-            <span className="font-semibold">Você pediu:</span> {card.client_feedback}
+            <span className="font-semibold">Ajuste solicitado:</span> {card.client_feedback}
           </p>
         ) : null}
 
@@ -79,12 +79,12 @@ export function CardItem({ card, readOnly = false }: { card: PortalCard; readOnl
             </form>
             <details className="group">
               <summary className="flex min-h-12 cursor-pointer list-none items-center justify-center rounded-full border border-[var(--tatu-border)] font-semibold [&::-webkit-details-marker]:hidden group-open:hidden">
-                Pedir ajuste
+                Solicitar ajuste
               </summary>
               <form action={requestChangesAction} className="space-y-2">
                 <input type="hidden" name="cardId" value={card.id} />
                 <label className="block text-sm font-medium" htmlFor={`fb-${card.id}`}>
-                  O que a gente ajusta?
+                  Qual ajuste você gostaria de solicitar?
                 </label>
                 <textarea
                   id={`fb-${card.id}`}
@@ -93,7 +93,7 @@ export function CardItem({ card, readOnly = false }: { card: PortalCard; readOnl
                   rows={3}
                   className="w-full rounded-xl border border-[var(--tatu-border)] bg-white p-3"
                 />
-                <Submit>Enviar pedido</Submit>
+                <Submit>Enviar solicitação</Submit>
               </form>
             </details>
           </div>

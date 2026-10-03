@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Clapperboard, House } from "lucide-react";
+import { BookOpenText, CalendarDays, Clapperboard, House } from "lucide-react";
 
 const TABS = [
   { href: "/cliente", label: "Início", Icon: House },
   { href: "/cliente/calendario", label: "Calendário", Icon: CalendarDays },
   { href: "/cliente/materiais", label: "Materiais", Icon: Clapperboard },
+  { href: "/cliente/guias", label: "Guias", Icon: BookOpenText },
 ];
 
 /**

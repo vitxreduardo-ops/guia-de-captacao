@@ -18,13 +18,13 @@ export default async function MateriaisPage() {
           Materiais
         </h1>
         <p className="mt-2 text-[var(--tatu-muted)]">
-          Confira o que a gente preparou. Aprovou? É só tocar em Aprovar.
+          Confira os materiais preparados pela nossa equipe e registre a sua aprovação.
         </p>
       </header>
 
       <section aria-labelledby="esperando" className="space-y-3">
         <h2 id="esperando" className="text-2xl" style={HEADING}>
-          Esperando você
+          Aguardando aprovação
         </h2>
         {waiting.length ? (
           <ul className="space-y-4">
@@ -33,14 +33,14 @@ export default async function MateriaisPage() {
             ))}
           </ul>
         ) : (
-          <p className="text-[var(--tatu-muted)]">Tudo conferido por aqui. Obrigado!</p>
+          <p className="text-[var(--tatu-muted)]">Nenhum material aguardando aprovação.</p>
         )}
       </section>
 
       {done.length ? (
         <section aria-labelledby="aprovados" className="space-y-3">
           <h2 id="aprovados" className="text-2xl" style={HEADING}>
-            Já aprovados
+            Aprovados
           </h2>
           <ul className="space-y-4">
             {done.map((c) => (

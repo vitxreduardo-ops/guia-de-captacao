@@ -41,3 +41,32 @@ export async function getClientAreaSummaries(): Promise<Record<string, ClientAre
   for (const row of cards.data ?? []) slot(row.client_id as string).waiting++;
   return out;
 }
+
+export interface ClientPost {
+  id: string;
+  title: string;
+  format: string;
+  post_date: string;
+  /** A coluna do card está liberada ao cliente. */
+  visible: boolean;
+}
+
+/** Postagens agendadas do cliente entre duas datas (`YYYY-MM-DD`, inclusive). */
+export async function listClientPosts(clientId: string, from: string, to: string): Promise<ClientPost[]> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("backlog_cards")
+    .select("id, title, format, post_date, column:backlog_columns(client_visible)")
+    .eq("client_id", clientId)
+    .gte("post_date", from)
+    .lte("post_date", to)
+    .order("post_date");
+  if (error) throw error;
+  return (data ?? []).map((row) => ({
+    id: row.id as string,
+    title: row.title as string,
+    format: row.format as string,
+    post_date: row.post_date as string,
+    visible: Boolean((row.column as unknown as { client_visible: boolean } | null)?.client_visible),
+  }));
+}

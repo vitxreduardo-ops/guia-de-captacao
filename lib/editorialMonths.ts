@@ -61,3 +61,20 @@ export function creatorColor(name: string): string {
   for (const char of name) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
   return CREATOR_COLORS[hash % CREATOR_COLORS.length];
 }
+
+/** "Drive do 14Bis" / "Drive da Dra. Juliana". */
+export function driveTitle(name: string, article: "do" | "da"): string {
+  return `Drive ${article} ${name}`;
+}
+
+/** Dias do mês em linhas de 7 (domingo primeiro); null = célula vazia. */
+export function monthWeeks(year: number, month: number): (number | null)[][] {
+  const lead = new Date(year, month - 1, 1).getDay();
+  const days = new Date(year, month, 0).getDate();
+  const cells: (number | null)[] = [
+    ...Array<null>(lead).fill(null),
+    ...Array.from({ length: days }, (_, i) => i + 1),
+  ];
+  while (cells.length % 7) cells.push(null);
+  return Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, w * 7 + 7));
+}

@@ -76,3 +76,20 @@ describe("svgIsLight", () => {
     expect(svgIsLight("<path/>")).toBe(false);
   });
 });
+
+import { driveTitle, monthWeeks } from "@/lib/editorialMonths";
+import { sameName } from "@/lib/clientLogoMatch";
+
+describe("calendário mensal", () => {
+  it("outubro de 2026 começa numa quinta e tem 31 dias", () => {
+    const weeks = monthWeeks(2026, 10);
+    expect(weeks[0]).toEqual([null, null, null, null, 1, 2, 3]);
+    expect(weeks.flat().filter(Boolean)).toHaveLength(31);
+    expect(weeks.every((w) => w.length === 7)).toBe(true);
+  });
+  it("driveTitle e sameName", () => {
+    expect(driveTitle("14Bis", "do")).toBe("Drive do 14Bis");
+    expect(sameName("14Bis", " 14bis ")).toBe(true);
+    expect(sameName("14Bis", "Atta 3D")).toBe(false);
+  });
+});

@@ -38,3 +38,9 @@ export function svgIsLight(svg: string): boolean {
     return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255 > 0.85;
   });
 }
+
+/** Dois nomes de cliente iguais ignorando caixa, acento e espaço. */
+export function sameName(a: string, b: string): boolean {
+  const x = normalize(a);
+  return x !== "" && x === normalize(b);
+}

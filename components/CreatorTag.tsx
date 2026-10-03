@@ -11,13 +11,14 @@ export function CreatorTag({
   idea: Pick<EditorialIdea, "created_by_name" | "created_by_role">;
   viewerIsClient?: boolean;
 }) {
-  if (!idea.created_by_name) return null;
+  // Ideia antiga, de antes de guardarmos o autor: foi anotada pela equipe.
+  const name = idea.created_by_name ?? "Equipe Tatú";
   const label =
-    viewerIsClient && idea.created_by_role === "client" ? "Você" : idea.created_by_name;
+    viewerIsClient && idea.created_by_role === "client" ? "Você" : name;
   return (
     <span
       className="inline-block rounded px-1.5 py-0.5 align-middle text-[11px] font-medium leading-none text-white"
-      style={{ backgroundColor: creatorColor(idea.created_by_name) }}
+      style={{ backgroundColor: creatorColor(name) }}
     >
       {label}
     </span>

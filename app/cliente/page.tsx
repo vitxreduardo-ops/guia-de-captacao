@@ -1,27 +1,22 @@
 import Link from "next/link";
-import { ChevronRight, Images, BookOpenText } from "lucide-react";
+import { BookOpenText, ChevronRight, HardDrive } from "lucide-react";
 import {
   getPortalClient,
   getPortalSession,
   listPortalCards,
-  listPortalGuides,
   listUpcoming,
 } from "@/lib/clientPortal";
 import { CreatorTag } from "@/components/CreatorTag";
 import { listIdeasBetween } from "@/lib/editorialCalendar";
-import {
-  galleryTitle,
-  MONTH_NAMES,
-  nextMonths,
-  pendingSummary,
-} from "@/lib/editorialMonths";
+import { driveTitle, MONTH_NAMES, nextMonths } from "@/lib/editorialMonths";
+import { listPublishedGuidesByClientName } from "@/lib/guides";
 
 export const dynamic = "force-dynamic";
 
+const HEADING = { fontFamily: "Bootzy, sans-serif", letterSpacing: "0.02em" };
+
 const firstOfMonth = (m: { year: number; month: number }) =>
   `${m.year}-${String(m.month).padStart(2, "0")}-01`;
-
-const HEADING = { fontFamily: "Bootzy, sans-serif", letterSpacing: "0.02em" };
 
 function dayParts(date: string) {
   const d = new Date(`${date}T12:00:00`);
@@ -32,74 +27,87 @@ function dayParts(date: string) {
   };
 }
 
-function RowLink({ href, icon: Icon, children }: { href: string; icon: typeof Images; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className="flex min-h-14 items-center gap-3 border-b border-[var(--tatu-taupe)] py-3 last:border-b-0 hover:text-[var(--tatu-olive)]"
-    >
-      <Icon className="size-5 shrink-0 text-[var(--tatu-olive)]" strokeWidth={1.8} aria-hidden />
-      <span className="flex-1">{children}</span>
-      <ChevronRight className="size-4 text-[var(--tatu-muted)]" aria-hidden />
-    </Link>
-  );
-}
-
 export default async function ClientePage() {
   const { clientId } = await getPortalSession();
   const now = new Date();
   // Mês atual e os dois seguintes (pode virar o ano).
   const span = nextMonths(now, 3);
   const today = now.toISOString().slice(0, 10);
-  const [client, cards, ideas] = await Promise.all([
-    getPortalClient(clientId),
+  const client = await getPortalClient(clientId);
+  const [cards, ideas, guides] = await Promise.all([
     listPortalCards(clientId),
     listIdeasBetween(clientId, firstOfMonth(span[0]), firstOfMonth(span[2]), {
       includeInternal: false,
     }),
+    listPublishedGuidesByClientName(client.name),
   ]);
 
-  const waiting = cards.filter((c) => !c.approved_at && !c.changes_requested_at).length;
-  const changes = cards.filter((c) => !c.approved_at && c.changes_requested_at).length;
-  const summary = pendingSummary(waiting, changes);
+  const waiting = cards.filter((c) => !c.approved_at).length;
+  const approved = cards.length - waiting;
   const upcoming = listUpcoming(cards, today);
-  const approved = cards.filter((c) => c.approved_at).length;
-  const guides = listPortalGuides(cards);
   const firstName = (client.contact_name || client.name).split(" ")[0];
 
   return (
     <div className="space-y-10">
       <header>
         <h1 className="text-4xl leading-none" style={HEADING}>
-          Oi, {firstName}
+          Olá, {firstName}
         </h1>
         <p className="mt-2 text-[var(--tatu-muted)]">
-          Aqui você acompanha tudo que a gente está fazendo pra {client.name}.
+          Acompanhe aqui o andamento do seu conteúdo com a Tatú Estúdio Criativo.
         </p>
       </header>
 
       <Link
         href="/cliente/materiais"
-        className={`flex min-h-14 items-center justify-between gap-3 rounded-2xl px-5 py-4 transition-transform active:scale-[0.99] ${
-          summary
+        className={`flex min-h-16 items-center justify-between gap-3 rounded-2xl px-5 py-4 transition-transform active:scale-[0.99] ${
+          waiting
             ? "bg-[var(--tatu-ink)] text-[var(--tatu-cream)]"
             : "bg-white text-[var(--tatu-ink)]"
         }`}
       >
         <span>
-          <span className="block font-medium">
-            {summary ?? (cards.length ? "Tudo conferido por aqui" : "Seus materiais")}
+          <span className="block text-lg font-semibold">
+            {waiting} {waiting === 1 ? "material para aprovação" : "materiais para aprovação"}
           </span>
-          <span className={`block text-sm ${summary ? "opacity-80" : "text-[var(--tatu-muted)]"}`}>
+          <span className={`block text-sm ${waiting ? "opacity-80" : "text-[var(--tatu-muted)]"}`}>
             {cards.length
               ? `${approved} ${approved === 1 ? "aprovado" : "aprovados"} de ${cards.length}`
-              : "Quando a gente liberar os primeiros, eles aparecem aqui."}
+              : "Os materiais liberados pela nossa equipe ficarão disponíveis aqui."}
           </span>
         </span>
         <span className="flex items-center gap-1 text-sm">
-          {summary ? "Conferir" : "Ver"} <ChevronRight className="size-4" aria-hidden />
+          Abrir <ChevronRight className="size-4" aria-hidden />
         </span>
       </Link>
+
+      <div className="space-y-2">
+        {client.status === "published" ? (
+          <Link
+            href={`/galeria/${client.slug}`}
+            className="flex min-h-14 items-center gap-3 rounded-2xl border border-[var(--tatu-border)] px-5 py-3 font-semibold transition-colors hover:bg-white/60"
+          >
+            <HardDrive className="size-5 text-[var(--tatu-olive)]" aria-hidden />
+            <span className="flex-1">{driveTitle(client.name, client.gallery_article)}</span>
+            <ChevronRight className="size-4 text-[var(--tatu-muted)]" aria-hidden />
+          </Link>
+        ) : null}
+        <Link
+          href="/cliente/guias"
+          className="flex min-h-14 items-center gap-3 rounded-2xl border border-[var(--tatu-border)] px-5 py-3 font-semibold transition-colors hover:bg-white/60"
+        >
+          <BookOpenText className="size-5 text-[var(--tatu-olive)]" aria-hidden />
+          <span className="flex-1">
+            Guias de captação
+            <span className="block text-sm font-normal text-[var(--tatu-muted)]">
+              {guides.length
+                ? `${guides.length} ${guides.length === 1 ? "roteiro disponível" : "roteiros disponíveis"}`
+                : "Nenhum guia publicado até o momento"}
+            </span>
+          </span>
+          <ChevronRight className="size-4 text-[var(--tatu-muted)]" aria-hidden />
+        </Link>
+      </div>
 
       <section aria-labelledby="proximas">
         <h2 id="proximas" className="mb-3 text-2xl" style={HEADING}>
@@ -117,8 +125,8 @@ export default async function ClientePage() {
                   </div>
                   <div className="min-w-0">
                     <p className="truncate font-medium">{card.title || "Sem título"}</p>
-                    <p className="text-sm capitalize text-[var(--tatu-muted)]">
-                      {weekday} · {card.format}
+                    <p className="text-sm text-[var(--tatu-muted)]">
+                      <span className="capitalize">{weekday}</span> · <span className="capitalize">{card.format}</span>
                     </p>
                   </div>
                 </li>
@@ -127,7 +135,7 @@ export default async function ClientePage() {
           </ul>
         ) : (
           <p className="text-[var(--tatu-muted)]">
-            Quando a gente marcar a próxima postagem, ela aparece aqui.
+            As próximas postagens agendadas serão exibidas aqui.
           </p>
         )}
       </section>
@@ -156,7 +164,7 @@ export default async function ClientePage() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-sm text-[var(--tatu-muted)]">Ainda sem ideias.</p>
+                  <p className="text-sm text-[var(--tatu-muted)]">Nenhuma ideia registrada.</p>
                 )}
               </div>
             );
@@ -166,29 +174,9 @@ export default async function ClientePage() {
           href="/cliente/calendario"
           className="mt-3 inline-flex min-h-11 items-center gap-1 font-medium underline underline-offset-4"
         >
-          Ver o ano todo e anotar uma ideia <ChevronRight className="size-4" aria-hidden />
+          Ver o calendário completo e sugerir uma ideia <ChevronRight className="size-4" aria-hidden />
         </Link>
       </section>
-
-      {client.status === "published" || guides.length ? (
-        <section aria-labelledby="tudo">
-          <h2 id="tudo" className="mb-1 text-2xl" style={HEADING}>
-            Seus arquivos
-          </h2>
-          <div>
-            {client.status === "published" ? (
-              <RowLink href={`/galeria/${client.slug}`} icon={Images}>
-                {galleryTitle(client.name, client.gallery_article)}
-              </RowLink>
-            ) : null}
-            {guides.map((guide) => (
-              <RowLink key={guide.slug} href={`/guia/${guide.slug}`} icon={BookOpenText}>
-                Guia de captação: {guide.title}
-              </RowLink>
-            ))}
-          </div>
-        </section>
-      ) : null}
     </div>
   );
 }

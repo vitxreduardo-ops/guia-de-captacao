@@ -1,5 +1,6 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { sameName } from "@/lib/clientLogoMatch";
 
 export type GuideStatus = "draft" | "published";
 export type ChecklistCategory = "equipamento" | "locacao";
@@ -640,4 +641,16 @@ export async function deleteChecklistItem(id: string) {
     .delete()
     .eq("id", id);
   if (error) throw error;
+}
+
+/** Guias publicados do cliente, achados pelo nome (o guia guarda `client_name` em texto). */
+export async function listPublishedGuidesByClientName(clientName: string) {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("guides")
+    .select("slug, title, shoot_date, location, client_name")
+    .eq("status", "published")
+    .order("shoot_date", { ascending: false, nullsFirst: false });
+  if (error) throw error;
+  return (data ?? []).filter((g) => sameName(g.client_name ?? "", clientName));
 }
