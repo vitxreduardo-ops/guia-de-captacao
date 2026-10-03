@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ChevronRight, Clapperboard, MessageSquareMore } from "lucide-react";
 import { useAttachMedia } from "./AttachMedia";
+import { useVideoPoster } from "@/components/useVideoPoster";
 import { MaterialViewer, type ViewerItem } from "./MaterialViewer";
 import { ReviewActions } from "./ReviewActions";
 
@@ -22,6 +23,37 @@ export interface MaterialView {
   mediaIds: string[];
   guide: { slug: string; title: string } | null;
   items: ViewerItem[];
+}
+
+/**
+ * Miniatura da linha: o primeiro arquivo do material (foto ou vídeo) ou a
+ * capa. Vídeo usa a miniatura do Drive e, se ela não existir, um quadro tirado
+ * do próprio vídeo; sem nada disso, o ícone.
+ */
+function RowThumb({ items, coverUrl }: { items: ViewerItem[]; coverUrl: string | null }) {
+  const first = items.find((i) => i.kind === "image" || i.kind === "video");
+  const src = first?.thumbSrc ?? coverUrl;
+  const [failed, setFailed] = useState(false);
+  const frame = useVideoPoster(first?.previewSrc ?? "", failed && first?.kind === "video");
+  const shown = failed ? frame : src;
+
+  if (shown) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={shown}
+        alt=""
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="size-14 shrink-0 rounded-xl bg-neutral-900/5 object-cover"
+      />
+    );
+  }
+  return (
+    <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-white/70 text-[var(--tatu-olive)]">
+      <Clapperboard className="size-6" strokeWidth={1.6} aria-hidden />
+    </span>
+  );
 }
 
 /**
@@ -44,7 +76,6 @@ export function MaterialItem({
     if (details.current?.open) queueMicrotask(() => setOpened(true));
   }, []);
   const attach = useAttachMedia();
-  const thumb = material.items.find((i) => i.kind === "image")?.thumbSrc ?? material.cover_url;
 
   return (
     <li className="border-b border-[var(--tatu-taupe)] last:border-b-0">
@@ -55,14 +86,7 @@ export function MaterialItem({
         className="group"
       >
         <summary className="flex min-h-[4.5rem] cursor-pointer list-none items-center gap-3 py-3 [&::-webkit-details-marker]:hidden">
-          {thumb ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={thumb} alt="" className="size-14 shrink-0 rounded-xl object-cover" />
-          ) : (
-            <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-white/70 text-[var(--tatu-olive)]">
-              <Clapperboard className="size-6" strokeWidth={1.6} aria-hidden />
-            </span>
-          )}
+          <RowThumb items={material.items} coverUrl={material.cover_url} />
           <span className="min-w-0 flex-1">
             <span className="block truncate font-medium">{material.title || "Sem título"}</span>
             <span className="block truncate text-sm text-[var(--tatu-muted)]">
