@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronRight, Clapperboard, MessageSquareMore } from "lucide-react";
+import { useAttachMedia } from "./AttachMedia";
 import { MaterialViewer, type ViewerItem } from "./MaterialViewer";
 import { ReviewActions } from "./ReviewActions";
 
@@ -18,6 +19,7 @@ export interface MaterialView {
   changesRequested: boolean;
   feedback: string;
   approvedByTeam: boolean;
+  mediaIds: string[];
   guide: { slug: string; title: string } | null;
   items: ViewerItem[];
 }
@@ -34,11 +36,20 @@ export function MaterialItem({
   defaultOpen?: boolean;
 }) {
   const [opened, setOpened] = useState(defaultOpen);
+  const details = useRef<HTMLDetailsElement>(null);
+
+  // Se a pessoa tocou antes de a página carregar, o navegador já abriu o
+  // <details> sem avisar o React: sincroniza ao montar.
+  useEffect(() => {
+    if (details.current?.open) queueMicrotask(() => setOpened(true));
+  }, []);
+  const attach = useAttachMedia();
   const thumb = material.items.find((i) => i.kind === "image")?.thumbSrc ?? material.cover_url;
 
   return (
     <li className="border-b border-[var(--tatu-taupe)] last:border-b-0">
       <details
+        ref={details}
         open={defaultOpen || undefined}
         onToggle={(e) => setOpened(e.currentTarget.open)}
         className="group"
@@ -70,6 +81,23 @@ export function MaterialItem({
         {opened ? (
           <div className="space-y-4 pb-5">
             <MaterialViewer items={material.items} coverUrl={material.cover_url} driveUrl={material.drive_url} />
+
+            {attach ? (
+              <button
+                type="button"
+                onClick={() =>
+                  attach({
+                    id: material.id,
+                    title: material.title,
+                    mediaIds: material.mediaIds,
+                    driveUrl: material.drive_url ?? "",
+                  })
+                }
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-dashed border-[var(--tatu-ink)] px-4 text-sm font-semibold"
+              >
+                Conectar arquivos do Drive ({material.mediaIds.length}) · só equipe
+              </button>
+            ) : null}
 
             {material.caption ? (
               <section aria-label="Legenda" className="rounded-2xl bg-white/60 p-4">

@@ -6,10 +6,13 @@ import {
   listCardAssigneeIds,
   listPortalCards,
   requireClientUser,
+  getPortalSession,
   requireReviewer,
   reviewPortalCard,
 } from "@/lib/clientPortal";
 import { createIdea } from "@/lib/editorialCalendar";
+import { listDisplayItemsByIds } from "@/lib/galleries";
+import { setMaterialMedia } from "@/lib/backlog";
 import { notifyUser } from "@/lib/notifications";
 
 async function review(cardId: string, feedback: string | null) {
@@ -77,6 +80,30 @@ export async function addIdeaAction(formData: FormData) {
     notes: String(formData.get("notes") ?? "").trim(),
     internal: false,
     createdBy: user.id,
+  });
+  revalidatePath("/cliente", "layout");
+  revalidatePath("/admin/area-do-cliente", "layout");
+}
+
+/**
+ * Conecta os arquivos que já estão no Drive a um material, pela prévia do
+ * portal. Só a equipe: `getPortalSession` só devolve `preview` para admin, e o
+ * cliente que chegar aqui não faz nada. Os ids passam pelo filtro da galeria
+ * do cliente, então nunca entra arquivo de outro.
+ */
+export async function attachMaterialMediaAction(
+  cardId: string,
+  mediaImageIds: string[],
+  driveUrl: string
+) {
+  const { clientId, preview } = await getPortalSession();
+  if (!preview) return;
+
+  const valid = await listDisplayItemsByIds(clientId, mediaImageIds);
+  const link = driveUrl.trim();
+  await setMaterialMedia(cardId, clientId, {
+    media_image_ids: valid.map((i) => i.id),
+    drive_url: /^https?:\/\//i.test(link) ? link : null,
   });
   revalidatePath("/cliente", "layout");
   revalidatePath("/admin/area-do-cliente", "layout");

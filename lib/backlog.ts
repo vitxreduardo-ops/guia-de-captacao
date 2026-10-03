@@ -1066,3 +1066,18 @@ export async function getCardPortalInfo(cardId: string): Promise<{
     columnVisible: Boolean(column?.client_visible),
   };
 }
+
+/** Só os arquivos do material (conectar pelo portal); filtra por cliente. */
+export async function setMaterialMedia(
+  id: string,
+  clientId: string,
+  fields: { media_image_ids: string[]; drive_url: string | null }
+) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("backlog_cards")
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("client_id", clientId);
+  if (error) throw error;
+}

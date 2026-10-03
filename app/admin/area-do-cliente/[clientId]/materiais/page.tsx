@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { MaterialsManager } from "@/components/admin/MaterialsManager";
 import { listEntregasColumnsWithCounts } from "@/lib/backlog";
 import { listClientMaterials } from "@/lib/clientArea";
-import { getGalleryClientWithImages, isGalleryImageVideo, galleryThumbnailUrl } from "@/lib/galleries";
+import { getGalleryClientWithImages, toPickerImages } from "@/lib/galleries";
 import { listPublishedGuidesByClientName } from "@/lib/guides";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -37,13 +37,7 @@ export default async function MateriaisAdminPage({
       clientId={clientId}
       columns={columns.map((c) => ({ id: c.id, name: c.name, visible: c.clientVisible }))}
       guides={guides.map((g) => ({ id: g.id, title: g.title }))}
-      images={client.images.map((img) => ({
-        id: img.id,
-        thumb: galleryThumbnailUrl(img, 240),
-        folder: img.drive_relative_path ?? "",
-        caption: img.caption,
-        video: isGalleryImageVideo(img),
-      }))}
+      images={toPickerImages(client.images)}
       rows={materials.map((m) => ({
         id: m.id,
         title: m.title,

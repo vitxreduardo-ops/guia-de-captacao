@@ -709,3 +709,14 @@ export async function findGalleryClientByName(name: string): Promise<{ id: strin
   if (error) throw error;
   return (data ?? []).find((c) => sameName(c.name as string, name)) ?? null;
 }
+
+/** Miniaturas pro seletor de arquivos da equipe (grupo = pasta do Drive). */
+export function toPickerImages(images: GalleryImage[]) {
+  return images.map((img) => ({
+    id: img.id,
+    thumb: galleryThumbnailUrl(img, 240),
+    folder: img.drive_relative_path ?? "",
+    caption: img.caption,
+    video: isGalleryImageVideo(img),
+  }));
+}

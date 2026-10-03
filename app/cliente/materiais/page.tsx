@@ -1,11 +1,23 @@
 import Link from "next/link";
 import { getPortalSession, listMediaForCards, listPortalCards } from "@/lib/clientPortal";
+import { toPickerImages, getGalleryClientWithImages } from "@/lib/galleries";
+import { AttachMediaProvider } from "./AttachMedia";
 import { MaterialItem } from "./MaterialItem";
 import { shortDate } from "./StatusChip";
 
 export const dynamic = "force-dynamic";
 
 const HEADING = { fontFamily: "Bootzy, sans-serif", letterSpacing: "0.02em" };
+
+function Wrapper({
+  images,
+  children,
+}: {
+  images: ReturnType<typeof toPickerImages> | null;
+  children: React.ReactNode;
+}) {
+  return images ? <AttachMediaProvider images={images}>{children}</AttachMediaProvider> : <>{children}</>;
+}
 
 export default async function MateriaisPage({
   searchParams,
@@ -18,6 +30,8 @@ export default async function MateriaisPage({
   const open = query.abrir;
   const cards = await listPortalCards(clientId);
   const media = await listMediaForCards(clientId, cards);
+  // Só a equipe (prévia) conecta arquivos; o cliente nem recebe a lista.
+  const pickerImages = preview ? toPickerImages((await getGalleryClientWithImages(clientId))?.images ?? []) : null;
   const waiting = cards.filter((c) => !c.approved_at);
   const done = cards.filter((c) => c.approved_at);
   const list = showApproved ? done : waiting;
@@ -59,6 +73,7 @@ export default async function MateriaisPage({
       </div>
 
       {list.length ? (
+        <Wrapper images={pickerImages}>
         <ul>
           {list.map((card) => (
             <MaterialItem
@@ -76,12 +91,14 @@ export default async function MateriaisPage({
                 changesRequested: Boolean(card.changes_requested_at),
                 feedback: card.client_feedback,
                 approvedByTeam: Boolean(card.approver && card.approver.role !== "client"),
+                mediaIds: card.media_image_ids ?? [],
                 guide: card.guide,
                 items: media[card.id] ?? [],
               }}
             />
           ))}
         </ul>
+        </Wrapper>
       ) : (
         <p className="text-[var(--tatu-muted)]">
           {showApproved ? "Nenhum material aprovado até o momento." : "Nenhum material aguardando aprovação."}
