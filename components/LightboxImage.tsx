@@ -8,6 +8,7 @@ import {
   type PanInfo,
 } from "motion/react";
 import { GalleryThumb } from "@/components/GalleryThumb";
+import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 
 export interface GalleryItem {
   id: string;
@@ -372,14 +373,12 @@ export function LightboxImage({
                 </label>
               ) : null}
               {loadedIds[current.id] && current.downloadSrc ? (
-                <a
-                  href={current.downloadSrc}
-                  download
-                  onClick={(event) => event.stopPropagation()}
-                  className="rounded-md bg-white/90 px-3 py-1.5 text-sm font-medium text-neutral-900 transition-transform hover:bg-white active:scale-95"
-                >
-                  Baixar ↓
-                </a>
+                <span onClick={(event) => event.stopPropagation()}>
+                  <SaveToPhotosButton
+                    files={[{ url: current.downloadSrc, name: current.alt || `foto-${current.id}` }]}
+                    className="!border-transparent !bg-white/90 !text-neutral-900"
+                  />
+                </span>
               ) : loadedIds[current.id] && current.sourceUrl ? (
                 <a
                   href={current.sourceUrl}

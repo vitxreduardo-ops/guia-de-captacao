@@ -151,7 +151,15 @@ export default async function CalendarioPage({
     );
   }
 
-  const months = groupByMonth(await listIdeas(clientId, year, { includeInternal: false }));
+  const [yearIdeas, yearPosts] = await Promise.all([
+    listIdeas(clientId, year, { includeInternal: false }),
+    listClientPosts(clientId, `${year}-01-01`, `${year}-12-31`),
+  ]);
+  const months = groupByMonth(yearIdeas);
+  const postsByMonth = Array.from({ length: 12 }, () => [] as typeof yearPosts);
+  for (const post of yearPosts) {
+    if (post.visible) postsByMonth[Number(post.post_date.slice(5, 7)) - 1].push(post);
+  }
   const currentMonth = year === now.getFullYear() ? now.getMonth() : -1;
 
   return (
@@ -172,7 +180,7 @@ export default async function CalendarioPage({
             className="group rounded-2xl bg-white/60 open:bg-white"
           >
             <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-4 py-3 [&::-webkit-details-marker]:hidden">
-              <span className="text-lg font-semibold">
+              <span className={`text-xl ${ideas.length || postsByMonth[index].length ? "font-semibold" : "font-medium text-[var(--tatu-muted)]"}`}>
                 {MONTH_NAMES[index]}
                 {index === currentMonth ? (
                   <span className="ml-2 rounded-full bg-[var(--tatu-ink)] px-2 py-0.5 align-middle text-[11px] font-medium text-[var(--tatu-cream)]">
@@ -181,27 +189,58 @@ export default async function CalendarioPage({
                 ) : null}
               </span>
               <span className="flex items-center gap-2 text-sm text-[var(--tatu-muted)]">
-                {ideas.length ? `${ideas.length} ${ideas.length === 1 ? "ideia" : "ideias"}` : "sem ideias"}
+                {postsByMonth[index].length ? (
+                  <span className="rounded-full bg-[var(--tatu-olive)] px-3 py-1 text-sm font-semibold text-white">
+                    {postsByMonth[index].length} {postsByMonth[index].length === 1 ? "postagem" : "postagens"}
+                  </span>
+                ) : null}
+                {ideas.length ? (
+                  <span className="rounded-full bg-[var(--tatu-ink)] px-3 py-1 text-sm font-semibold text-[var(--tatu-cream)]">
+                    {ideas.length} {ideas.length === 1 ? "ideia" : "ideias"}
+                  </span>
+                ) : null}
+                {!ideas.length && !postsByMonth[index].length ? "vazio" : null}
                 <ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden />
               </span>
             </summary>
-            <div className="space-y-3 px-4 pb-4">
-              {ideas.length ? (
-                <ul className="space-y-3">
-                  {ideas.map((idea) => (
-                    <li key={idea.id}>
-                      <p className="font-medium">
-                        {idea.title} <CreatorTag idea={idea} viewerId={viewerId} />
-                      </p>
-                      {idea.notes ? (
-                        <p className="whitespace-pre-line text-sm text-[var(--tatu-muted)]">{idea.notes}</p>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-[var(--tatu-muted)]">Nenhuma ideia registrada para este mês.</p>
-              )}
+            <div className="space-y-4 px-4 pb-4">
+              {postsByMonth[index].length ? (
+                <section aria-label={`Postagens de ${MONTH_NAMES[index]}`}>
+                  <h3 className="mb-1 text-sm font-semibold text-[var(--tatu-muted)]">Postagens</h3>
+                  <ul>
+                    {postsByMonth[index].map((p) => (
+                      <li key={p.id} className="flex items-center gap-3 border-b border-[var(--tatu-taupe)] py-2 last:border-b-0">
+                        <span className="grid w-10 shrink-0 place-items-center rounded-lg bg-[var(--tatu-ink)] py-1 text-[var(--tatu-cream)]">
+                          <span className="text-base font-semibold leading-none">{Number(p.post_date.slice(8, 10))}</span>
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">{p.title || "Sem título"}</span>
+                          <span className="block text-sm capitalize text-[var(--tatu-muted)]">{p.format}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+
+              <section aria-label={`Ideias de ${MONTH_NAMES[index]}`}>
+                <h3 className="mb-1 text-sm font-semibold text-[var(--tatu-muted)]">Ideias</h3>
+                {ideas.length ? (
+                  <ul className="list-disc space-y-2 pl-5 marker:text-[var(--tatu-olive)]">
+                    {ideas.map((idea) => (
+                      <li key={idea.id}>
+                        <span className="font-medium">{idea.title}</span>{" "}
+                        <CreatorTag idea={idea} viewerId={viewerId} />
+                        {idea.notes ? (
+                          <span className="block whitespace-pre-line text-sm text-[var(--tatu-muted)]">{idea.notes}</span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-[var(--tatu-muted)]">Nenhuma ideia registrada para este mês.</p>
+                )}
+              </section>
               <Link
                 href={`/cliente/calendario?vista=mes&ano=${year}&mes=${index + 1}`}
                 className="inline-flex min-h-11 items-center gap-1 text-sm font-medium underline underline-offset-4"

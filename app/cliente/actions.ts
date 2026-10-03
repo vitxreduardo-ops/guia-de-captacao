@@ -1,20 +1,26 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import {
   listCardAssigneeIds,
+  listPortalCards,
   requireClientUser,
+  getPortalSession,
+  requireReviewer,
   reviewPortalCard,
 } from "@/lib/clientPortal";
 import { createIdea } from "@/lib/editorialCalendar";
+import { listDisplayItemsByIds } from "@/lib/galleries";
+import { setMaterialMedia } from "@/lib/backlog";
 import { notifyUser } from "@/lib/notifications";
 
 async function review(cardId: string, feedback: string | null) {
-  const user = await requireClientUser();
+  const reviewer = await requireReviewer();
   const card = await reviewPortalCard({
     cardId,
-    userId: user.id,
-    clientId: user.client_id,
+    userId: reviewer.userId,
+    clientId: reviewer.clientId,
     feedback,
   });
   if (!card) return; // card de outro cliente ou apagado: não faz nada
@@ -25,18 +31,28 @@ async function review(cardId: string, feedback: string | null) {
     assignees.map((userId) =>
       notifyUser({
         userId,
-        actorId: user.id,
+        actorId: reviewer.userId,
         kind: "card_approved",
-        title: approved
-          ? `Cliente aprovou: ${card.title}`
-          : `Cliente pediu ajuste: ${card.title}`,
+        title: reviewer.byTeam
+          ? approved
+            ? `Aprovação registrada pela equipe: ${card.title}`
+            : `Ajuste registrado pela equipe: ${card.title}`
+          : approved
+            ? `Cliente aprovou: ${card.title}`
+            : `Cliente pediu ajuste: ${card.title}`,
         body: feedback ?? "",
         link: "/admin/clientes/entregas",
         entityId: cardId,
       }).catch((err) => console.error("Falha ao avisar", err))
     )
   );
-  revalidatePath("/cliente");
+  revalidatePath("/cliente", "layout");
+
+  // Segue para o próximo material que ainda não recebeu decisão; sem mais
+  // nenhum, volta para a lista.
+  const cards = await listPortalCards(reviewer.clientId);
+  const next = cards.find((c) => c.id !== cardId && !c.approved_at && !c.changes_requested_at);
+  redirect(next ? `/cliente/materiais?abrir=${next.id}` : "/cliente/materiais");
 }
 
 export async function approveCardAction(formData: FormData) {
@@ -64,6 +80,30 @@ export async function addIdeaAction(formData: FormData) {
     notes: String(formData.get("notes") ?? "").trim(),
     internal: false,
     createdBy: user.id,
+  });
+  revalidatePath("/cliente", "layout");
+  revalidatePath("/admin/area-do-cliente", "layout");
+}
+
+/**
+ * Conecta os arquivos que já estão no Drive a um material, pela prévia do
+ * portal. Só a equipe: `getPortalSession` só devolve `preview` para admin, e o
+ * cliente que chegar aqui não faz nada. Os ids passam pelo filtro da galeria
+ * do cliente, então nunca entra arquivo de outro.
+ */
+export async function attachMaterialMediaAction(
+  cardId: string,
+  mediaImageIds: string[],
+  driveUrl: string
+) {
+  const { clientId, preview } = await getPortalSession();
+  if (!preview) return;
+
+  const valid = await listDisplayItemsByIds(clientId, mediaImageIds);
+  const link = driveUrl.trim();
+  await setMaterialMedia(cardId, clientId, {
+    media_image_ids: valid.map((i) => i.id),
+    drive_url: /^https?:\/\//i.test(link) ? link : null,
   });
   revalidatePath("/cliente", "layout");
   revalidatePath("/admin/area-do-cliente", "layout");

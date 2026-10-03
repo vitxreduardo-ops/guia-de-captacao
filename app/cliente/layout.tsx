@@ -5,7 +5,10 @@ import { logout } from "@/app/admin/login/actions";
 import { PREVIEW_COOKIE } from "@/lib/clientPortal";
 import { PortalNav } from "./PortalNav";
 
-export const metadata = { title: "Portal do cliente — Tatú Estúdio Criativo" };
+export const metadata = {
+  title: "Portal do cliente — Tatú Estúdio Criativo",
+  manifest: "/cliente/manifest.webmanifest",
+};
 
 export default async function ClienteLayout({ children }: { children: React.ReactNode }) {
   const preview = Boolean((await cookies()).get(PREVIEW_COOKIE)?.value);

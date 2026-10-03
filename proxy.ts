@@ -8,6 +8,11 @@ export async function proxy(request: NextRequest) {
   const cookie = request.cookies.get(COOKIE_NAME)?.value;
   const session = secret ? await getSession(cookie, secret) : null;
 
+  // O manifesto é buscado pelo navegador sem sessão, para instalar o portal.
+  if (request.nextUrl.pathname === "/cliente/manifest.webmanifest") {
+    return NextResponse.next();
+  }
+
   const isPortal = request.nextUrl.pathname.startsWith("/cliente");
   const home = session?.role === "client" ? "/cliente" : "/admin";
 

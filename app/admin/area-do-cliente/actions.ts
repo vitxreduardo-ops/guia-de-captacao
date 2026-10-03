@@ -1,13 +1,40 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { updateBacklogColumn } from "@/lib/backlog";
+import {
+  createBacklogCard,
+  deleteClientMaterial,
+  isColumnClientVisible,
+  updateBacklogColumn,
+  updateClientMaterial,
+} from "@/lib/backlog";
+import { notifyClientUsers } from "@/lib/clientPush";
+import { normalizeBacklogFormat } from "@/lib/backlogTypes";
 import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
 import { createIdea, deleteIdea, updateIdea } from "@/lib/editorialCalendar";
 import { setGalleryClientArticle } from "@/lib/galleries";
 import { requireAdmin, getCurrentSession } from "@/lib/session";
 import { createClientInvite, deleteInvite } from "@/lib/invites";
 import { createUser, deleteClientUser, getUserByUsername, updateClientUser } from "@/lib/users";
+
+function readMaterial(formData: FormData) {
+  const uuid = (v: FormDataEntryValue | null) => {
+    const t = String(v ?? "").trim();
+    return /^[0-9a-f-]{36}$/i.test(t) ? t : null;
+  };
+  const link = String(formData.get("drive_url") ?? "").trim();
+  const date = String(formData.get("post_date") ?? "").trim();
+  return {
+    title: String(formData.get("title") ?? "").trim(),
+    format: normalizeBacklogFormat(formData.get("format")),
+    post_date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null,
+    caption: String(formData.get("caption") ?? "").trim(),
+    guide_id: uuid(formData.get("guide_id")),
+    drive_url: /^https?:\/\//i.test(link) ? link : null,
+    media_image_ids: formData.getAll("media_image_ids").map(uuid).filter((v): v is string => Boolean(v)),
+    column_id: uuid(formData.get("column_id")),
+  };
+}
 
 async function allowed(clientId: string) {
   assertClientAllowed(await getCurrentClientScope(), clientId);
@@ -38,6 +65,13 @@ export async function createIdeaAction(formData: FormData) {
     internal: formData.get("internal") === "on",
     createdBy: (await getCurrentSession())?.userId ?? null,
   });
+  if (formData.get("internal") !== "on") {
+    await notifyClientUsers(clientId, {
+      title: "Nova ideia no calendário",
+      body: title,
+      url: "/cliente/calendario",
+    });
+  }
   revalidateArea();
 }
 
@@ -145,4 +179,42 @@ export async function setColumnClientVisibleAction(columnId: string, visible: bo
   await updateBacklogColumn(columnId, { clientVisible: visible });
   revalidatePath("/admin/clientes/entregas");
   revalidateArea();
+}
+
+// ------------------------------------------------------------- materiais
+
+/** Cria o material para aprovação e, se a coluna é visível ao cliente, avisa o portal. */
+export async function createMaterialAction(formData: FormData) {
+  const clientId = String(formData.get("clientId"));
+  await allowed(clientId);
+  const { column_id, ...fields } = readMaterial(formData);
+  if (!column_id || !fields.title) return;
+
+  await createBacklogCard(column_id, { ...fields, client_id: clientId });
+  if (await isColumnClientVisible(column_id)) {
+    await notifyClientUsers(clientId, {
+      title: "Novo material para aprovar",
+      body: fields.title,
+      url: "/cliente/materiais",
+    });
+  }
+  revalidateArea();
+  revalidatePath("/admin/clientes/entregas");
+}
+
+export async function updateMaterialAction(formData: FormData) {
+  const clientId = String(formData.get("clientId"));
+  await allowed(clientId);
+  const { column_id, ...fields } = readMaterial(formData);
+  if (!column_id) return;
+  await updateClientMaterial(String(formData.get("id")), clientId, { ...fields, column_id });
+  revalidateArea();
+  revalidatePath("/admin/clientes/entregas");
+}
+
+export async function deleteMaterialAction(id: string, clientId: string) {
+  await allowed(clientId);
+  await deleteClientMaterial(id, clientId);
+  revalidateArea();
+  revalidatePath("/admin/clientes/entregas");
 }

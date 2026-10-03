@@ -70,3 +70,50 @@ export async function listClientPosts(clientId: string, from: string, to: string
     visible: Boolean((row.column as unknown as { client_visible: boolean } | null)?.client_visible),
   }));
 }
+
+export interface ClientMaterial {
+  id: string;
+  title: string;
+  format: string;
+  post_date: string | null;
+  caption: string;
+  drive_url: string | null;
+  guide_id: string | null;
+  media_image_ids: string[];
+  column_id: string;
+  column_name: string;
+  column_visible: boolean;
+  approved_at: string | null;
+  changes_requested_at: string | null;
+}
+
+/** Todos os materiais do cliente, em qualquer coluna, pra equipe gerenciar. */
+export async function listClientMaterials(clientId: string): Promise<ClientMaterial[]> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("backlog_cards")
+    .select(
+      "id, title, format, post_date, caption, drive_url, guide_id, media_image_ids, column_id, approved_at, changes_requested_at, column:backlog_columns(name, client_visible)"
+    )
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row) => {
+    const column = row.column as unknown as { name: string; client_visible: boolean } | null;
+    return {
+      id: row.id as string,
+      title: row.title as string,
+      format: row.format as string,
+      post_date: row.post_date as string | null,
+      caption: (row.caption as string) ?? "",
+      drive_url: row.drive_url as string | null,
+      guide_id: row.guide_id as string | null,
+      media_image_ids: (row.media_image_ids as string[]) ?? [],
+      column_id: row.column_id as string,
+      column_name: column?.name ?? "",
+      column_visible: Boolean(column?.client_visible),
+      approved_at: row.approved_at as string | null,
+      changes_requested_at: row.changes_requested_at as string | null,
+    };
+  });
+}

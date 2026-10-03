@@ -1,5 +1,6 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { sameName } from "@/lib/clientLogoMatch";
 import { isRenderableMediaMimeType } from "@/lib/googleDrive";
 import { isLikelyImageUrl } from "@/lib/references";
 
@@ -673,4 +674,51 @@ async function loadKnownDriveFileByFileId(
   });
 
   return { caption: data[0].caption, published };
+}
+
+/**
+ * Arquivos de uma galeria por id, na ordem pedida, prontos pra exibir. Filtra
+ * por `client_id` pra uma lista de ids nunca puxar arquivo de outro cliente.
+ */
+export async function listDisplayItemsByIds(
+  clientId: string,
+  ids: string[]
+): Promise<GalleryDisplayItem[]> {
+  if (ids.length === 0) return [];
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("gallery_images")
+    .select("*")
+    .eq("client_id", clientId)
+    .in("id", ids);
+  if (error) throw error;
+  const byId = new Map((data ?? []).map((image) => [image.id as string, image as GalleryImage]));
+  return ids
+    .map((id) => byId.get(id))
+    .filter((image): image is GalleryImage => Boolean(image))
+    .map(toDisplayItem);
+}
+
+/** O cliente ativo cujo nome bate com o texto (guias guardam `client_name` solto). */
+export async function findGalleryClientByName(name: string): Promise<{ id: string } | null> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("gallery_clients")
+    .select("id, name")
+    .is("archived_at", null);
+  if (error) throw error;
+  return (data ?? []).find((c) => sameName(c.name as string, name)) ?? null;
+}
+
+/** Miniaturas pro seletor de arquivos da equipe (grupo = pasta do Drive). */
+export function toPickerImages(images: GalleryImage[]) {
+  return images.map((img) => ({
+    id: img.id,
+    thumb: galleryThumbnailUrl(img, 240),
+    folder: img.drive_relative_path ?? "",
+    caption: img.caption,
+    video: isGalleryImageVideo(img),
+    /** Arquivo do vídeo (proxy do Drive), pra tirar uma capa quando o Drive não tem miniatura. */
+    videoSrc: isGalleryImageVideo(img) ? img.image_url : null,
+  }));
 }

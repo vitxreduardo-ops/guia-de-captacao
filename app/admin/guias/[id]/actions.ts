@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { notifyClientUsers } from "@/lib/clientPush";
+import { findGalleryClientByName } from "@/lib/galleries";
 import {
   addCardItem,
   addChecklistItem,
@@ -118,6 +120,18 @@ export async function setStatusAction(formData: FormData) {
   await setGuideStatus(id, status);
   const guide = await getGuideWithSections(id);
   revalidateGuide(id, guide?.slug);
+
+  // Roteiro novo no ar: avisa o cliente (o guia guarda só o nome dele em texto).
+  if (status === "published" && guide?.client_name) {
+    const client = await findGalleryClientByName(guide.client_name);
+    if (client) {
+      await notifyClientUsers(client.id, {
+        title: "Novo roteiro publicado",
+        body: guide.title,
+        url: "/cliente/roteiros",
+      });
+    }
+  }
 }
 
 export async function addVideoAction(formData: FormData) {

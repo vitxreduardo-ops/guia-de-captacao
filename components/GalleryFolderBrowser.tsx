@@ -261,11 +261,14 @@ export function GalleryFolderBrowser({
   clientName,
   slug,
   initialPath = [],
+  fromPortal = false,
 }: {
   root: GalleryFolderNode;
   clientName: string;
   slug: string;
   initialPath?: string[];
+  /** Veio do portal do cliente: mostra a barra de voltar e mantém o contexto na URL. */
+  fromPortal?: boolean;
 }) {
   const [path, setPath] = useState<string[]>(initialPath);
   const [sortKey, setSortKey] = useState<SortKey>("name");
@@ -302,7 +305,7 @@ export function GalleryFolderBrowser({
       "/galeria",
       slug,
       ...nextPath.map((segment) => encodeURIComponent(segment)),
-    ].join("/");
+    ].join("/") + (fromPortal ? "?de=portal" : "");
     window.history.pushState({ galleryPath: nextPath }, "", url);
   }
 
@@ -517,6 +520,28 @@ export function GalleryFolderBrowser({
 
   return (
     <div className="pb-20">
+      {fromPortal ? (
+        <div className="sticky top-0 z-30 -mx-4 mb-4 flex items-center justify-between gap-3 border-b border-neutral-200 bg-white/95 px-4 backdrop-blur">
+          {path.length ? (
+            <button
+              type="button"
+              onClick={() => goTo(path.slice(0, -1))}
+              className="inline-flex min-h-12 items-center gap-1 text-sm font-medium"
+            >
+              ← {path.length > 1 ? path[path.length - 2] : "Todas as pastas"}
+            </button>
+          ) : (
+            <a href="/cliente" className="inline-flex min-h-12 items-center gap-1 text-sm font-medium">
+              ← Voltar ao portal
+            </a>
+          )}
+          {path.length ? (
+            <a href="/cliente" className="inline-flex min-h-12 items-center text-sm text-neutral-600 underline underline-offset-4">
+              Portal
+            </a>
+          ) : null}
+        </div>
+      ) : null}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <nav className="flex flex-wrap items-center gap-1 text-sm text-neutral-500">
           <button

@@ -93,3 +93,14 @@ describe("calendário mensal", () => {
     expect(sameName("14Bis", "Atta 3D")).toBe(false);
   });
 });
+
+import { tomorrowISO } from "@/lib/editorialMonths";
+
+describe("tomorrowISO", () => {
+  it("usa o dia de Brasília, não o de UTC", () => {
+    // 01:00 UTC de 10/10 ainda é 22:00 de 09/10 em Brasília → amanhã = 10/10
+    expect(tomorrowISO(new Date("2026-10-10T01:00:00Z"))).toBe("2026-10-10");
+    expect(tomorrowISO(new Date("2026-10-10T15:00:00Z"))).toBe("2026-10-11");
+    expect(tomorrowISO(new Date("2026-12-31T15:00:00Z"))).toBe("2027-01-01");
+  });
+});

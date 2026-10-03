@@ -66,6 +66,8 @@ export interface BacklogCard {
   format: BacklogFormat;
   drive_url: string | null;
   cover_url: string | null;
+  /** Arquivos da galeria do cliente mostrados na prévia do portal. */
+  media_image_ids: string[];
   caption: string;
   post_date: string | null;
   post_time: string | null;

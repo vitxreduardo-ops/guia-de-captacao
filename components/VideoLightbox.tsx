@@ -1,5 +1,6 @@
 "use client";
 
+import { SaveToPhotosButton } from "@/components/SaveToPhotosButton";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { GalleryThumb } from "@/components/GalleryThumb";
@@ -123,14 +124,12 @@ export function VideoLightbox({
                   {caption}
                 </p>
               ) : null}
-              <a
-                href={downloadSrc}
-                download
-                onClick={(event) => event.stopPropagation()}
-                className="rounded-md bg-white/90 px-3 py-1.5 text-sm font-medium text-neutral-900 transition-transform hover:bg-white active:scale-95"
-              >
-                Baixar ↓
-              </a>
+              <span onClick={(event) => event.stopPropagation()}>
+                <SaveToPhotosButton
+                  files={[{ url: downloadSrc, name: caption || "video" }]}
+                  className="!border-transparent !bg-white/90 !text-neutral-900"
+                />
+              </span>
             </div>
           </motion.div>
         ) : null}

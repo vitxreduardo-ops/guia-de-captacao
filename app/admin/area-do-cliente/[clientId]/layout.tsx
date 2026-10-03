@@ -74,6 +74,7 @@ export default async function ClientAreaClientLayout({
           label={`Área do cliente: ${client.name}`}
           tabs={[
             { href: `${base}/calendario`, label: "Calendário editorial" },
+            { href: `${base}/materiais`, label: "Materiais" },
             { href: `${base}/acesso`, label: "Acessos e Drive" },
           ]}
         />
