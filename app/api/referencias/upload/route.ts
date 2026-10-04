@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentSession } from "@/lib/session";
 import { getReferencesFolderId, uploadDriveFile } from "@/lib/googleDrive";
+import { rateLimit } from "@/lib/rateLimit";
 
 /** 200 MB. Acima disso o upload multipart deixa de ser adequado e o caminho
  *  certo passa a ser o resumável, que não existe aqui. */
@@ -16,8 +17,12 @@ const MAX_BYTES = 200 * 1024 * 1024;
  */
 export async function POST(request: NextRequest) {
   const session = await getCurrentSession();
-  if (!session) {
+  if (!session || session.role === "client") {
     return NextResponse.json({ error: "Sem sessão" }, { status: 401 });
+  }
+
+  if (!(await rateLimit(`upload:${session.userId}`, 30, 60 * 60))) {
+    return NextResponse.json({ error: "Muitos envios. Tenta de novo em uma hora." }, { status: 429 });
   }
 
   const formData = await request.formData();

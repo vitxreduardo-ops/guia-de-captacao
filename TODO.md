@@ -155,3 +155,27 @@ retomar sem reconstruir a investigação. Última revisão: 06/09/2026.
 - [ ] **Medir em produção.** Todos os números levantados até aqui são de
       `next dev`, que compila por rota e não faz prefetch de `<Link>`. Vale
       repetir a medição em `next build && next start` para saber o número real.
+
+## Segurança
+
+Auditoria de 04/10/2026 (branch `seguranca-auditoria`): guard em toda server
+action do admin (`requireTeam` em `lib/session.ts`), rate limit no Postgres
+(`lib/rateLimit.ts`, migration `0077`) e `next` do login restrito a caminho
+interno. O que ficou:
+
+- [ ] **Toggles do guia público não amarram o `id` ao `slug`.**
+      `app/guia/[slug]/actions.ts` recebe o `slug` só para o `revalidatePath`;
+      quem tiver o link de um guia e o UUID de uma cena de outro guia consegue
+      marcar a cena alheia. Risco baixo (UUID não se chuta), mas o conserto é
+      filtrar pelo guia do slug em `lib/guides.ts`.
+
+- [ ] **Testar o limite do briefing, do contrato e do convite pela tela.** A
+      função do banco e o limite do login foram testados de verdade; os
+      outros três usam o mesmo `rateLimit()`, mas exercê-los cria briefing
+      real (com WhatsApp) e mexe em contrato/convite de produção.
+
+- **Decidido não fazer: renomear `ADMIN_PASSWORD`.** Hoje ela só serve de
+  chave HMAC do cookie de sessão (as senhas são por usuário). O nome engana,
+  mas trocar exige mexer na Vercel ao mesmo tempo do deploy e desloga todo
+  mundo. Se um dia for trocar a chave de qualquer forma, aproveitar para
+  renomear para `SESSION_SECRET`.

@@ -13,7 +13,7 @@ import { normalizeBacklogFormat } from "@/lib/backlogTypes";
 import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
 import { createIdea, deleteIdea, updateIdea } from "@/lib/editorialCalendar";
 import { setGalleryClientArticle } from "@/lib/galleries";
-import { requireAdmin, getCurrentSession } from "@/lib/session";
+import { requireAdmin, getCurrentSession, requireTeam } from "@/lib/session";
 import { createClientInvite, deleteInvite } from "@/lib/invites";
 import { createUser, deleteClientUser, getUserByUsername, updateClientUser } from "@/lib/users";
 
@@ -48,6 +48,7 @@ function revalidateArea() {
 // ------------------------------------------------------------ calendário
 
 export async function createIdeaAction(formData: FormData) {
+  await requireTeam("area-do-cliente");
   const clientId = String(formData.get("clientId"));
   await allowed(clientId);
 
@@ -82,6 +83,7 @@ export async function updateIdeaAction(params: {
   notes?: string;
   internal?: boolean;
 }) {
+  await requireTeam("area-do-cliente");
   await allowed(params.clientId);
   const { id, clientId, ...fields } = params;
   if (fields.title !== undefined && !fields.title.trim()) return;
@@ -90,6 +92,7 @@ export async function updateIdeaAction(params: {
 }
 
 export async function deleteIdeaAction(id: string, clientId: string) {
+  await requireTeam("area-do-cliente");
   await allowed(clientId);
   await deleteIdea(id, clientId);
   revalidateArea();
@@ -106,6 +109,7 @@ function checkCredentials(username: string, password: string) {
 
 /** Cria um login de cliente já pronto (nome, função, usuário e senha definidos pela equipe). */
 export async function createClientLoginAction(formData: FormData) {
+  await requireTeam("area-do-cliente");
   const clientId = String(formData.get("clientId"));
   await allowed(clientId);
 
@@ -133,6 +137,7 @@ export async function updateClientLoginAction(params: {
   label?: string;
   password?: string;
 }) {
+  await requireTeam("area-do-cliente");
   await allowed(params.clientId);
   if (params.password !== undefined && params.password.length < 6) {
     throw new Error("A senha precisa de 6 ou mais caracteres.");
@@ -146,6 +151,7 @@ export async function updateClientLoginAction(params: {
 }
 
 export async function deleteClientLoginAction(id: string, clientId: string) {
+  await requireTeam("area-do-cliente");
   await allowed(clientId);
   await deleteClientUser(id, clientId);
   revalidateArea();
@@ -153,6 +159,7 @@ export async function deleteClientLoginAction(id: string, clientId: string) {
 
 /** Gera o link de convite (14 dias, uso único). Devolve o token; a tela monta a URL. */
 export async function createClientInviteAction(clientId: string, label: string) {
+  await requireTeam("area-do-cliente");
   await allowed(clientId);
   const session = await requireAdmin();
   const invite = await createClientInvite({ clientId, label, createdBy: session.userId });
@@ -161,12 +168,14 @@ export async function createClientInviteAction(clientId: string, label: string) 
 }
 
 export async function revokeClientInviteAction(inviteId: string, clientId: string) {
+  await requireTeam("area-do-cliente");
   await allowed(clientId);
   await deleteInvite(inviteId);
   revalidateArea();
 }
 
 export async function setGalleryArticleAction(clientId: string, article: "do" | "da") {
+  await requireTeam("area-do-cliente");
   await allowed(clientId);
   await setGalleryClientArticle(clientId, article === "da" ? "da" : "do");
   revalidateArea();
@@ -185,6 +194,7 @@ export async function setColumnClientVisibleAction(columnId: string, visible: bo
 
 /** Cria o material para aprovação e, se a coluna é visível ao cliente, avisa o portal. */
 export async function createMaterialAction(formData: FormData) {
+  await requireTeam("area-do-cliente");
   const clientId = String(formData.get("clientId"));
   await allowed(clientId);
   const { column_id, ...fields } = readMaterial(formData);
@@ -203,6 +213,7 @@ export async function createMaterialAction(formData: FormData) {
 }
 
 export async function updateMaterialAction(formData: FormData) {
+  await requireTeam("area-do-cliente");
   const clientId = String(formData.get("clientId"));
   await allowed(clientId);
   const { column_id, ...fields } = readMaterial(formData);
@@ -213,6 +224,7 @@ export async function updateMaterialAction(formData: FormData) {
 }
 
 export async function deleteMaterialAction(id: string, clientId: string) {
+  await requireTeam("area-do-cliente");
   await allowed(clientId);
   await deleteClientMaterial(id, clientId);
   revalidateArea();

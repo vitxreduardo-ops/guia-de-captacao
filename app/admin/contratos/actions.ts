@@ -7,8 +7,10 @@ import {
   deleteContract,
   type ContractKind,
 } from "@/lib/contracts";
+import { requireTeam } from "@/lib/session";
 
 export async function createContractAction(formData: FormData) {
+  await requireTeam("contratos");
   const title = String(formData.get("title") ?? "").trim();
   const kind: ContractKind =
     String(formData.get("kind")) === "freela" ? "freela" : "mensal";
@@ -19,6 +21,7 @@ export async function createContractAction(formData: FormData) {
 }
 
 export async function deleteContractAction(formData: FormData) {
+  await requireTeam("contratos");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await deleteContract(id);

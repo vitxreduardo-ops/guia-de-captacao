@@ -10,6 +10,7 @@ import {
   updateGalleryClientDetails,
 } from "@/lib/galleries";
 import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
+import { requireTeam } from "@/lib/session";
 
 /**
  * O cadastro de cliente é o mesmo de Galerias (`gallery_clients`) — aqui só
@@ -24,11 +25,13 @@ function revalidateClients() {
 }
 
 export async function createClientAction(formData: FormData) {
+  await requireTeam("clientes");
   await createGalleryClient(String(formData.get("name") ?? "").trim());
   revalidateClients();
 }
 
 export async function updateClientAction(formData: FormData) {
+  await requireTeam("clientes");
   const id = String(formData.get("id"));
   assertClientAllowed(await getCurrentClientScope(), id);
 
@@ -42,6 +45,7 @@ export async function updateClientAction(formData: FormData) {
 }
 
 export async function setClientArchivedAction(formData: FormData) {
+  await requireTeam("clientes");
   const id = String(formData.get("id"));
   assertClientAllowed(await getCurrentClientScope(), id);
 
@@ -57,6 +61,7 @@ export async function setClientArchivedAction(formData: FormData) {
  * isso antes, e aqui não há volta.
  */
 export async function deleteClientAction(formData: FormData) {
+  await requireTeam("clientes");
   const id = String(formData.get("id"));
   assertClientAllowed(await getCurrentClientScope(), id);
 

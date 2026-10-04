@@ -6,8 +6,10 @@ import {
   createBriefingLink,
   deleteBriefingLink,
 } from "@/lib/briefingLinks";
+import { requireTeam } from "@/lib/session";
 
 export async function deleteBriefingAction(formData: FormData) {
+  await requireTeam("briefings");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await deleteBriefing(id);
@@ -15,6 +17,7 @@ export async function deleteBriefingAction(formData: FormData) {
 }
 
 export async function createBriefingLinkAction(formData: FormData) {
+  await requireTeam("briefings");
   await createBriefingLink({
     client_name: String(formData.get("client_name") ?? "").trim(),
     contact: String(formData.get("contact") ?? "").trim(),
@@ -25,6 +28,7 @@ export async function createBriefingLinkAction(formData: FormData) {
 }
 
 export async function deleteBriefingLinkAction(formData: FormData) {
+  await requireTeam("briefings");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await deleteBriefingLink(id);

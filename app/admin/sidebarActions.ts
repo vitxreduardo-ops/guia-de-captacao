@@ -3,6 +3,7 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { SIDEBAR_COOKIE } from "@/lib/sidebarState";
+import { requireTeam } from "@/lib/session";
 
 /**
  * Abre e fecha a barra pelo servidor, num form comum.
@@ -13,6 +14,7 @@ import { SIDEBAR_COOKIE } from "@/lib/sidebarState";
  * tela. Com o cookie como única fonte, não há dois lugares pra discordar.
  */
 export async function toggleSidebar() {
+  await requireTeam();
   const store = await cookies();
   const fechada = store.get(SIDEBAR_COOKIE)?.value === "fechada";
 

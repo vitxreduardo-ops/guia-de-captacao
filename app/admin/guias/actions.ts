@@ -3,8 +3,10 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createGuide, deleteGuide } from "@/lib/guides";
+import { requireTeam } from "@/lib/session";
 
 export async function createGuideAction(formData: FormData) {
+  await requireTeam("guias");
   const title = String(formData.get("title") ?? "").trim();
   // Vem preenchido quando o guia é criado de dentro da pasta de um cliente.
   const clientName = String(formData.get("client_name") ?? "").trim();
@@ -14,6 +16,7 @@ export async function createGuideAction(formData: FormData) {
 }
 
 export async function deleteGuideAction(formData: FormData) {
+  await requireTeam("guias");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await deleteGuide(id);

@@ -16,18 +16,20 @@ import {
 } from "@/lib/dailyTodos";
 import type { TodoPriority } from "@/lib/dailyTodoTypes";
 import { notifyUser } from "@/lib/notifications";
-import { getCurrentSession } from "@/lib/session";
+import { getCurrentSession, requireTeam } from "@/lib/session";
 
 // Argumentos simples em vez de FormData: é o que permite chamar a action de
 // dentro do mesmo startTransition que aplica o estado otimista da lista.
 
 export async function createDailyTodoAction(text: string) {
+  await requireTeam();
   const session = await getCurrentSession();
   await createDailyTodo(text, session?.userId ?? null);
   revalidatePath("/admin");
 }
 
 export async function setDailyTodoDoneAction(id: string, done: boolean) {
+  await requireTeam();
   const session = await getCurrentSession();
   await setDailyTodoDone(id, done, session?.userId ?? null);
   revalidatePath("/admin");
@@ -37,6 +39,7 @@ export async function setDailyTodoAssigneesAction(
   id: string,
   userIds: string[]
 ) {
+  await requireTeam();
   // Grava na hora, mas não avisa: cada toque na lista de responsáveis passa
   // por aqui, e avisar a cada toque mandava push pra quem foi marcado e
   // desmarcado no meio da escolha. O aviso sai quando a lista fecha.
@@ -54,6 +57,7 @@ export async function notifyDailyTodoAssigneesAction(
   id: string,
   userIds: string[]
 ) {
+  await requireTeam();
   const session = await getCurrentSession();
   if (!session) return;
   const { text, assigneeIds } = await getDailyTodoBrief(id);
@@ -77,6 +81,7 @@ export async function notifyDailyTodoAssigneesAction(
 }
 
 export async function deleteDailyTodoAction(id: string) {
+  await requireTeam();
   await deleteDailyTodo(id);
   revalidatePath("/admin");
 }
@@ -90,11 +95,13 @@ export async function updateDailyTodoDetailsAction(
     priority: TodoPriority;
   }
 ) {
+  await requireTeam();
   await updateDailyTodoDetails(id, fields);
   revalidatePath("/admin");
 }
 
 export async function reorderDailyTodosAction(orderedIds: string[]) {
+  await requireTeam();
   await reorderDailyTodos(orderedIds);
   revalidatePath("/admin");
 }
@@ -103,6 +110,7 @@ export async function createDailyTodoChecklistItemAction(
   todoId: string,
   label: string
 ) {
+  await requireTeam();
   await createDailyTodoChecklistItem(todoId, label);
   revalidatePath("/admin");
 }
@@ -111,6 +119,7 @@ export async function setDailyTodoChecklistItemDoneAction(
   id: string,
   done: boolean
 ) {
+  await requireTeam();
   await setDailyTodoChecklistItemDone(id, done);
   revalidatePath("/admin");
 }
@@ -119,11 +128,13 @@ export async function renameDailyTodoChecklistItemAction(
   id: string,
   label: string
 ) {
+  await requireTeam();
   await renameDailyTodoChecklistItem(id, label);
   revalidatePath("/admin");
 }
 
 export async function deleteDailyTodoChecklistItemAction(id: string) {
+  await requireTeam();
   await deleteDailyTodoChecklistItem(id);
   revalidatePath("/admin");
 }

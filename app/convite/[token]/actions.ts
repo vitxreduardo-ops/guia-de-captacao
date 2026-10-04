@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { COOKIE_NAME, createSessionCookieValue } from "@/lib/auth";
 import { createUser, getUserByUsername } from "@/lib/users";
 import { getPendingInviteByToken, markInviteUsed } from "@/lib/invites";
+import { clientIp, rateLimit } from "@/lib/rateLimit";
 
 export async function acceptInviteAction(formData: FormData) {
   const token = String(formData.get("token") ?? "");
@@ -16,6 +17,9 @@ export async function acceptInviteAction(formData: FormData) {
   function fail(error: string): never {
     redirect(`/convite/${token}?error=${encodeURIComponent(error)}`);
   }
+
+  // Token na URL dá pra chutar: o limite por IP corta a tentativa em massa.
+  if (!(await rateLimit(`convite:${await clientIp()}`, 10, 60 * 60))) return fail("limite");
 
   const invite = await getPendingInviteByToken(token);
   if (!invite) return fail("invalido");
@@ -67,6 +71,9 @@ export async function acceptClientInviteAction(formData: FormData) {
   function fail(error: string): never {
     redirect(`/convite/${token}?error=${encodeURIComponent(error)}`);
   }
+
+  // Token na URL dá pra chutar: o limite por IP corta a tentativa em massa.
+  if (!(await rateLimit(`convite:${await clientIp()}`, 10, 60 * 60))) return fail("limite");
 
   const invite = await getPendingInviteByToken(token);
   if (!invite || invite.role !== "client" || !invite.client_id) return fail("invalido");

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentSession } from "@/lib/session";
+import { getCurrentSession, requireTeam } from "@/lib/session";
 import {
   BACKUP_QUESTION,
   PAYMENT_METHOD_LABELS,
@@ -97,6 +97,7 @@ async function notifyAssignees(params: {
 // ---------------------------------------------------------------- colunas
 
 export async function createBacklogColumnAction(formData: FormData) {
+  await requireTeam();
   await createBacklogColumn({
     name: String(formData.get("name") ?? ""),
     color: String(formData.get("color") ?? "#6b7280"),
@@ -106,6 +107,7 @@ export async function createBacklogColumnAction(formData: FormData) {
 }
 
 export async function updateBacklogColumnAction(formData: FormData) {
+  await requireTeam();
   await updateBacklogColumn(String(formData.get("id")), {
     name: String(formData.get("name") ?? ""),
     color: String(formData.get("color") ?? "#6b7280"),
@@ -125,11 +127,13 @@ export async function updateBacklogColumnAction(formData: FormData) {
 }
 
 export async function reorderBacklogColumnsAction(orderedIds: string[]) {
+  await requireTeam();
   await reorderBacklogColumns(orderedIds);
   revalidateBacklog();
 }
 
 export async function deleteBacklogColumnAction(formData: FormData) {
+  await requireTeam();
   await deleteBacklogColumn(String(formData.get("id")));
   revalidateBacklog();
 }
@@ -137,6 +141,7 @@ export async function deleteBacklogColumnAction(formData: FormData) {
 // ------------------------------------------------------------------ cards
 
 export async function createBacklogCardAction(formData: FormData) {
+  await requireTeam();
   const columnId = String(formData.get("column_id"));
   const input = readBacklogCardInput(formData);
   const session = await getCurrentSession();
@@ -155,6 +160,7 @@ export async function createBacklogCardAction(formData: FormData) {
 }
 
 export async function updateBacklogCardAction(formData: FormData) {
+  await requireTeam();
   const id = String(formData.get("id"));
   const input = readBacklogCardInput(formData);
   // Só avisa quando o responsável muda — salvar o card de novo com a mesma
@@ -186,6 +192,7 @@ export async function moveBacklogCardAction(params: {
   toColumnId: string;
   orderedIdsByColumn: Record<string, string[]>;
 }): Promise<{ prompt: BacklogPrompt | null }> {
+  await requireTeam();
   const session = await getCurrentSession();
   const result = await moveBacklogCard({
     ...params,
@@ -229,6 +236,7 @@ export async function answerPaymentQuestionAction(params: {
   paidAt: string | null;
   paymentMethod: string | null;
 }) {
+  await requireTeam();
   const session = await getCurrentSession();
   const method = normalizePaymentMethod(params.paymentMethod);
 
@@ -260,6 +268,7 @@ export async function answerPaymentQuestionAction(params: {
 }
 
 export async function duplicateBacklogCardAction(cardId: string) {
+  await requireTeam();
   const copy = await duplicateBacklogCard(cardId);
   await syncCalendar(copy.id);
   revalidateBacklog();
@@ -269,6 +278,7 @@ export async function setBacklogCardApprovedAction(
   cardId: string,
   approved: boolean
 ) {
+  await requireTeam();
   const session = await getCurrentSession();
   await setBacklogCardApproved({
     cardId,
@@ -301,6 +311,7 @@ export async function answerBackupQuestionAction(
   cardId: string,
   answer: string
 ) {
+  await requireTeam();
   const value = answer.trim();
   if (!value) return;
   const session = await getCurrentSession();
@@ -314,6 +325,7 @@ export async function answerBackupQuestionAction(
 }
 
 export async function createBacklogNoteAction(cardId: string, message: string) {
+  await requireTeam();
   const value = message.trim();
   if (!value) return;
   const session = await getCurrentSession();
@@ -330,6 +342,7 @@ export async function setBacklogCardPostDateAction(
   id: string,
   postDate: string | null
 ) {
+  await requireTeam();
   await setBacklogCardPostDate(id, postDate);
   await syncCalendar(id);
   revalidateBacklog();
@@ -342,12 +355,14 @@ export async function setBacklogCardScheduleAction(params: {
   postTime: string | null;
   durationMinutes: number | null;
 }) {
+  await requireTeam();
   await setBacklogCardSchedule(params);
   await syncCalendar(params.id);
   revalidateBacklog();
 }
 
 export async function deleteBacklogCardAction(formData: FormData) {
+  await requireTeam();
   const id = String(formData.get("id"));
   // Antes de apagar a linha: depois dela o id do evento some e o evento
   // ficaria pra sempre no Google.
@@ -366,6 +381,7 @@ export async function createBacklogChecklistItemAction(
   cardId: string,
   label: string
 ) {
+  await requireTeam();
   if (!label.trim()) return;
   await createBacklogChecklistItem(cardId, label);
   revalidateBacklog();
@@ -375,6 +391,7 @@ export async function setBacklogChecklistItemDoneAction(
   id: string,
   done: boolean
 ) {
+  await requireTeam();
   await setBacklogChecklistItemDone(id, done);
   revalidateBacklog();
 }
@@ -383,12 +400,14 @@ export async function renameBacklogChecklistItemAction(
   id: string,
   label: string
 ) {
+  await requireTeam();
   if (!label.trim()) return;
   await renameBacklogChecklistItem(id, label);
   revalidateBacklog();
 }
 
 export async function deleteBacklogChecklistItemAction(id: string) {
+  await requireTeam();
   await deleteBacklogChecklistItem(id);
   revalidateBacklog();
 }

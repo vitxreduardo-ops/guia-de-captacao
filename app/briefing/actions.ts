@@ -3,6 +3,7 @@
 import { createBriefing } from "@/lib/briefings";
 import { markBriefingLinkAnswered } from "@/lib/briefingLinks";
 import { sendWhatsAppNotice } from "@/lib/whatsapp";
+import { clientIp, rateLimit } from "@/lib/rateLimit";
 import { FIELDS, MAX_ANSWER_LENGTH, fieldsFor, telefoneValido } from "./fields";
 
 export type SubmitResult = { ok: true } | { ok: false; error: string };
@@ -32,6 +33,12 @@ export async function submitBriefingAction(
   if (missing.length > 0) return { ok: false, error: "campos" };
   if (!telefoneValido(answers.contato ?? ""))
     return { ok: false, error: "telefone" };
+
+  // Público e cada envio vira um WhatsApp: sem limite, um script lota o
+  // banco e o celular. Conta só envios válidos, então erro de digitação não
+  // gasta tentativa.
+  if (!(await rateLimit(`briefing:${await clientIp()}`, 3, 60 * 60)))
+    return { ok: false, error: "limite" };
 
   try {
     const briefing = await createBriefing({
