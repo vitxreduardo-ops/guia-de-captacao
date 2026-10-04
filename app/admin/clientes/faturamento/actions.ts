@@ -9,7 +9,7 @@ import {
   reopenInvoice,
   updateService,
 } from "@/lib/billing";
-import { getCurrentSession } from "@/lib/session";
+import { getCurrentSession, requireTeam } from "@/lib/session";
 import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
 
 function revalidateBilling() {
@@ -21,6 +21,7 @@ function revalidateBilling() {
 // -------------------------------------------------------------- catálogo
 
 export async function createServiceAction(formData: FormData) {
+  await requireTeam("clientes");
   await createService({
     name: String(formData.get("name") ?? ""),
     price: formData.get("price"),
@@ -29,6 +30,7 @@ export async function createServiceAction(formData: FormData) {
 }
 
 export async function updateServiceAction(formData: FormData) {
+  await requireTeam("clientes");
   await updateService(String(formData.get("id")), {
     name: String(formData.get("name") ?? ""),
     price: formData.get("price"),
@@ -38,6 +40,7 @@ export async function updateServiceAction(formData: FormData) {
 }
 
 export async function deleteServiceAction(formData: FormData) {
+  await requireTeam("clientes");
   await deleteService(String(formData.get("id")));
   revalidateBilling();
 }
@@ -45,6 +48,7 @@ export async function deleteServiceAction(formData: FormData) {
 // ------------------------------------------------------------ fechamento
 
 export async function closeMonthAction(formData: FormData) {
+  await requireTeam("clientes");
   const session = await getCurrentSession();
   const clientId = String(formData.get("client_id"));
   assertClientAllowed(await getCurrentClientScope(), clientId);
@@ -59,6 +63,7 @@ export async function closeMonthAction(formData: FormData) {
 }
 
 export async function reopenInvoiceAction(formData: FormData) {
+  await requireTeam("clientes");
   const id = String(formData.get("id"));
   const clientId = await getInvoiceClientId(id);
   if (clientId) assertClientAllowed(await getCurrentClientScope(), clientId);

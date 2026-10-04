@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentSession } from "@/lib/session";
+import { getCurrentSession, requireTeam } from "@/lib/session";
 import {
   disconnectUserCalendar,
   getUserCalendarAccount,
@@ -29,6 +29,7 @@ function revalidate() {
 
 /** Desliga a agenda desta pessoa e limpa o que o app criou lá. */
 export async function disconnectCalendarAction() {
+  await requireTeam("agenda");
   const session = await getCurrentSession();
   if (!session) return;
 
@@ -46,6 +47,7 @@ export async function disconnectCalendarAction() {
 /** Reenvia todos os materiais com data — conserta o que ficou fora de
  * sincronia quando o Google falhou no meio de alguma edição. */
 export async function syncMyCalendarAction(): Promise<number> {
+  await requireTeam("agenda");
   const session = await getCurrentSession();
   if (!session) return 0;
 
@@ -68,6 +70,7 @@ export async function toggleCalendarAction(
   calendarId: string,
   selected: boolean
 ): Promise<{ ok: true } | { ok: false; message: string }> {
+  await requireTeam("agenda");
   const session = await getCurrentSession();
   if (!session) return { ok: false, message: "Sessão expirada." };
 
@@ -95,6 +98,7 @@ export async function toggleCalendarAction(
 export async function createEventAction(
   draft: EventDraft
 ): Promise<{ ok: true } | { ok: false; message: string }> {
+  await requireTeam("agenda");
   const session = await getCurrentSession();
   if (!session) return { ok: false, message: "Sessão expirada." };
 
@@ -128,6 +132,7 @@ export async function createEventAction(
 export async function deleteEventAction(
   removal: EventRemoval
 ): Promise<{ ok: true } | { ok: false; message: string }> {
+  await requireTeam("agenda");
   const session = await getCurrentSession();
   if (!session) return { ok: false, message: "Sessão expirada." };
 
@@ -155,6 +160,7 @@ export async function deleteEventAction(
 export async function updateEventAction(
   edit: EventEdit
 ): Promise<{ ok: true } | { ok: false; message: string }> {
+  await requireTeam("agenda");
   const session = await getCurrentSession();
   if (!session) return { ok: false, message: "Sessão expirada." };
 

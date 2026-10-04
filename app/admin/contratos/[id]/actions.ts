@@ -7,6 +7,7 @@ import {
   updateContract,
   type ContractKind,
 } from "@/lib/contracts";
+import { requireTeam } from "@/lib/session";
 
 function revalidateContract(id: string, slug?: string | null) {
   revalidatePath(`/admin/contratos/${id}`);
@@ -39,6 +40,7 @@ function priceFromForm(value: FormDataEntryValue | null) {
 }
 
 export async function updateContractAction(formData: FormData) {
+  await requireTeam("contratos");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
@@ -71,6 +73,7 @@ export async function updateContractAction(formData: FormData) {
 }
 
 export async function setContractStatusAction(formData: FormData) {
+  await requireTeam("contratos");
   const id = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "");
   if (!id || (status !== "draft" && status !== "published")) return;

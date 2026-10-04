@@ -13,6 +13,7 @@ import { fetchOgImage, isLikelyImageUrl, resolveDriveImageUrl } from "@/lib/refe
 import { extractDriveFolderId, listDriveFolderMediaRecursive } from "@/lib/googleDrive";
 import { mirrorRemoteImage } from "@/lib/storage";
 import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
+import { requireTeam } from "@/lib/session";
 
 function revalidateClient(id: string, slug?: string | null) {
   revalidatePath(`/admin/galerias/${id}`);
@@ -49,6 +50,7 @@ async function resolveGalleryImage(
 }
 
 export async function updateGalleryClientNameAction(formData: FormData) {
+  await requireTeam("galerias");
   const id = String(formData.get("id"));
   assertClientAllowed(await getCurrentClientScope(), id);
 
@@ -58,6 +60,7 @@ export async function updateGalleryClientNameAction(formData: FormData) {
 }
 
 export async function setGalleryClientStatusAction(formData: FormData) {
+  await requireTeam("galerias");
   const id = String(formData.get("id"));
   assertClientAllowed(await getCurrentClientScope(), id);
 
@@ -68,6 +71,7 @@ export async function setGalleryClientStatusAction(formData: FormData) {
 }
 
 export async function addGalleryImageAction(formData: FormData) {
+  await requireTeam("galerias");
   const clientId = String(formData.get("guide_id"));
   assertClientAllowed(await getCurrentClientScope(), clientId);
 
@@ -83,6 +87,7 @@ export async function addGalleryImageAction(formData: FormData) {
 }
 
 export async function deleteGalleryImageAction(formData: FormData) {
+  await requireTeam("galerias");
   const id = String(formData.get("id"));
   const clientId = String(formData.get("guide_id"));
   assertClientAllowed(await getCurrentClientScope(), clientId);
@@ -93,6 +98,7 @@ export async function deleteGalleryImageAction(formData: FormData) {
 }
 
 export async function syncDriveFolderAction(formData: FormData) {
+  await requireTeam("galerias");
   const clientId = String(formData.get("guide_id"));
   assertClientAllowed(await getCurrentClientScope(), clientId);
 

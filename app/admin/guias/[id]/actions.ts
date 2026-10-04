@@ -39,6 +39,7 @@ import {
   isLikelyImageUrl,
 } from "@/lib/references";
 import { mirrorRemoteImage, uploadReferenceImage } from "@/lib/storage";
+import { requireTeam } from "@/lib/session";
 
 function revalidateGuide(id: string, slug?: string | null) {
   revalidatePath(`/admin/guias/${id}`);
@@ -93,6 +94,7 @@ async function resolveReferenceImage(urlInput: string): Promise<{
 }
 
 export async function updateGuideInfoAction(formData: FormData) {
+  await requireTeam("guias");
   const id = String(formData.get("id"));
   const title = String(formData.get("title") ?? "").trim() || "Sem título";
   const clientName = String(formData.get("client_name") ?? "").trim();
@@ -115,6 +117,7 @@ export async function updateGuideInfoAction(formData: FormData) {
 }
 
 export async function setStatusAction(formData: FormData) {
+  await requireTeam("guias");
   const id = String(formData.get("id"));
   const status = String(formData.get("status")) as "draft" | "published";
   await setGuideStatus(id, status);
@@ -135,6 +138,7 @@ export async function setStatusAction(formData: FormData) {
 }
 
 export async function addVideoAction(formData: FormData) {
+  await requireTeam("guias");
   const guideId = String(formData.get("guide_id"));
   const title = String(formData.get("title") ?? "").trim();
   await addVideo(guideId, title || "Sem título");
@@ -142,6 +146,7 @@ export async function addVideoAction(formData: FormData) {
 }
 
 export async function updateVideoAction(formData: FormData) {
+  await requireTeam("guias");
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
   const title = String(formData.get("title") ?? "").trim() || "Sem título";
@@ -150,6 +155,7 @@ export async function updateVideoAction(formData: FormData) {
 }
 
 export async function updateVideoNotasAction(formData: FormData) {
+  await requireTeam("guias");
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
   await updateVideoNotas(id, String(formData.get("notas_producao") ?? "").trim());
@@ -157,6 +163,7 @@ export async function updateVideoNotasAction(formData: FormData) {
 }
 
 export async function deleteVideoAction(formData: FormData) {
+  await requireTeam("guias");
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
   await deleteVideo(id);
@@ -164,6 +171,7 @@ export async function deleteVideoAction(formData: FormData) {
 }
 
 export async function addSceneAction(formData: FormData) {
+  await requireTeam("guias");
   const guideId = String(formData.get("guide_id"));
   const videoId = String(formData.get("video_id"));
   const script = String(formData.get("script") ?? "").trim();
@@ -211,6 +219,7 @@ function linhas(value: FormDataEntryValue | null): string[] {
 }
 
 export async function updateSceneAction(formData: FormData) {
+  await requireTeam("guias");
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
   const script = String(formData.get("script") ?? "").trim();
@@ -225,6 +234,7 @@ export async function updateSceneAction(formData: FormData) {
 }
 
 export async function deleteSceneAction(formData: FormData) {
+  await requireTeam("guias");
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
   await deleteScene(id);
@@ -232,6 +242,7 @@ export async function deleteSceneAction(formData: FormData) {
 }
 
 export async function addVisualReferenceAction(formData: FormData) {
+  await requireTeam("guias");
   const guideId = String(formData.get("guide_id"));
   const caption = String(formData.get("caption") ?? "").trim();
   const sceneId = String(formData.get("scene_id") ?? "") || null;
@@ -265,6 +276,7 @@ export async function addVisualReferenceAction(formData: FormData) {
 }
 
 export async function deleteVisualReferenceAction(formData: FormData) {
+  await requireTeam("guias");
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
   await deleteVisualReference(id);
@@ -276,6 +288,7 @@ export async function toggleVisualReferenceSelectedAction(
   id: string,
   selected: boolean
 ) {
+  await requireTeam("guias");
   await toggleVisualReferenceSelected(id, selected);
   revalidateGuide(guideId);
 }
@@ -302,6 +315,7 @@ async function resolveMediaItemInput(formData: FormData, guideId: string) {
 }
 
 export async function addPhotoItemAction(formData: FormData) {
+  await requireTeam("guias");
   const guideId = String(formData.get("guide_id"));
   const { imageUrl, sourceUrl, galleryUrls, caption } =
     await resolveMediaItemInput(formData, guideId);
@@ -317,6 +331,7 @@ export async function addPhotoItemAction(formData: FormData) {
 }
 
 export async function deletePhotoItemAction(formData: FormData) {
+  await requireTeam("guias");
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
   await deletePhotoItem(id);
@@ -328,11 +343,13 @@ export async function togglePhotoItemSelectedAction(
   id: string,
   selected: boolean
 ) {
+  await requireTeam("guias");
   await togglePhotoItemSelected(id, selected);
   revalidateGuide(guideId);
 }
 
 export async function addCardItemAction(formData: FormData) {
+  await requireTeam("guias");
   const guideId = String(formData.get("guide_id"));
   const { imageUrl, sourceUrl, galleryUrls, caption } =
     await resolveMediaItemInput(formData, guideId);
@@ -348,6 +365,7 @@ export async function addCardItemAction(formData: FormData) {
 }
 
 export async function deleteCardItemAction(formData: FormData) {
+  await requireTeam("guias");
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
   await deleteCardItem(id);
@@ -359,11 +377,13 @@ export async function toggleCardItemSelectedAction(
   id: string,
   selected: boolean
 ) {
+  await requireTeam("guias");
   await toggleCardItemSelected(id, selected);
   revalidateGuide(guideId);
 }
 
 export async function addVideoReferenceItemAction(formData: FormData) {
+  await requireTeam("guias");
   const guideId = String(formData.get("guide_id"));
   const { imageUrl, sourceUrl, galleryUrls, caption } =
     await resolveMediaItemInput(formData, guideId);
@@ -379,6 +399,7 @@ export async function addVideoReferenceItemAction(formData: FormData) {
 }
 
 export async function deleteVideoReferenceItemAction(formData: FormData) {
+  await requireTeam("guias");
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
   await deleteVideoReferenceItem(id);
@@ -390,11 +411,13 @@ export async function toggleVideoReferenceItemSelectedAction(
   id: string,
   selected: boolean
 ) {
+  await requireTeam("guias");
   await toggleVideoReferenceItemSelected(id, selected);
   revalidateGuide(guideId);
 }
 
 export async function addShotListItemAction(formData: FormData) {
+  await requireTeam("guias");
   const guideId = String(formData.get("guide_id"));
   const description = String(formData.get("description") ?? "").trim();
   const shotType = String(formData.get("shot_type") ?? "").trim();
@@ -411,6 +434,7 @@ export async function addShotListItemAction(formData: FormData) {
 }
 
 export async function deleteShotListItemAction(formData: FormData) {
+  await requireTeam("guias");
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
   await deleteShotListItem(id);
@@ -418,6 +442,7 @@ export async function deleteShotListItemAction(formData: FormData) {
 }
 
 export async function addChecklistItemAction(formData: FormData) {
+  await requireTeam("guias");
   const guideId = String(formData.get("guide_id"));
   const category = String(formData.get("category")) as ChecklistCategory;
   const label = String(formData.get("label") ?? "").trim();
@@ -427,6 +452,7 @@ export async function addChecklistItemAction(formData: FormData) {
 }
 
 export async function toggleChecklistItemAction(formData: FormData) {
+  await requireTeam("guias");
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
   const done = String(formData.get("done")) === "true";
@@ -435,6 +461,7 @@ export async function toggleChecklistItemAction(formData: FormData) {
 }
 
 export async function deleteChecklistItemAction(formData: FormData) {
+  await requireTeam("guias");
   const id = String(formData.get("id"));
   const guideId = String(formData.get("guide_id"));
   await deleteChecklistItem(id);

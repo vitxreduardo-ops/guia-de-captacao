@@ -9,6 +9,7 @@ import {
   type LibraryLinkFields,
 } from "@/lib/library";
 import { canonicalizeTags } from "@/lib/tags";
+import { requireTeam } from "@/lib/session";
 
 /** Tags chegam do formulário como texto separado por vírgula, igual aos guias. */
 function parseTags(value: FormDataEntryValue | null): string[] {
@@ -42,6 +43,7 @@ async function readFields(
 }
 
 export async function createLibraryLinkAction(formData: FormData) {
+  await requireTeam("biblioteca");
   const fields = await readFields(formData);
   if (!fields) return;
 
@@ -50,6 +52,7 @@ export async function createLibraryLinkAction(formData: FormData) {
 }
 
 export async function updateLibraryLinkAction(formData: FormData) {
+  await requireTeam("biblioteca");
   const id = String(formData.get("id") ?? "");
   const fields = await readFields(formData);
   if (!id || !fields) return;
@@ -59,6 +62,7 @@ export async function updateLibraryLinkAction(formData: FormData) {
 }
 
 export async function deleteLibraryLinkAction(formData: FormData) {
+  await requireTeam("biblioteca");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await deleteLibraryLink(id);

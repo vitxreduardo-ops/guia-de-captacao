@@ -8,6 +8,7 @@ type SearchParams = Promise<{ error?: string }>;
 
 const ERROR_MESSAGES: Record<string, string> = {
   campos: "Preencha usuário e senha.",
+  limite: "Muitas tentativas. Espere uma hora e tente de novo.",
   senha: "As senhas não coincidem.",
   usuario_existe: "Esse nome de usuário já está em uso.",
   config: "O servidor não está configurado corretamente.",

@@ -25,6 +25,7 @@ import {
   renameClientLogo,
   type ClientLogoRecord,
 } from "@/lib/clientLogos";
+import { requireTeam } from "@/lib/session";
 
 function revalidateBudget(id: string, slug?: string | null) {
   revalidatePath(`/admin/orcamentos/${id}`);
@@ -40,6 +41,7 @@ function revalidateBudget(id: string, slug?: string | null) {
  * tipo errado não entra. Uma action não confia no que o navegador manda.
  */
 export async function saveBudgetSectionsAction(id: string, sections: unknown) {
+  await requireTeam("orcamentos");
   await updateBudgetSections(id, parseSections(sections));
 
   const budget = await getBudgetWithSections(id);
@@ -64,6 +66,7 @@ export async function uploadBudgetMediaAction(
   budgetId: string,
   formData: FormData
 ): Promise<{ url: string } | { error: string }> {
+  await requireTeam("orcamentos");
   const file = formData.get("file");
 
   if (!(file instanceof File) || file.size === 0) {
@@ -88,6 +91,7 @@ export async function uploadBudgetMediaAction(
 // Biblioteca de logos
 
 export async function listClientLogosAction(): Promise<ClientLogoRecord[]> {
+  await requireTeam("orcamentos");
   return listClientLogos();
 }
 
@@ -99,6 +103,7 @@ export async function uploadClientLogoAction(
   budgetId: string,
   formData: FormData
 ): Promise<{ logo: ClientLogoRecord } | { error: string }> {
+  await requireTeam("orcamentos");
   const nome = String(formData.get("name") ?? "").trim();
   const enviado = await uploadBudgetMediaAction(budgetId, formData);
 
@@ -109,14 +114,17 @@ export async function uploadClientLogoAction(
 }
 
 export async function renameClientLogoAction(id: string, name: string) {
+  await requireTeam("orcamentos");
   await renameClientLogo(id, name.trim());
 }
 
 export async function deleteClientLogoAction(id: string) {
+  await requireTeam("orcamentos");
   await deleteClientLogo(id);
 }
 
 export async function updateBudgetInfoAction(formData: FormData) {
+  await requireTeam("orcamentos");
   const id = String(formData.get("id"));
 
   await updateBudgetInfo(id, {
@@ -130,6 +138,7 @@ export async function updateBudgetInfoAction(formData: FormData) {
 }
 
 export async function setBudgetStatusAction(formData: FormData) {
+  await requireTeam("orcamentos");
   const id = String(formData.get("id"));
   const status = String(formData.get("status")) as BudgetStatus;
   await setBudgetStatus(id, status);
@@ -153,6 +162,7 @@ function calcFieldsFromFormData(formData: FormData) {
 }
 
 export async function updateBudgetCalcAction(formData: FormData) {
+  await requireTeam("orcamentos");
   const id = String(formData.get("id"));
   await updateBudgetCalc(id, calcFieldsFromFormData(formData));
   const budget = await getBudgetWithSections(id);
@@ -160,6 +170,7 @@ export async function updateBudgetCalcAction(formData: FormData) {
 }
 
 export async function generatePackagesFromCalcAction(formData: FormData) {
+  await requireTeam("orcamentos");
   const id = String(formData.get("id"));
   const fields = calcFieldsFromFormData(formData);
   await updateBudgetCalc(id, fields);
@@ -229,6 +240,7 @@ export async function generatePackagesFromCalcAction(formData: FormData) {
 }
 
 export async function addFreelaAsPackageAction(formData: FormData) {
+  await requireTeam("orcamentos");
   const budgetId = String(formData.get("budget_id"));
   const label = String(formData.get("label") ?? "").trim() || "Job avulso";
 

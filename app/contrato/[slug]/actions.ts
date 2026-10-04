@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { signContract } from "@/lib/contracts";
+import { clientIp, rateLimit } from "@/lib/rateLimit";
 
 export type SignState = { erro?: string; ok?: boolean };
 
@@ -24,6 +25,9 @@ export async function signContractAction(
   if (!slug) return { erro: "Contrato não encontrado." };
   if (!name) return { erro: "Preencha seu nome completo." };
   if (!document) return { erro: "Preencha seu CPF ou CNPJ." };
+
+  if (!(await rateLimit(`contrato:${await clientIp()}`, 10, 60 * 60)))
+    return { erro: "Muitas tentativas seguidas. Espere uma hora e tente de novo." };
 
   // Atrás da Vercel o IP real vem no `x-forwarded-for`, que é uma lista: o
   // primeiro é o cliente, os demais são os proxies do caminho.

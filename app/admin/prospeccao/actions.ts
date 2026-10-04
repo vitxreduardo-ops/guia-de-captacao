@@ -23,7 +23,7 @@ import {
   deleteMessageTemplate,
   updateMessageTemplate,
 } from "@/lib/messages";
-import { getCurrentSession } from "@/lib/session";
+import { getCurrentSession, requireTeam } from "@/lib/session";
 
 const PATHS = ["/admin/prospeccao", "/admin/prospeccao/ajustes"];
 
@@ -54,6 +54,7 @@ async function authorId(): Promise<string | null> {
 // -------------------------------------------------------------- contatos
 
 export async function createProspectAction(formData: FormData) {
+  await requireTeam("prospeccao");
   const fields = readProspectForm(formData);
   if (!fields.stage_id) return;
 
@@ -66,6 +67,7 @@ export async function createProspectAction(formData: FormData) {
 }
 
 export async function updateProspectAction(formData: FormData) {
+  await requireTeam("prospeccao");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
@@ -75,6 +77,7 @@ export async function updateProspectAction(formData: FormData) {
 }
 
 export async function deleteProspectAction(formData: FormData) {
+  await requireTeam("prospeccao");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
 
@@ -101,6 +104,7 @@ export async function deleteProspectAction(formData: FormData) {
 export async function logTouchAction(
   formData: FormData
 ): Promise<{ ok: true } | { ok: false; message: string }> {
+  await requireTeam("prospeccao");
   const id = String(formData.get("prospect_id") ?? "");
   if (!id) return { ok: false, message: "Contato não encontrado." };
 
@@ -141,6 +145,7 @@ export async function logTouchAction(
 
 /** Nota solta no histórico, sem mexer na data do próximo contato. */
 export async function addNoteAction(formData: FormData) {
+  await requireTeam("prospeccao");
   const id = String(formData.get("prospect_id") ?? "");
   const message = String(formData.get("message") ?? "").trim();
   if (!id || !message) return;
@@ -159,6 +164,7 @@ export async function addNoteAction(formData: FormData) {
 }
 
 export async function moveProspectAction(formData: FormData) {
+  await requireTeam("prospeccao");
   const id = String(formData.get("prospect_id") ?? "");
   const stageId = String(formData.get("stage_id") ?? "");
   if (!id || !stageId) return;
@@ -175,6 +181,7 @@ export async function moveProspectAction(formData: FormData) {
 // ---------------------------------------------------------------- etapas
 
 export async function createStageAction(formData: FormData) {
+  await requireTeam("prospeccao");
   await createStage({
     name: String(formData.get("name") ?? ""),
     color: String(formData.get("color") ?? "#6b7280"),
@@ -184,6 +191,7 @@ export async function createStageAction(formData: FormData) {
 }
 
 export async function updateStageAction(formData: FormData) {
+  await requireTeam("prospeccao");
   await updateStage(String(formData.get("id") ?? ""), {
     name: String(formData.get("name") ?? ""),
     color: String(formData.get("color") ?? "#6b7280"),
@@ -196,6 +204,7 @@ export async function updateStageAction(formData: FormData) {
 export async function deleteStageAction(
   formData: FormData
 ): Promise<{ ok: true } | { ok: false; message: string }> {
+  await requireTeam("prospeccao");
   const result = await deleteStage(String(formData.get("id") ?? ""));
   revalidate();
   if (result.ok) return { ok: true };
@@ -209,6 +218,7 @@ export async function deleteStageAction(
 }
 
 export async function reorderStagesAction(orderedIds: string[]) {
+  await requireTeam("prospeccao");
   await reorderStages(orderedIds);
   revalidate();
 }
@@ -218,6 +228,7 @@ export async function reorderStagesAction(orderedIds: string[]) {
 const AJUSTES = "/admin/prospeccao/ajustes";
 
 export async function createMessageAction(formData: FormData) {
+  await requireTeam("prospeccao");
   await createMessageTemplate({
     name: String(formData.get("name") ?? "").trim(),
     situation: String(formData.get("situation") ?? ""),
@@ -227,6 +238,7 @@ export async function createMessageAction(formData: FormData) {
 }
 
 export async function updateMessageAction(formData: FormData) {
+  await requireTeam("prospeccao");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await updateMessageTemplate(id, {
@@ -238,6 +250,7 @@ export async function updateMessageAction(formData: FormData) {
 }
 
 export async function deleteMessageAction(formData: FormData) {
+  await requireTeam("prospeccao");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await deleteMessageTemplate(id);

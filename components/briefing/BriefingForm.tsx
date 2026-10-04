@@ -136,6 +136,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   campos: "Faltou preencher algum campo obrigatório.",
   telefone: "Confira o WhatsApp: precisa ter DDD e 8 ou 9 dígitos.",
   servidor: "Não consegui salvar agora. Tenta de novo em instantes.",
+  limite: "Recebemos vários envios seguidos daqui. Tenta de novo daqui a uma hora.",
 };
 
 /**

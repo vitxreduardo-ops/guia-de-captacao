@@ -1,4 +1,6 @@
 import "server-only";
+import { rateLimit } from "@/lib/rateLimit";
+import { getCurrentSession } from "@/lib/session";
 
 /**
  * Chamada de IA do gerador de roteiros. DeepSeek, Gemini e Grok expõem o
@@ -19,6 +21,13 @@ async function completar(body: Record<string, unknown>): Promise<string> {
   const apiKey = process.env.ROTEIROS_AI_KEY;
   if (!apiKey) throw new Error("ROTEIROS_AI_KEY não configurada no servidor.");
   const baseUrl = process.env.ROTEIROS_AI_BASE_URL || "https://api.openai.com/v1";
+
+  // Toda chamada à IA passa por aqui e cada uma custa. 30 por hora por pessoa
+  // cobre o uso normal e corta um login vazado ou um loop rodando à toa.
+  const session = await getCurrentSession();
+  if (!(await rateLimit(`ia:${session?.userId ?? "sem-sessao"}`, 30, 60 * 60))) {
+    throw new Error("Limite de 30 gerações por hora atingido. Tenta de novo mais tarde.");
+  }
 
   const response = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
     method: "POST",
@@ -56,7 +65,8 @@ export async function chatJson<T>({
     model,
     messages: [
       { role: "system", content: system },
-      { role: "user", content: user },
+      // Teto pro texto que vem da tela: o chat já corta o dele, aqui cobre o resto.
+      { role: "user", content: user.slice(0, 20000) },
     ],
     response_format: { type: "json_schema", json_schema: schema },
     temperature,

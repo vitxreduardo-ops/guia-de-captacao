@@ -10,6 +10,7 @@ import {
 } from "@/lib/referencePins";
 import { resolveReferencePin } from "@/lib/references";
 import { canonicalizeTags } from "@/lib/tags";
+import { requireTeam } from "@/lib/session";
 
 function parseTags(value: FormDataEntryValue | null): string[] {
   return String(value ?? "")
@@ -71,6 +72,7 @@ async function readFields(
 }
 
 export async function createReferencePinAction(formData: FormData) {
+  await requireTeam("referencias");
   const fields = await readFields(formData);
   if (!fields) return;
 
@@ -79,6 +81,7 @@ export async function createReferencePinAction(formData: FormData) {
 }
 
 export async function updateReferencePinAction(formData: FormData) {
+  await requireTeam("referencias");
   const id = String(formData.get("id") ?? "");
   const fields = await readFields(formData);
   if (!id || !fields) return;
@@ -88,6 +91,7 @@ export async function updateReferencePinAction(formData: FormData) {
 }
 
 export async function deleteReferencePinAction(formData: FormData) {
+  await requireTeam("referencias");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await deleteReferencePin(id);

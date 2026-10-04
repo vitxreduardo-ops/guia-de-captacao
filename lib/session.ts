@@ -33,6 +33,28 @@ export async function getCurrentUsername(): Promise<string | null> {
 }
 
 /**
+ * Barra quem não é da equipe — primeira linha de toda server action do admin.
+ * O proxy.ts já faz essa checagem na navegação, mas action responde a POST
+ * direto em qualquer rota: sem isto, um login de cliente do portal conseguia
+ * chamar as actions do painel. `section` é o trecho depois de /admin/, com a
+ * mesma regra de `allowedSections` do proxy.
+ */
+export async function requireTeam(section?: string): Promise<Session> {
+  const session = await getCurrentSession();
+  if (!session) redirect("/admin/login");
+  if (session.role === "client") redirect("/cliente");
+  if (
+    section &&
+    session.role !== "admin" &&
+    session.allowedSections !== null &&
+    !session.allowedSections.includes(section)
+  ) {
+    redirect("/admin");
+  }
+  return session;
+}
+
+/**
  * Bloqueia o acesso de quem não é admin — usado nas páginas/actions de
  * gerenciamento de usuários, a única área restrita a admin no sistema.
  */

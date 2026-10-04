@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getCurrentSession } from "@/lib/session";
+import { getCurrentSession, requireTeam } from "@/lib/session";
 import {
   chatJson,
   chatConversaJson,
@@ -69,6 +69,7 @@ export async function sugerirFrameworkAction(
   objetivo: string,
   contexto = ""
 ): Promise<Resultado<{ framework_sugerido: Framework; justificativa: string }>> {
+  await requireTeam("roteiros");
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
   if (!tema || !objetivo) {
     return { ok: false, error: "Tema e objetivo são obrigatórios." };
@@ -100,6 +101,7 @@ export async function gerarRoteiroAction(input: {
   extra: any;
   tags: string[];
 }): Promise<Resultado<{ roteiro: RoteiroJson; id: string | null }>> {
+  await requireTeam("roteiros");
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
   const { framework, extra, tags } = input;
   const comum = {
@@ -174,6 +176,7 @@ export async function atualizarRoteiroAction(
   id: string,
   mudanca: { favorito?: boolean; status?: string; tags?: string[] }
 ): Promise<Resultado<null>> {
+  await requireTeam("roteiros");
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
 
   const updates: { favorito?: boolean; status?: StatusRoteiro; tags?: string[] } = {};
@@ -211,6 +214,7 @@ export async function conversarAction(
   mensagens: MensagemChat[],
   contexto: { cliente?: string; formulario?: string } = {}
 ): Promise<Resultado<{ resposta: string; raciocinio: string[] }>> {
+  await requireTeam("roteiros");
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
 
   const validas = (Array.isArray(mensagens) ? mensagens : [])
@@ -254,6 +258,7 @@ export async function conversarAction(
 export async function listarGuiasAction(): Promise<
   Resultado<{ id: string; titulo: string; cliente: string }[]>
 > {
+  await requireTeam("roteiros");
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
   try {
     const guias = await listGuides();
@@ -287,6 +292,7 @@ export async function enviarParaGuiaAction(
   roteiroId: string,
   guiaId: string
 ): Promise<Resultado<{ videos: number }>> {
+  await requireTeam("roteiros");
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
   try {
     const roteiro = await getRoteiro(roteiroId);
@@ -310,6 +316,7 @@ const MAX_ROTEIRO_COLADO = 20000;
 export async function organizarRoteiroAction(texto: string): Promise<
   Resultado<{ videos: VideoImportado[]; alterados: string[]; deFora: string[] }>
 > {
+  await requireTeam("roteiros");
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
   const original = typeof texto === "string" ? texto.trim() : "";
   if (!original) return { ok: false, error: "Cole o roteiro antes de organizar." };
@@ -343,6 +350,7 @@ export async function salvarVideosNoGuiaAction(
   guiaId: string,
   videos: VideoImportado[]
 ): Promise<Resultado<{ videos: number }>> {
+  await requireTeam("roteiros");
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
   if (typeof guiaId !== "string" || !guiaId) return { ok: false, error: "Guia inválido." };
 
@@ -378,6 +386,7 @@ const MAX_DESCRICAO = 5000;
 export async function lerPerfilClienteAction(
   nome: string
 ): Promise<Resultado<{ cadastrado: boolean; descricao: string }>> {
+  await requireTeam("roteiros");
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
   try {
     if (typeof nome !== "string" || !(await clientePermitido(nome))) {
@@ -394,6 +403,7 @@ export async function salvarPerfilClienteAction(
   nome: string,
   descricao: string
 ): Promise<Resultado<null>> {
+  await requireTeam("roteiros");
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
   if (typeof descricao !== "string") return { ok: false, error: "Descrição inválida." };
   try {

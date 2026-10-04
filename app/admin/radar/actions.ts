@@ -6,6 +6,7 @@ import {
   deleteRadarCompany,
   updateRadarCompany,
 } from "@/lib/prospects";
+import { requireTeam } from "@/lib/session";
 
 /**
  * O Radar deixou de ser uma aba da Prospecção: é um banco de empresas da
@@ -13,12 +14,14 @@ import {
  * concorrente de um cliente. As duas coisas são consulta, não funil.
  */
 export async function createRadarAction(formData: FormData) {
+  await requireTeam("radar");
   if (!String(formData.get("company") ?? "").trim()) return;
   await createRadarCompany(formData);
   revalidatePath("/admin/radar");
 }
 
 export async function updateRadarAction(formData: FormData) {
+  await requireTeam("radar");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await updateRadarCompany(id, formData);
@@ -26,6 +29,7 @@ export async function updateRadarAction(formData: FormData) {
 }
 
 export async function deleteRadarAction(formData: FormData) {
+  await requireTeam("radar");
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await deleteRadarCompany(id);

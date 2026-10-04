@@ -13,6 +13,8 @@ export default async function LoginPage({
   const errorMessage =
     params.error === "config"
       ? "ADMIN_PASSWORD não está configurado no servidor."
+      : params.error === "limite"
+      ? "Muitas tentativas. Espere 15 minutos e tente de novo."
       : params.error
       ? "Usuário ou senha incorretos."
       : null;
