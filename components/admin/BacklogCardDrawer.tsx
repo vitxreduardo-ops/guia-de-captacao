@@ -364,7 +364,7 @@ function BillingFields({
           Entregue; aqui elas existem para corrigir sem mover o card de novo. */}
       <div className="mt-2 grid grid-cols-2 gap-2">
         <label className="text-xs font-medium text-neutral-600">
-          Pago em
+          Data de pagamento
           <input
             type="date"
             name="paid_at"
@@ -389,10 +389,22 @@ function BillingFields({
         </label>
       </div>
 
+      <label className="mt-2 block text-xs font-medium text-neutral-600">
+        Mês de cobrança
+        <input
+          type="month"
+          name="billing_month"
+          defaultValue={card.billing_month?.slice(0, 7) ?? ""}
+          className={`mt-1 ${inputClass}`}
+        />
+      </label>
+
       <p className="mt-1.5 text-xs text-neutral-500">
         Escrito no produto personalizado, é esse nome que aparece na nota — o
-        catálogo continua intacto. Entra na nota do mês pela data da entrega, quando esta entrega estiver
-        numa coluna marcada como &quot;entra na nota&quot;.
+        catálogo continua intacto. Entra na nota do mês pela data da entrega,
+        a não ser que o mês de cobrança esteja preenchido (material feito num
+        mês e pago no seguinte). Só entra quando esta entrega estiver numa
+        coluna marcada como &quot;entra na nota&quot;.
       </p>
     </div>
   );

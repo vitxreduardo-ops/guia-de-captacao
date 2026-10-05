@@ -500,6 +500,10 @@ alter table backlog_cards
   add column if not exists payment_method text
     check (payment_method in ('pix', 'transferencia', 'boleto', 'dinheiro', 'cartao', 'outro'));
 
+-- Mês de cobrança (ver supabase/migrations/0078_billing_month.sql).
+alter table backlog_cards
+  add column if not exists billing_month date;
+
 alter table monthly_invoice_items
   add column if not exists paid boolean not null default false;
 alter table monthly_invoice_items

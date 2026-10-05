@@ -339,6 +339,7 @@ export interface BacklogCardInput {
   unit_price_cents: number | null;
   paid_at: string | null;
   payment_method: PaymentMethod | null;
+  billing_month: string | null;
 }
 
 export function readBacklogCardInput(formData: FormData): BacklogCardInput {
@@ -367,6 +368,10 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
     unit_price_cents: normalizePrice(formData.get("unit_price_cents")),
     paid_at: normalizeDate(formData.get("paid_at")),
     payment_method: normalizePaymentMethod(formData.get("payment_method")),
+    // <input type="month"> manda "2026-10"; a coluna guarda o dia 1.
+    billing_month: normalizeDate(
+      String(formData.get("billing_month") ?? "").replace(/^(\d{4}-\d{2})$/, "$1-01")
+    ),
   };
 }
 
@@ -412,6 +417,7 @@ export async function createBacklogCard(
       unit_price_cents: fields.unit_price_cents ?? null,
       paid_at: fields.paid_at ?? null,
       payment_method: fields.payment_method ?? null,
+      billing_month: fields.billing_month ?? null,
     })
     .select("*")
     .single();
@@ -532,6 +538,7 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
       unit_price_cents: fields.unit_price_cents,
       paid_at: fields.paid_at,
       payment_method: fields.payment_method,
+      billing_month: fields.billing_month,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
@@ -614,6 +621,7 @@ export async function duplicateBacklogCard(id: string): Promise<BacklogCard> {
     google_event_id: _eventId,
     paid_at: _paidAt,
     payment_method: _paymentMethod,
+    billing_month: _billingMonth,
     position: _position,
     ...rest
   } = original as Record<string, unknown>;

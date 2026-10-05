@@ -142,8 +142,9 @@ export default async function FaturamentoPage({
             </div>
 
             <p className="mt-1.5 text-xs text-neutral-500">
-              Soma as entregas com data em {monthLabel(month)} que estão numa
-              coluna marcada como &quot;entra na nota&quot; no quadro de{" "}
+              Soma as entregas com data (ou mês de cobrança) em{" "}
+              {monthLabel(month)} que estão numa coluna marcada como
+              &quot;entra na nota&quot; no quadro de{" "}
               <Link href="/admin/clientes/entregas" className="underline">
                 Entregas
               </Link>
