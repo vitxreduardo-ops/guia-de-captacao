@@ -24,9 +24,14 @@ export default async function ClienteLayout({ children }: { children: React.Reac
       {preview ? (
         <div className="flex items-center justify-between gap-3 bg-[var(--tatu-ink)] px-[var(--gutter)] pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] text-sm text-[var(--tatu-cream)]">
           <span>Visualização do portal como o cliente o vê. Somente leitura.</span>
-          <Link href="/cliente/previa?sair=1" className="shrink-0 whitespace-nowrap font-semibold underline underline-offset-4">
-            Voltar ao painel
-          </Link>
+          <span className="flex shrink-0 items-center gap-4">
+            <Link href="/cliente/escolher" className="whitespace-nowrap font-semibold underline underline-offset-4">
+              Trocar cliente
+            </Link>
+            <Link href="/cliente/previa?sair=1" className="whitespace-nowrap font-semibold underline underline-offset-4">
+              Voltar ao painel
+            </Link>
+          </span>
         </div>
       ) : null}
 
