@@ -94,9 +94,10 @@ export async function getPortalSession(): Promise<{
   }
   if (user?.role === "admin") {
     const clientId = (await cookies()).get(PREVIEW_COOKIE)?.value;
-    // Sem prévia escolhida o admin não tem o que ver aqui; sair levaria a
-    // sessão dele junto.
-    if (!clientId) redirect("/admin/area-do-cliente");
+    // Sem cliente escolhido o admin vê a lista pra escolher, em vez de ser
+    // mandado de volta ao painel (era o que acontecia ao reabrir o portal
+    // pelo ícone da Tela de Início ou por uma notificação).
+    if (!clientId) redirect("/cliente/escolher");
     return { clientId, preview: true, viewerId: null, viewerName: null };
   }
   redirect("/cliente/sair");
