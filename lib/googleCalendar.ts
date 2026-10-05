@@ -96,6 +96,9 @@ function addDays(date: string, days: number): string {
   return parsed.toISOString().slice(0, 10);
 }
 
+// O PATCH do Google mescla `start`/`end`: sem zerar o outro formato, um evento
+// que virou de dia inteiro pra com hora (ou o contrário) fica com `date` e
+// `dateTime` juntos e volta "Invalid start time". Por isso os `null`s abaixo.
 function buildEventBody(card: SyncableCard) {
   const postDate = card.post_date!;
   const format = BACKLOG_FORMAT_LABELS[card.format] ?? card.format;
@@ -118,18 +121,20 @@ function buildEventBody(card: SyncableCard) {
           start: {
             dateTime: `${postDate}T${start}:00`,
             timeZone: TIME_ZONE,
+            date: null,
           },
           end: {
             dateTime: `${addDays(postDate, end.dayOffset)}T${end.time}:00`,
             timeZone: TIME_ZONE,
+            date: null,
           },
         };
       })()
     : {
         // Evento de dia inteiro: no Google o `end.date` é exclusivo, então
         // um dia só termina no dia seguinte.
-        start: { date: postDate },
-        end: { date: addDays(postDate, 1) },
+        start: { date: postDate, dateTime: null, timeZone: null },
+        end: { date: addDays(postDate, 1), dateTime: null, timeZone: null },
       };
 
   return {
@@ -1180,14 +1185,18 @@ function buildProspectEventBody(prospect: SyncableProspect) {
           prospect.next_contact_minutes ?? DEFAULT_DURATION_MINUTES
         );
         return {
-          start: { dateTime: `${date}T${start}:00`, timeZone: TIME_ZONE },
+          start: { dateTime: `${date}T${start}:00`, timeZone: TIME_ZONE, date: null },
           end: {
             dateTime: `${addDays(date, end.dayOffset)}T${end.time}:00`,
             timeZone: TIME_ZONE,
+            date: null,
           },
         };
       })()
-    : { start: { date }, end: { date: addDays(date, 1) } };
+    : {
+        start: { date, dateTime: null, timeZone: null },
+        end: { date: addDays(date, 1), dateTime: null, timeZone: null },
+      };
 
   return {
     summary: `Prospecção: ${prospect.name}`,
