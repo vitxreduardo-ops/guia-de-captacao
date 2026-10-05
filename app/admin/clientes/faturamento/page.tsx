@@ -55,12 +55,13 @@ export default async function FaturamentoPage({
   ]);
 
   // `params.cliente` vem da URL — só aceita se estiver entre os clientes já
-  // filtrados pelo escopo desta pessoa, senão cai pro primeiro liberado.
+  // filtrados pelo escopo desta pessoa. Sem cliente válido a página abre sem
+  // faturamento, esperando a escolha.
   const requested = params.cliente;
   const clientId =
-    (requested && clients.some((client) => client.id === requested)
+    requested && clients.some((client) => client.id === requested)
       ? requested
-      : clients[0]?.id) || null;
+      : null;
 
   // A faixa mostra só os meses com movimento deste cliente. O mês aberto entra
   // sempre, senão a própria seleção sumiria da linha do tempo.
@@ -100,7 +101,7 @@ export default async function FaturamentoPage({
         <ClientTabs />
       </div>
 
-      {clientId ? (
+      {clients.length > 0 ? (
         <div className="mb-6 rounded-lg border border-neutral-200 bg-white p-4">
           <ClientSelect clients={clients} current={clientId} />
         </div>
@@ -142,8 +143,9 @@ export default async function FaturamentoPage({
             </div>
 
             <p className="mt-1.5 text-xs text-neutral-500">
-              Soma as entregas com data em {monthLabel(month)} que estão numa
-              coluna marcada como &quot;entra na nota&quot; no quadro de{" "}
+              Soma as entregas com data (ou mês de cobrança) em{" "}
+              {monthLabel(month)} que estão numa coluna marcada como
+              &quot;entra na nota&quot; no quadro de{" "}
               <Link href="/admin/clientes/entregas" className="underline">
                 Entregas
               </Link>
@@ -223,7 +225,9 @@ export default async function FaturamentoPage({
         </section>
       ) : (
         <p className="mb-8 text-sm text-neutral-500">
-          Cadastre um cliente em Galerias para começar a lançar entregas.
+          {clients.length > 0
+            ? "Escolha um cliente para ver o faturamento."
+            : "Cadastre um cliente em Galerias para começar a lançar entregas."}
         </p>
       )}
 

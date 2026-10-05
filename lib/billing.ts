@@ -80,7 +80,8 @@ export async function deleteService(id: string) {
 /**
  * O que o cliente recebeu no mês: cards do quadro de entregas que já estão numa
  * coluna marcada como entregue, com `post_date` dentro do mês. A data do card é
- * a competência — no quadro de entregas ela é lida como "data da entrega".
+ * a competência — no quadro de entregas ela é lida como "data da entrega" —,
+ * a não ser que o card tenha `billing_month`: aí ele entra na nota desse mês.
  */
 export async function getMonthDeliveries(
   clientId: string,
@@ -112,8 +113,9 @@ export async function getMonthDeliveries(
     )
     .eq("client_id", clientId)
     .in("column_id", columnIds)
-    .gte("post_date", from)
-    .lt("post_date", to)
+    .or(
+      `billing_month.eq.${from},and(billing_month.is.null,post_date.gte.${from},post_date.lt.${to})`
+    )
     .order("post_date");
   if (error) throw error;
 

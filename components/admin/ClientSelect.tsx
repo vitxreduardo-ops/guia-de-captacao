@@ -13,7 +13,7 @@ export function ClientSelect({
   current,
 }: {
   clients: { id: string; name: string }[];
-  current: string;
+  current: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -28,7 +28,7 @@ export function ClientSelect({
       </label>
       <select
         id="faturamento-cliente"
-        value={current}
+        value={current ?? ""}
         disabled={pending}
         onChange={(event) => {
           const cliente = event.target.value;
@@ -41,6 +41,11 @@ export function ClientSelect({
         }}
         className="rounded-md border border-neutral-300 px-3 py-2 text-sm disabled:opacity-60 pointer-coarse:min-h-11"
       >
+        {current === null ? (
+          <option value="" disabled>
+            Escolha um cliente
+          </option>
+        ) : null}
         {clients.map((client) => (
           <option key={client.id} value={client.id}>
             {client.name}

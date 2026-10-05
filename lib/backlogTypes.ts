@@ -86,6 +86,7 @@ export interface BacklogCard {
   unit_price_cents: number | null;
   paid_at: string | null;
   payment_method: PaymentMethod | null;
+  billing_month: string | null;
   tags: string[];
   created_at: string;
   updated_at: string;

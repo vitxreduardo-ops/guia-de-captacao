@@ -196,7 +196,7 @@ export function BacklogCardView({
               {card.paid_at || card.payment_method
                 ? [
                     card.paid_at
-                      ? `Pago em ${formatBacklogDateShort(card.paid_at)}`
+                      ? `Data de pagamento ${formatBacklogDateShort(card.paid_at)}`
                       : "Pago",
                     card.payment_method
                       ? PAYMENT_METHOD_LABELS[card.payment_method]

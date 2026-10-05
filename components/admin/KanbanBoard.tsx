@@ -355,8 +355,9 @@ function CardBody({
               anotada continua sendo uma entrega paga. */}
           {card.paid_at || card.payment_method ? (
             <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] text-emerald-700">
-              Pago
-              {card.paid_at ? ` ${formatBacklogDateShort(card.paid_at)}` : ""}
+              {card.paid_at
+                ? `Pagamento ${formatBacklogDateShort(card.paid_at)}`
+                : "Pago"}
               {card.payment_method
                 ? ` · ${PAYMENT_METHOD_LABELS[card.payment_method]}`
                 : ""}
