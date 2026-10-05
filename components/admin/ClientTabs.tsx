@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathnameInterno } from "@/lib/usePathnameInterno";
 import { motion, useReducedMotion } from "motion/react";
 
 export const CLIENT_TABS = [
@@ -26,7 +26,7 @@ export function ClientTabs({
   tabs?: { href: string; label: string }[];
   label?: string;
 } = {}) {
-  const pathname = usePathname();
+  const pathname = usePathnameInterno("/admin");
   const reduceMotion = useReducedMotion();
 
   return (

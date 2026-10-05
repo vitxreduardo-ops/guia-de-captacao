@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathnameInterno } from "@/lib/usePathnameInterno";
 import { BookOpenText, CalendarDays, Clapperboard, House } from "lucide-react";
 
 const TABS = [
@@ -17,7 +17,7 @@ const TABS = [
  * e traço, não só cor.
  */
 export function PortalNav() {
-  const pathname = usePathname();
+  const pathname = usePathnameInterno("/cliente");
   return (
     <nav
       aria-label="Portal do cliente"
