@@ -1,6 +1,6 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { COOKIE_NAME, createSessionCookieValue } from "@/lib/auth";
 import { getUserByUsername, verifyPassword } from "@/lib/users";
@@ -45,7 +45,10 @@ export async function login(formData: FormData) {
     maxAge: 60 * 60 * 24 * 30,
   });
 
-  redirect(user.role === "client" ? "/cliente" : next || "/admin");
+  // O cookie é por subdomínio: admin que entra pelo cliente.* fica no portal
+  // (a prévia), em vez de ser mandado pro sistema.* onde não está logado.
+  const noPortal = ((await headers()).get("host") ?? "").startsWith("cliente.");
+  redirect(user.role === "client" || (noPortal && next.startsWith("/admin")) ? "/cliente" : next || "/admin");
 }
 
 export async function logout() {

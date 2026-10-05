@@ -76,7 +76,7 @@ export async function proxy(request: NextRequest) {
   const session = secret ? await getSession(cookie, secret) : null;
 
   const isPortal = dentro(path, "/cliente");
-  const home = session?.role === "client" ? "/cliente" : "/admin";
+  const home = session?.role === "client" || prefixo === "/cliente" ? "/cliente" : "/admin";
 
   if (isLoginPage) {
     if (session) {
