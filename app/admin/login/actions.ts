@@ -48,7 +48,7 @@ export async function login(formData: FormData) {
   // O cookie é por subdomínio: admin que entra pelo cliente.* fica no portal
   // (a prévia), em vez de ser mandado pro sistema.* onde não está logado.
   const noPortal = ((await headers()).get("host") ?? "").startsWith("cliente.");
-  redirect(user.role === "client" || (noPortal && next === "/admin") ? "/cliente" : next || "/admin");
+  redirect(user.role === "client" || (noPortal && next.startsWith("/admin")) ? "/cliente" : next || "/admin");
 }
 
 export async function logout() {
