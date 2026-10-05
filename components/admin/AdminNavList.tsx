@@ -2,7 +2,7 @@
 
 import { motion } from "motion/react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathnameInterno } from "@/lib/usePathnameInterno";
 import { adminActions, isActive } from "@/components/admin/adminActions";
 
 /**
@@ -20,7 +20,7 @@ export function AdminNavList({
   /** A gaveta usa pra se fechar quando a pessoa escolhe pra onde vai. */
   onNavigate?: () => void;
 }) {
-  const pathname = usePathname();
+  const pathname = usePathnameInterno("/admin");
 
   return (
     <ul className="space-y-0.5">
