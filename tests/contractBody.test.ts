@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   contractBlocks,
+  contractTable,
   missingContractVars,
   renderContractBody,
 } from "@/lib/contractBody";
@@ -65,5 +66,20 @@ describe("contractBlocks", () => {
 
   it("separa parágrafos com quebra normal", () => {
     expect(contractBlocks("Um.\n\nDois.")).toEqual(["Um.", "Dois."]);
+  });
+});
+
+describe("contractTable", () => {
+  it("lê cabeçalho e linhas separados por ' | '", () => {
+    expect(contractTable("A | B\n1 | 2\n3 | 4")).toEqual([
+      ["A", "B"],
+      ["1", "2"],
+      ["3", "4"],
+    ]);
+  });
+
+  it("não vira tabela com uma linha só ou com linha sem coluna", () => {
+    expect(contractTable("A | B")).toBeNull();
+    expect(contractTable("A | B\ntexto solto")).toBeNull();
   });
 });
