@@ -93,3 +93,40 @@ export function contractTable(bloco: string): string[][] | null {
   }
   return linhas.map((l) => l.split(" | ").map((c) => c.trim()));
 }
+
+export type ContractClause = {
+  /** `null` é o que vem antes do primeiro `##` (abertura sem título). */
+  title: string | null;
+  text: string;
+};
+
+/**
+ * O corpo em cláusulas, uma por `##`, para a tela editar uma de cada vez.
+ * O que vem antes do primeiro `##` vira uma cláusula sem título, para o texto
+ * não se perder na ida e volta.
+ */
+export function splitClauses(body: string): ContractClause[] {
+  const partes = body.replace(/\r\n/g, "\n").split(/^## /m);
+  const abertura = partes.shift()?.trim() ?? "";
+  const clausulas: ContractClause[] = partes.map((parte) => {
+    const quebra = parte.indexOf("\n");
+    const titulo = quebra === -1 ? parte : parte.slice(0, quebra);
+    return {
+      title: titulo.trim(),
+      text: quebra === -1 ? "" : parte.slice(quebra + 1).trim(),
+    };
+  });
+  return abertura ? [{ title: null, text: abertura }, ...clausulas] : clausulas;
+}
+
+/** O inverso de `splitClauses`: devolve o corpo em Markdown. */
+export function joinClauses(clausulas: ContractClause[]): string {
+  return clausulas
+    .map((c) =>
+      c.title === null
+        ? c.text.trim()
+        : `## ${c.title.trim()}${c.text.trim() ? `\n\n${c.text.trim()}` : ""}`
+    )
+    .filter(Boolean)
+    .join("\n\n");
+}

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   contractBlocks,
   contractTable,
+  joinClauses,
+  splitClauses,
   missingContractVars,
   renderContractBody,
 } from "@/lib/contractBody";
@@ -81,5 +83,31 @@ describe("contractTable", () => {
   it("não vira tabela com uma linha só ou com linha sem coluna", () => {
     expect(contractTable("A | B")).toBeNull();
     expect(contractTable("A | B\ntexto solto")).toBeNull();
+  });
+});
+
+describe("splitClauses / joinClauses", () => {
+  const corpo = "Abertura.\n\n## 1. Objeto\n\nTexto.\n\nOutro.\n\n## 2. Prazo\n\n12 meses.";
+
+  it("separa em cláusulas e volta ao mesmo texto", () => {
+    const partes = splitClauses(corpo);
+    expect(partes).toEqual([
+      { title: null, text: "Abertura." },
+      { title: "1. Objeto", text: "Texto.\n\nOutro." },
+      { title: "2. Prazo", text: "12 meses." },
+    ]);
+    expect(joinClauses(partes)).toBe(corpo);
+  });
+
+  it("aceita \\r\\n do textarea e cláusula sem texto", () => {
+    expect(splitClauses("## A\r\n\r\ntexto\r\n\r\n## B")).toEqual([
+      { title: "A", text: "texto" },
+      { title: "B", text: "" },
+    ]);
+    expect(joinClauses([{ title: "B", text: "" }])).toBe("## B");
+  });
+
+  it("corpo vazio não tem cláusulas", () => {
+    expect(splitClauses("")).toEqual([]);
   });
 });

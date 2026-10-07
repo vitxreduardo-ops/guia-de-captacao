@@ -4,7 +4,10 @@ import { useMemo, useRef, useState } from "react";
 import { ContractBody } from "@/components/contract/ContractBody";
 import {
   contractBlocks,
+  joinClauses,
   renderContractBody,
+  splitClauses,
+  type ContractClause,
   type ContractVars,
 } from "@/lib/contractBody";
 import { updateContractAction } from "@/app/admin/contratos/[id]/actions";
@@ -19,6 +22,11 @@ type Contract = ContractVars & {
   status: string;
 };
 
+// Só precisa ser único entre as cláusulas da tela, então um contador do módulo
+// basta.
+let ultimoId = 0;
+const novoId = () => ++ultimoId;
+
 const campo =
   "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-500";
 const rotulo = "mb-1 block text-xs font-medium text-neutral-600";
@@ -29,7 +37,7 @@ function priceFromText(texto: string) {
   const limpo = texto.trim().replace(/[^\d,.-]/g, "");
   if (!limpo) return 0;
   const n = Number(
-    limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo
+    limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo,
   );
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
@@ -50,10 +58,39 @@ function varsFromForm(form: FormData): ContractVars {
 
 export function ContractEditor({ contract }: { contract: Contract }) {
   const travado = contract.status === "signed";
-  const [body, setBody] = useState(contract.body);
+  // Cada cláusula tem um id próprio: com o índice como chave, apagar uma do
+  // meio faria o React reaproveitar o campo da vizinha.
+  const [clausulas, setClausulas] = useState(() =>
+    splitClauses(contract.body).map((c) => ({ ...c, id: novoId() })),
+  );
+  const [abertas, setAbertas] = useState<number[]>([]);
+  const [editou, setEditou] = useState(false);
+  // Até a primeira edição vale o corpo salvo, byte a byte: abrir e salvar sem
+  // mexer nas cláusulas não pode reformatar o contrato.
+  const body = editou ? joinClauses(clausulas) : contract.body;
   const [vars, setVars] = useState<ContractVars>(contract);
   const [ativa, setAtiva] = useState<number | null>(null);
   const documento = useRef<HTMLDivElement>(null);
+  const painel = useRef<HTMLDivElement>(null);
+
+  type Bloco = ContractClause & { id: number };
+  function mudar(proximas: Bloco[]) {
+    setEditou(true);
+    setClausulas(proximas);
+  }
+  function editar(id: number, parte: Partial<ContractClause>) {
+    mudar(clausulas.map((c) => (c.id === id ? { ...c, ...parte } : c)));
+  }
+  function alternar(id: number) {
+    setAbertas((a) =>
+      a.includes(id) ? a.filter((x) => x !== id) : [...a, id],
+    );
+  }
+  function adicionar() {
+    const id = novoId();
+    mudar([...clausulas, { id, title: "", text: "" }]);
+    setAbertas((a) => [...a, id]);
+  }
 
   const preview = useMemo(() => renderContractBody(body, vars), [body, vars]);
 
@@ -64,12 +101,26 @@ export function ContractEditor({ contract }: { contract: Contract }) {
       contractBlocks(preview)
         .filter((bloco) => bloco.startsWith("## "))
         .map((bloco) => bloco.slice(3)),
-    [preview]
+    [preview],
   );
   const ehAnexo = (titulo: string) => /^anexo/i.test(titulo);
 
   function irPara(indice: number) {
     setAtiva(indice);
+    // O sumário só lista cláusulas com título, e a abertura (sem título) vem
+    // antes delas na lista de blocos.
+    const titulados = clausulas.filter((c) => c.title !== null);
+    const alvo = titulados[indice];
+    if (alvo) {
+      setAbertas((a) => (a.includes(alvo.id) ? a : [...a, alvo.id]));
+      setTimeout(
+        () =>
+          painel.current
+            ?.querySelector(`[data-clausula="${alvo.id}"]`)
+            ?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
+        0,
+      );
+    }
     documento.current
       ?.querySelectorAll("h2")
       [indice]?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -91,7 +142,7 @@ export function ContractEditor({ contract }: { contract: Contract }) {
     </li>
   );
 
-  const clausulas = titulos
+  const itensClausulas = titulos
     .map((titulo, indice) => ({ titulo, indice }))
     .filter((t) => !ehAnexo(t.titulo));
   const anexos = titulos
@@ -104,7 +155,6 @@ export function ContractEditor({ contract }: { contract: Contract }) {
       action={updateContractAction}
       onChange={(e) => {
         const dados = new FormData(e.currentTarget);
-        setBody(String(dados.get("body") ?? ""));
         setVars(varsFromForm(dados));
       }}
       className="grid gap-4 lg:grid-cols-[200px_minmax(0,1fr)_340px]"
@@ -123,7 +173,7 @@ export function ContractEditor({ contract }: { contract: Contract }) {
           ) : (
             <>
               <ul className="mt-2 space-y-0.5">
-                {clausulas.map((t) => itemSumario(t.titulo, t.indice))}
+                {itensClausulas.map((t) => itemSumario(t.titulo, t.indice))}
               </ul>
               {anexos.length > 0 ? (
                 <>
@@ -156,7 +206,10 @@ export function ContractEditor({ contract }: { contract: Contract }) {
         )}
       </div>
 
-      <div className="space-y-6 rounded-lg border border-neutral-200 bg-white p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto">
+      <div
+        ref={painel}
+        className="space-y-6 rounded-lg border border-neutral-200 bg-white p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto"
+      >
         {travado ? (
           <p className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
             Contrato assinado. O texto não muda mais — para alterar algo, crie
@@ -331,17 +384,80 @@ export function ContractEditor({ contract }: { contract: Contract }) {
             <h2 className="mb-3 text-sm font-semibold text-neutral-900">
               Cláusulas
             </h2>
-            <textarea
-              id="body"
-              name="body"
-              rows={20}
-              defaultValue={contract.body}
-              className={`${campo} font-mono text-xs leading-relaxed`}
-            />
-            <p className="mt-1 text-xs text-neutral-500">
-              Markdown: <code>##</code> abre uma cláusula,{" "}
-              <code>**texto**</code> fica em negrito. As chaves duplas são
-              trocadas pelos campos acima na hora de exibir.
+            <input type="hidden" name="body" value={body} />
+            <ul className="space-y-2">
+              {clausulas.map((c) => {
+                const aberta = abertas.includes(c.id);
+                const linhas = Math.min(
+                  24,
+                  Math.max(4, c.text.split("\n").length + 1),
+                );
+                return (
+                  <li
+                    key={c.id}
+                    data-clausula={c.id}
+                    className="rounded-md border border-neutral-200"
+                  >
+                    <div className="flex items-center gap-1 p-1">
+                      <button
+                        type="button"
+                        onClick={() => alternar(c.id)}
+                        aria-expanded={aberta}
+                        aria-label={aberta ? "Recolher" : "Expandir"}
+                        className="rounded px-1.5 py-1 text-xs text-neutral-500 hover:bg-neutral-100"
+                      >
+                        {aberta ? "▾" : "▸"}
+                      </button>
+                      {c.title === null ? (
+                        <span className="flex-1 px-1 text-xs font-medium text-neutral-600">
+                          Abertura
+                        </span>
+                      ) : (
+                        <input
+                          value={c.title}
+                          onChange={(e) =>
+                            editar(c.id, { title: e.target.value })
+                          }
+                          placeholder="Título da cláusula"
+                          aria-label="Título da cláusula"
+                          className="min-w-0 flex-1 rounded border border-transparent px-1 py-1 text-xs font-medium text-neutral-900 hover:border-neutral-200 focus:border-neutral-400 focus:outline-none"
+                        />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          mudar(clausulas.filter((x) => x.id !== c.id))
+                        }
+                        aria-label="Remover cláusula"
+                        className="rounded px-1.5 py-1 text-xs text-neutral-400 hover:bg-red-50 hover:text-red-600"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    {aberta ? (
+                      <textarea
+                        value={c.text}
+                        onChange={(e) => editar(c.id, { text: e.target.value })}
+                        rows={linhas}
+                        aria-label="Texto da cláusula"
+                        className={`${campo} rounded-t-none border-x-0 border-b-0 font-mono text-xs leading-relaxed`}
+                      />
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+            <button
+              type="button"
+              onClick={adicionar}
+              className="mt-2 rounded-md border border-dashed border-neutral-300 px-3 py-1.5 text-xs text-neutral-600 hover:bg-neutral-50"
+            >
+              + Adicionar cláusula
+            </button>
+            <p className="mt-2 text-xs text-neutral-500">
+              Dentro de cada cláusula: <code>**texto**</code> fica em negrito.
+              As chaves duplas são trocadas pelos campos acima na hora de
+              exibir.
             </p>
           </div>
 
