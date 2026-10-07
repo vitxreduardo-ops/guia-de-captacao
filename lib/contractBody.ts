@@ -80,3 +80,16 @@ export function contractBlocks(text: string): string[] {
     .map((bloco) => bloco.trim())
     .filter(Boolean);
 }
+
+/**
+ * Um bloco que é tabela: duas linhas ou mais, todas com colunas separadas por
+ * ` | `. A primeira linha é o cabeçalho. Qualquer outra coisa devolve null e
+ * segue como parágrafo — um texto com uma barra solta não vira tabela.
+ */
+export function contractTable(bloco: string): string[][] | null {
+  const linhas = bloco.split("\n");
+  if (linhas.length < 2 || !linhas.every((l) => l.includes(" | "))) {
+    return null;
+  }
+  return linhas.map((l) => l.split(" | ").map((c) => c.trim()));
+}

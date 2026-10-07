@@ -1,4 +1,4 @@
-import { contractBlocks } from "@/lib/contractBody";
+import { contractBlocks, contractTable } from "@/lib/contractBody";
 
 /**
  * O corpo do contrato, já com as variáveis trocadas, desenhado na tela.
@@ -25,6 +25,43 @@ export function ContractBody({ text }: { text: string }) {
             >
               {limpo.slice(3)}
             </h2>
+          );
+        }
+
+        const tabela = contractTable(limpo);
+        if (tabela) {
+          const [cabecalho, ...linhas] = tabela;
+          return (
+            <div key={indice} className="overflow-x-auto">
+              <table className="w-full border-collapse text-left text-xs leading-snug text-[var(--tatu-ink)]/85">
+                <thead>
+                  <tr>
+                    {cabecalho.map((celula, i) => (
+                      <th
+                        key={i}
+                        className="border border-[var(--tatu-ink)]/15 bg-[var(--tatu-ink)]/5 px-2 py-1.5 font-semibold"
+                      >
+                        <Inline text={celula} />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {linhas.map((linha, r) => (
+                    <tr key={r}>
+                      {linha.map((celula, i) => (
+                        <td
+                          key={i}
+                          className="border border-[var(--tatu-ink)]/15 px-2 py-1.5 align-top"
+                        >
+                          <Inline text={celula} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           );
         }
 

@@ -129,7 +129,10 @@ export async function createContract(
   const templates = await listContractTemplates();
   const template = templateId
     ? templates.find((t) => t.id === templateId)
-    : templates.find((t) => t.kind === kind);
+    : // O modelo completo cobre as três modalidades (cláusula 2.2), então
+      // serve aos dois tipos; os modelos curtos ficam de reserva.
+      (templates.find((t) => t.slug === "modelo-completo") ??
+      templates.find((t) => t.kind === kind));
 
   const { data, error } = await supabase
     .from("contracts")
