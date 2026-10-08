@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   contractBlocks,
+  applyToggles,
   contractTable,
   joinClauses,
   splitClauses,
@@ -109,5 +110,51 @@ describe("splitClauses / joinClauses", () => {
 
   it("corpo vazio não tem cláusulas", () => {
     expect(splitClauses("")).toEqual([]);
+  });
+});
+
+describe("applyToggles", () => {
+  const corpo = [
+    "## Cláusula 1 — Partes",
+    "texto solto.",
+    "## Cláusula 2 — Objeto",
+    "2.1. Primeiro.",
+    "[[off]] 2.2. Segundo, desligado.",
+    "A | B\n1 | 2",
+    "2.3. Terceiro, conforme a Cláusula 3.",
+    "2.3.1. Filho.",
+    "## Cláusula 3 — Prazos",
+    "3.1. Item, ver Cláusula 2.3.",
+  ].join("\n\n");
+
+  it("sem nada desligado, devolve o mesmo texto", () => {
+    const limpo = corpo.replace("[[off]] ", "");
+    expect(applyToggles(limpo)).toBe(limpo);
+  });
+
+  it("item desligado some com o que o explica e fecha a numeração", () => {
+    const saida = applyToggles(corpo);
+    expect(saida).not.toContain("Segundo");
+    expect(saida).not.toContain("A | B");
+    expect(saida).toContain("2.2. Terceiro, conforme a Cláusula 3.");
+    expect(saida).toContain("2.2.1. Filho.");
+    // a referência acompanha o item que mudou de número
+    expect(saida).toContain("ver Cláusula 2.2.");
+  });
+
+  it("cláusula desligada renumera as seguintes e as referências a elas", () => {
+    const saida = applyToggles(
+      corpo.replace("## Cláusula 2 — Objeto", "## [[off]] Cláusula 2 — Objeto")
+    );
+    expect(saida).toContain("## Cláusula 2 — Prazos");
+    expect(saida).toContain("2.1. Item");
+    expect(saida).not.toContain("Terceiro");
+  });
+
+  it("item pai desligado leva os filhos", () => {
+    const saida = applyToggles(
+      corpo.replace("\n\n2.3. Terceiro", "\n\n[[off]] 2.3. Terceiro")
+    );
+    expect(saida).not.toContain("Filho");
   });
 });

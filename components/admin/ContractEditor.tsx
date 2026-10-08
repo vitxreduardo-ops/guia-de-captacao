@@ -2,12 +2,17 @@
 
 import { useMemo, useRef, useState } from "react";
 import { ContractBody } from "@/components/contract/ContractBody";
+import { Interruptor, PieceEditor } from "@/components/admin/ContractPieces";
 import {
-  contractBlocks,
+  clauseTitleText,
   joinClauses,
+  layoutContract,
+  parseClauseTitle,
+  parsePieces,
+  piecesToText,
   renderContractBody,
   splitClauses,
-  type ContractClause,
+  type ContractPiece,
   type ContractVars,
 } from "@/lib/contractBody";
 import { updateContractAction } from "@/app/admin/contratos/[id]/actions";
@@ -20,6 +25,14 @@ type Contract = ContractVars & {
   client_address: string;
   body: string;
   status: string;
+};
+
+type Peca = ContractPiece & { pid: number };
+type Clausula = {
+  id: number;
+  title: string | null;
+  off: boolean;
+  pieces: Peca[];
 };
 
 // Só precisa ser único entre as cláusulas da tela, então um contador do módulo
@@ -56,98 +69,319 @@ function varsFromForm(form: FormData): ContractVars {
   };
 }
 
+const ehAnexo = (titulo: string | null) => /^anexo/i.test(titulo ?? "");
+
+/** O número que a cláusula tem no texto digitado ("Cláusula 7" -> "7"). */
+const numeroDe = (titulo: string | null) =>
+  titulo?.match(/^Cláusula\s+(\d+)/)?.[1] ?? null;
+
+function lerClausulas(body: string): Clausula[] {
+  return splitClauses(body).map((c) => {
+    const { title, off } = parseClauseTitle(c.title);
+    return {
+      id: novoId(),
+      title,
+      off,
+      pieces: parsePieces(c.text).map((p) => ({ ...p, pid: novoId() })),
+    };
+  });
+}
+
+function juntarClausulas(clausulas: Clausula[]) {
+  return joinClauses(
+    clausulas.map((c) => ({
+      title: clauseTitleText(c.title, c.off),
+      text: piecesToText(c.pieces),
+    })),
+  );
+}
+
 export function ContractEditor({ contract }: { contract: Contract }) {
   const travado = contract.status === "signed";
-  // Cada cláusula tem um id próprio: com o índice como chave, apagar uma do
-  // meio faria o React reaproveitar o campo da vizinha.
-  const [clausulas, setClausulas] = useState(() =>
-    splitClauses(contract.body).map((c) => ({ ...c, id: novoId() })),
-  );
+  // Cada cláusula e cada peça tem id próprio: com o índice como chave, apagar
+  // uma do meio faria o React reaproveitar o campo da vizinha.
+  const [clausulas, setClausulas] = useState(() => lerClausulas(contract.body));
   const [abertas, setAbertas] = useState<number[]>([]);
   const [editou, setEditou] = useState(false);
   // Até a primeira edição vale o corpo salvo, byte a byte: abrir e salvar sem
   // mexer nas cláusulas não pode reformatar o contrato.
-  const body = editou ? joinClauses(clausulas) : contract.body;
+  const body = editou ? juntarClausulas(clausulas) : contract.body;
   const [vars, setVars] = useState<ContractVars>(contract);
   const [ativa, setAtiva] = useState<number | null>(null);
   const documento = useRef<HTMLDivElement>(null);
   const painel = useRef<HTMLDivElement>(null);
 
-  type Bloco = ContractClause & { id: number };
-  function mudar(proximas: Bloco[]) {
+  const preview = useMemo(() => renderContractBody(body, vars), [body, vars]);
+  const layout = useMemo(() => layoutContract(clausulas), [clausulas]);
+
+  function mudar(proximas: Clausula[]) {
     setEditou(true);
     setClausulas(proximas);
   }
-  function editar(id: number, parte: Partial<ContractClause>) {
+  function editar(id: number, parte: Partial<Clausula>) {
     mudar(clausulas.map((c) => (c.id === id ? { ...c, ...parte } : c)));
+  }
+  function editarPeca(id: number, pid: number, peca: ContractPiece | null) {
+    mudar(
+      clausulas.map((c) =>
+        c.id !== id
+          ? c
+          : {
+              ...c,
+              pieces: c.pieces.flatMap((p) =>
+                p.pid !== pid ? [p] : peca ? [{ ...peca, pid }] : [],
+              ),
+            },
+      ),
+    );
   }
   function alternar(id: number) {
     setAbertas((a) =>
       a.includes(id) ? a.filter((x) => x !== id) : [...a, id],
     );
   }
-  function adicionar() {
+  function abrir(id: number) {
+    setAbertas((a) => (a.includes(id) ? a : [...a, id]));
+  }
+  function adicionarPeca(c: Clausula, nova: ContractPiece) {
+    editar(c.id, { pieces: [...c.pieces, { ...nova, pid: novoId() }] });
+    abrir(c.id);
+  }
+  function adicionarItem(c: Clausula) {
+    const n = numeroDe(c.title);
+    if (!n) return;
+    const usados = c.pieces.flatMap((p) => {
+      const m = p.kind === "text" ? p.num?.match(/^\d+\.(\d+)$/) : null;
+      return m ? [Number(m[1])] : [];
+    });
+    const proximo = (usados.length ? Math.max(...usados) : 0) + 1;
+    adicionarPeca(c, {
+      kind: "text",
+      text: "",
+      num: `${n}.${proximo}`,
+      off: false,
+    });
+  }
+  function adicionarClausula(anexo: boolean) {
     const id = novoId();
-    mudar([...clausulas, { id, title: "", text: "" }]);
-    setAbertas((a) => [...a, id]);
+    const numeros = clausulas.flatMap((c) => {
+      const n = numeroDe(c.title);
+      return n ? [Number(n)] : [];
+    });
+    const qtdAnexos = clausulas.filter((c) => ehAnexo(c.title)).length;
+    const nova: Clausula = {
+      id,
+      title: anexo
+        ? `Anexo ${qtdAnexos + 1} — `
+        : `Cláusula ${(numeros.length ? Math.max(...numeros) : 0) + 1} — `,
+      off: false,
+      pieces: [],
+    };
+    // Cláusula nova entra antes dos anexos; anexo novo, no fim.
+    const primeiroAnexo = clausulas.findIndex((c) => ehAnexo(c.title));
+    const em = anexo || primeiroAnexo === -1 ? clausulas.length : primeiroAnexo;
+    mudar([...clausulas.slice(0, em), nova, ...clausulas.slice(em)]);
+    abrir(id);
   }
 
-  const preview = useMemo(() => renderContractBody(body, vars), [body, vars]);
-
-  // As cláusulas são os blocos `## ` — a mesma regra do `ContractBody`, então
-  // o índice aqui é o índice do <h2> desenhado.
-  const titulos = useMemo(
-    () =>
-      contractBlocks(preview)
-        .filter((bloco) => bloco.startsWith("## "))
-        .map((bloco) => bloco.slice(3)),
-    [preview],
-  );
-  const ehAnexo = (titulo: string) => /^anexo/i.test(titulo);
-
-  function irPara(indice: number) {
-    setAtiva(indice);
-    // O sumário só lista cláusulas com título, e a abertura (sem título) vem
-    // antes delas na lista de blocos.
-    const titulados = clausulas.filter((c) => c.title !== null);
-    const alvo = titulados[indice];
-    if (alvo) {
-      setAbertas((a) => (a.includes(alvo.id) ? a : [...a, alvo.id]));
-      setTimeout(
-        () =>
-          painel.current
-            ?.querySelector(`[data-clausula="${alvo.id}"]`)
-            ?.scrollIntoView({ behavior: "smooth", block: "nearest" }),
-        0,
-      );
+  // Posição de cada cláusula ligada entre os <h2> da prévia: desligada não
+  // desenha título, então não conta.
+  const posicaoNaPrevia = new Map<number, number>();
+  clausulas.forEach((c, i) => {
+    if (c.title !== null && layout.clauses[i].on) {
+      posicaoNaPrevia.set(c.id, posicaoNaPrevia.size);
     }
-    documento.current
-      ?.querySelectorAll("h2")
-      [indice]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+
+  /** O título como o cliente lê: com o número depois de fechar os buracos. */
+  function tituloExibido(c: Clausula, i: number) {
+    const n = layout.clauses[i].num;
+    return n !== null && c.title
+      ? c.title.replace(/^Cláusula\s+\d+/, `Cláusula ${n}`)
+      : (c.title ?? "");
   }
 
-  const itemSumario = (titulo: string, indice: number) => (
-    <li key={indice}>
+  function irPara(c: Clausula) {
+    setAtiva(c.id);
+    abrir(c.id);
+    setTimeout(() => {
+      painel.current
+        ?.querySelector(`[data-clausula="${c.id}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 0);
+    const pos = posicaoNaPrevia.get(c.id);
+    if (pos !== undefined) {
+      documento.current
+        ?.querySelectorAll("h2")
+        [pos]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  const titulados = clausulas
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => c.title !== null);
+  const abertura = clausulas
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => c.title === null);
+  const soClausulas = titulados.filter(({ c }) => !ehAnexo(c.title));
+  const soAnexos = titulados.filter(({ c }) => ehAnexo(c.title));
+
+  const itemSumario = ({ c, i }: { c: Clausula; i: number }) => (
+    <li key={c.id} className="flex items-start gap-1.5">
+      <span className="pt-1.5">
+        <Interruptor
+          ligado={!c.off}
+          rotulo={`${c.title} no contrato`}
+          onChange={(ligado) => editar(c.id, { off: !ligado })}
+        />
+      </span>
       <button
         type="button"
-        onClick={() => irPara(indice)}
-        className={`w-full rounded px-2 py-1 text-left text-xs leading-snug hover:bg-neutral-100 ${
-          ativa === indice
+        onClick={() => irPara(c)}
+        className={`min-w-0 flex-1 rounded px-1.5 py-1 text-left text-xs leading-snug hover:bg-neutral-100 ${
+          ativa === c.id
             ? "bg-neutral-100 font-semibold text-neutral-900"
             : "text-neutral-600"
-        }`}
+        } ${c.off ? "line-through opacity-50" : ""}`}
       >
-        {titulo}
+        {tituloExibido(c, i)}
       </button>
     </li>
   );
 
-  const itensClausulas = titulos
-    .map((titulo, indice) => ({ titulo, indice }))
-    .filter((t) => !ehAnexo(t.titulo));
-  const anexos = titulos
-    .map((titulo, indice) => ({ titulo, indice }))
-    .filter((t) => ehAnexo(t.titulo));
+  const blocoClausula = (
+    { c, i }: { c: Clausula; i: number },
+    anexo?: number,
+  ) => {
+    const aberta = abertas.includes(c.id);
+    const numerada = numeroDe(c.title) !== null;
+    return (
+      <li
+        key={c.id}
+        data-clausula={c.id}
+        className={`rounded-md border border-neutral-200 ${
+          c.off ? "bg-neutral-50" : ""
+        }`}
+      >
+        <div className="flex items-center gap-1 p-1">
+          <button
+            type="button"
+            onClick={() => alternar(c.id)}
+            aria-expanded={aberta}
+            aria-label={aberta ? "Recolher" : "Expandir"}
+            className="rounded px-1.5 py-1 text-xs text-neutral-500 hover:bg-neutral-100"
+          >
+            {aberta ? "▾" : "▸"}
+          </button>
+          {anexo !== undefined ? (
+            <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 uppercase">
+              Anexo {anexo}
+            </span>
+          ) : null}
+          {c.title === null ? (
+            <span className="min-w-0 flex-1 px-1 text-xs font-medium text-neutral-600">
+              Abertura
+            </span>
+          ) : (
+            <input
+              value={c.title ?? ""}
+              onChange={(e) => editar(c.id, { title: e.target.value })}
+              placeholder="Título"
+              aria-label="Título"
+              className={`min-w-0 flex-1 rounded border border-transparent px-1 py-1 text-xs font-medium hover:border-neutral-200 focus:border-neutral-400 focus:outline-none ${
+                c.off ? "text-neutral-400 line-through" : "text-neutral-900"
+              }`}
+            />
+          )}
+          {c.title === null ? null : (
+            <Interruptor
+              ligado={!c.off}
+              rotulo={`${c.title} no contrato`}
+              onChange={(ligado) => editar(c.id, { off: !ligado })}
+            />
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm(`Remover "${c.title}" e todo o texto dela?`)) {
+                mudar(clausulas.filter((x) => x.id !== c.id));
+              }
+            }}
+            aria-label="Remover"
+            className="rounded px-1.5 py-1 text-xs text-neutral-400 hover:bg-red-50 hover:text-red-600"
+          >
+            ✕
+          </button>
+        </div>
+        {aberta ? (
+          <div className="space-y-2 border-t border-neutral-200 p-2">
+            {c.pieces.length === 0 ? (
+              <p className="text-xs text-neutral-400">
+                Vazio. Adicione um parágrafo, item, tabela ou lista abaixo.
+              </p>
+            ) : null}
+            {c.pieces.map((p, j) => (
+              <PieceEditor
+                key={p.pid}
+                piece={p}
+                label={layout.clauses[i].pieces[j]?.label ?? null}
+                on={layout.clauses[i].pieces[j]?.on ?? true}
+                onChange={(nova) => editarPeca(c.id, p.pid, nova)}
+                onRemove={() => editarPeca(c.id, p.pid, null)}
+              />
+            ))}
+            <div className="flex flex-wrap gap-1 pt-1">
+              {numerada ? (
+                <button
+                  type="button"
+                  onClick={() => adicionarItem(c)}
+                  className="rounded border border-dashed border-neutral-300 px-2 py-1 text-[11px] text-neutral-600 hover:bg-neutral-50"
+                >
+                  + Item numerado
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() =>
+                  adicionarPeca(c, {
+                    kind: "text",
+                    text: "",
+                    num: null,
+                    off: false,
+                  })
+                }
+                className="rounded border border-dashed border-neutral-300 px-2 py-1 text-[11px] text-neutral-600 hover:bg-neutral-50"
+              >
+                + Parágrafo
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  adicionarPeca(c, {
+                    kind: "table",
+                    rows: [
+                      ["Item", "Descrição"],
+                      ["", ""],
+                    ],
+                  })
+                }
+                className="rounded border border-dashed border-neutral-300 px-2 py-1 text-[11px] text-neutral-600 hover:bg-neutral-50"
+              >
+                + Tabela
+              </button>
+              <button
+                type="button"
+                onClick={() => adicionarPeca(c, { kind: "list", items: [""] })}
+                className="rounded border border-dashed border-neutral-300 px-2 py-1 text-[11px] text-neutral-600 hover:bg-neutral-50"
+              >
+                + Lista
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </li>
+    );
+  };
 
   return (
     <form
@@ -157,7 +391,7 @@ export function ContractEditor({ contract }: { contract: Contract }) {
         const dados = new FormData(e.currentTarget);
         setVars(varsFromForm(dados));
       }}
-      className="grid gap-4 lg:grid-cols-[200px_minmax(0,1fr)_340px]"
+      className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)_380px]"
     >
       <input type="hidden" name="id" value={contract.id} />
 
@@ -166,25 +400,27 @@ export function ContractEditor({ contract }: { contract: Contract }) {
           <summary className="cursor-pointer text-xs font-semibold tracking-wide text-neutral-500 uppercase lg:cursor-default">
             Sumário
           </summary>
-          {titulos.length === 0 ? (
+          {titulados.length === 0 ? (
             <p className="mt-2 text-xs text-neutral-500">
-              Sem cláusulas ainda. Abra uma com <code>##</code>.
+              Sem cláusulas ainda. Adicione uma no painel ao lado.
             </p>
           ) : (
             <>
               <ul className="mt-2 space-y-0.5">
-                {itensClausulas.map((t) => itemSumario(t.titulo, t.indice))}
+                {soClausulas.map(itemSumario)}
               </ul>
-              {anexos.length > 0 ? (
+              {soAnexos.length > 0 ? (
                 <>
                   <p className="mt-3 mb-1 text-[10px] font-semibold tracking-wide text-neutral-400 uppercase">
                     Anexos
                   </p>
-                  <ul className="space-y-0.5">
-                    {anexos.map((t) => itemSumario(t.titulo, t.indice))}
-                  </ul>
+                  <ul className="space-y-0.5">{soAnexos.map(itemSumario)}</ul>
                 </>
               ) : null}
+              <p className="mt-3 text-[10px] leading-snug text-neutral-400">
+                A chave liga e desliga no contrato. Desligado, some do texto e a
+                numeração fecha o buraco.
+              </p>
             </>
           )}
         </details>
@@ -386,78 +622,33 @@ export function ContractEditor({ contract }: { contract: Contract }) {
             </h2>
             <input type="hidden" name="body" value={body} />
             <ul className="space-y-2">
-              {clausulas.map((c) => {
-                const aberta = abertas.includes(c.id);
-                const linhas = Math.min(
-                  24,
-                  Math.max(4, c.text.split("\n").length + 1),
-                );
-                return (
-                  <li
-                    key={c.id}
-                    data-clausula={c.id}
-                    className="rounded-md border border-neutral-200"
-                  >
-                    <div className="flex items-center gap-1 p-1">
-                      <button
-                        type="button"
-                        onClick={() => alternar(c.id)}
-                        aria-expanded={aberta}
-                        aria-label={aberta ? "Recolher" : "Expandir"}
-                        className="rounded px-1.5 py-1 text-xs text-neutral-500 hover:bg-neutral-100"
-                      >
-                        {aberta ? "▾" : "▸"}
-                      </button>
-                      {c.title === null ? (
-                        <span className="flex-1 px-1 text-xs font-medium text-neutral-600">
-                          Abertura
-                        </span>
-                      ) : (
-                        <input
-                          value={c.title}
-                          onChange={(e) =>
-                            editar(c.id, { title: e.target.value })
-                          }
-                          placeholder="Título da cláusula"
-                          aria-label="Título da cláusula"
-                          className="min-w-0 flex-1 rounded border border-transparent px-1 py-1 text-xs font-medium text-neutral-900 hover:border-neutral-200 focus:border-neutral-400 focus:outline-none"
-                        />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          mudar(clausulas.filter((x) => x.id !== c.id))
-                        }
-                        aria-label="Remover cláusula"
-                        className="rounded px-1.5 py-1 text-xs text-neutral-400 hover:bg-red-50 hover:text-red-600"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    {aberta ? (
-                      <textarea
-                        value={c.text}
-                        onChange={(e) => editar(c.id, { text: e.target.value })}
-                        rows={linhas}
-                        aria-label="Texto da cláusula"
-                        className={`${campo} rounded-t-none border-x-0 border-b-0 font-mono text-xs leading-relaxed`}
-                      />
-                    ) : null}
-                  </li>
-                );
-              })}
+              {[...abertura, ...soClausulas].map((x) => blocoClausula(x))}
             </ul>
             <button
               type="button"
-              onClick={adicionar}
+              onClick={() => adicionarClausula(false)}
               className="mt-2 rounded-md border border-dashed border-neutral-300 px-3 py-1.5 text-xs text-neutral-600 hover:bg-neutral-50"
             >
               + Adicionar cláusula
             </button>
+
+            <h2 className="mt-6 mb-3 text-sm font-semibold text-neutral-900">
+              Anexos
+            </h2>
+            <ul className="space-y-2">
+              {soAnexos.map((x, n) => blocoClausula(x, n + 1))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => adicionarClausula(true)}
+              className="mt-2 rounded-md border border-dashed border-neutral-300 px-3 py-1.5 text-xs text-neutral-600 hover:bg-neutral-50"
+            >
+              + Adicionar anexo
+            </button>
+
             <p className="mt-2 text-xs text-neutral-500">
-              Dentro de cada cláusula: <code>**texto**</code> fica em negrito.
-              As chaves duplas são trocadas pelos campos acima na hora de
-              exibir.
+              Dentro dos textos, <code>**texto**</code> fica em negrito. As
+              chaves duplas são trocadas pelos campos acima na hora de exibir.
             </p>
           </div>
 
