@@ -9,6 +9,8 @@
 export type ContractVars = {
   client_name: string;
   client_document: string;
+  client_email?: string;
+  client_address?: string;
   scope: string;
   price: number;
   payment_terms: string;
@@ -32,6 +34,8 @@ export function contractValues(vars: ContractVars): Record<string, string> {
   return {
     cliente: vars.client_name,
     documento: vars.client_document,
+    email: vars.client_email ?? "",
+    endereco: vars.client_address ?? "",
     escopo: vars.scope,
     valor: vars.price > 0 ? BRL.format(vars.price) : "",
     pagamento: vars.payment_terms,

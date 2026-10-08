@@ -65,6 +65,8 @@ function varsFromForm(form: FormData): ContractVars {
   return {
     client_name: texto("client_name"),
     client_document: texto("client_document"),
+    client_email: texto("client_email"),
+    client_address: texto("client_address"),
     scope: texto("scope"),
     price: priceFromText(texto("price")),
     payment_terms: texto("payment_terms"),

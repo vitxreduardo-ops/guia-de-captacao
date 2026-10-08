@@ -20,16 +20,26 @@ const base = {
 };
 
 describe("renderContractBody", () => {
+  it("troca endereço e e-mail do cliente", () => {
+    expect(
+      renderContractBody("{{endereco}} / {{email}}", {
+        ...base,
+        client_address: "Rua 13 de Maio, 170",
+        client_email: "a@b.com",
+      }),
+    ).toBe("Rua 13 de Maio, 170 / a@b.com");
+  });
+
   it("troca as variáveis preenchidas", () => {
     const texto = renderContractBody(
       "{{cliente}} paga {{valor}} a partir de {{inicio}}, por {{meses}} meses.",
-      base
+      base,
     );
     // `R$\u00a0` com espaço fixo é o que o Intl devolve em pt-BR; escrever o
     // espaço comum aqui faz o teste falhar com as duas strings idênticas na
     // tela.
     expect(texto).toBe(
-      "Padaria do Zé paga R$\u00a02.500,00 a partir de 01/10/2026, por 6 meses."
+      "Padaria do Zé paga R$\u00a02.500,00 a partir de 01/10/2026, por 6 meses.",
     );
   });
 
@@ -88,7 +98,8 @@ describe("contractTable", () => {
 });
 
 describe("splitClauses / joinClauses", () => {
-  const corpo = "Abertura.\n\n## 1. Objeto\n\nTexto.\n\nOutro.\n\n## 2. Prazo\n\n12 meses.";
+  const corpo =
+    "Abertura.\n\n## 1. Objeto\n\nTexto.\n\nOutro.\n\n## 2. Prazo\n\n12 meses.";
 
   it("separa em cláusulas e volta ao mesmo texto", () => {
     const partes = splitClauses(corpo);
@@ -144,7 +155,7 @@ describe("applyToggles", () => {
 
   it("cláusula desligada renumera as seguintes e as referências a elas", () => {
     const saida = applyToggles(
-      corpo.replace("## Cláusula 2 — Objeto", "## [[off]] Cláusula 2 — Objeto")
+      corpo.replace("## Cláusula 2 — Objeto", "## [[off]] Cláusula 2 — Objeto"),
     );
     expect(saida).toContain("## Cláusula 2 — Prazos");
     expect(saida).toContain("2.1. Item");
@@ -153,7 +164,7 @@ describe("applyToggles", () => {
 
   it("item pai desligado leva os filhos", () => {
     const saida = applyToggles(
-      corpo.replace("\n\n2.3. Terceiro", "\n\n[[off]] 2.3. Terceiro")
+      corpo.replace("\n\n2.3. Terceiro", "\n\n[[off]] 2.3. Terceiro"),
     );
     expect(saida).not.toContain("Filho");
   });
