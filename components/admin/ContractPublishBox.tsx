@@ -49,7 +49,9 @@ export function ContractPublishBox({
           {assinado ? (
             <p className="mt-0.5 text-sm text-neutral-500">
               Aceito por {contract.signed_name || "—"}
-              {contract.signed_document ? ` (${contract.signed_document})` : ""}{" "}
+              {contract.signed_document
+                ? ` (${contract.signed_document})`
+                : ""}{" "}
               em{" "}
               {contract.signed_at
                 ? new Date(contract.signed_at).toLocaleString("pt-BR")
@@ -100,19 +102,25 @@ export function ContractPublishBox({
 
           {/* Assinado não tem botão: voltar pra rascunho e reescrever deixaria
               o aceite apontando pra um texto que não existe mais. */}
-          {assinado ? null : (
+          {assinado ? null : publicado ? (
+            // Já no ar, o botão é o "Salvar" do editor: o atributo `form`
+            // manda o formulário que está mais abaixo na página.
+            <button
+              type="submit"
+              form="contract-editor"
+              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+            >
+              Salvar
+            </button>
+          ) : (
             <form action={setContractStatusAction}>
               <input type="hidden" name="id" value={contract.id} />
-              <input
-                type="hidden"
-                name="status"
-                value={publicado ? "draft" : "published"}
-              />
+              <input type="hidden" name="status" value="published" />
               <button
                 type="submit"
                 className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
               >
-                {publicado ? "Voltar para rascunho" : "Publicar"}
+                Publicar
               </button>
             </form>
           )}

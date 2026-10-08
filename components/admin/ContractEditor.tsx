@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ContractBody } from "@/components/contract/ContractBody";
 import { Interruptor, PieceEditor } from "@/components/admin/ContractPieces";
 import {
@@ -39,6 +39,10 @@ type Clausula = {
 // basta.
 let ultimoId = 0;
 const novoId = () => ++ultimoId;
+
+const LARGURA_PADRAO = 400;
+const LARGURA_MIN = 320;
+const LARGURA_CHAVE = "contrato-painel-largura";
 
 const campo =
   "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-500";
@@ -110,6 +114,26 @@ export function ContractEditor({ contract }: { contract: Contract }) {
   const [ativa, setAtiva] = useState<number | null>(null);
   const documento = useRef<HTMLDivElement>(null);
   const painel = useRef<HTMLDivElement>(null);
+  const [largura, setLargura] = useState(LARGURA_PADRAO);
+
+  // A largura escolhida vale na próxima vez, por navegador. O storage pode
+  // estar bloqueado, e aí o painel só volta ao tamanho padrão.
+  useEffect(() => {
+    try {
+      const salva = Number(localStorage.getItem(LARGURA_CHAVE));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (salva >= LARGURA_MIN) setLargura(salva);
+    } catch {}
+  }, []);
+
+  function definirLargura(valor: number) {
+    const max = Math.max(LARGURA_MIN, window.innerWidth - 360);
+    const nova = Math.round(Math.min(max, Math.max(LARGURA_MIN, valor)));
+    setLargura(nova);
+    try {
+      localStorage.setItem(LARGURA_CHAVE, String(nova));
+    } catch {}
+  }
 
   const preview = useMemo(() => renderContractBody(body, vars), [body, vars]);
   const layout = useMemo(() => layoutContract(clausulas), [clausulas]);
@@ -391,7 +415,8 @@ export function ContractEditor({ contract }: { contract: Contract }) {
         const dados = new FormData(e.currentTarget);
         setVars(varsFromForm(dados));
       }}
-      className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_400px]"
+      style={{ "--painel": `${largura}px` } as React.CSSProperties}
+      className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14px_var(--painel)] lg:gap-0"
     >
       <input type="hidden" name="id" value={contract.id} />
 
@@ -409,6 +434,33 @@ export function ContractEditor({ contract }: { contract: Contract }) {
             O corpo está vazio. Escreva as cláusulas ao lado.
           </p>
         )}
+      </div>
+
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Arrastar para mudar a largura do painel"
+        aria-valuenow={largura}
+        aria-valuemin={LARGURA_MIN}
+        tabIndex={0}
+        title="Arraste para aumentar ou diminuir o painel (duplo clique restaura)"
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+          const direita =
+            e.currentTarget.parentElement?.getBoundingClientRect().right;
+          if (direita !== undefined) definirLargura(direita - e.clientX - 7);
+        }}
+        onDoubleClick={() => definirLargura(LARGURA_PADRAO)}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowLeft") definirLargura(largura + 24);
+          if (e.key === "ArrowRight") definirLargura(largura - 24);
+        }}
+        className="group hidden cursor-col-resize touch-none items-center justify-center self-stretch outline-none lg:flex"
+      >
+        <span className="h-16 w-1 rounded-full bg-neutral-300 transition-colors group-hover:bg-neutral-500 group-focus-visible:bg-neutral-700" />
       </div>
 
       <div
