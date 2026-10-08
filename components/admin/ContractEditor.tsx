@@ -100,7 +100,33 @@ function juntarClausulas(clausulas: Clausula[]) {
   );
 }
 
-export function ContractEditor({ contract }: { contract: Contract }) {
+export type ClienteImportavel = {
+  id: string;
+  name: string;
+  document: string;
+  email: string;
+  address: string;
+};
+
+/** Põe o valor num campo não controlado e avisa o formulário, que é quem
+ *  atualiza a prévia ao vivo. */
+function preencherCampo(id: string, valor: string) {
+  const campo = document.getElementById(id) as HTMLInputElement | null;
+  if (!campo) return;
+  Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    "value",
+  )?.set?.call(campo, valor);
+  campo.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+export function ContractEditor({
+  contract,
+  clientes,
+}: {
+  contract: Contract;
+  clientes: ClienteImportavel[];
+}) {
   const travado = contract.status === "signed";
   // Cada cláusula e cada peça tem id próprio: com o índice como chave, apagar
   // uma do meio faria o React reaproveitar o campo da vizinha.
@@ -514,6 +540,38 @@ export function ContractEditor({ contract }: { contract: Contract }) {
               Quem contrata
             </h2>
             <div className="space-y-3">
+              {clientes.length > 0 ? (
+                <div>
+                  <label className={rotulo} htmlFor="importar_cliente">
+                    Importar de um cliente cadastrado
+                  </label>
+                  <select
+                    id="importar_cliente"
+                    value=""
+                    onChange={(e) => {
+                      const c = clientes.find((x) => x.id === e.target.value);
+                      if (!c) return;
+                      preencherCampo("client_name", c.name);
+                      preencherCampo("client_document", c.document);
+                      preencherCampo("client_email", c.email);
+                      preencherCampo("client_address", c.address);
+                    }}
+                    className={campo}
+                  >
+                    <option value="">Escolher cliente…</option>
+                    {clientes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-neutral-500">
+                    Substitui nome, documento, e-mail e endereço pelos do
+                    cadastro. O que o cadastro não tem fica em branco, para não
+                    sobrar dado do cliente anterior.
+                  </p>
+                </div>
+              ) : null}
               <div>
                 <label className={rotulo} htmlFor="client_name">
                   Nome ou razão social

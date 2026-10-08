@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getContract } from "@/lib/contracts";
+import { listGalleryClients } from "@/lib/galleries";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ContractPublishBox } from "@/components/admin/ContractPublishBox";
 import { ContractEditor } from "@/components/admin/ContractEditor";
@@ -9,13 +10,12 @@ export const dynamic = "force-dynamic";
 
 type Params = Promise<{ id: string }>;
 
-export default async function ContractEditPage({
-  params,
-}: {
-  params: Params;
-}) {
+export default async function ContractEditPage({ params }: { params: Params }) {
   const { id } = await params;
-  const contract = await getContract(id);
+  const [contract, clientes] = await Promise.all([
+    getContract(id),
+    listGalleryClients(),
+  ]);
 
   if (!contract) notFound();
 
@@ -41,7 +41,17 @@ export default async function ContractEditPage({
       <div className="space-y-4">
         <ContractPublishBox contract={contract} baseUrl={baseUrl} />
 
-        <ContractEditor contract={contract} />
+        <ContractEditor
+          contract={contract}
+          clientes={clientes.map((c) => ({
+            id: c.id,
+            // Razão social quando há; o nome do cadastro é o de uso interno.
+            name: c.company_name?.trim() || c.name,
+            document: c.document ?? "",
+            email: c.email ?? "",
+            address: c.address ?? "",
+          }))}
+        />
       </div>
     </div>
   );
