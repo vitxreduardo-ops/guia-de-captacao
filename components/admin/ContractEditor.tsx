@@ -391,40 +391,9 @@ export function ContractEditor({ contract }: { contract: Contract }) {
         const dados = new FormData(e.currentTarget);
         setVars(varsFromForm(dados));
       }}
-      className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)_380px]"
+      className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_400px]"
     >
       <input type="hidden" name="id" value={contract.id} />
-
-      <aside className="rounded-lg border border-neutral-200 bg-white p-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto">
-        <details open className="group">
-          <summary className="cursor-pointer text-xs font-semibold tracking-wide text-neutral-500 uppercase lg:cursor-default">
-            Sumário
-          </summary>
-          {titulados.length === 0 ? (
-            <p className="mt-2 text-xs text-neutral-500">
-              Sem cláusulas ainda. Adicione uma no painel ao lado.
-            </p>
-          ) : (
-            <>
-              <ul className="mt-2 space-y-0.5">
-                {soClausulas.map(itemSumario)}
-              </ul>
-              {soAnexos.length > 0 ? (
-                <>
-                  <p className="mt-3 mb-1 text-[10px] font-semibold tracking-wide text-neutral-400 uppercase">
-                    Anexos
-                  </p>
-                  <ul className="space-y-0.5">{soAnexos.map(itemSumario)}</ul>
-                </>
-              ) : null}
-              <p className="mt-3 text-[10px] leading-snug text-neutral-400">
-                A chave liga e desliga no contrato. Desligado, some do texto e a
-                numeração fecha o buraco.
-              </p>
-            </>
-          )}
-        </details>
-      </aside>
 
       <div
         ref={documento}
@@ -614,6 +583,39 @@ export function ContractEditor({ contract }: { contract: Contract }) {
                 />
               </div>
             </div>
+          </div>
+
+          <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+            <details open className="group">
+              <summary className="cursor-pointer text-xs font-semibold tracking-wide text-neutral-500 uppercase lg:cursor-default">
+                Sumário
+              </summary>
+              {titulados.length === 0 ? (
+                <p className="mt-2 text-xs text-neutral-500">
+                  Sem cláusulas ainda. Adicione uma no painel ao lado.
+                </p>
+              ) : (
+                <>
+                  <ul className="mt-2 space-y-0.5">
+                    {soClausulas.map(itemSumario)}
+                  </ul>
+                  {soAnexos.length > 0 ? (
+                    <>
+                      <p className="mt-3 mb-1 text-[10px] font-semibold tracking-wide text-neutral-400 uppercase">
+                        Anexos
+                      </p>
+                      <ul className="space-y-0.5">
+                        {soAnexos.map(itemSumario)}
+                      </ul>
+                    </>
+                  ) : null}
+                  <p className="mt-3 text-[10px] leading-snug text-neutral-400">
+                    A chave liga e desliga no contrato. Desligado, some do texto
+                    e a numeração fecha o buraco.
+                  </p>
+                </>
+              )}
+            </details>
           </div>
 
           <div>
