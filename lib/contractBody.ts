@@ -307,7 +307,7 @@ export function applyToggles(body: string): string {
     clausulas.flatMap((c, i) => {
       const l = layout[i];
       if (!l.on) return [];
-      const pieces = c.pieces.flatMap((p, j) => {
+      const pieces = c.pieces.flatMap((p, j): ContractPiece[] => {
         if (!l.pieces[j].on) return [];
         if (p.kind === "table") {
           return [
