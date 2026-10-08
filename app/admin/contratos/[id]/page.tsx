@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { getContract } from "@/lib/contracts";
+import { getContract, listContractTemplates } from "@/lib/contracts";
 import { listGalleryClients } from "@/lib/galleries";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ContractPublishBox } from "@/components/admin/ContractPublishBox";
@@ -12,9 +12,10 @@ type Params = Promise<{ id: string }>;
 
 export default async function ContractEditPage({ params }: { params: Params }) {
   const { id } = await params;
-  const [contract, clientes] = await Promise.all([
+  const [contract, clientes, modelos] = await Promise.all([
     getContract(id),
     listGalleryClients(),
+    listContractTemplates(),
   ]);
 
   if (!contract) notFound();
@@ -43,6 +44,8 @@ export default async function ContractEditPage({ params }: { params: Params }) {
 
         <ContractEditor
           contract={contract}
+          // O modelo é a régua para saber o que já foi preenchido.
+          modelo={modelos.find((m) => m.slug === "modelo-completo")?.body ?? ""}
           clientes={clientes.map((c) => ({
             id: c.id,
             // Razão social quando há; o nome do cadastro é o de uso interno.

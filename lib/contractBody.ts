@@ -339,3 +339,73 @@ export function applyToggles(body: string): string {
     }),
   );
 }
+
+// ---------------------------------------------------------------------------
+// Campos já preenchidos: o texto atual comparado com o modelo.
+
+/** Marcam, no texto da prévia, o que foi digitado no lugar de um campo. */
+export const PREENCHIDO_ABRE = "\uE000";
+export const PREENCHIDO_FECHA = "\uE001";
+
+const CAMPO = /\[[^\]\n]+\]|\{\{\w+\}\}/g;
+const NUMERO_ITEM = /^\d+\.\d+(?:\.\d+)?\.\s/;
+// Linha do modelo com pouco texto fixo casaria com qualquer coisa.
+const ANCORA_MINIMA = 10;
+
+function escaparRegex(texto: string) {
+  return texto.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Devolve `texto` com o que foi escrito no lugar de cada campo do modelo
+ * entre `PREENCHIDO_ABRE` e `PREENCHIDO_FECHA`. A linha do contrato tem que
+ * ser a do modelo com os campos trocados: se o texto fixo ao redor foi
+ * reescrito, a linha não casa e nada é marcado (os colchetes que sobrarem
+ * continuam sendo achados como pendentes).
+ */
+export function markFilled(texto: string, modelo: string): string {
+  const padroes = applyToggles(modelo)
+    .split("\n")
+    .flatMap((linha) => {
+      const base = linha.replace(NUMERO_ITEM, "");
+      const campos = base.match(CAMPO);
+      if (!campos) return [];
+      const fixos = base.split(CAMPO);
+      if (fixos.join("").length < ANCORA_MINIMA) return [];
+      return [
+        {
+          campos,
+          re: new RegExp(`^${fixos.map(escaparRegex).join("(.*?)")}$`, "d"),
+        },
+      ];
+    });
+
+  return texto
+    .split("\n")
+    .map((linha) => {
+      if (linha.startsWith("## ")) return linha;
+      const numero = linha.match(NUMERO_ITEM)?.[0] ?? "";
+      const base = linha.slice(numero.length);
+      for (const { campos, re } of padroes) {
+        const m = base.match(re);
+        if (!m?.indices) continue;
+        let saida = "";
+        let pos = 0;
+        campos.forEach((campo, k) => {
+          const idx = m.indices?.[k + 1];
+          if (!idx) return;
+          const [de, ate] = idx;
+          saida += base.slice(pos, de);
+          const valor = base.slice(de, ate);
+          saida +=
+            valor && valor !== campo
+              ? `${PREENCHIDO_ABRE}${valor}${PREENCHIDO_FECHA}`
+              : valor;
+          pos = ate;
+        });
+        return numero + saida + base.slice(pos);
+      }
+      return linha;
+    })
+    .join("\n");
+}

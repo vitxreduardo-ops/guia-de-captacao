@@ -10,6 +10,7 @@ import {
   parseClauseTitle,
   parsePieces,
   piecesToText,
+  markFilled,
   renderContractBody,
   splitClauses,
   type ContractPiece,
@@ -138,8 +139,11 @@ function preencherCampo(id: string, valor: string) {
 export function ContractEditor({
   contract,
   clientes,
+  modelo,
 }: {
   contract: Contract;
+  /** Texto do modelo de origem, para marcar em verde o que já foi preenchido. */
+  modelo: string;
   clientes: ClienteImportavel[];
 }) {
   const travado = contract.status === "signed";
@@ -177,6 +181,10 @@ export function ContractEditor({
   }
 
   const preview = useMemo(() => renderContractBody(body, vars), [body, vars]);
+  const marcado = useMemo(
+    () => (modelo ? markFilled(preview, modelo) : preview),
+    [preview, modelo],
+  );
   const layout = useMemo(() => layoutContract(clausulas), [clausulas]);
 
   function mudar(proximas: Clausula[]) {
@@ -533,12 +541,24 @@ export function ContractEditor({
         ref={documento}
         className="rounded-lg border border-neutral-200 bg-[var(--tatu-beige)] p-6"
       >
-        <p className="mb-4 text-xs font-medium tracking-wide text-neutral-500 uppercase">
-          Como o cliente vê
-        </p>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase">
+            Como o cliente vê
+          </p>
+          {travado ? null : (
+            <p className="flex items-center gap-3 text-[11px] text-neutral-600">
+              <span className="rounded bg-red-100 px-1 text-red-700">
+                falta preencher
+              </span>
+              <span className="rounded bg-emerald-100 px-1 text-emerald-800">
+                preenchido
+              </span>
+            </p>
+          )}
+        </div>
         {body.trim() ? (
           <ContractBody
-            text={preview}
+            text={marcado}
             onPlaceholder={travado ? undefined : irParaPlaceholder}
           />
         ) : (

@@ -3,6 +3,9 @@ import {
   contractBlocks,
   applyToggles,
   contractTable,
+  markFilled,
+  PREENCHIDO_ABRE as A,
+  PREENCHIDO_FECHA as F,
   joinClauses,
   splitClauses,
   missingContractVars,
@@ -167,5 +170,39 @@ describe("applyToggles", () => {
       corpo.replace("\n\n2.3. Terceiro", "\n\n[[off]] 2.3. Terceiro"),
     );
     expect(saida).not.toContain("Filho");
+  });
+});
+
+describe("markFilled", () => {
+  const modelo =
+    "## Cláusula 1 — Partes\n\n**CONTRATANTE:** [nome], inscrita no CNPJ sob o nº [CNPJ], com sede em [endereço].";
+
+  it("marca o que foi escrito no lugar de cada campo", () => {
+    const texto =
+      "## Cláusula 1 — Partes\n\n**CONTRATANTE:** Padaria, inscrita no CNPJ sob o nº [CNPJ], com sede em Rua 1.";
+    expect(markFilled(texto, modelo)).toBe(
+      `## Cláusula 1 — Partes\n\n**CONTRATANTE:** ${A}Padaria${F}, inscrita no CNPJ sob o nº [CNPJ], com sede em ${A}Rua 1${F}.`,
+    );
+  });
+
+  it("linha igual à do modelo não marca nada", () => {
+    expect(markFilled(modelo, modelo)).toBe(modelo);
+  });
+
+  it("texto fixo reescrito não casa e nada é marcado", () => {
+    const texto =
+      "**CONTRATANTE:** Padaria, registrada sob o nº 1, sede em Rua 1.";
+    expect(markFilled(texto, modelo)).toBe(texto);
+  });
+
+  it("ignora a numeração do item, que muda quando algo é desligado", () => {
+    const m = "2.3. Prazo de [12] meses a partir do aceite.";
+    expect(markFilled("2.2. Prazo de 6 meses a partir do aceite.", m)).toBe(
+      `2.2. Prazo de ${A}6${F} meses a partir do aceite.`,
+    );
+  });
+
+  it("linha curta demais no modelo não serve de molde", () => {
+    expect(markFilled("qualquer coisa", "[x]")).toBe("qualquer coisa");
   });
 });

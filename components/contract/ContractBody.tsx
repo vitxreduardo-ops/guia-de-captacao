@@ -1,4 +1,9 @@
-import { contractBlocks, contractTable } from "@/lib/contractBody";
+import {
+  PREENCHIDO_ABRE,
+  PREENCHIDO_FECHA,
+  contractBlocks,
+  contractTable,
+} from "@/lib/contractBody";
 
 /**
  * O corpo do contrato, já com as variáveis trocadas, desenhado na tela.
@@ -89,8 +94,12 @@ export function ContractBody({
 
 export type Marcar = (placeholder: string, elemento: HTMLElement) => void;
 
-// `[CNPJ]`, `[12]` e `{{valor}}`: tudo o que o modelo deixa para preencher.
-const PLACEHOLDER = /(\[[^\]\n]+\]|\{\{\w+\}\})/;
+// `[CNPJ]`, `[12]` e `{{valor}}`: tudo o que o modelo deixa para preencher; e,
+// entre as marcas, o que já foi escrito no lugar de um campo.
+const PLACEHOLDER = new RegExp(
+  `(${PREENCHIDO_ABRE}[^${PREENCHIDO_FECHA}]*${PREENCHIDO_FECHA}|\\[[^\\]\\n]+\\]|\\{\\{\\w+\\}\\})`,
+);
+const MARCAS = new RegExp(`[${PREENCHIDO_ABRE}${PREENCHIDO_FECHA}]`, "g");
 
 function Trecho({
   text,
@@ -99,7 +108,7 @@ function Trecho({
   text: string;
   onPlaceholder?: Marcar;
 }) {
-  if (!onPlaceholder) return <>{text}</>;
+  if (!onPlaceholder) return <>{text.replace(MARCAS, "")}</>;
   return (
     <>
       {text.split(PLACEHOLDER).map((parte, i) =>
@@ -108,11 +117,21 @@ function Trecho({
             key={i}
             type="button"
             data-ph
-            title="Clique para editar este campo"
-            onClick={(e) => onPlaceholder(parte, e.currentTarget)}
-            className="cursor-pointer rounded bg-red-100 px-0.5 font-medium text-red-700 underline decoration-red-400 decoration-dotted underline-offset-2 hover:bg-red-200"
+            title={
+              parte.startsWith(PREENCHIDO_ABRE)
+                ? "Preenchido. Clique para editar"
+                : "Falta preencher. Clique para editar este campo"
+            }
+            onClick={(e) =>
+              onPlaceholder(parte.replace(MARCAS, ""), e.currentTarget)
+            }
+            className={`cursor-pointer rounded px-0.5 font-medium underline decoration-dotted underline-offset-2 ${
+              parte.startsWith(PREENCHIDO_ABRE)
+                ? "bg-emerald-100 text-emerald-800 decoration-emerald-400 hover:bg-emerald-200"
+                : "bg-red-100 text-red-700 decoration-red-400 hover:bg-red-200"
+            }`}
           >
-            {parte}
+            {parte.replace(MARCAS, "")}
           </button>
         ) : (
           parte
