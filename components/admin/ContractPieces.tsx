@@ -70,7 +70,10 @@ export function PieceEditor({ piece, label, on, onChange, onRemove }: Props) {
 
   if (piece.kind === "text") {
     return (
-      <div className={`flex items-start gap-1.5 ${on ? "" : "opacity-50"}`}>
+      <div
+        data-off={on ? undefined : ""}
+        className={`flex items-start gap-1.5 ${on ? "" : "opacity-50"}`}
+      >
         {piece.num !== null ? (
           <div className="flex w-14 shrink-0 flex-col items-center gap-1 pt-1">
             <Interruptor
@@ -111,6 +114,7 @@ export function PieceEditor({ piece, label, on, onChange, onRemove }: Props) {
     return (
       <div
         ref={raiz}
+        data-off={on ? undefined : ""}
         className={`space-y-1 rounded-md border border-neutral-200 bg-neutral-50 p-2 ${
           on ? "" : "opacity-50"
         }`}
@@ -183,6 +187,7 @@ export function PieceEditor({ piece, label, on, onChange, onRemove }: Props) {
   return (
     <div
       ref={raiz}
+      data-off={on ? undefined : ""}
       className={`space-y-1.5 rounded-md border border-neutral-200 bg-neutral-50 p-2 ${
         on ? "" : "opacity-50"
       }`}

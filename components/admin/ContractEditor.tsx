@@ -44,6 +44,19 @@ const LARGURA_PADRAO = 400;
 const LARGURA_MIN = 320;
 const LARGURA_CHAVE = "contrato-painel-largura";
 
+/** Variável do texto -> campo do painel que a preenche. */
+const CAMPO_DA_VARIAVEL: Record<string, string> = {
+  cliente: "client_name",
+  documento: "client_document",
+  email: "client_email",
+  endereco: "client_address",
+  escopo: "scope",
+  valor: "price",
+  pagamento: "payment_terms",
+  inicio: "start_date",
+  meses: "duration_months",
+};
+
 const campo =
   "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-500";
 const rotulo = "mb-1 block text-xs font-medium text-neutral-600";
@@ -253,6 +266,74 @@ export function ContractEditor({
       : (c.title ?? "");
   }
 
+  /**
+   * Clique num campo vermelho da prévia: abre a cláusula dele no painel e
+   * seleciona o trecho, pronto para digitar por cima. Variável (`{{valor}}`)
+   * leva ao campo do formulário que a preenche.
+   */
+  function irParaPlaceholder(ph: string, el: HTMLElement) {
+    const variavel = ph.match(/^\{\{(\w+)\}\}$/)?.[1];
+    if (variavel) {
+      const campoForm = document.getElementById(
+        CAMPO_DA_VARIAVEL[variavel] ?? "",
+      );
+      campoForm?.scrollIntoView({ block: "center", behavior: "smooth" });
+      campoForm?.focus({ preventScroll: true });
+      return;
+    }
+
+    const raiz = documento.current;
+    if (!raiz) return;
+    // Seção = quantos títulos vêm antes; -1 é a abertura, antes do primeiro.
+    const titulos = [...raiz.querySelectorAll("h2")];
+    const secaoDe = (x: Element) =>
+      titulos.filter(
+        (h) => h.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).length - 1;
+    const secao = secaoDe(el);
+    // Qual das ocorrências do mesmo texto, nessa cláusula, foi a clicada.
+    const ordem = [...raiz.querySelectorAll<HTMLElement>("[data-ph]")]
+      .filter((x) => secaoDe(x) === secao && x.textContent === ph)
+      .indexOf(el);
+
+    const idsNaOrdem = [...posicaoNaPrevia.entries()]
+      .sort((a, b) => a[1] - b[1])
+      .map(([id]) => id);
+    const id =
+      secao < 0
+        ? clausulas.find((c) => c.title === null)?.id
+        : idsNaOrdem[secao];
+    if (id === undefined) return;
+
+    setAtiva(id);
+    abrir(id);
+    // O bloco só tem os campos depois de abrir, no render seguinte.
+    setTimeout(() => {
+      const bloco = painel.current?.querySelector<HTMLElement>(
+        `[data-clausula="${id}"]`,
+      );
+      if (!bloco) return;
+      bloco.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      const campos = [
+        ...bloco.querySelectorAll<HTMLTextAreaElement>("textarea"),
+      ].filter((t) => !t.closest("[data-off]"));
+      let visto = 0;
+      for (const t of campos) {
+        let de = t.value.indexOf(ph);
+        while (de !== -1) {
+          if (visto === ordem) {
+            t.focus({ preventScroll: true });
+            t.setSelectionRange(de, de + ph.length);
+            t.scrollIntoView({ block: "center", behavior: "smooth" });
+            return;
+          }
+          visto += 1;
+          de = t.value.indexOf(ph, de + ph.length);
+        }
+      }
+    }, 80);
+  }
+
   function irPara(c: Clausula) {
     setAtiva(c.id);
     abrir(c.id);
@@ -456,7 +537,10 @@ export function ContractEditor({
           Como o cliente vê
         </p>
         {body.trim() ? (
-          <ContractBody text={preview} />
+          <ContractBody
+            text={preview}
+            onPlaceholder={travado ? undefined : irParaPlaceholder}
+          />
         ) : (
           <p className="text-sm text-neutral-500">
             O corpo está vazio. Escreva as cláusulas ao lado.

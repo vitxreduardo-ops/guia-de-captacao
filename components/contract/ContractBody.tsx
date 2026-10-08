@@ -9,7 +9,16 @@ import { contractBlocks, contractTable } from "@/lib/contractBody";
  * campo de texto para uma página pública. Aqui nada vira HTML: o texto entra
  * como texto, em nós React.
  */
-export function ContractBody({ text }: { text: string }) {
+export function ContractBody({
+  text,
+  onPlaceholder,
+}: {
+  text: string;
+  /** Só o editor passa: destaca em vermelho o que ainda está por preencher
+   *  (`[CNPJ]`, `{{valor}}`) e avisa quando clicam. A página do cliente não
+   *  passa, e o texto sai sem marcação. */
+  onPlaceholder?: Marcar;
+}) {
   const blocos = contractBlocks(text);
 
   return (
@@ -41,7 +50,7 @@ export function ContractBody({ text }: { text: string }) {
                         key={i}
                         className="border border-[var(--tatu-ink)]/15 bg-[var(--tatu-ink)]/5 px-2 py-1.5 font-semibold"
                       >
-                        <Inline text={celula} />
+                        <Inline text={celula} onPlaceholder={onPlaceholder} />
                       </th>
                     ))}
                   </tr>
@@ -54,7 +63,7 @@ export function ContractBody({ text }: { text: string }) {
                           key={i}
                           className="border border-[var(--tatu-ink)]/15 px-2 py-1.5 align-top"
                         >
-                          <Inline text={celula} />
+                          <Inline text={celula} onPlaceholder={onPlaceholder} />
                         </td>
                       ))}
                     </tr>
@@ -70,7 +79,7 @@ export function ContractBody({ text }: { text: string }) {
             key={indice}
             className="text-sm leading-relaxed whitespace-pre-line text-[var(--tatu-ink)]/85"
           >
-            <Inline text={limpo} />
+            <Inline text={limpo} onPlaceholder={onPlaceholder} />
           </p>
         );
       })}
@@ -78,21 +87,64 @@ export function ContractBody({ text }: { text: string }) {
   );
 }
 
+export type Marcar = (placeholder: string, elemento: HTMLElement) => void;
+
+// `[CNPJ]`, `[12]` e `{{valor}}`: tudo o que o modelo deixa para preencher.
+const PLACEHOLDER = /(\[[^\]\n]+\]|\{\{\w+\}\})/;
+
+function Trecho({
+  text,
+  onPlaceholder,
+}: {
+  text: string;
+  onPlaceholder?: Marcar;
+}) {
+  if (!onPlaceholder) return <>{text}</>;
+  return (
+    <>
+      {text.split(PLACEHOLDER).map((parte, i) =>
+        i % 2 === 1 ? (
+          <button
+            key={i}
+            type="button"
+            data-ph
+            title="Clique para editar este campo"
+            onClick={(e) => onPlaceholder(parte, e.currentTarget)}
+            className="cursor-pointer rounded bg-red-100 px-0.5 font-medium text-red-700 underline decoration-red-400 decoration-dotted underline-offset-2 hover:bg-red-200"
+          >
+            {parte}
+          </button>
+        ) : (
+          parte
+        ),
+      )}
+    </>
+  );
+}
+
 /** `**x**` em negrito. O split por `**` deixa os trechos em negrito nos
  *  índices ímpares — asterisco solto e sem par fica como texto, que é o
  *  comportamento menos surpreendente num contrato. */
-function Inline({ text }: { text: string }) {
+function Inline({
+  text,
+  onPlaceholder,
+}: {
+  text: string;
+  onPlaceholder?: Marcar;
+}) {
   const partes = text.split("**");
   return (
     <>
       {partes.map((parte, indice) =>
         indice % 2 === 1 ? (
           <strong key={indice} className="font-semibold">
-            {parte}
+            <Trecho text={parte} onPlaceholder={onPlaceholder} />
           </strong>
         ) : (
-          <span key={indice}>{parte}</span>
-        )
+          <span key={indice}>
+            <Trecho text={parte} onPlaceholder={onPlaceholder} />
+          </span>
+        ),
       )}
     </>
   );
