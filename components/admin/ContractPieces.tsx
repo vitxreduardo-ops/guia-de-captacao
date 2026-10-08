@@ -12,7 +12,7 @@ const botaoDiscreto =
 function linhasDe(texto: string) {
   const n = texto
     .split("\n")
-    .reduce((soma, l) => soma + Math.max(1, Math.ceil(l.length / 44)), 0);
+    .reduce((soma, l) => soma + Math.max(1, Math.ceil(l.length / 52)), 0);
   return Math.min(16, Math.max(2, n));
 }
 
