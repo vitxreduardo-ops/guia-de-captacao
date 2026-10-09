@@ -10,6 +10,7 @@ import {
   parseClauseTitle,
   parsePieces,
   piecesToText,
+  markFilled,
   renderContractBody,
   splitClauses,
   type ContractPiece,
@@ -44,6 +45,19 @@ const LARGURA_PADRAO = 400;
 const LARGURA_MIN = 320;
 const LARGURA_CHAVE = "contrato-painel-largura";
 
+/** Variável do texto -> campo do painel que a preenche. */
+const CAMPO_DA_VARIAVEL: Record<string, string> = {
+  cliente: "client_name",
+  documento: "client_document",
+  email: "client_email",
+  endereco: "client_address",
+  escopo: "scope",
+  valor: "price",
+  pagamento: "payment_terms",
+  inicio: "start_date",
+  meses: "duration_months",
+};
+
 const campo =
   "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none disabled:bg-neutral-100 disabled:text-neutral-500";
 const rotulo = "mb-1 block text-xs font-medium text-neutral-600";
@@ -65,6 +79,8 @@ function varsFromForm(form: FormData): ContractVars {
   return {
     client_name: texto("client_name"),
     client_document: texto("client_document"),
+    client_email: texto("client_email"),
+    client_address: texto("client_address"),
     scope: texto("scope"),
     price: priceFromText(texto("price")),
     payment_terms: texto("payment_terms"),
@@ -100,7 +116,36 @@ function juntarClausulas(clausulas: Clausula[]) {
   );
 }
 
-export function ContractEditor({ contract }: { contract: Contract }) {
+export type ClienteImportavel = {
+  id: string;
+  name: string;
+  document: string;
+  email: string;
+  address: string;
+};
+
+/** Põe o valor num campo não controlado e avisa o formulário, que é quem
+ *  atualiza a prévia ao vivo. */
+function preencherCampo(id: string, valor: string) {
+  const campo = document.getElementById(id) as HTMLInputElement | null;
+  if (!campo) return;
+  Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    "value",
+  )?.set?.call(campo, valor);
+  campo.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+export function ContractEditor({
+  contract,
+  clientes,
+  modelo,
+}: {
+  contract: Contract;
+  /** Texto do modelo de origem, para marcar em verde o que já foi preenchido. */
+  modelo: string;
+  clientes: ClienteImportavel[];
+}) {
   const travado = contract.status === "signed";
   // Cada cláusula e cada peça tem id próprio: com o índice como chave, apagar
   // uma do meio faria o React reaproveitar o campo da vizinha.
@@ -136,6 +181,10 @@ export function ContractEditor({ contract }: { contract: Contract }) {
   }
 
   const preview = useMemo(() => renderContractBody(body, vars), [body, vars]);
+  const marcado = useMemo(
+    () => (modelo ? markFilled(preview, modelo) : preview),
+    [preview, modelo],
+  );
   const layout = useMemo(() => layoutContract(clausulas), [clausulas]);
 
   function mudar(proximas: Clausula[]) {
@@ -223,6 +272,74 @@ export function ContractEditor({ contract }: { contract: Contract }) {
     return n !== null && c.title
       ? c.title.replace(/^Cláusula\s+\d+/, `Cláusula ${n}`)
       : (c.title ?? "");
+  }
+
+  /**
+   * Clique num campo vermelho da prévia: abre a cláusula dele no painel e
+   * seleciona o trecho, pronto para digitar por cima. Variável (`{{valor}}`)
+   * leva ao campo do formulário que a preenche.
+   */
+  function irParaPlaceholder(ph: string, el: HTMLElement) {
+    const variavel = ph.match(/^\{\{(\w+)\}\}$/)?.[1];
+    if (variavel) {
+      const campoForm = document.getElementById(
+        CAMPO_DA_VARIAVEL[variavel] ?? "",
+      );
+      campoForm?.scrollIntoView({ block: "center", behavior: "smooth" });
+      campoForm?.focus({ preventScroll: true });
+      return;
+    }
+
+    const raiz = documento.current;
+    if (!raiz) return;
+    // Seção = quantos títulos vêm antes; -1 é a abertura, antes do primeiro.
+    const titulos = [...raiz.querySelectorAll("h2")];
+    const secaoDe = (x: Element) =>
+      titulos.filter(
+        (h) => h.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).length - 1;
+    const secao = secaoDe(el);
+    // Qual das ocorrências do mesmo texto, nessa cláusula, foi a clicada.
+    const ordem = [...raiz.querySelectorAll<HTMLElement>("[data-ph]")]
+      .filter((x) => secaoDe(x) === secao && x.textContent === ph)
+      .indexOf(el);
+
+    const idsNaOrdem = [...posicaoNaPrevia.entries()]
+      .sort((a, b) => a[1] - b[1])
+      .map(([id]) => id);
+    const id =
+      secao < 0
+        ? clausulas.find((c) => c.title === null)?.id
+        : idsNaOrdem[secao];
+    if (id === undefined) return;
+
+    setAtiva(id);
+    abrir(id);
+    // O bloco só tem os campos depois de abrir, no render seguinte.
+    setTimeout(() => {
+      const bloco = painel.current?.querySelector<HTMLElement>(
+        `[data-clausula="${id}"]`,
+      );
+      if (!bloco) return;
+      bloco.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      const campos = [
+        ...bloco.querySelectorAll<HTMLTextAreaElement>("textarea"),
+      ].filter((t) => !t.closest("[data-off]"));
+      let visto = 0;
+      for (const t of campos) {
+        let de = t.value.indexOf(ph);
+        while (de !== -1) {
+          if (visto === ordem) {
+            t.focus({ preventScroll: true });
+            t.setSelectionRange(de, de + ph.length);
+            t.scrollIntoView({ block: "center", behavior: "smooth" });
+            return;
+          }
+          visto += 1;
+          de = t.value.indexOf(ph, de + ph.length);
+        }
+      }
+    }, 80);
   }
 
   function irPara(c: Clausula) {
@@ -424,11 +541,26 @@ export function ContractEditor({ contract }: { contract: Contract }) {
         ref={documento}
         className="rounded-lg border border-neutral-200 bg-[var(--tatu-beige)] p-6"
       >
-        <p className="mb-4 text-xs font-medium tracking-wide text-neutral-500 uppercase">
-          Como o cliente vê
-        </p>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase">
+            Como o cliente vê
+          </p>
+          {travado ? null : (
+            <p className="flex items-center gap-3 text-[11px] text-neutral-600">
+              <span className="rounded bg-red-100 px-1 text-red-700">
+                falta preencher
+              </span>
+              <span className="rounded bg-emerald-100 px-1 text-emerald-800">
+                preenchido
+              </span>
+            </p>
+          )}
+        </div>
         {body.trim() ? (
-          <ContractBody text={preview} />
+          <ContractBody
+            text={marcado}
+            onPlaceholder={travado ? undefined : irParaPlaceholder}
+          />
         ) : (
           <p className="text-sm text-neutral-500">
             O corpo está vazio. Escreva as cláusulas ao lado.
@@ -514,6 +646,38 @@ export function ContractEditor({ contract }: { contract: Contract }) {
               Quem contrata
             </h2>
             <div className="space-y-3">
+              {clientes.length > 0 ? (
+                <div>
+                  <label className={rotulo} htmlFor="importar_cliente">
+                    Importar de um cliente cadastrado
+                  </label>
+                  <select
+                    id="importar_cliente"
+                    value=""
+                    onChange={(e) => {
+                      const c = clientes.find((x) => x.id === e.target.value);
+                      if (!c) return;
+                      preencherCampo("client_name", c.name);
+                      preencherCampo("client_document", c.document);
+                      preencherCampo("client_email", c.email);
+                      preencherCampo("client_address", c.address);
+                    }}
+                    className={campo}
+                  >
+                    <option value="">Escolher cliente…</option>
+                    {clientes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-neutral-500">
+                    Substitui nome, documento, e-mail e endereço pelos do
+                    cadastro. O que o cadastro não tem fica em branco, para não
+                    sobrar dado do cliente anterior.
+                  </p>
+                </div>
+              ) : null}
               <div>
                 <label className={rotulo} htmlFor="client_name">
                   Nome ou razão social

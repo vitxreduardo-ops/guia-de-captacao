@@ -1,4 +1,9 @@
-import { contractBlocks, contractTable } from "@/lib/contractBody";
+import {
+  PREENCHIDO_ABRE,
+  PREENCHIDO_FECHA,
+  contractBlocks,
+  contractTable,
+} from "@/lib/contractBody";
 
 /**
  * O corpo do contrato, já com as variáveis trocadas, desenhado na tela.
@@ -9,7 +14,16 @@ import { contractBlocks, contractTable } from "@/lib/contractBody";
  * campo de texto para uma página pública. Aqui nada vira HTML: o texto entra
  * como texto, em nós React.
  */
-export function ContractBody({ text }: { text: string }) {
+export function ContractBody({
+  text,
+  onPlaceholder,
+}: {
+  text: string;
+  /** Só o editor passa: destaca em vermelho o que ainda está por preencher
+   *  (`[CNPJ]`, `{{valor}}`) e avisa quando clicam. A página do cliente não
+   *  passa, e o texto sai sem marcação. */
+  onPlaceholder?: Marcar;
+}) {
   const blocos = contractBlocks(text);
 
   return (
@@ -41,7 +55,7 @@ export function ContractBody({ text }: { text: string }) {
                         key={i}
                         className="border border-[var(--tatu-ink)]/15 bg-[var(--tatu-ink)]/5 px-2 py-1.5 font-semibold"
                       >
-                        <Inline text={celula} />
+                        <Inline text={celula} onPlaceholder={onPlaceholder} />
                       </th>
                     ))}
                   </tr>
@@ -54,7 +68,7 @@ export function ContractBody({ text }: { text: string }) {
                           key={i}
                           className="border border-[var(--tatu-ink)]/15 px-2 py-1.5 align-top"
                         >
-                          <Inline text={celula} />
+                          <Inline text={celula} onPlaceholder={onPlaceholder} />
                         </td>
                       ))}
                     </tr>
@@ -70,7 +84,7 @@ export function ContractBody({ text }: { text: string }) {
             key={indice}
             className="text-sm leading-relaxed whitespace-pre-line text-[var(--tatu-ink)]/85"
           >
-            <Inline text={limpo} />
+            <Inline text={limpo} onPlaceholder={onPlaceholder} />
           </p>
         );
       })}
@@ -78,21 +92,78 @@ export function ContractBody({ text }: { text: string }) {
   );
 }
 
+export type Marcar = (placeholder: string, elemento: HTMLElement) => void;
+
+// `[CNPJ]`, `[12]` e `{{valor}}`: tudo o que o modelo deixa para preencher; e,
+// entre as marcas, o que já foi escrito no lugar de um campo.
+const PLACEHOLDER = new RegExp(
+  `(${PREENCHIDO_ABRE}[^${PREENCHIDO_FECHA}]*${PREENCHIDO_FECHA}|\\[[^\\]\\n]+\\]|\\{\\{\\w+\\}\\})`,
+);
+const MARCAS = new RegExp(`[${PREENCHIDO_ABRE}${PREENCHIDO_FECHA}]`, "g");
+
+function Trecho({
+  text,
+  onPlaceholder,
+}: {
+  text: string;
+  onPlaceholder?: Marcar;
+}) {
+  if (!onPlaceholder) return <>{text.replace(MARCAS, "")}</>;
+  return (
+    <>
+      {text.split(PLACEHOLDER).map((parte, i) =>
+        i % 2 === 1 ? (
+          <button
+            key={i}
+            type="button"
+            data-ph
+            title={
+              parte.startsWith(PREENCHIDO_ABRE)
+                ? "Preenchido. Clique para editar"
+                : "Falta preencher. Clique para editar este campo"
+            }
+            onClick={(e) =>
+              onPlaceholder(parte.replace(MARCAS, ""), e.currentTarget)
+            }
+            className={`cursor-pointer rounded px-0.5 font-medium underline decoration-dotted underline-offset-2 ${
+              parte.startsWith(PREENCHIDO_ABRE)
+                ? "bg-emerald-100 text-emerald-800 decoration-emerald-400 hover:bg-emerald-200"
+                : "bg-red-100 text-red-700 decoration-red-400 hover:bg-red-200"
+            }`}
+          >
+            {parte.replace(MARCAS, "")}
+          </button>
+        ) : (
+          parte
+        ),
+      )}
+    </>
+  );
+}
+
 /** `**x**` em negrito. O split por `**` deixa os trechos em negrito nos
  *  índices ímpares — asterisco solto e sem par fica como texto, que é o
  *  comportamento menos surpreendente num contrato. */
-function Inline({ text }: { text: string }) {
+function Inline({
+  text,
+  onPlaceholder,
+}: {
+  text: string;
+  onPlaceholder?: Marcar;
+}) {
   const partes = text.split("**");
   return (
     <>
       {partes.map((parte, indice) =>
         indice % 2 === 1 ? (
           <strong key={indice} className="font-semibold">
-            {parte}
+            <Trecho text={parte} onPlaceholder={onPlaceholder} />
           </strong>
         ) : (
-          <span key={indice}>{parte}</span>
-        )
+          <span key={indice}>
+            <Trecho text={parte} onPlaceholder={onPlaceholder} />
+          </span>
+        ),
       )}
     </>
   );
