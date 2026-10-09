@@ -3,13 +3,10 @@ import {
   Page,
   Text,
   View,
-  Svg,
-  Path,
   StyleSheet,
   renderToBuffer,
 } from "@react-pdf/renderer";
 import { contractBlocks, contractTable } from "@/lib/contractBody";
-import { LOGO_PATH, LOGO_VIEWBOX } from "@/components/pdf/tatuLogo";
 
 const styles = StyleSheet.create({
   page: {
@@ -172,9 +169,6 @@ export function ContractPdfDocument({
             <Text style={styles.eyebrow}>{eyebrow}</Text>
             <Text style={styles.title}>{paraPdf(title)}</Text>
           </View>
-          <Svg viewBox={LOGO_VIEWBOX} style={{ width: 90, height: 17 }}>
-            <Path d={LOGO_PATH} fill="#171717" />
-          </Svg>
         </View>
 
         {contractBlocks(text).map((bloco, i) => (
