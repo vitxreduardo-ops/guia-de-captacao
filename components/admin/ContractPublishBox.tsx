@@ -1,5 +1,5 @@
 import { setContractStatusAction } from "@/app/admin/contratos/[id]/actions";
-import { missingContractVars } from "@/lib/contractBody";
+import { missingContractVars, renderContractBody } from "@/lib/contractBody";
 import type { Contract } from "@/lib/contracts";
 import { CopyLinkButton } from "@/components/admin/CopyLinkButton";
 
@@ -26,6 +26,10 @@ export function ContractPublishBox({
   const assinado = contract.status === "signed";
   const publicado = contract.status === "published";
   const faltando = missingContractVars(contract.body, contract);
+  // Colchetes que sobraram no texto: o PDF sai com eles.
+  const colchetes =
+    renderContractBody(contract.body, contract).match(/\[[^\]\n]+\]/g)
+      ?.length ?? 0;
 
   return (
     <section className="rounded-lg border border-neutral-200 bg-white p-4">
@@ -84,6 +88,12 @@ export function ContractPublishBox({
               .
             </p>
           ) : null}
+          {!assinado && colchetes > 0 ? (
+            <p className="mt-1 text-sm text-red-700">
+              {colchetes} campo{colchetes > 1 ? "s" : ""} ainda entre colchetes
+              no texto; o PDF sai com {colchetes > 1 ? "eles" : "ele"}.
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -94,6 +104,13 @@ export function ContractPublishBox({
             className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
           >
             Ver contrato
+          </a>
+
+          <a
+            href={`/admin/contratos/${contract.id}/pdf`}
+            className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+          >
+            Baixar PDF
           </a>
 
           {publicado || assinado ? (
