@@ -598,6 +598,24 @@ export async function setBacklogCardSchedule(params: {
   if (error) throw error;
 }
 
+/** Arraste de captação no calendário de entregas: data e horário num toque. */
+export async function setBacklogCardCapture(params: {
+  id: string;
+  captureDate: string | null;
+  captureTime: string | null;
+}) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("backlog_cards")
+    .update({
+      capture_date: normalizeDate(params.captureDate),
+      capture_time: normalizeTime(params.captureTime),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", params.id);
+  if (error) throw error;
+}
+
 export async function setBacklogCardPostDate(
   id: string,
   postDate: string | null

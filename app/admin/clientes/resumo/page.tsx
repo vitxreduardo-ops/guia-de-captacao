@@ -36,6 +36,12 @@ export default async function ResumoPage({
   const byMonth = Array.from({ length: 12 }, (_, index) =>
     rows.reduce((sum, row) => sum + row.byMonth[index], 0)
   );
+  const clientsByMonth = byMonth.map((_, index) =>
+    rows
+      .filter((row) => row.byMonth[index] > 0)
+      .map((row) => ({ name: row.clientName, cents: row.byMonth[index] }))
+      .sort((a, b) => b.cents - a.cents)
+  );
   const yearTotal = byMonth.reduce((sum, value) => sum + value, 0);
   const deliveries = rows.reduce((sum, row) => sum + row.deliveries, 0);
   const monthsWithValue = byMonth.filter((value) => value > 0).length;
@@ -163,7 +169,7 @@ export default async function ResumoPage({
           Faturamento mês a mês
         </h2>
 
-        <YearBarChart byMonth={byMonth} />
+        <YearBarChart byMonth={byMonth} clientsByMonth={clientsByMonth} />
       </section>
 
       <section>

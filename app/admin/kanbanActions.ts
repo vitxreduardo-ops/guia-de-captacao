@@ -28,6 +28,7 @@ import {
   readBacklogCardInput,
   reorderBacklogColumns,
   setBacklogCardApproved,
+  setBacklogCardCapture,
   setBacklogCardColumn,
   setBacklogCardPayment,
   setBacklogCardPostDate,
@@ -47,6 +48,7 @@ const KANBAN_PATHS = [
   "/admin/backlog",
   "/admin/backlog/calendario",
   "/admin/clientes/entregas",
+  "/admin/clientes/entregas/calendario",
   "/admin/clientes/faturamento",
   "/admin/clientes/resumo",
 ];
@@ -358,6 +360,17 @@ export async function setBacklogCardScheduleAction(params: {
   await requireTeam();
   await setBacklogCardSchedule(params);
   await syncCalendar(params.id);
+  revalidateBacklog();
+}
+
+/** Arraste de captação no calendário de entregas. Não vai pro Google Agenda. */
+export async function setBacklogCardCaptureAction(params: {
+  id: string;
+  captureDate: string | null;
+  captureTime: string | null;
+}) {
+  await requireTeam();
+  await setBacklogCardCapture(params);
   revalidateBacklog();
 }
 

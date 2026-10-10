@@ -6,6 +6,7 @@ import { motion, useReducedMotion } from "motion/react";
 
 export const CLIENT_TABS = [
   { href: "/admin/clientes/entregas", label: "Entregas" },
+  { href: "/admin/clientes/entregas/calendario", label: "Calendário" },
   { href: "/admin/clientes/faturamento", label: "Faturamento" },
   { href: "/admin/clientes/resumo", label: "Resumo" },
   { href: "/admin/clientes/cadastro", label: "Cadastro" },
