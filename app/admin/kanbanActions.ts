@@ -363,7 +363,7 @@ export async function setBacklogCardScheduleAction(params: {
   revalidateBacklog();
 }
 
-/** Arraste de captação no calendário de entregas. Não vai pro Google Agenda. */
+/** Arraste de captação no calendário de entregas. */
 export async function setBacklogCardCaptureAction(params: {
   id: string;
   captureDate: string | null;
@@ -371,6 +371,7 @@ export async function setBacklogCardCaptureAction(params: {
 }) {
   await requireTeam();
   await setBacklogCardCapture(params);
+  await syncCalendar(params.id);
   revalidateBacklog();
 }
 
