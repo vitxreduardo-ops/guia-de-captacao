@@ -71,6 +71,9 @@ export interface BacklogCard {
   caption: string;
   post_date: string | null;
   post_time: string | null;
+  /** Captação / início do projeto — só usada no quadro de entregas. */
+  capture_date: string | null;
+  capture_time: string | null;
   duration_minutes: number | null;
   backup_location: string | null;
   sent_whatsapp: boolean;

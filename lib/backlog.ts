@@ -345,6 +345,8 @@ export interface BacklogCardInput {
   caption: string;
   post_date: string | null;
   post_time: string | null;
+  capture_date: string | null;
+  capture_time: string | null;
   sent_whatsapp: boolean;
   tags: string[];
   backup_location: string | null;
@@ -378,6 +380,8 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
     caption: String(formData.get("caption") ?? "").trim(),
     post_date: normalizeDate(formData.get("post_date")),
     post_time: normalizeTime(formData.get("post_time")),
+    capture_date: normalizeDate(formData.get("capture_date")),
+    capture_time: normalizeTime(formData.get("capture_time")),
     sent_whatsapp: formData.get("sent_whatsapp") === "on",
     tags: parseBacklogTags(formData.get("tags")),
     backup_location: normalizeText(formData.get("backup_location")),
@@ -427,6 +431,8 @@ export async function createBacklogCard(
       caption: fields.caption ?? "",
       post_date: fields.post_date ?? null,
       post_time: fields.post_time ?? null,
+      capture_date: fields.capture_date ?? null,
+      capture_time: fields.capture_time ?? null,
       sent_whatsapp: fields.sent_whatsapp ?? false,
       sent_whatsapp_at: fields.sent_whatsapp ? new Date().toISOString() : null,
       tags: fields.tags ?? [],
@@ -549,6 +555,8 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
       caption: fields.caption,
       post_date: fields.post_date,
       post_time: fields.post_time,
+      capture_date: fields.capture_date,
+      capture_time: fields.capture_time,
       sent_whatsapp: fields.sent_whatsapp,
       sent_whatsapp_at: sentAt,
       tags: fields.tags,

@@ -164,10 +164,20 @@ export function BacklogCardView({
                 ? assigneeNames.map((name) => `@${name}`).join(", ")
                 : "—"}
             </Field>
+            {showBilling ? (
+              <>
+                <Field label="Data da captação">
+                  {card.capture_date ? formatDate(card.capture_date) : "Sem data"}
+                </Field>
+                <Field label="Horário da captação">
+                  {card.capture_time ? card.capture_time.slice(0, 5) : "Sem horário"}
+                </Field>
+              </>
+            ) : null}
             <Field label={showBilling ? "Data da entrega" : "Data de post"}>
               {card.post_date ? formatDate(card.post_date) : "Sem data"}
             </Field>
-            <Field label="Horário">
+            <Field label={showBilling ? "Horário da entrega" : "Horário"}>
               {card.post_time
                 ? `${card.post_time.slice(0, 5)} · ${hours}h`
                 : "Sem horário"}

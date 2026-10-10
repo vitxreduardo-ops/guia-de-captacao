@@ -530,10 +530,39 @@ export function BacklogCardDrawer({
             </div>
           </div>
 
+          {showBilling ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass} htmlFor="backlog-capture-date">
+                  Data da captação
+                </label>
+                <input
+                  id="backlog-capture-date"
+                  type="date"
+                  name="capture_date"
+                  defaultValue={card.capture_date ?? ""}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="backlog-capture-time">
+                  Horário da captação
+                </label>
+                <input
+                  id="backlog-capture-time"
+                  type="time"
+                  name="capture_time"
+                  defaultValue={card.capture_time?.slice(0, 5) ?? ""}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelClass} htmlFor="backlog-post-time">
-                Horário
+                {showBilling ? "Horário da entrega" : "Horário"}
               </label>
               <input
                 id="backlog-post-time"
