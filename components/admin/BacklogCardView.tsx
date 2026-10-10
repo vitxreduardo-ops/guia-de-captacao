@@ -159,15 +159,31 @@ export function BacklogCardView({
           <div className="flex flex-col gap-4 sm:min-h-0 sm:overflow-y-auto sm:pr-2">
           <div className="grid grid-cols-2 gap-3">
             <Field label="Cliente">{clientName ?? "—"}</Field>
+            {showBilling ? (
+              <Field label="Guia de captação">{guideTitle ?? "—"}</Field>
+            ) : null}
             <Field label={assigneeNames.length > 1 ? "Responsáveis" : "Responsável"}>
               {assigneeNames.length > 0
                 ? assigneeNames.map((name) => `@${name}`).join(", ")
                 : "—"}
             </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {showBilling ? (
+              <>
+                <Field label="Data da captação">
+                  {card.capture_date ? formatDate(card.capture_date) : "Sem data"}
+                </Field>
+                <Field label="Horário da captação">
+                  {card.capture_time ? card.capture_time.slice(0, 5) : "Sem horário"}
+                </Field>
+              </>
+            ) : null}
             <Field label={showBilling ? "Data da entrega" : "Data de post"}>
               {card.post_date ? formatDate(card.post_date) : "Sem data"}
             </Field>
-            <Field label="Horário">
+            <Field label={showBilling ? "Horário da entrega" : "Horário"}>
               {card.post_time
                 ? `${card.post_time.slice(0, 5)} · ${hours}h`
                 : "Sem horário"}
@@ -208,7 +224,9 @@ export function BacklogCardView({
             </Field>
           ) : null}
 
-          <Field label="Guia de captação">{guideTitle ?? "—"}</Field>
+          {showBilling ? null : (
+            <Field label="Guia de captação">{guideTitle ?? "—"}</Field>
+          )}
 
           <Field label="Link do Drive">
             {card.drive_url ? (

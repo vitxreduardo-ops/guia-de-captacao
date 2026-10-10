@@ -309,6 +309,37 @@ function BillingFields({
 
   return (
     <div className="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+      <div className="mb-3">
+        <p className={labelClass}>Tipo de contrato</p>
+        <div className="flex flex-wrap gap-1.5">
+          {CONTRACT_TYPES.map((option) => (
+            <label
+              key={option}
+              className="flex cursor-pointer items-center gap-1.5 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 has-checked:border-neutral-900 has-checked:bg-neutral-900 has-checked:text-white pointer-coarse:min-h-11"
+            >
+              <input
+                type="radio"
+                name="contract_type"
+                value={option}
+                defaultChecked={card.contract_type === option}
+                className="sr-only"
+              />
+              {CONTRACT_TYPE_LABELS[option]}
+            </label>
+          ))}
+          <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-500 has-checked:border-neutral-900 has-checked:bg-neutral-900 has-checked:text-white pointer-coarse:min-h-11">
+            <input
+              type="radio"
+              name="contract_type"
+              value="none"
+              defaultChecked={!card.contract_type}
+              className="sr-only"
+            />
+            Não definido
+          </label>
+        </div>
+      </div>
+
       <p className={labelClass}>Cobrança</p>
 
       <input
@@ -400,11 +431,11 @@ function BillingFields({
       </label>
 
       <p className="mt-1.5 text-xs text-neutral-500">
-        Escrito no produto personalizado, é esse nome que aparece na nota — o
-        catálogo continua intacto. Entra na nota do mês pela data da entrega,
-        a não ser que o mês de cobrança esteja preenchido (material feito num
-        mês e pago no seguinte). Só entra quando esta entrega estiver numa
-        coluna marcada como &quot;entra na nota&quot;.
+        Entra na nota do mês pela data da entrega, a não ser que o mês de
+        cobrança esteja preenchido (material feito num mês e pago no seguinte),
+        e só quando o card estiver numa coluna marcada como &quot;entra na
+        nota&quot;. Com produto personalizado, é o nome dele que vai na nota; o
+        catálogo não muda.
       </p>
     </div>
   );
@@ -460,6 +491,212 @@ export function BacklogCardDrawer({
     });
   }
 
+  const [captureDate, setCaptureDate] = useState(card.capture_date ?? "");
+
+  const titleField = (
+    <div>
+      <label className={labelClass} htmlFor="backlog-title">
+        Título
+      </label>
+      <input
+        id="backlog-title"
+        name="title"
+        defaultValue={card.title}
+        required
+        className={inputClass}
+      />
+    </div>
+  );
+
+  const formatField = (
+    <div>
+      <label className={labelClass} htmlFor="backlog-format">
+        Formato
+      </label>
+      <select
+        id="backlog-format"
+        name="format"
+        defaultValue={card.format}
+        className={inputClass}
+      >
+        {BACKLOG_FORMATS.map((format) => (
+          <option key={format} value={format}>
+            {BACKLOG_FORMAT_LABELS[format]}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  const backupField = (
+    <div>
+      <label className={labelClass} htmlFor="backlog-backup">
+        Onde foi feito o backup
+      </label>
+      <input
+        id="backlog-backup"
+        name="backup_location"
+        defaultValue={card.backup_location ?? ""}
+        placeholder="Ex: HD Samsung T7 / pasta 14Bis"
+        className={inputClass}
+      />
+    </div>
+  );
+
+  const assigneesField = (
+    <div>
+      <p className={labelClass}>Responsáveis</p>
+      {/* Caixas em vez de select múltiplo: dá pra ver quem está marcado
+          sem abrir nada, e funciona no toque. */}
+      <div className="flex flex-wrap gap-1.5">
+        {users.map((user) => (
+          <label
+            key={user.id}
+            className="flex cursor-pointer items-center gap-1.5 rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm text-neutral-700 has-checked:border-neutral-900 has-checked:bg-neutral-900 has-checked:text-white has-focus-visible:ring-2 has-focus-visible:ring-neutral-900 has-focus-visible:ring-offset-1 pointer-coarse:min-h-11"
+          >
+            <input
+              type="checkbox"
+              name="assignee_ids"
+              value={user.id}
+              defaultChecked={card.assignee_ids.includes(user.id)}
+              className="sr-only"
+            />
+            @{user.username}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+
+  const clientField = (
+    <div>
+      <label className={labelClass} htmlFor="backlog-client">
+        Cliente
+      </label>
+      <select
+        id="backlog-client"
+        name="client_id"
+        defaultValue={card.client_id ?? "none"}
+        className={inputClass}
+      >
+        <option value="none">Sem cliente</option>
+        {clients.map((client) => (
+          <option key={client.id} value={client.id}>
+            {client.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  const guideField = (
+    <div>
+      <label className={labelClass} htmlFor="backlog-guide">
+        Guia de captação
+      </label>
+      <select
+        id="backlog-guide"
+        name="guide_id"
+        defaultValue={card.guide_id ?? "none"}
+        className={inputClass}
+      >
+        <option value="none">Sem guia</option>
+        {guides.map((guide) => (
+          <option key={guide.id} value={guide.id}>
+            {guide.title}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
+  const driveField = (
+    <div>
+      <label className={labelClass} htmlFor="backlog-drive">
+        Link do Drive
+      </label>
+      <input
+        id="backlog-drive"
+        name="drive_url"
+        defaultValue={card.drive_url ?? ""}
+        placeholder="drive.google.com/..."
+        className={inputClass}
+      />
+    </div>
+  );
+
+  const coverField = (
+    <div>
+      <label className={labelClass} htmlFor="backlog-cover">
+        Capa (link de imagem, opcional)
+      </label>
+      <input
+        id="backlog-cover"
+        name="cover_url"
+        defaultValue={card.cover_url ?? ""}
+        placeholder="https://..."
+        className={inputClass}
+      />
+    </div>
+  );
+
+  const whatsappField = (
+    <label className="flex items-center gap-2 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
+      <input
+        type="checkbox"
+        name="sent_whatsapp"
+        defaultChecked={card.sent_whatsapp}
+        className="h-4 w-4"
+      />
+      Enviado por WhatsApp
+    </label>
+  );
+
+  const tagsField = (
+    <div>
+      <label className={labelClass} htmlFor="backlog-tags">
+        Tags (separadas por vírgula)
+      </label>
+      <input
+        id="backlog-tags"
+        name="tags"
+        defaultValue={card.tags.join(", ")}
+        placeholder="natal, bastidor, promo"
+        className={inputClass}
+      />
+    </div>
+  );
+
+  const captionField = (
+    <div>
+      <label className={labelClass} htmlFor="backlog-caption">
+        Legenda do post
+      </label>
+      <textarea
+        id="backlog-caption"
+        name="caption"
+        defaultValue={card.caption}
+        rows={4}
+        className={inputClass}
+      />
+    </div>
+  );
+
+  const descriptionField = (
+    <div>
+      <label className={labelClass} htmlFor="backlog-description">
+        Observações internas
+      </label>
+      <textarea
+        id="backlog-description"
+        name="description"
+        defaultValue={card.description}
+        rows={3}
+        className={inputClass}
+      />
+    </div>
+  );
+
   return (
     <Dialog
       open
@@ -471,7 +708,9 @@ export function BacklogCardDrawer({
           bordas e miolo rolando por dentro. */}
       <DialogContent className="grid max-h-[calc(100dvh-6rem)] w-[calc(100%-3rem)] max-w-4xl grid-rows-[auto_minmax(0,1fr)_auto] gap-3 p-5 sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="text-base">Editar material</DialogTitle>
+          <DialogTitle className="text-base">
+            {showBilling ? "Editar entrega" : "Editar material"}
+          </DialogTitle>
         </DialogHeader>
 
         <form
@@ -482,258 +721,137 @@ export function BacklogCardDrawer({
           <input type="hidden" name="id" value={card.id} />
 
           <div className="flex flex-col gap-4 sm:min-h-0 sm:overflow-y-auto sm:pr-2">
+            {titleField}
 
-          <div>
-            <label className={labelClass} htmlFor="backlog-title">
-              Título
-            </label>
-            <input
-              id="backlog-title"
-              name="title"
-              defaultValue={card.title}
-              required
-              className={inputClass}
-            />
-          </div>
+            {showBilling ? (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {clientField}
+                  {guideField}
+                </div>
+                {assigneesField}
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass} htmlFor="backlog-format">
-                Formato
-              </label>
-              <select
-                id="backlog-format"
-                name="format"
-                defaultValue={card.format}
-                className={inputClass}
-              >
-                {BACKLOG_FORMATS.map((format) => (
-                  <option key={format} value={format}>
-                    {BACKLOG_FORMAT_LABELS[format]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={labelClass} htmlFor="backlog-post-date">
-                {/* No quadro de entregas esta data decide o mês da nota
-                    fiscal, então ela não pode continuar se chamando "post". */}
-                {showBilling ? "Data da entrega" : "Data de post"}
-              </label>
-              <input
-                id="backlog-post-date"
-                type="date"
-                name="post_date"
-                defaultValue={card.post_date ?? ""}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelClass} htmlFor="backlog-post-time">
-                Horário
-              </label>
-              <input
-                id="backlog-post-time"
-                type="time"
-                name="post_time"
-                defaultValue={card.post_time?.slice(0, 5) ?? ""}
-                className={inputClass}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className={labelClass} htmlFor="backlog-backup">
-              Onde foi feito o backup
-            </label>
-            <input
-              id="backlog-backup"
-              name="backup_location"
-              defaultValue={card.backup_location ?? ""}
-              placeholder="Ex: HD Samsung T7 / pasta 14Bis"
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <p className={labelClass}>Responsáveis</p>
-            {/* Caixas em vez de select múltiplo: dá pra ver quem está marcado
-                sem abrir nada, e funciona no toque. */}
-            <div className="flex flex-wrap gap-1.5">
-              {users.map((user) => {
-                const marcado = card.assignee_ids.includes(user.id);
-                return (
-                  <label
-                    key={user.id}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm text-neutral-700 has-checked:border-neutral-900 has-checked:bg-neutral-900 has-checked:text-white pointer-coarse:min-h-11"
-                  >
+                {/* Captação antes da entrega: é a ordem em que acontece. */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass} htmlFor="backlog-capture-date">
+                      Data da captação
+                    </label>
                     <input
-                      type="checkbox"
-                      name="assignee_ids"
-                      value={user.id}
-                      defaultChecked={marcado}
-                      className="sr-only"
+                      id="backlog-capture-date"
+                      type="date"
+                      name="capture_date"
+                      value={captureDate}
+                      onChange={(event) => setCaptureDate(event.target.value)}
+                      className={inputClass}
                     />
-                    @{user.username}
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          {showBilling ? (
-            <div>
-              <p className={labelClass}>Tipo de contrato</p>
-              <div className="flex flex-wrap gap-1.5">
-                {CONTRACT_TYPES.map((option) => (
-                  <label
-                    key={option}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 has-checked:border-neutral-900 has-checked:bg-neutral-900 has-checked:text-white pointer-coarse:min-h-11"
-                  >
+                  </div>
+                  <div>
+                    <label className={labelClass} htmlFor="backlog-capture-time">
+                      Horário da captação
+                    </label>
                     <input
-                      type="radio"
-                      name="contract_type"
-                      value={option}
-                      defaultChecked={card.contract_type === option}
-                      className="sr-only"
+                      id="backlog-capture-time"
+                      type="time"
+                      name="capture_time"
+                      defaultValue={card.capture_time?.slice(0, 5) ?? ""}
+                      className={inputClass}
                     />
-                    {CONTRACT_TYPE_LABELS[option]}
-                  </label>
-                ))}
-                <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-500 has-checked:border-neutral-900 has-checked:bg-neutral-900 has-checked:text-white pointer-coarse:min-h-11">
-                  <input
-                    type="radio"
-                    name="contract_type"
-                    value="none"
-                    defaultChecked={!card.contract_type}
-                    className="sr-only"
-                  />
-                  Não definido
-                </label>
-              </div>
-            </div>
-          ) : null}
+                  </div>
+                  <div>
+                    <label className={labelClass} htmlFor="backlog-post-date">
+                      Data da entrega
+                    </label>
+                    <input
+                      id="backlog-post-date"
+                      type="date"
+                      name="post_date"
+                      min={captureDate || undefined}
+                      defaultValue={card.post_date ?? ""}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass} htmlFor="backlog-post-time">
+                      Horário da entrega
+                    </label>
+                    <input
+                      id="backlog-post-time"
+                      type="time"
+                      name="post_time"
+                      defaultValue={card.post_time?.slice(0, 5) ?? ""}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
 
-          {showBilling ? (
-            <BillingFields card={card} services={services} />
-          ) : null}
+                {driveField}
+                {backupField}
 
-          <div>
-            <label className={labelClass} htmlFor="backlog-client">
-              Cliente
-            </label>
-            <select
-              id="backlog-client"
-              name="client_id"
-              defaultValue={card.client_id ?? "none"}
-              className={inputClass}
-            >
-              <option value="none">Sem cliente</option>
-              {clients.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.name}
-                </option>
-              ))}
-            </select>
-          </div>
+                <BillingFields card={card} services={services} />
 
-          <div>
-            <label className={labelClass} htmlFor="backlog-guide">
-              Guia de captação
-            </label>
-            <select
-              id="backlog-guide"
-              name="guide_id"
-              defaultValue={card.guide_id ?? "none"}
-              className={inputClass}
-            >
-              <option value="none">Sem guia</option>
-              {guides.map((guide) => (
-                <option key={guide.id} value={guide.id}>
-                  {guide.title}
-                </option>
-              ))}
-            </select>
-          </div>
+                {descriptionField}
 
-          <div>
-            <label className={labelClass} htmlFor="backlog-drive">
-              Link do Drive
-            </label>
-            <input
-              id="backlog-drive"
-              name="drive_url"
-              defaultValue={card.drive_url ?? ""}
-              placeholder="drive.google.com/..."
-              className={inputClass}
-            />
-          </div>
+                {/* Campos de post do Instagram: fechados por padrão, mas
+                    continuam no formulário e são salvos mesmo recolhidos. */}
+                <details className="rounded-md border border-neutral-200 p-3">
+                  <summary className="cursor-pointer text-xs font-medium text-neutral-600">
+                    Instagram (formato, capa, legenda, tags)
+                  </summary>
+                  <div className="mt-3 flex flex-col gap-4">
+                    {formatField}
+                    {coverField}
+                    {whatsappField}
+                    {tagsField}
+                    {captionField}
+                  </div>
+                </details>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {formatField}
+                  <div>
+                    <label className={labelClass} htmlFor="backlog-post-date">
+                      Data de post
+                    </label>
+                    <input
+                      id="backlog-post-date"
+                      type="date"
+                      name="post_date"
+                      defaultValue={card.post_date ?? ""}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
 
-          <div>
-            <label className={labelClass} htmlFor="backlog-cover">
-              Capa (link de imagem, opcional)
-            </label>
-            <input
-              id="backlog-cover"
-              name="cover_url"
-              defaultValue={card.cover_url ?? ""}
-              placeholder="https://..."
-              className={inputClass}
-            />
-          </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={labelClass} htmlFor="backlog-post-time">
+                      Horário
+                    </label>
+                    <input
+                      id="backlog-post-time"
+                      type="time"
+                      name="post_time"
+                      defaultValue={card.post_time?.slice(0, 5) ?? ""}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
 
-          <label className="flex items-center gap-2 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
-            <input
-              type="checkbox"
-              name="sent_whatsapp"
-              defaultChecked={card.sent_whatsapp}
-              className="h-4 w-4"
-            />
-            Enviado por WhatsApp
-          </label>
-
-          <div>
-            <label className={labelClass} htmlFor="backlog-tags">
-              Tags (separadas por vírgula)
-            </label>
-            <input
-              id="backlog-tags"
-              name="tags"
-              defaultValue={card.tags.join(", ")}
-              placeholder="natal, bastidor, promo"
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className={labelClass} htmlFor="backlog-caption">
-              Legenda do post
-            </label>
-            <textarea
-              id="backlog-caption"
-              name="caption"
-              defaultValue={card.caption}
-              rows={4}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className={labelClass} htmlFor="backlog-description">
-              Observações internas
-            </label>
-            <textarea
-              id="backlog-description"
-              name="description"
-              defaultValue={card.description}
-              rows={3}
-              className={inputClass}
-            />
-          </div>
-
+                {backupField}
+                {assigneesField}
+                {clientField}
+                {guideField}
+                {driveField}
+                {coverField}
+                {whatsappField}
+                {tagsField}
+                {captionField}
+                {descriptionField}
+              </>
+            )}
           </div>
 
           {/* Coluna da direita: checklist, atividade e comentários. */}
