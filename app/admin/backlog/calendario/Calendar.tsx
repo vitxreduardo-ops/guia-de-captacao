@@ -35,11 +35,14 @@ import {
 import {
   deleteBacklogCardAction,
   setBacklogCardScheduleAction,
+  setBacklogCardCaptureAction,
   updateBacklogCardAction,
 } from "@/app/admin/kanbanActions";
 
 const DAY_PREFIX = "day-";
 const SLOT_PREFIX = "slot-";
+/** Linha "sem horário" das vistas de hora: soltar ali limpa o horário. */
+const NOTIME_PREFIX = "notime-";
 /** Altura de uma faixa de hora, em px. Espelhada no `h-12` da célula. */
 const HOUR_HEIGHT = 48;
 const UNDATED_ID = "undated";
@@ -64,7 +67,8 @@ const MONTH_NAMES = [
 /** "2026-08-20" -> "Qui 20/08", sem passar por fuso. */
 function formatDayLabel(iso: string): string {
   const [year, month, day] = iso.split("-").map(Number);
-  const weekday = WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+  const weekday =
+    WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
   return `${weekday} ${pad(day)}/${pad(month)}`;
 }
 
@@ -88,13 +92,14 @@ function buildMonthGrid(year: number, month: number) {
     date.setUTCDate(start.getUTCDate() + i);
     days.push({
       iso: `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(
-        date.getUTCDate()
+        date.getUTCDate(),
       )}`,
       day: date.getUTCDate(),
       inMonth: date.getUTCMonth() === month,
     });
     // Para de gerar quando a semana já passou do mês inteiro.
-    if (i >= 27 && date.getUTCDay() === 6 && date.getUTCMonth() !== month) break;
+    if (i >= 27 && date.getUTCDay() === 6 && date.getUTCMonth() !== month)
+      break;
   }
   return days;
 }
@@ -115,9 +120,32 @@ const VIEW_LENGTHS: Record<Exclude<CalendarView, "month">, number> = {
 /** Régua da vista "Hoje" — fora desse intervalo raramente se publica. */
 const DAY_HOURS = Array.from({ length: 17 }, (_, index) => index + 6);
 
-function hourOf(card: { post_time: string | null }): number | null {
-  if (!card.post_time) return null;
-  const hour = Number(card.post_time.slice(0, 2));
+/**
+ * O que aparece no calendário. No quadro do Instagram é só o dia do post; no
+ * de entregas o mesmo card aparece duas vezes, na captação e na entrega, e
+ * cada uma tem a sua data e o seu horário.
+ */
+type EventKind = "entrega" | "captacao";
+
+interface CalendarEvent {
+  /** Id do arraste: o mesmo card tem dois eventos, então o card sozinho não basta. */
+  id: string;
+  card: BacklogCard;
+  kind: EventKind;
+  /** Só o quadro de entregas distingue captação de entrega na tela. */
+  labelled: boolean;
+}
+
+function eventTime(event: CalendarEvent): string | null {
+  return event.kind === "captacao"
+    ? event.card.capture_time
+    : event.card.post_time;
+}
+
+function hourOf(event: CalendarEvent): number | null {
+  const time = eventTime(event);
+  if (!time) return null;
+  const hour = Number(time.slice(0, 2));
   return Number.isFinite(hour) ? hour : null;
 }
 
@@ -128,7 +156,7 @@ function buildRangeDays(startIso: string, count: number) {
     const date = new Date(Date.UTC(year, month - 1, day + index));
     return {
       iso: `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(
-        date.getUTCDate()
+        date.getUTCDate(),
       )}`,
       day: date.getUTCDate(),
       weekday: WEEKDAYS[date.getUTCDay()],
@@ -139,21 +167,26 @@ function buildRangeDays(startIso: string, count: number) {
 }
 
 function CardChip({
-  card,
+  event,
   color,
   columnName,
   clientName,
   assigneeName,
 }: {
-  card: BacklogCard;
+  event: CalendarEvent;
   color: string;
   columnName: string;
   clientName: string | null;
   assigneeName: string | null;
 }) {
+  const { card } = event;
+  const captacao = event.kind === "captacao";
+  const time = eventTime(event)?.slice(0, 5);
   return (
     <span
-      className="block rounded bg-neutral-50 px-1 py-0.5 text-left sm:px-1.5 sm:py-1"
+      className={`block rounded px-1 py-0.5 text-left sm:px-1.5 sm:py-1 ${
+        captacao ? "bg-sky-50" : "bg-neutral-50"
+      }`}
       title={columnName}
     >
       <span className="flex items-center gap-1">
@@ -168,11 +201,23 @@ function CardChip({
         <span className="line-clamp-2 text-[10px] font-medium leading-tight text-neutral-800 sm:truncate sm:text-[11px]">
           {card.title}
         </span>
-        <span className="sr-only">({columnName})</span>
+        <span className="sr-only">
+          ({event.labelled ? `${captacao ? "captação" : "entrega"}, ` : ""}
+          {columnName})
+        </span>
       </span>
       {/* No celular a célula é estreita: só o título cabe. */}
       <span className="hidden truncate text-[10px] text-neutral-500 sm:block">
-        {BACKLOG_FORMAT_LABELS[card.format]}
+        {event.labelled ? (
+          <span
+            className={`font-medium ${captacao ? "text-sky-700" : "text-neutral-700"}`}
+          >
+            {captacao ? "Captação" : "Entrega"}
+            {time ? ` ${time}` : ""}
+          </span>
+        ) : (
+          BACKLOG_FORMAT_LABELS[card.format]
+        )}
         {clientName ? ` · ${clientName}` : ""}
         {assigneeName ? ` · @${assigneeName}` : ""}
       </span>
@@ -181,14 +226,14 @@ function CardChip({
 }
 
 function DraggableCard({
-  card,
+  event,
   color,
   columnName,
   clientName,
   assigneeName,
   onOpen,
 }: {
-  card: BacklogCard;
+  event: CalendarEvent;
   color: string;
   columnName: string;
   clientName: string | null;
@@ -196,7 +241,7 @@ function DraggableCard({
   onOpen: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({ id: card.id });
+    useDraggable({ id: event.id });
 
   return (
     <button
@@ -211,7 +256,7 @@ function DraggableCard({
       {...listeners}
     >
       <CardChip
-        card={card}
+        event={event}
         color={color}
         columnName={columnName}
         clientName={clientName}
@@ -271,26 +316,30 @@ function DayCell({
  * dnd-kit já governa o arraste do card inteiro.
  */
 function ScheduledCard({
-  card,
+  event,
   color,
   columnName,
   clientName,
   assigneeName,
   onOpen,
 }: {
-  card: BacklogCard;
+  event: CalendarEvent;
   color: string;
   columnName: string;
   clientName: string | null;
   assigneeName: string | null;
   onOpen: () => void;
 }) {
+  const { card } = event;
   const [previewHours, setPreviewHours] = useState<number | null>(null);
 
-  const savedHours = Math.max(
-    1,
-    Math.round((card.duration_minutes ?? DEFAULT_DURATION_MINUTES) / 60)
-  );
+  const savedHours =
+    event.kind === "captacao"
+      ? 1
+      : Math.max(
+          1,
+          Math.round((card.duration_minutes ?? DEFAULT_DURATION_MINUTES) / 60),
+        );
   const hours = previewHours ?? savedHours;
 
   function startResize(event: React.PointerEvent) {
@@ -339,7 +388,7 @@ function ScheduledCard({
     >
       <div className="relative h-full overflow-hidden rounded border border-neutral-200 bg-white shadow-sm">
         <DraggableCard
-          card={card}
+          event={event}
           color={color}
           columnName={columnName}
           clientName={clientName}
@@ -347,12 +396,15 @@ function ScheduledCard({
           onOpen={onOpen}
         />
       </div>
-      <span
-        onPointerDown={startResize}
-        role="separator"
-        aria-label={`Duração: ${hours}h. Arraste para mudar.`}
-        className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize rounded-b bg-transparent hover:bg-neutral-300/60"
-      />
+      {/* A duração é da entrega; a captação ocupa sempre uma faixa. */}
+      {event.kind === "entrega" ? (
+        <span
+          onPointerDown={startResize}
+          role="separator"
+          aria-label={`Duração: ${hours}h. Arraste para mudar.`}
+          className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize rounded-b bg-transparent hover:bg-neutral-300/60"
+        />
+      ) : null}
     </div>
   );
 }
@@ -361,7 +413,7 @@ function ScheduledCard({
 function WeekHourCell({
   iso,
   hour,
-  cards,
+  events,
   colorOf,
   columnNameOf,
   clientOf,
@@ -371,7 +423,7 @@ function WeekHourCell({
   iso: string;
   /** null na faixa "sem horário": soltar ali limpa o horário. */
   hour: number | null;
-  cards: BacklogCard[];
+  events: CalendarEvent[];
   colorOf: (card: BacklogCard) => string;
   columnNameOf: (card: BacklogCard) => string;
   clientOf: (card: BacklogCard) => string | null;
@@ -379,7 +431,8 @@ function WeekHourCell({
   onOpenCard: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
-    id: hour === null ? `${DAY_PREFIX}${iso}` : `${SLOT_PREFIX}${iso}-${hour}`,
+    id:
+      hour === null ? `${NOTIME_PREFIX}${iso}` : `${SLOT_PREFIX}${iso}-${hour}`,
   });
 
   return (
@@ -388,15 +441,15 @@ function WeekHourCell({
       style={{ height: HOUR_HEIGHT }}
       className={`relative ${isOver ? "bg-neutral-100" : "bg-white"}`}
     >
-      {cards.map((card) => (
+      {events.map((event) => (
         <ScheduledCard
-          key={card.id}
-          card={card}
-          color={colorOf(card)}
-          columnName={columnNameOf(card)}
-          clientName={clientOf(card)}
-          assigneeName={assigneeOf(card)}
-          onOpen={() => onOpenCard(card.id)}
+          key={event.id}
+          event={event}
+          color={colorOf(event.card)}
+          columnName={columnNameOf(event.card)}
+          clientName={clientOf(event.card)}
+          assigneeName={assigneeOf(event.card)}
+          onOpen={() => onOpenCard(event.card.id)}
         />
       ))}
     </div>
@@ -411,7 +464,7 @@ function TodayHourRow({
   iso,
   hour,
   label,
-  cards,
+  events,
   colorOf,
   columnNameOf,
   clientOf,
@@ -421,7 +474,7 @@ function TodayHourRow({
   iso: string;
   hour: number | null;
   label: string;
-  cards: BacklogCard[];
+  events: CalendarEvent[];
   colorOf: (card: BacklogCard) => string;
   columnNameOf: (card: BacklogCard) => string;
   clientOf: (card: BacklogCard) => string | null;
@@ -429,7 +482,8 @@ function TodayHourRow({
   onOpenCard: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
-    id: hour === null ? `${DAY_PREFIX}${iso}` : `${SLOT_PREFIX}${iso}-${hour}`,
+    id:
+      hour === null ? `${NOTIME_PREFIX}${iso}` : `${SLOT_PREFIX}${iso}-${hour}`,
   });
 
   return (
@@ -442,15 +496,15 @@ function TodayHourRow({
         style={{ height: HOUR_HEIGHT }}
         className={`relative flex-1 ${isOver ? "bg-neutral-100" : "bg-white"}`}
       >
-        {cards.map((card) => (
+        {events.map((event) => (
           <ScheduledCard
-            key={card.id}
-            card={card}
-            color={colorOf(card)}
-            columnName={columnNameOf(card)}
-            clientName={clientOf(card)}
-            assigneeName={assigneeOf(card)}
-            onOpen={() => onOpenCard(card.id)}
+            key={event.id}
+            event={event}
+            color={colorOf(event.card)}
+            columnName={columnNameOf(event.card)}
+            clientName={clientOf(event.card)}
+            assigneeName={assigneeOf(event.card)}
+            onOpen={() => onOpenCard(event.card.id)}
           />
         ))}
       </div>
@@ -464,7 +518,13 @@ function TodayHourRow({
  * porque `useDroppable` só enxerga o contexto abaixo do `DndContext`, e o
  * `Calendar` é quem renderiza o contexto.
  */
-function UndatedMenu({ count, children }: { count: number; children: React.ReactNode }) {
+function UndatedMenu({
+  count,
+  children,
+}: {
+  count: number;
+  children: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const { setNodeRef, isOver } = useDroppable({ id: UNDATED_ID });
 
@@ -499,7 +559,15 @@ function UndatedMenu({ count, children }: { count: number; children: React.React
   );
 }
 
-export function Calendar({ board }: { board: BacklogBoard }) {
+export function Calendar({
+  board,
+  mode = "instagram",
+}: {
+  board: BacklogBoard;
+  /** "entregas" mostra captação e entrega e abre o card com cobrança. */
+  mode?: "instagram" | "entregas";
+}) {
+  const entregas = mode === "entregas";
   const today = new Date();
   const [cards, setCards] = useState(board.cards);
   const [year, setYear] = useState(today.getFullYear());
@@ -522,44 +590,71 @@ export function Calendar({ board }: { board: BacklogBoard }) {
 
   const clientNameById = useMemo(
     () => new Map(board.clients.map((client) => [client.id, client.name])),
-    [board.clients]
+    [board.clients],
   );
 
   const assigneeNameById = useMemo(
     () => new Map(board.users.map((user) => [user.id, user.username])),
-    [board.users]
+    [board.users],
   );
 
   const columnById = useMemo(
     () => new Map(board.columns.map((column) => [column.id, column])),
-    [board.columns]
+    [board.columns],
   );
 
   const filtered = useMemo(
     () => filterBacklogCards(cards, filter, board.checklist),
-    [cards, filter, board.checklist]
+    [cards, filter, board.checklist],
   );
 
-  const cardsByDate = useMemo(() => {
-    const map = new Map<string, BacklogCard[]>();
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>();
+    function add(date: string, event: CalendarEvent) {
+      const list = map.get(date) ?? [];
+      list.push(event);
+      map.set(date, list);
+    }
     for (const card of filtered) {
-      if (!card.post_date) continue;
-      const list = map.get(card.post_date) ?? [];
-      list.push(card);
-      map.set(card.post_date, list);
+      if (card.post_date) {
+        add(card.post_date, {
+          id: `${card.id}:entrega`,
+          card,
+          kind: "entrega",
+          labelled: entregas,
+        });
+      }
+      if (entregas && card.capture_date) {
+        add(card.capture_date, {
+          id: `${card.id}:captacao`,
+          card,
+          kind: "captacao",
+          labelled: true,
+        });
+      }
     }
     return map;
-  }, [filtered]);
+  }, [filtered, entregas]);
 
+  // Só a entrega entra em "Sem data": a captação é opcional, e listar todo
+  // card sem captação encheria o menu de coisa que não está atrasada.
   const undated = useMemo(
-    () => filtered.filter((card) => !card.post_date),
-    [filtered]
+    () =>
+      filtered
+        .filter((card) => !card.post_date)
+        .map<CalendarEvent>((card) => ({
+          id: `${card.id}:entrega`,
+          card,
+          kind: "entrega",
+          labelled: entregas,
+        })),
+    [filtered, entregas],
   );
 
   const monthDays = useMemo(() => buildMonthGrid(year, month), [year, month]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
 
   function shiftMonth(delta: number) {
@@ -577,10 +672,40 @@ export function Calendar({ board }: { board: BacklogBoard }) {
     const { active, over } = event;
     if (!over) return;
 
-    const cardId = String(active.id);
+    const [cardId, kindText] = String(active.id).split(":");
+    const kind: EventKind = kindText === "captacao" ? "captacao" : "entrega";
     const overId = String(over.id);
     const card = cards.find((item) => item.id === cardId);
     if (!card) return;
+
+    const currentDate =
+      kind === "captacao" ? card.capture_date : card.post_date;
+    const currentTime =
+      kind === "captacao" ? card.capture_time : card.post_time;
+
+    /** Grava o novo dia/horário no evento arrastado, otimista e no servidor. */
+    function move(date: string | null, time: string | null) {
+      setCards((current) =>
+        current.map((item) => {
+          if (item.id !== cardId) return item;
+          return kind === "captacao"
+            ? { ...item, capture_date: date, capture_time: time }
+            : { ...item, post_date: date, post_time: time };
+        }),
+      );
+      void (kind === "captacao"
+        ? setBacklogCardCaptureAction({
+            id: cardId,
+            captureDate: date,
+            captureTime: time,
+          })
+        : setBacklogCardScheduleAction({
+            id: cardId,
+            postDate: date,
+            postTime: time,
+            durationMinutes: card!.duration_minutes,
+          }));
+    }
 
     // Slot de hora: grava data e horário. Dia inteiro ou menu "sem data":
     // grava só a data (limpando o horário) ou tira tudo.
@@ -590,59 +715,44 @@ export function Calendar({ board }: { board: BacklogBoard }) {
       const iso = rest.slice(0, separator);
       const hour = Number(rest.slice(separator + 1));
       const time = `${pad(hour)}:00`;
-      if (card.post_date === iso && card.post_time?.slice(0, 5) === time) return;
-
-      setCards((current) =>
-        current.map((item) =>
-          item.id === cardId
-            ? { ...item, post_date: iso, post_time: time }
-            : item
-        )
-      );
-      void setBacklogCardScheduleAction({
-        id: cardId,
-        postDate: iso,
-        postTime: time,
-        durationMinutes: card.duration_minutes,
-      });
+      if (currentDate === iso && currentTime?.slice(0, 5) === time) return;
+      move(iso, time);
       return;
     }
 
+    // Soltar num dia muda só o dia. No quadro de entregas o horário é parte
+    // do combinado (uma captação às 16h continua às 16h em outro dia), então
+    // ele fica; só a linha "sem horário" e o menu "sem data" o limpam.
     const nextDate = overId.startsWith(DAY_PREFIX)
       ? overId.slice(DAY_PREFIX.length)
-      : overId === UNDATED_ID
-        ? null
-        : undefined;
+      : overId.startsWith(NOTIME_PREFIX)
+        ? overId.slice(NOTIME_PREFIX.length)
+        : overId === UNDATED_ID
+          ? null
+          : undefined;
     if (nextDate === undefined) return;
-    if (card.post_date === nextDate && !card.post_time) return;
-
-    setCards((current) =>
-      current.map((item) =>
-        item.id === cardId
-          ? { ...item, post_date: nextDate, post_time: null }
-          : item
-      )
-    );
-    void setBacklogCardScheduleAction({
-      id: cardId,
-      postDate: nextDate,
-      postTime: null,
-      durationMinutes: card.duration_minutes,
-    });
+    const keepTime = entregas && overId.startsWith(DAY_PREFIX);
+    // O banco devolve "16:00:00"; a gravação só aceita "16:00".
+    const nextTime = keepTime ? (currentTime?.slice(0, 5) ?? null) : null;
+    if (currentDate === nextDate && currentTime?.slice(0, 5) === nextTime)
+      return;
+    move(nextDate, nextTime);
   }
 
   const editingCard = editingCardId
-    ? cards.find((card) => card.id === editingCardId) ?? null
+    ? (cards.find((card) => card.id === editingCardId) ?? null)
     : null;
   const openCard = openCardId
-    ? cards.find((card) => card.id === openCardId) ?? null
+    ? (cards.find((card) => card.id === openCardId) ?? null)
     : null;
   const activeCard = activeCardId
-    ? cards.find((card) => card.id === activeCardId) ?? null
+    ? ([...eventsByDate.values(), undated]
+        .flat()
+        .find((item) => item.id === activeCardId) ?? null)
     : null;
 
   const todayIso = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(
-    today.getDate()
+    today.getDate(),
   )}`;
 
   // Nas vistas de intervalo a contagem começa hoje, então navegar por mês não
@@ -655,7 +765,7 @@ export function Calendar({ board }: { board: BacklogBoard }) {
   }
 
   function clientOf(card: BacklogCard) {
-    return card.client_id ? clientNameById.get(card.client_id) ?? null : null;
+    return card.client_id ? (clientNameById.get(card.client_id) ?? null) : null;
   }
 
   /** Vários responsáveis viram uma linha só; o calendário tem pouco espaço. */
@@ -735,7 +845,7 @@ export function Calendar({ board }: { board: BacklogBoard }) {
             {view === "today"
               ? `Hoje, ${formatDayLabel(todayIso)}`
               : `${formatDayLabel(rangeDays[0].iso)} — ${formatDayLabel(
-                  rangeDays[rangeDays.length - 1].iso
+                  rangeDays[rangeDays.length - 1].iso,
                 )}`}
           </p>
         )}
@@ -782,12 +892,12 @@ export function Calendar({ board }: { board: BacklogBoard }) {
                 {undated.map((card) => (
                   <li key={card.id}>
                     <DraggableCard
-                      card={card}
-                      color={colorOf(card)}
-                      columnName={columnNameOf(card)}
-                      clientName={clientOf(card)}
-                      assigneeName={assigneeOf(card)}
-                      onOpen={() => setOpenCardId(card.id)}
+                      event={card}
+                      color={colorOf(card.card)}
+                      columnName={columnNameOf(card.card)}
+                      clientName={clientOf(card.card)}
+                      assigneeName={assigneeOf(card.card)}
+                      onOpen={() => setOpenCardId(card.card.id)}
                     />
                   </li>
                 ))}
@@ -806,11 +916,23 @@ export function Calendar({ board }: { board: BacklogBoard }) {
       </div>
 
       <p className="hidden text-sm text-neutral-500 sm:block">
-        Arraste um material pra outro dia pra mudar a data de post, ou solte no
-        menu &quot;Sem data&quot; pra tirar a data.
+        {entregas
+          ? 'Arraste uma entrega ou uma captação pra outro dia pra mudar a data dela, ou solte no menu "Sem data" pra tirar a data.'
+          : 'Arraste um material pra outro dia pra mudar a data de post, ou solte no menu "Sem data" pra tirar a data.'}
       </p>
 
       <ul className="mb-3 mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        {entregas ? (
+          <li className="flex items-center gap-1.5 text-xs text-neutral-500">
+            <span aria-hidden className="h-2 w-4 rounded-sm bg-sky-100" />
+            Captação
+            <span
+              aria-hidden
+              className="ml-2 h-2 w-4 rounded-sm bg-neutral-200"
+            />
+            Entrega
+          </li>
+        ) : null}
         {board.columns.map((column) => (
           <li
             key={column.id}
@@ -832,7 +954,11 @@ export function Calendar({ board }: { board: BacklogBoard }) {
             deste container, sem empurrar a página. */}
         <div
           className={
-            view === "today" ? "" : view === "month" ? "sm:min-w-[52rem]" : "min-w-[44rem]"
+            view === "today"
+              ? ""
+              : view === "month"
+                ? "sm:min-w-[52rem]"
+                : "min-w-[44rem]"
           }
         >
           {view === "month" ? (
@@ -857,15 +983,15 @@ export function Calendar({ board }: { board: BacklogBoard }) {
                     muted={!day.inMonth}
                     isToday={day.iso === todayIso}
                   >
-                    {(cardsByDate.get(day.iso) ?? []).map((card) => (
-                      <li key={card.id}>
+                    {(eventsByDate.get(day.iso) ?? []).map((item) => (
+                      <li key={item.id}>
                         <DraggableCard
-                          card={card}
-                          color={colorOf(card)}
-                          columnName={columnNameOf(card)}
-                          clientName={clientOf(card)}
-                          assigneeName={assigneeOf(card)}
-                          onOpen={() => setOpenCardId(card.id)}
+                          event={item}
+                          color={colorOf(item.card)}
+                          columnName={columnNameOf(item.card)}
+                          clientName={clientOf(item.card)}
+                          assigneeName={assigneeOf(item.card)}
+                          onOpen={() => setOpenCardId(item.card.id)}
                         />
                       </li>
                     ))}
@@ -899,8 +1025,8 @@ export function Calendar({ board }: { board: BacklogBoard }) {
                     key={`none-${day.iso}`}
                     iso={day.iso}
                     hour={null}
-                    cards={(cardsByDate.get(day.iso) ?? []).filter(
-                      (card) => hourOf(card) === null
+                    events={(eventsByDate.get(day.iso) ?? []).filter(
+                      (item) => hourOf(item) === null,
                     )}
                     colorOf={colorOf}
                     columnNameOf={columnNameOf}
@@ -920,8 +1046,8 @@ export function Calendar({ board }: { board: BacklogBoard }) {
                         key={`${hour}-${day.iso}`}
                         iso={day.iso}
                         hour={hour}
-                        cards={(cardsByDate.get(day.iso) ?? []).filter(
-                          (card) => hourOf(card) === hour
+                        events={(eventsByDate.get(day.iso) ?? []).filter(
+                          (item) => hourOf(item) === hour,
                         )}
                         colorOf={colorOf}
                         columnNameOf={columnNameOf}
@@ -941,8 +1067,8 @@ export function Calendar({ board }: { board: BacklogBoard }) {
                 iso={todayIso}
                 hour={null}
                 label="Sem horário"
-                cards={(cardsByDate.get(todayIso) ?? []).filter(
-                  (card) => hourOf(card) === null
+                events={(eventsByDate.get(todayIso) ?? []).filter(
+                  (item) => hourOf(item) === null,
                 )}
                 colorOf={colorOf}
                 columnNameOf={columnNameOf}
@@ -957,8 +1083,8 @@ export function Calendar({ board }: { board: BacklogBoard }) {
                   iso={todayIso}
                   hour={hour}
                   label={`${pad(hour)}:00`}
-                  cards={(cardsByDate.get(todayIso) ?? []).filter(
-                    (card) => hourOf(card) === hour
+                  events={(eventsByDate.get(todayIso) ?? []).filter(
+                    (item) => hourOf(item) === hour,
                   )}
                   colorOf={colorOf}
                   columnNameOf={columnNameOf}
@@ -976,11 +1102,11 @@ export function Calendar({ board }: { board: BacklogBoard }) {
         {activeCard ? (
           <div className="w-44">
             <CardChip
-              card={activeCard}
-              color={colorOf(activeCard)}
-              columnName={columnNameOf(activeCard)}
-              clientName={clientOf(activeCard)}
-              assigneeName={assigneeOf(activeCard)}
+              event={activeCard}
+              color={colorOf(activeCard.card)}
+              columnName={columnNameOf(activeCard.card)}
+              clientName={clientOf(activeCard.card)}
+              assigneeName={assigneeOf(activeCard.card)}
             />
           </div>
         ) : null}
@@ -1003,6 +1129,7 @@ export function Calendar({ board }: { board: BacklogBoard }) {
           }
           authorNameById={assigneeNameById}
           canComment={board.columns[0]?.id !== openCard.column_id}
+          showBilling={entregas}
           onClose={() => setOpenCardId(null)}
           onEdit={() => setEditingCardId(openCard.id)}
         />
@@ -1017,6 +1144,8 @@ export function Calendar({ board }: { board: BacklogBoard }) {
           clients={board.clients}
           guides={board.guides}
           users={board.users}
+          services={board.services}
+          showBilling={entregas}
           onClose={() => {
             setEditingCardId(null);
             setOpenCardId(null);
