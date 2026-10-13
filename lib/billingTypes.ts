@@ -195,3 +195,27 @@ export function recentMonths(today = new Date(), count = 12): string[] {
 export const DEFAULT_INVOICE_CLOSING = `Obrigado pela parceria neste mês!
 
 Qualquer dúvida sobre algum item desta lista, ou se precisarem de ajuste em alguma peça, é só chamar a gente. Estamos por aqui!`;
+
+/**
+ * Contas de pagamento prontas pro relatório, um dado por linha no formato
+ * `Rótulo: valor`. Ficam aqui, e não no documento, porque o formulário de
+ * download é cliente. A primeira é a padrão.
+ */
+export const INVOICE_PAYMENT_PRESETS = [
+  {
+    label: "Inter",
+    text: `PIX: 53.107.038/0001-24
+Banco: 077 - Inter
+Agência: 0001
+Conta: 44940158-8`,
+  },
+  {
+    label: "Mercado Pago",
+    text: `PIX: 68.671.637/0001-43
+Banco: Mercado Pago
+Ag: 0001
+Conta: 8768541554-0`,
+  },
+] as const;
+
+export const DEFAULT_INVOICE_PAYMENT = INVOICE_PAYMENT_PRESETS[0].text;

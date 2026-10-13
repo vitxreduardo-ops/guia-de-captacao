@@ -12,14 +12,6 @@ import type { MonthlyInvoiceWithItems } from "@/lib/billingTypes";
 import { formatBRL, lineTotalCents, monthLabel } from "@/lib/billingTypes";
 import { LOGO_PATH, LOGO_VIEWBOX } from "@/components/pdf/tatuLogo";
 
-/** Conta do estúdio. Muda aqui e muda em todo relatório daqui pra frente. */
-const PAYMENT = [
-  ["PIX", "53.107.038/0001-24"],
-  ["Banco", "077 - Inter"],
-  ["Agência", "0001"],
-  ["Conta", "44940158-8"],
-];
-
 const styles = StyleSheet.create({
   // O rodapé e os dados de pagamento ficam ancorados no pé da folha, então a
   // margem de baixo precisa reservar o espaço deles.
@@ -38,7 +30,12 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     marginBottom: 20,
   },
-  headerLabel: { fontSize: 8, color: "#737373", textTransform: "uppercase", letterSpacing: 1 },
+  headerLabel: {
+    fontSize: 8,
+    color: "#737373",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
   titleRow: {
     flexDirection: "row",
     alignItems: "baseline",
@@ -47,7 +44,13 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 15, fontWeight: 700 },
   total: { fontSize: 18, fontWeight: 700 },
-  intro: { fontSize: 9.5, color: "#525252", lineHeight: 1.5, marginBottom: 18, maxWidth: 400 },
+  intro: {
+    fontSize: 9.5,
+    color: "#525252",
+    lineHeight: 1.5,
+    marginBottom: 18,
+    maxWidth: 400,
+  },
   item: {
     flexDirection: "row",
     alignItems: "center",
@@ -121,9 +124,11 @@ export function deliveryTitle(description: string) {
 function InvoicePdfDocument({
   invoice,
   closing,
+  payment,
 }: {
   invoice: MonthlyInvoiceWithItems;
   closing: string;
+  payment: string;
 }) {
   const label = monthLabel(invoice.month);
   const items = [...invoice.items].sort((a, b) => a.position - b.position);
@@ -132,6 +137,18 @@ function InvoicePdfDocument({
     .split(/\n\s*\n/)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean);
+
+  // Uma linha por dado, "Rótulo: valor". Linha sem ":" vira só valor.
+  const paymentRows = payment
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const i = line.indexOf(":");
+      return i === -1
+        ? ["", line]
+        : [line.slice(0, i).trim(), line.slice(i + 1).trim()];
+    });
 
   return (
     <Document
@@ -167,7 +184,9 @@ function InvoicePdfDocument({
             <Text style={styles.itemQty}>
               {item.quantity} × {formatBRL(item.unit_price_cents)}
             </Text>
-            <Text style={styles.itemTotal}>{formatBRL(lineTotalCents(item))}</Text>
+            <Text style={styles.itemTotal}>
+              {formatBRL(lineTotalCents(item))}
+            </Text>
           </View>
         ))}
 
@@ -187,22 +206,27 @@ function InvoicePdfDocument({
         {paragraphs.length > 0 ? (
           <View style={styles.closing}>
             {paragraphs.map((paragraph, index) => (
-              <Text key={paragraph} style={index > 0 ? { marginTop: 6 } : undefined}>
+              <Text
+                key={paragraph}
+                style={index > 0 ? { marginTop: 6 } : undefined}
+              >
                 {paragraph}
               </Text>
             ))}
           </View>
         ) : null}
 
-        <View style={styles.payment} fixed>
-          <Text style={styles.paymentTitle}>Dados para pagamento</Text>
-          {PAYMENT.map(([label, value]) => (
-            <View key={label} style={styles.paymentRow}>
-              <Text style={styles.paymentLabel}>{label}</Text>
-              <Text style={styles.paymentValue}>{value}</Text>
-            </View>
-          ))}
-        </View>
+        {paymentRows.length > 0 ? (
+          <View style={styles.payment} fixed>
+            <Text style={styles.paymentTitle}>Dados para pagamento</Text>
+            {paymentRows.map(([label, value], index) => (
+              <View key={index} style={styles.paymentRow}>
+                <Text style={styles.paymentLabel}>{label}</Text>
+                <Text style={styles.paymentValue}>{value}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         <View style={styles.footer} fixed>
           <Text>Tatú Estúdio Criativo</Text>
@@ -217,7 +241,14 @@ function InvoicePdfDocument({
 
 export async function renderInvoicePdfBuffer(
   invoice: MonthlyInvoiceWithItems,
-  closing: string
+  closing: string,
+  payment: string,
 ) {
-  return renderToBuffer(<InvoicePdfDocument invoice={invoice} closing={closing} />);
+  return renderToBuffer(
+    <InvoicePdfDocument
+      invoice={invoice}
+      closing={closing}
+      payment={payment}
+    />,
+  );
 }

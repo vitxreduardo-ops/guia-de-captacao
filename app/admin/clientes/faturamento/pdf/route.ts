@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getInvoice } from "@/lib/billing";
 import { renderInvoicePdfBuffer } from "@/components/pdf/InvoicePdfDocument";
-import { DEFAULT_INVOICE_CLOSING } from "@/lib/billingTypes";
+import {
+  DEFAULT_INVOICE_CLOSING,
+  DEFAULT_INVOICE_PAYMENT,
+} from "@/lib/billingTypes";
 import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +39,8 @@ export async function GET(request: Request) {
   const closing = url.searchParams.get("texto");
   const buffer = await renderInvoicePdfBuffer(
     invoice,
-    closing === null ? DEFAULT_INVOICE_CLOSING : closing
+    closing === null ? DEFAULT_INVOICE_CLOSING : closing,
+    url.searchParams.get("pagamento") ?? DEFAULT_INVOICE_PAYMENT
   );
   const slug = invoice.client_name
     .normalize("NFD")
