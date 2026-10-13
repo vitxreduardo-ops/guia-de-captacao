@@ -1,7 +1,11 @@
 "use client";
 
-import { useTransition } from "react";
-import { DEFAULT_INVOICE_CLOSING, formatBRL } from "@/lib/billingTypes";
+import { useState, useTransition } from "react";
+import {
+  DEFAULT_INVOICE_CLOSING,
+  INVOICE_PAYMENT_PRESETS,
+  formatBRL,
+} from "@/lib/billingTypes";
 import {
   closeMonthAction,
   reopenInvoiceAction,
@@ -37,6 +41,13 @@ export function CloseMonthForm({
   invoice: { id: string; total_cents: number; closed_at: string } | null;
 }) {
   const [pending, startTransition] = useTransition();
+  // Índice da conta pronta, ou -1 pra texto livre.
+  const [paymentChoice, setPaymentChoice] = useState(0);
+  const [customPayment, setCustomPayment] = useState("");
+  const paymentText =
+    paymentChoice >= 0
+      ? INVOICE_PAYMENT_PRESETS[paymentChoice].text
+      : customPayment;
 
   if (invoice) {
     return (
@@ -85,6 +96,59 @@ export function CloseMonthForm({
               Linha em branco separa parágrafo. Campo vazio gera o relatório sem
               recado.
             </p>
+            <fieldset className="mt-3">
+              <legend className="text-xs font-medium text-neutral-700">
+                Dados para pagamento
+              </legend>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                {[
+                  ...INVOICE_PAYMENT_PRESETS.map((preset, index) => ({
+                    label: preset.label,
+                    index,
+                  })),
+                  { label: "Personalizar", index: -1 },
+                ].map((option) => (
+                  <label
+                    key={option.index}
+                    className={`cursor-pointer rounded-md border px-3 py-1.5 text-xs has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-neutral-900 ${
+                      paymentChoice === option.index
+                        ? "border-neutral-900 bg-neutral-900 text-white"
+                        : "border-neutral-300 text-neutral-700 hover:bg-neutral-100"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name={`conta-${month}`}
+                      checked={paymentChoice === option.index}
+                      onChange={() => setPaymentChoice(option.index)}
+                      className="sr-only"
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+              <input type="hidden" name="pagamento" value={paymentText} />
+              {paymentChoice >= 0 ? (
+                <pre className="mt-2 font-sans text-xs whitespace-pre-wrap text-neutral-600">
+                  {paymentText}
+                </pre>
+              ) : (
+                <>
+                  <textarea
+                    aria-label="Dados para pagamento personalizados"
+                    rows={4}
+                    value={customPayment}
+                    onChange={(event) => setCustomPayment(event.target.value)}
+                    placeholder={"PIX: ...\nBanco: ...\nAgência: ...\nConta: ..."}
+                    className="mt-2 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none sm:w-96"
+                  />
+                  <p className="mt-1 text-xs text-neutral-500">
+                    Uma linha por dado, no formato Rótulo: valor. Vazio tira o
+                    bloco do PDF.
+                  </p>
+                </>
+              )}
+            </fieldset>
             <button
               type="submit"
               className={`mt-2 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 ${PRESS}`}
