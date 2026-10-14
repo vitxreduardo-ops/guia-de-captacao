@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import {
   getContract,
-  listContractRevisions,
+  getContractRevision,
   setContractStatus,
   updateContract,
   type ContractKind,
@@ -135,9 +135,7 @@ export async function restoreRevisionAction(
   if (!contract || contract.status === "signed") {
     return { ok: false, motivo: "Contrato não pode ser alterado." };
   }
-  const revisao = (await listContractRevisions(contractId)).find(
-    (r) => r.id === revisionId,
-  );
+  const revisao = await getContractRevision(contractId, revisionId);
   if (!revisao) return { ok: false, motivo: "Versão não encontrada." };
 
   await updateContract(contractId, {

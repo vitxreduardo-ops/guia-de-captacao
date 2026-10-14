@@ -2,18 +2,18 @@
 
 import { useState } from "react";
 import { restoreRevisionAction } from "@/app/admin/contratos/[id]/actions";
-import type { ContractRevision } from "@/lib/contracts";
+import type { ContractRevisionResumo } from "@/lib/contracts";
 
 export function ContractHistory({
   contractId,
   revisoes,
 }: {
   contractId: string;
-  revisoes: ContractRevision[];
+  revisoes: ContractRevisionResumo[];
 }) {
   const [erro, setErro] = useState<string | null>(null);
 
-  async function restaurar(r: ContractRevision, quando: string) {
+  async function restaurar(r: ContractRevisionResumo, quando: string) {
     if (
       !confirm(
         `Voltar o contrato para a versão de ${quando}? O texto atual fica guardado aqui no histórico.`,
@@ -43,9 +43,7 @@ export function ContractHistory({
           });
           return (
             <li key={r.id} className="flex items-center justify-between py-2">
-              <span className="text-xs text-neutral-700">
-                {quando} · {r.body.length.toLocaleString("pt-BR")} caracteres
-              </span>
+              <span className="text-xs text-neutral-700">{quando}</span>
               <button
                 type="button"
                 onClick={() => restaurar(r, quando)}
