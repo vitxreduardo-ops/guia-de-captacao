@@ -2,6 +2,7 @@
 
 import { createBriefing } from "@/lib/briefings";
 import { markBriefingLinkAnswered } from "@/lib/briefingLinks";
+import { notifyAdmins } from "@/lib/notifications";
 import { sendWhatsAppNotice } from "@/lib/whatsapp";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
 import { FIELDS, MAX_ANSWER_LENGTH, fieldsFor, telefoneValido } from "./fields";
@@ -46,6 +47,15 @@ export async function submitBriefingAction(
       contact: answers.contato ?? "",
       answers,
     });
+
+    await notifyAdmins({
+      actorId: null,
+      kind: "briefing_new",
+      title: `Novo briefing: ${answers.nome ?? ""}`,
+      body: answers.servico ?? "",
+      link: "/admin/briefings",
+      entityId: briefing.id,
+    }).catch((err) => console.error("Falha ao avisar do briefing", err));
 
     // O vínculo com o convite vem depois e num try próprio: a resposta do
     // cliente já está salva, e perder o "de quem veio" não pode virar um erro

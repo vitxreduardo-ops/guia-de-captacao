@@ -6,6 +6,7 @@ import {
 } from "@/lib/notificationTypes";
 import { sendPushToUser } from "@/lib/push";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { listUsers } from "@/lib/users";
 
 export { NOTIFICATION_LIMIT };
 export type { Notification, NotificationKind };
@@ -46,6 +47,20 @@ export async function notifyUser(params: {
     body: params.body ?? "",
     url: params.link ?? "/admin",
   }).catch((err) => console.error("Falha no push", err));
+}
+
+/** Evento sem responsável (briefing novo, ideia do cliente): avisa todos os admins. */
+export async function notifyAdmins(
+  params: Omit<Parameters<typeof notifyUser>[0], "userId">
+) {
+  const admins = (await listUsers()).filter((u) => u.role === "admin");
+  await Promise.all(
+    admins.map((u) =>
+      notifyUser({ ...params, userId: u.id }).catch((err) =>
+        console.error("Falha ao avisar admin", err)
+      )
+    )
+  );
 }
 
 export async function listNotifications(
