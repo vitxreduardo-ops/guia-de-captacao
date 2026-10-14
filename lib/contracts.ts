@@ -233,18 +233,39 @@ export type ContractRevision = {
   created_at: string;
 };
 
+/** A lista não traz o texto: com até 100 versões de contrato grande, ele
+ *  pesaria na abertura da tela. O texto vem de `getContractRevision`, só da
+ *  versão que for restaurada. */
+export type ContractRevisionResumo = Omit<ContractRevision, "body">;
+
 /** Versões anteriores do texto, da mais nova pra mais velha. O gatilho
  *  `contracts_keep_revision` (0083) é quem as grava. */
 export async function listContractRevisions(
   contractId: string,
-): Promise<ContractRevision[]> {
+): Promise<ContractRevisionResumo[]> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("contract_revisions")
-    .select("id, title, body, created_at")
+    .select("id, title, created_at")
     .eq("contract_id", contractId)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
   return data ?? [];
+}
+
+export async function getContractRevision(
+  contractId: string,
+  revisionId: string,
+): Promise<ContractRevision | null> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("contract_revisions")
+    .select("id, title, body, created_at")
+    .eq("contract_id", contractId)
+    .eq("id", revisionId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
 }
