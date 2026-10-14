@@ -19,6 +19,7 @@ import {
 import {
   createReferencePinAction,
   deleteReferencePinAction,
+  fetchReferenceCoverAction,
   updateReferencePinAction,
 } from "@/app/admin/referencias/actions";
 import { buildTagSpellingMap, tagKey } from "@/lib/tags";
@@ -121,6 +122,9 @@ function PinForm({
   const [pending, startTransition] = useTransition();
   const [tags, setTags] = useState(pin?.tags.join(", ") ?? "");
   const [enviando, setEnviando] = useState(false);
+  const [capa, setCapa] = useState(pin?.thumb_url ?? "");
+  const [buscandoCapa, setBuscandoCapa] = useState(false);
+  const [avisoCapa, setAvisoCapa] = useState("");
   const [erro, setErro] = useState("");
 
   const used = new Set(
@@ -153,6 +157,22 @@ function PinForm({
       throw new Error(error ?? "Falha ao enviar o arquivo");
     }
     return (await resposta.json()) as { fileId: string; kind: string };
+  }
+
+  /** Foto de perfil, miniatura do vídeo ou imagem do post, o que o link expõe. */
+  async function puxarCapa(url: string) {
+    if (!url.trim()) return;
+    setBuscandoCapa(true);
+    setAvisoCapa("");
+    try {
+      const encontrada = await fetchReferenceCoverAction(url);
+      if (encontrada) setCapa(encontrada);
+      else setAvisoCapa("Esse link não publica uma capa. Cole uma à mão.");
+    } catch {
+      setAvisoCapa("Não consegui buscar agora. Tente de novo.");
+    } finally {
+      setBuscandoCapa(false);
+    }
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -194,6 +214,10 @@ function PinForm({
           name="url"
           defaultValue={pin?.drive_file_id ? "" : (pin?.url ?? "")}
           placeholder="https://instagram.com/p/..."
+          onBlur={(event) => {
+            // Colou o link e saiu do campo: a capa já vem, sem passo extra.
+            if (!capa && !buscandoCapa) void puxarCapa(event.target.value);
+          }}
           autoFocus
           className={inputClass}
         />
@@ -272,6 +296,19 @@ function PinForm({
       </div>
 
       <div>
+        <label className={labelClass} htmlFor="pin-client">
+          Referência pra algum cliente? (opcional)
+        </label>
+        <input
+          id="pin-client"
+          name="client"
+          defaultValue={pin?.client ?? ""}
+          placeholder="Nome do cliente"
+          className={inputClass}
+        />
+      </div>
+
+      <div>
         <label className={labelClass} htmlFor="pin-note">
           Anotação (opcional)
         </label>
@@ -288,13 +325,40 @@ function PinForm({
         <label className={labelClass} htmlFor="pin-thumb">
           Capa (opcional)
         </label>
-        <input
-          id="pin-thumb"
-          name="thumb_url"
-          defaultValue={pin?.thumb_url ?? ""}
-          placeholder="https://.../capa.jpg"
-          className={inputClass}
-        />
+        <div className="flex items-center gap-2">
+          {capa ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={capa}
+              alt=""
+              className="size-10 shrink-0 rounded-md bg-neutral-100 object-cover"
+            />
+          ) : null}
+          <input
+            id="pin-thumb"
+            name="thumb_url"
+            value={capa}
+            onChange={(event) => setCapa(event.target.value)}
+            placeholder="https://.../capa.jpg"
+            className={inputClass}
+          />
+          <button
+            type="button"
+            disabled={buscandoCapa}
+            onClick={() => {
+              const campo = document.getElementById("pin-url");
+              void puxarCapa(
+                campo instanceof HTMLInputElement ? campo.value : ""
+              );
+            }}
+            className="shrink-0 rounded-md border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+          >
+            {buscandoCapa ? "Buscando…" : "Puxar do link"}
+          </button>
+        </div>
+        {avisoCapa ? (
+          <p className="mt-1 text-xs text-red-600">{avisoCapa}</p>
+        ) : null}
         <p className="mt-1 text-xs text-neutral-500">
           Em branco, usa a capa do próprio link. Preencha quando a miniatura
           parar de carregar — a de Instagram e Facebook expira.
@@ -315,6 +379,7 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
   const [query, setQuery] = useState("");
   /** Guardadas por chave normalizada, não pela grafia — ver `lib/tags.ts`. */
   const [activeTags, setActiveTags] = useState<string[]>([]);
+  const [activeClients, setActiveClients] = useState<string[]>([]);
   /** `null` = fechado, `"new"` = criando, objeto = editando aquela. */
   const [editing, setEditing] = useState<ReferencePin | "new" | null>(null);
   const [pending, startTransition] = useTransition();
@@ -329,10 +394,26 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
     [spelling]
   );
 
+  /** Um chip por cliente, agrupando grafias que só diferem em caixa/acento. */
+  const allClients = useMemo(() => {
+    const byKey = new Map<string, string>();
+    for (const pin of pins) {
+      const name = pin.client.trim();
+      if (name && !byKey.has(normalize(name))) byKey.set(normalize(name), name);
+    }
+    return [...byKey.values()].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [pins]);
+
   const visible = useMemo(() => {
     const term = normalize(query.trim());
 
     return pins.filter((pin) => {
+      if (
+        activeClients.length > 0 &&
+        !activeClients.includes(normalize(pin.client.trim()))
+      ) {
+        return false;
+      }
       // Tags marcadas somam em vez de estreitar: num acervo por nicho, o "e"
       // quase sempre daria mural vazio.
       if (
@@ -344,14 +425,23 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
       if (!term) return true;
 
       return normalize(
-        [pin.title, pin.note, pinHost(pin.url), ...pin.tags].join(" ")
+        [pin.title, pin.note, pin.client, pinHost(pin.url), ...pin.tags].join(" ")
       ).includes(term);
     });
-  }, [pins, query, activeTags]);
+  }, [pins, query, activeTags, activeClients]);
 
   function toggleTag(tag: string) {
     const key = tagKey(tag);
     setActiveTags((current) =>
+      current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key]
+    );
+  }
+
+  function toggleClient(name: string) {
+    const key = normalize(name);
+    setActiveClients((current) =>
       current.includes(key)
         ? current.filter((item) => item !== key)
         : [...current, key]
@@ -367,7 +457,8 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
     });
   }
 
-  const hasFilters = query.trim().length > 0 || activeTags.length > 0;
+  const hasFilters =
+    query.trim().length > 0 || activeTags.length > 0 || activeClients.length > 0;
 
   return (
     <>
@@ -377,7 +468,7 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Buscar por nicho, título, anotação ou site..."
+            placeholder="Buscar por nicho, título, cliente ou site..."
             aria-label="Buscar nas referências"
             className={`${inputClass} pl-9 ${query ? "pr-9" : ""}`}
           />
@@ -403,8 +494,48 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
         </button>
       </div>
 
+      {allClients.length > 0 ? (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-xs font-medium text-neutral-500">
+            Clientes
+          </span>
+          {allClients.map((name) => {
+            const active = activeClients.includes(normalize(name));
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => toggleClient(name)}
+                aria-pressed={active}
+                className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
+                  active
+                    ? "bg-neutral-900 text-white"
+                    : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                }`}
+              >
+                {name}
+              </button>
+            );
+          })}
+          {activeClients.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setActiveClients([])}
+              className="px-2 py-1 text-xs text-neutral-500 hover:text-neutral-900"
+            >
+              Limpar clientes
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {allTags.length > 0 ? (
         <div className="mb-6 flex flex-wrap items-center gap-1.5">
+          {allClients.length > 0 ? (
+            <span className="mr-1 text-xs font-medium text-neutral-500">
+              Tags
+            </span>
+          ) : null}
           {allTags.map((tag) => {
             const active = activeTags.includes(tagKey(tag));
             return (
@@ -483,6 +614,11 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
                   {host ? (
                     <p className="truncate text-xs text-neutral-400">{host}</p>
                   ) : null}
+                  {pin.client ? (
+                    <p className="mt-1 truncate text-xs font-medium text-neutral-700">
+                      Para {pin.client}
+                    </p>
+                  ) : null}
                   {pin.note ? (
                     <p className="mt-1 line-clamp-2 text-xs text-neutral-500">
                       {pin.note}
@@ -512,14 +648,15 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
                   ) : null}
                 </div>
 
-                {/* Só aparecem no hover/foco pra não competir com a imagem,
+                {/* Só aparecem no hover/foco pra não competir com a imagem (no toque,
+                    onde não existe hover, ficam sempre visíveis),
                     mas seguem no DOM e alcançáveis pelo teclado. */}
-                <div className="absolute top-2 right-2 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                <div className="absolute top-2 right-2 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
                   <button
                     type="button"
                     onClick={() => setEditing(pin)}
                     aria-label={`Editar ${pin.title || host}`}
-                    className="flex size-7 items-center justify-center rounded-md bg-white/90 text-neutral-500 hover:bg-white hover:text-neutral-900"
+                    className="flex size-7 items-center justify-center rounded-md bg-white/90 pointer-coarse:size-9 pointer-coarse:shadow-sm text-neutral-500 hover:bg-white hover:text-neutral-900"
                   >
                     <PencilIcon className="size-4" />
                   </button>
@@ -527,7 +664,7 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
                     type="button"
                     onClick={() => handleDelete(pin)}
                     aria-label={`Excluir ${pin.title || host}`}
-                    className="flex size-7 items-center justify-center rounded-md bg-white/90 text-neutral-500 hover:bg-red-50 hover:text-red-600"
+                    className="flex size-7 items-center justify-center rounded-md bg-white/90 pointer-coarse:size-9 pointer-coarse:shadow-sm text-neutral-500 hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash2Icon className="size-4" />
                   </button>

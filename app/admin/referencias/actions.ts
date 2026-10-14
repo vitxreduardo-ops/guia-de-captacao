@@ -33,6 +33,7 @@ async function readFields(
     // Sem título, o domínio já identifica melhor que um card em branco.
     title: String(formData.get("title") ?? "").trim(),
     note: String(formData.get("note") ?? "").trim(),
+    client: String(formData.get("client") ?? "").trim(),
     tags: canonicalizeTags(
       parseTags(formData.get("tags")),
       await listReferenceTags()
@@ -69,6 +70,22 @@ async function readFields(
     kind: resolved.kind,
     drive_file_id: "",
   };
+}
+
+/**
+ * Capa que o link tem hoje, sem gravar nada: o formulário mostra o resultado
+ * e só o "Salvar" persiste. Serve de botão de reparo quando a miniatura
+ * assinada (Instagram, Facebook) expira.
+ */
+export async function fetchReferenceCoverAction(
+  rawUrl: string
+): Promise<string> {
+  // Sem checagem própria, igual às outras ações deste arquivo: o proxy já
+  // barra quem não tem sessão em /admin/*, e a action posta nessa rota.
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return "";
+  const { thumb_url } = await resolveReferencePin(normalizeUrl(trimmed));
+  return thumb_url;
 }
 
 export async function createReferencePinAction(formData: FormData) {
