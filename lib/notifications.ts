@@ -16,6 +16,27 @@ export type { Notification, NotificationKind };
  * evento também é avisado, porque a campainha vale como registro do que
  * aconteceu, não só como aviso de novidade alheia.
  */
+/** Canal onde o app do Mac espera o sinal de "chegou aviso". Só o sinal; o conteúdo vem da rota autenticada. */
+export const notificationChannel = (userId: string) => `notif-${userId}`;
+
+/**
+ * Sinal sem conteúdo pelo Supabase Realtime: acorda o app do Mac na hora, em vez
+ * de esperar a próxima consulta. Falhar aqui não pode quebrar a ação que gerou o
+ * aviso — o app ainda consulta de 30 em 30 segundos como reserva.
+ */
+async function pingRealtime(userId: string) {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return;
+  await fetch(`${url}/realtime/v1/api/broadcast`, {
+    method: "POST",
+    headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      messages: [{ topic: notificationChannel(userId), event: "novo", payload: {} }],
+    }),
+  });
+}
+
 export async function notifyUser(params: {
   userId: string | null;
   actorId: string | null;
@@ -39,6 +60,8 @@ export async function notifyUser(params: {
     entity_id: params.entityId ?? null,
   });
   if (error) throw error;
+
+  await pingRealtime(userId).catch((err) => console.error("Falha no ping", err));
 
   // O push é extra: se o serviço da Apple/Google falhar, a notificação já está
   // gravada e aparece na campainha, então a ação que a causou não pode quebrar.
