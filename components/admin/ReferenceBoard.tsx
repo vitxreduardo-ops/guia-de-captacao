@@ -379,6 +379,7 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
   const [query, setQuery] = useState("");
   /** Guardadas por chave normalizada, não pela grafia — ver `lib/tags.ts`. */
   const [activeTags, setActiveTags] = useState<string[]>([]);
+  const [activeClients, setActiveClients] = useState<string[]>([]);
   /** `null` = fechado, `"new"` = criando, objeto = editando aquela. */
   const [editing, setEditing] = useState<ReferencePin | "new" | null>(null);
   const [pending, startTransition] = useTransition();
@@ -393,10 +394,26 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
     [spelling]
   );
 
+  /** Um chip por cliente, agrupando grafias que só diferem em caixa/acento. */
+  const allClients = useMemo(() => {
+    const byKey = new Map<string, string>();
+    for (const pin of pins) {
+      const name = pin.client.trim();
+      if (name && !byKey.has(normalize(name))) byKey.set(normalize(name), name);
+    }
+    return [...byKey.values()].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [pins]);
+
   const visible = useMemo(() => {
     const term = normalize(query.trim());
 
     return pins.filter((pin) => {
+      if (
+        activeClients.length > 0 &&
+        !activeClients.includes(normalize(pin.client.trim()))
+      ) {
+        return false;
+      }
       // Tags marcadas somam em vez de estreitar: num acervo por nicho, o "e"
       // quase sempre daria mural vazio.
       if (
@@ -411,11 +428,20 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
         [pin.title, pin.note, pin.client, pinHost(pin.url), ...pin.tags].join(" ")
       ).includes(term);
     });
-  }, [pins, query, activeTags]);
+  }, [pins, query, activeTags, activeClients]);
 
   function toggleTag(tag: string) {
     const key = tagKey(tag);
     setActiveTags((current) =>
+      current.includes(key)
+        ? current.filter((item) => item !== key)
+        : [...current, key]
+    );
+  }
+
+  function toggleClient(name: string) {
+    const key = normalize(name);
+    setActiveClients((current) =>
       current.includes(key)
         ? current.filter((item) => item !== key)
         : [...current, key]
@@ -431,7 +457,8 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
     });
   }
 
-  const hasFilters = query.trim().length > 0 || activeTags.length > 0;
+  const hasFilters =
+    query.trim().length > 0 || activeTags.length > 0 || activeClients.length > 0;
 
   return (
     <>
@@ -467,8 +494,48 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
         </button>
       </div>
 
+      {allClients.length > 0 ? (
+        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-xs font-medium text-neutral-500">
+            Clientes
+          </span>
+          {allClients.map((name) => {
+            const active = activeClients.includes(normalize(name));
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => toggleClient(name)}
+                aria-pressed={active}
+                className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
+                  active
+                    ? "bg-neutral-900 text-white"
+                    : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+                }`}
+              >
+                {name}
+              </button>
+            );
+          })}
+          {activeClients.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setActiveClients([])}
+              className="px-2 py-1 text-xs text-neutral-500 hover:text-neutral-900"
+            >
+              Limpar clientes
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {allTags.length > 0 ? (
         <div className="mb-6 flex flex-wrap items-center gap-1.5">
+          {allClients.length > 0 ? (
+            <span className="mr-1 text-xs font-medium text-neutral-500">
+              Tags
+            </span>
+          ) : null}
           {allTags.map((tag) => {
             const active = activeTags.includes(tagKey(tag));
             return (
