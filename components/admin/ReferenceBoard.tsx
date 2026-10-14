@@ -19,6 +19,7 @@ import {
 import {
   createReferencePinAction,
   deleteReferencePinAction,
+  fetchReferenceCoverAction,
   updateReferencePinAction,
 } from "@/app/admin/referencias/actions";
 import { buildTagSpellingMap, tagKey } from "@/lib/tags";
@@ -121,6 +122,9 @@ function PinForm({
   const [pending, startTransition] = useTransition();
   const [tags, setTags] = useState(pin?.tags.join(", ") ?? "");
   const [enviando, setEnviando] = useState(false);
+  const [capa, setCapa] = useState(pin?.thumb_url ?? "");
+  const [buscandoCapa, setBuscandoCapa] = useState(false);
+  const [avisoCapa, setAvisoCapa] = useState("");
   const [erro, setErro] = useState("");
 
   const used = new Set(
@@ -153,6 +157,22 @@ function PinForm({
       throw new Error(error ?? "Falha ao enviar o arquivo");
     }
     return (await resposta.json()) as { fileId: string; kind: string };
+  }
+
+  /** Foto de perfil, miniatura do vídeo ou imagem do post, o que o link expõe. */
+  async function puxarCapa(url: string) {
+    if (!url.trim()) return;
+    setBuscandoCapa(true);
+    setAvisoCapa("");
+    try {
+      const encontrada = await fetchReferenceCoverAction(url);
+      if (encontrada) setCapa(encontrada);
+      else setAvisoCapa("Esse link não publica uma capa. Cole uma à mão.");
+    } catch {
+      setAvisoCapa("Não consegui buscar agora. Tente de novo.");
+    } finally {
+      setBuscandoCapa(false);
+    }
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -194,6 +214,10 @@ function PinForm({
           name="url"
           defaultValue={pin?.drive_file_id ? "" : (pin?.url ?? "")}
           placeholder="https://instagram.com/p/..."
+          onBlur={(event) => {
+            // Colou o link e saiu do campo: a capa já vem, sem passo extra.
+            if (!capa && !buscandoCapa) void puxarCapa(event.target.value);
+          }}
           autoFocus
           className={inputClass}
         />
@@ -301,13 +325,40 @@ function PinForm({
         <label className={labelClass} htmlFor="pin-thumb">
           Capa (opcional)
         </label>
-        <input
-          id="pin-thumb"
-          name="thumb_url"
-          defaultValue={pin?.thumb_url ?? ""}
-          placeholder="https://.../capa.jpg"
-          className={inputClass}
-        />
+        <div className="flex items-center gap-2">
+          {capa ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={capa}
+              alt=""
+              className="size-10 shrink-0 rounded-md bg-neutral-100 object-cover"
+            />
+          ) : null}
+          <input
+            id="pin-thumb"
+            name="thumb_url"
+            value={capa}
+            onChange={(event) => setCapa(event.target.value)}
+            placeholder="https://.../capa.jpg"
+            className={inputClass}
+          />
+          <button
+            type="button"
+            disabled={buscandoCapa}
+            onClick={() => {
+              const campo = document.getElementById("pin-url");
+              void puxarCapa(
+                campo instanceof HTMLInputElement ? campo.value : ""
+              );
+            }}
+            className="shrink-0 rounded-md border border-neutral-300 px-3 py-2 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50"
+          >
+            {buscandoCapa ? "Buscando…" : "Puxar do link"}
+          </button>
+        </div>
+        {avisoCapa ? (
+          <p className="mt-1 text-xs text-red-600">{avisoCapa}</p>
+        ) : null}
         <p className="mt-1 text-xs text-neutral-500">
           Em branco, usa a capa do próprio link. Preencha quando a miniatura
           parar de carregar — a de Instagram e Facebook expira.

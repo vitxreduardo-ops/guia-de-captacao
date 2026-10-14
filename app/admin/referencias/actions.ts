@@ -71,6 +71,22 @@ async function readFields(
   };
 }
 
+/**
+ * Capa que o link tem hoje, sem gravar nada: o formulário mostra o resultado
+ * e só o "Salvar" persiste. Serve de botão de reparo quando a miniatura
+ * assinada (Instagram, Facebook) expira.
+ */
+export async function fetchReferenceCoverAction(
+  rawUrl: string
+): Promise<string> {
+  // Sem checagem própria, igual às outras ações deste arquivo: o proxy já
+  // barra quem não tem sessão em /admin/*, e a action posta nessa rota.
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return "";
+  const { thumb_url } = await resolveReferencePin(normalizeUrl(trimmed));
+  return thumb_url;
+}
+
 export async function createReferencePinAction(formData: FormData) {
   const fields = await readFields(formData);
   if (!fields) return;
