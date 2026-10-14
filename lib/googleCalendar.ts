@@ -32,8 +32,23 @@ interface SyncableCard {
   post_date: string | null;
   post_time: string | null;
   duration_minutes: number | null;
+  capture_date: string | null;
+  capture_time: string | null;
   google_event_id: string | null;
 }
+
+/** Entrega usa a data de post do card; captação, a data de captação. */
+type EventKind = "entrega" | "captacao";
+const EVENT_KINDS: EventKind[] = ["entrega", "captacao"];
+
+/** Captação não tem duração no card; uma hora é o bloco padrão da agenda. */
+const CAPTURE_DURATION_MINUTES = 60;
+
+function dateOf(card: SyncableCard, kind: EventKind) {
+  return kind === "captacao" ? card.capture_date : card.post_date;
+}
+
+const eventKey = (userId: string, kind: EventKind) => `${userId}:${kind}`;
 
 /**
  * Uma chamada ao Google Agenda em nome de uma pessoa.
@@ -67,7 +82,7 @@ async function fetchCard(cardId: string): Promise<SyncableCard | null> {
   const { data, error } = await supabase
     .from("backlog_cards")
     .select(
-      "id, title, description, caption, format, post_date, post_time, duration_minutes, google_event_id"
+      "id, title, description, caption, format, post_date, post_time, duration_minutes, capture_date, capture_time, google_event_id"
     )
     .eq("id", cardId)
     .maybeSingle();
@@ -99,23 +114,27 @@ function addDays(date: string, days: number): string {
 // O PATCH do Google mescla `start`/`end`: sem zerar o outro formato, um evento
 // que virou de dia inteiro pra com hora (ou o contrário) fica com `date` e
 // `dateTime` juntos e volta "Invalid start time". Por isso os `null`s abaixo.
-function buildEventBody(card: SyncableCard) {
-  const postDate = card.post_date!;
+function buildEventBody(card: SyncableCard, kind: EventKind) {
+  const captacao = kind === "captacao";
+  const postDate = dateOf(card, kind)!;
+  const time = captacao ? card.capture_time : card.post_time;
   const format = BACKLOG_FORMAT_LABELS[card.format] ?? card.format;
 
   // A legenda é o que interessa na hora de postar; a descrição interna vem
-  // depois só como contexto.
-  const description = [card.caption, card.description]
+  // depois só como contexto. Captação não tem legenda: só a descrição.
+  const description = [captacao ? "" : card.caption, card.description]
     .map((part) => part?.trim())
     .filter(Boolean)
     .join("\n\n");
 
-  const timing = card.post_time
+  const timing = time
     ? (() => {
-        const start = card.post_time!.slice(0, 5);
+        const start = time.slice(0, 5);
         const end = addMinutes(
           start,
-          card.duration_minutes ?? DEFAULT_DURATION_MINUTES
+          captacao
+            ? CAPTURE_DURATION_MINUTES
+            : (card.duration_minutes ?? DEFAULT_DURATION_MINUTES)
         );
         return {
           start: {
@@ -138,7 +157,9 @@ function buildEventBody(card: SyncableCard) {
       };
 
   return {
-    summary: `${format}: ${card.title}`.trim(),
+    summary: captacao
+      ? `Captação: ${card.title}`.trim()
+      : `${format}: ${card.title}`.trim(),
     description,
     ...timing,
   };
@@ -180,12 +201,12 @@ async function fetchCardEvents(cardId: string): Promise<Map<string, string>> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("backlog_card_events")
-    .select("user_id, google_event_id")
+    .select("user_id, kind, google_event_id")
     .eq("card_id", cardId);
   if (error) throw error;
   return new Map(
     (data ?? []).map((row) => [
-      row.user_id as string,
+      eventKey(row.user_id as string, row.kind as EventKind),
       row.google_event_id as string,
     ])
   );
@@ -194,31 +215,41 @@ async function fetchCardEvents(cardId: string): Promise<Map<string, string>> {
 async function saveCardEvent(
   cardId: string,
   userId: string,
+  kind: EventKind,
   eventId: string
 ) {
   const supabase = getSupabaseServerClient();
-  const { error } = await supabase
-    .from("backlog_card_events")
-    .upsert({ card_id: cardId, user_id: userId, google_event_id: eventId });
+  const { error } = await supabase.from("backlog_card_events").upsert({
+    card_id: cardId,
+    user_id: userId,
+    kind,
+    google_event_id: eventId,
+  });
   if (error) throw error;
 }
 
-async function forgetCardEvent(cardId: string, userId: string) {
+async function forgetCardEvent(
+  cardId: string,
+  userId: string,
+  kind: EventKind
+) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase
     .from("backlog_card_events")
     .delete()
     .eq("card_id", cardId)
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .eq("kind", kind);
   if (error) throw error;
 }
 
 async function upsertEvent(
   account: UserCalendarAccount,
   card: SyncableCard,
+  kind: EventKind,
   existingEventId: string | undefined
 ) {
-  const body = buildEventBody(card);
+  const body = buildEventBody(card, kind);
   const calendar = encodeURIComponent(account.calendarId);
 
   if (existingEventId) {
@@ -259,7 +290,7 @@ async function upsertEvent(
     );
   }
   const event = await created.json();
-  await saveCardEvent(card.id, account.userId, event.id as string);
+  await saveCardEvent(card.id, account.userId, kind, event.id as string);
 }
 
 async function deleteEvent(
@@ -318,21 +349,21 @@ export async function syncBacklogCardToCalendar(cardId: string) {
 
   const events = await fetchCardEvents(cardId);
 
-  // Card sem data não tem lugar no calendário: se já teve evento, some com
-  // ele em vez de deixar um fantasma numa data antiga.
-  if (!card.post_date) {
-    await forEachAccount(accounts, async (account) => {
-      const eventId = events.get(account.userId);
-      if (!eventId) return;
-      await deleteEvent(account, eventId);
-      await forgetCardEvent(cardId, account.userId);
-    });
-    return;
-  }
-
-  await forEachAccount(accounts, (account) =>
-    upsertEvent(account, card, events.get(account.userId))
-  );
+  // Cada compromisso (entrega e captação) é sincronizado por conta própria.
+  // Sem data não tem lugar no calendário: se já teve evento, some com ele em
+  // vez de deixar um fantasma numa data antiga.
+  await forEachAccount(accounts, async (account) => {
+    for (const kind of EVENT_KINDS) {
+      const eventId = events.get(eventKey(account.userId, kind));
+      if (!dateOf(card, kind)) {
+        if (!eventId) continue;
+        await deleteEvent(account, eventId);
+        await forgetCardEvent(cardId, account.userId, kind);
+        continue;
+      }
+      await upsertEvent(account, card, kind, eventId);
+    }
+  });
 }
 
 /**
@@ -348,9 +379,10 @@ export async function removeBacklogCardFromCalendar(cardId: string) {
   if (events.size === 0) return;
 
   await forEachAccount(accounts, async (account) => {
-    const eventId = events.get(account.userId);
-    if (!eventId) return;
-    await deleteEvent(account, eventId);
+    for (const kind of EVENT_KINDS) {
+      const eventId = events.get(eventKey(account.userId, kind));
+      if (eventId) await deleteEvent(account, eventId);
+    }
   });
 }
 
@@ -365,9 +397,9 @@ export async function syncAllCardsToAccount(
   const { data, error } = await supabase
     .from("backlog_cards")
     .select(
-      "id, title, description, caption, format, post_date, post_time, duration_minutes"
+      "id, title, description, caption, format, post_date, post_time, duration_minutes, capture_date, capture_time"
     )
-    .not("post_date", "is", null);
+    .or("post_date.not.is.null,capture_date.not.is.null");
   if (error) throw error;
 
   const cards = (data ?? []) as SyncableCard[];
@@ -375,12 +407,12 @@ export async function syncAllCardsToAccount(
 
   const { data: existing, error: eventsError } = await supabase
     .from("backlog_card_events")
-    .select("card_id, google_event_id")
+    .select("card_id, kind, google_event_id")
     .eq("user_id", account.userId);
   if (eventsError) throw eventsError;
   const byCard = new Map(
     (existing ?? []).map((row) => [
-      row.card_id as string,
+      `${row.card_id as string}:${row.kind as string}`,
       row.google_event_id as string,
     ])
   );
@@ -391,7 +423,11 @@ export async function syncAllCardsToAccount(
   for (let i = 0; i < cards.length; i += BATCH) {
     const batch = cards.slice(i, i + BATCH);
     await Promise.all(
-      batch.map((card) => upsertEvent(account, card, byCard.get(card.id)))
+      batch.flatMap((card) =>
+        EVENT_KINDS.filter((kind) => dateOf(card, kind)).map((kind) =>
+          upsertEvent(account, card, kind, byCard.get(`${card.id}:${kind}`))
+        )
+      )
     );
   }
   return cards.length;
