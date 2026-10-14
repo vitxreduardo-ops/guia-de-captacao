@@ -1,9 +1,14 @@
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { getContract, listContractTemplates } from "@/lib/contracts";
+import {
+  getContract,
+  listContractRevisions,
+  listContractTemplates,
+} from "@/lib/contracts";
 import { listGalleryClients } from "@/lib/galleries";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ContractPublishBox } from "@/components/admin/ContractPublishBox";
+import { ContractHistory } from "@/components/admin/ContractHistory";
 import { ContractEditor } from "@/components/admin/ContractEditor";
 
 export const dynamic = "force-dynamic";
@@ -12,10 +17,11 @@ type Params = Promise<{ id: string }>;
 
 export default async function ContractEditPage({ params }: { params: Params }) {
   const { id } = await params;
-  const [contract, clientes, modelos] = await Promise.all([
+  const [contract, clientes, modelos, revisoes] = await Promise.all([
     getContract(id),
     listGalleryClients(),
     listContractTemplates(),
+    listContractRevisions(id),
   ]);
 
   if (!contract) notFound();
@@ -55,6 +61,10 @@ export default async function ContractEditPage({ params }: { params: Params }) {
             address: c.address ?? "",
           }))}
         />
+
+        {contract.status === "signed" ? null : (
+          <ContractHistory contractId={contract.id} revisoes={revisoes} />
+        )}
       </div>
     </div>
   );
