@@ -409,3 +409,20 @@ export function markFilled(texto: string, modelo: string): string {
     })
     .join("\n");
 }
+
+/**
+ * Quem presta o serviço, pronto pra Cláusula 1. Cada texto é a linha inteira
+ * da CONTRATADA, que o editor troca no corpo do contrato.
+ */
+export const CONTRATADAS = [
+  {
+    label: "Vitor",
+    text: "**CONTRATADA:** Vitor Eduardo Silva dos Santos — 53.107.038 Vitor Eduardo Silva dos Santos, inscrita no CNPJ sob o nº 53.107.038/0001-24, com sede na Rua Yitzak Rabin, 1370, Luís Eduardo Magalhães/BA, CEP 47855-276.",
+  },
+  {
+    label: "Rebecca",
+    text: "**CONTRATADA:** Rebecca Freitas Santos Silva — 68.671.637 Rebecca Freitas Santos Silva, inscrita no CNPJ sob o nº 68.671.637/0001-43, com sede na Rua W3, 609, Luís Eduardo Magalhães/BA.",
+  },
+] as const;
+
+export const LINHA_CONTRATADA = /^\*\*CONTRATADA:\*\*.*$/m;

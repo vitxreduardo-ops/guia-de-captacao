@@ -7,6 +7,8 @@ import {
   clauseTitleText,
   joinClauses,
   layoutContract,
+  CONTRATADAS,
+  LINHA_CONTRATADA,
   parseClauseTitle,
   parsePieces,
   piecesToText,
@@ -161,6 +163,78 @@ export function ContractEditor({
   const painel = useRef<HTMLDivElement>(null);
   const [largura, setLargura] = useState(LARGURA_PADRAO);
 
+  // Salvamento automático. `versao` sobe a cada mudança (tecla, cláusula,
+  // interruptor); o efeito espera uma pausa curta e grava o formulário inteiro.
+  // As gravações andam numa fila, uma por vez e na ordem, para uma resposta
+  // lenta nunca sobrescrever uma mais nova.
+  const form = useRef<HTMLFormElement>(null);
+  const [versao, setVersao] = useState(0);
+  const [estado, setEstado] = useState<
+    | { tipo: "limpo" }
+    | { tipo: "pendente" }
+    | { tipo: "salvando" }
+    | { tipo: "salvo"; as: Date }
+    | { tipo: "erro"; motivo: string }
+  >({ tipo: "limpo" });
+  const fila = useRef<Promise<unknown>>(Promise.resolve());
+  const ultimaVersao = useRef(0);
+  const salvarJa = useRef<() => void>(() => {});
+  function alterou() {
+    setVersao((v) => v + 1);
+    setEstado((e) => (e.tipo === "salvando" ? e : { tipo: "pendente" }));
+  }
+
+  useEffect(() => {
+    if (versao === 0 || travado) return;
+    ultimaVersao.current = versao;
+
+    function salvar() {
+      clearTimeout(timer);
+      if (!form.current) return;
+      const dados = new FormData(form.current);
+      const minha = versao;
+      fila.current = fila.current.then(async () => {
+        setEstado({ tipo: "salvando" });
+        let motivo: string | null = null;
+        try {
+          const r = await updateContractAction(dados);
+          if (!r.ok) motivo = r.motivo;
+        } catch {
+          motivo = "Sem conexão com o servidor.";
+        }
+        if (motivo !== null) {
+          setEstado({ tipo: "erro", motivo });
+          // Tenta de novo sozinho: some o erro assim que a rede volta.
+          setTimeout(() => setVersao((v) => v + 1), 4000);
+        } else if (ultimaVersao.current === minha) {
+          setEstado({ tipo: "salvo", as: new Date() });
+        }
+      });
+    }
+
+    const timer = setTimeout(salvar, 500);
+    salvarJa.current = salvar;
+    return () => clearTimeout(timer);
+  }, [versao, travado]);
+
+  // Aba escondida ou trocada: grava já, sem esperar a pausa.
+  useEffect(() => {
+    const aoEsconder = () => {
+      if (document.visibilityState === "hidden") salvarJa.current();
+    };
+    document.addEventListener("visibilitychange", aoEsconder);
+    return () => document.removeEventListener("visibilitychange", aoEsconder);
+  }, []);
+
+  // Fechar ou recarregar com algo ainda não gravado: o navegador pergunta.
+  const naoGravado = estado.tipo !== "limpo" && estado.tipo !== "salvo";
+  useEffect(() => {
+    if (!naoGravado) return;
+    const aviso = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", aviso);
+    return () => window.removeEventListener("beforeunload", aviso);
+  }, [naoGravado]);
+
   // A largura escolhida vale na próxima vez, por navegador. O storage pode
   // estar bloqueado, e aí o painel só volta ao tamanho padrão.
   useEffect(() => {
@@ -180,6 +254,15 @@ export function ContractEditor({
     } catch {}
   }
 
+  const linhaContratada = body.match(LINHA_CONTRATADA)?.[0] ?? null;
+  const [personalizando, setPersonalizando] = useState(false);
+  const contratadaAtual = CONTRATADAS.findIndex(
+    (c) => c.text === linhaContratada,
+  );
+  function trocarContratada(texto: string) {
+    // Função no replace: o texto pode ter "$" e não deve virar padrão.
+    mudar(lerClausulas(body.replace(LINHA_CONTRATADA, () => texto)));
+  }
   const preview = useMemo(() => renderContractBody(body, vars), [body, vars]);
   const marcado = useMemo(
     () => (modelo ? markFilled(preview, modelo) : preview),
@@ -188,6 +271,7 @@ export function ContractEditor({
   const layout = useMemo(() => layoutContract(clausulas), [clausulas]);
 
   function mudar(proximas: Clausula[]) {
+    alterou();
     setEditou(true);
     setClausulas(proximas);
   }
@@ -527,10 +611,15 @@ export function ContractEditor({
   return (
     <form
       id="contract-editor"
-      action={updateContractAction}
+      ref={form}
+      onSubmit={(e) => {
+        e.preventDefault();
+        salvarJa.current();
+      }}
       onChange={(e) => {
         const dados = new FormData(e.currentTarget);
         setVars(varsFromForm(dados));
+        alterou();
       }}
       style={{ "--painel": `${largura}px` } as React.CSSProperties}
       className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_14px_var(--painel)] lg:gap-0"
@@ -640,6 +729,62 @@ export function ContractEditor({
               </div>
             </div>
           </div>
+
+          {linhaContratada ? (
+            <div>
+              <h2 className="mb-3 text-sm font-semibold text-neutral-900">
+                Quem presta o serviço
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  ...CONTRATADAS.map((c, i) => ({ label: c.label, i })),
+                  { label: "Personalizar", i: -1 },
+                ].map((opcao) => {
+                  const ativo =
+                    opcao.i === -1
+                      ? personalizando || contratadaAtual === -1
+                      : !personalizando && contratadaAtual === opcao.i;
+                  return (
+                    <button
+                      key={opcao.i}
+                      type="button"
+                      aria-pressed={ativo}
+                      onClick={() => {
+                        if (opcao.i === -1) return setPersonalizando(true);
+                        setPersonalizando(false);
+                        trocarContratada(CONTRATADAS[opcao.i].text);
+                      }}
+                      className={`rounded-md border px-3 py-1.5 text-xs ${
+                        ativo
+                          ? "border-neutral-900 bg-neutral-900 text-white"
+                          : "border-neutral-300 text-neutral-700 hover:bg-neutral-100"
+                      }`}
+                    >
+                      {opcao.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {personalizando || contratadaAtual === -1 ? (
+                <>
+                  <textarea
+                    aria-label="Linha da CONTRATADA"
+                    rows={5}
+                    value={linhaContratada}
+                    onChange={(e) => {
+                      const texto = e.target.value.replace(/\r?\n/g, " ");
+                      if (LINHA_CONTRATADA.test(texto)) trocarContratada(texto);
+                    }}
+                    className={`${campo} mt-2`}
+                  />
+                  <p className="mt-1 text-xs text-neutral-500">
+                    O início **CONTRATADA:** é o que o editor usa para achar a
+                    linha, então ele não muda.
+                  </p>
+                </>
+              ) : null}
+            </div>
+          ) : null}
 
           <div>
             <h2 className="mb-3 text-sm font-semibold text-neutral-900">
@@ -870,12 +1015,30 @@ export function ContractEditor({
             </p>
           </div>
 
-          <button
-            type="submit"
-            className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
-          >
-            Salvar contrato
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+            >
+              Salvar agora
+            </button>
+            <p
+              role="status"
+              className={`text-xs ${
+                estado.tipo === "erro"
+                  ? "font-medium text-red-600"
+                  : "text-neutral-500"
+              }`}
+            >
+              {estado.tipo === "limpo" && "Salva sozinho enquanto você digita."}
+              {estado.tipo === "pendente" && "Alterações não salvas…"}
+              {estado.tipo === "salvando" && "Salvando…"}
+              {estado.tipo === "salvo" &&
+                `Salvo às ${estado.as.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`}
+              {estado.tipo === "erro" &&
+                `NÃO salvou: ${estado.motivo} Não feche a página; tentando de novo.`}
+            </p>
+          </div>
         </fieldset>
       </div>
     </form>

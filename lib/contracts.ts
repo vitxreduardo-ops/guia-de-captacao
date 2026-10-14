@@ -100,7 +100,7 @@ export async function getContract(id: string): Promise<Contract | null> {
 }
 
 export async function getContractBySlug(
-  slug: string
+  slug: string,
 ): Promise<Contract | null> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
@@ -122,7 +122,7 @@ export async function getContractBySlug(
 export async function createContract(
   title: string,
   kind: ContractKind,
-  templateId?: string
+  templateId?: string,
 ): Promise<Contract> {
   const supabase = getSupabaseServerClient();
 
@@ -151,7 +151,7 @@ export async function createContract(
 
 export async function updateContract(
   id: string,
-  fields: Partial<ContractEditable>
+  fields: Partial<ContractEditable>,
 ) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase
@@ -171,7 +171,7 @@ export async function updateContract(
  */
 export async function setContractStatus(
   id: string,
-  status: Exclude<ContractStatus, "signed">
+  status: Exclude<ContractStatus, "signed">,
 ) {
   const supabase = getSupabaseServerClient();
   const { error } = await supabase
@@ -194,7 +194,7 @@ export async function signContract(
   slug: string,
   name: string,
   document: string,
-  ip: string
+  ip: string,
 ): Promise<boolean> {
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
@@ -224,4 +224,27 @@ export async function deleteContract(id: string) {
     .eq("is_template", false);
 
   if (error) throw error;
+}
+
+export type ContractRevision = {
+  id: string;
+  title: string;
+  body: string;
+  created_at: string;
+};
+
+/** Versões anteriores do texto, da mais nova pra mais velha. O gatilho
+ *  `contracts_keep_revision` (0083) é quem as grava. */
+export async function listContractRevisions(
+  contractId: string,
+): Promise<ContractRevision[]> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("contract_revisions")
+    .select("id, title, body, created_at")
+    .eq("contract_id", contractId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data ?? [];
 }
