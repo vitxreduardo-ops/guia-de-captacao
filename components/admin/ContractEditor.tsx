@@ -129,14 +129,37 @@ export type ClienteImportavel = {
 /** Põe o valor num campo não controlado e avisa o formulário, que é quem
  *  atualiza a prévia ao vivo. */
 function preencherCampo(id: string, valor: string) {
-  const campo = document.getElementById(id) as HTMLInputElement | null;
+  const campo = document.getElementById(id) as
+    HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null;
   if (!campo) return;
+  // O setter do protótipo escapa do rastreio do React, que senão ignora o
+  // evento por achar que o valor não mudou.
   Object.getOwnPropertyDescriptor(
-    HTMLInputElement.prototype,
+    Object.getPrototypeOf(campo),
     "value",
   )?.set?.call(campo, valor);
-  campo.dispatchEvent(new Event("input", { bubbles: true }));
+  campo.dispatchEvent(
+    new Event(campo.tagName === "SELECT" ? "change" : "input", {
+      bubbles: true,
+    }),
+  );
 }
+
+// Cópia do que está na tela, gravada a cada mudança e apagada quando o servidor
+// confirma. Se a página fechar antes disso (queda de rede, sessão vencida,
+// crash), o que sobrou aqui é o que o servidor não tem.
+const rascunhoChave = (id: string) => `contrato-rascunho-${id}`;
+const CAMPOS_RASCUNHO = [
+  "title",
+  "kind",
+  "client_name",
+  "client_document",
+  "client_email",
+  "client_address",
+  "scope",
+  "payment_terms",
+] as const;
+type Rascunho = { at: string; campos: Record<string, string> };
 
 export function ContractEditor({
   contract,
@@ -188,6 +211,20 @@ export function ContractEditor({
     if (versao === 0 || travado) return;
     ultimaVersao.current = versao;
 
+    // Guarda já, a cada tecla: o salvamento no servidor espera a pausa.
+    try {
+      const campos = Object.fromEntries(
+        [...new FormData(form.current!)].filter(
+          ([, v]) => typeof v === "string",
+        ),
+      ) as Record<string, string>;
+      const rascunho: Rascunho = { at: new Date().toISOString(), campos };
+      localStorage.setItem(
+        rascunhoChave(contract.id),
+        JSON.stringify(rascunho),
+      );
+    } catch {}
+
     function salvar() {
       clearTimeout(timer);
       if (!form.current) return;
@@ -207,6 +244,9 @@ export function ContractEditor({
           // Tenta de novo sozinho: some o erro assim que a rede volta.
           setTimeout(() => setVersao((v) => v + 1), 4000);
         } else if (ultimaVersao.current === minha) {
+          try {
+            localStorage.removeItem(rascunhoChave(contract.id));
+          } catch {}
           setEstado({ tipo: "salvo", as: new Date() });
         }
       });
@@ -215,7 +255,57 @@ export function ContractEditor({
     const timer = setTimeout(salvar, 500);
     salvarJa.current = salvar;
     return () => clearTimeout(timer);
-  }, [versao, travado]);
+  }, [versao, travado, contract.id]);
+
+  // Rascunho que sobrou de uma sessão que não chegou a gravar no servidor.
+  const [rascunho, setRascunho] = useState<Rascunho | null>(null);
+  useEffect(() => {
+    if (travado) return;
+    try {
+      const bruto = localStorage.getItem(rascunhoChave(contract.id));
+      if (!bruto) return;
+      const r = JSON.parse(bruto) as Rascunho;
+      const doServidor: Record<string, string> = {
+        title: contract.title,
+        kind: contract.kind,
+        client_name: contract.client_name,
+        client_document: contract.client_document,
+        client_email: contract.client_email,
+        client_address: contract.client_address,
+        scope: contract.scope,
+        payment_terms: contract.payment_terms,
+        body: contract.body,
+      };
+      // Servidor grava com trim, então compara assim; igual não é rascunho.
+      const igual = Object.entries(doServidor).every(
+        ([k, v]) =>
+          (k === "body" ? r.campos[k] : (r.campos[k] ?? "").trim()) === v,
+      );
+      if (igual) localStorage.removeItem(rascunhoChave(contract.id));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      else setRascunho(r);
+    } catch {}
+    // Só na abertura: depois disso o rascunho é gravado, não lido.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function recuperarRascunho() {
+    if (!rascunho) return;
+    for (const k of CAMPOS_RASCUNHO)
+      preencherCampo(k, rascunho.campos[k] ?? "");
+    if (rascunho.campos.body !== undefined) {
+      setClausulas(lerClausulas(rascunho.campos.body));
+      setEditou(true);
+    }
+    setRascunho(null);
+    alterou();
+  }
+  function descartarRascunho() {
+    try {
+      localStorage.removeItem(rascunhoChave(contract.id));
+    } catch {}
+    setRascunho(null);
+  }
 
   // Aba escondida ou trocada: grava já, sem esperar a pausa.
   useEffect(() => {
@@ -693,6 +783,38 @@ export function ContractEditor({
             Contrato assinado. O texto não muda mais — para alterar algo, crie
             um novo contrato.
           </p>
+        ) : null}
+
+        {rascunho ? (
+          <div
+            role="alert"
+            className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+          >
+            <p className="font-medium">
+              Achei um rascunho deste contrato que não chegou a ser salvo (de{" "}
+              {new Date(rascunho.at).toLocaleString("pt-BR", {
+                dateStyle: "short",
+                timeStyle: "short",
+              })}
+              ).
+            </p>
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={recuperarRascunho}
+                className="rounded-md bg-amber-900 px-3 py-1 text-xs font-medium text-white"
+              >
+                Recuperar
+              </button>
+              <button
+                type="button"
+                onClick={descartarRascunho}
+                className="rounded-md border border-amber-400 px-3 py-1 text-xs"
+              >
+                Descartar
+              </button>
+            </div>
+          </div>
         ) : null}
 
         <fieldset disabled={travado} className="space-y-6">
