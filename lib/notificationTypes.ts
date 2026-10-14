@@ -2,7 +2,13 @@
 // precisa deles. O acesso ao banco fica em lib/notifications.ts.
 
 export type NotificationKind =
-  "card_assigned" | "todo_assigned" | "card_moved" | "card_approved";
+  | "card_assigned"
+  | "todo_assigned"
+  | "card_moved"
+  | "card_approved"
+  | "briefing_new"
+  | "card_paid"
+  | "client_idea";
 
 export interface Notification {
   id: string;

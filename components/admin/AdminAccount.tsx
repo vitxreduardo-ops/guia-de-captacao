@@ -1,5 +1,6 @@
 import { LogOut } from "lucide-react";
 import { logout } from "@/app/admin/login/actions";
+import { MacNotifier } from "@/components/admin/MacNotifier";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import {
   countUnreadNotifications,
@@ -52,6 +53,7 @@ export async function AdminAccount({
         </span>
       ) : null}
       <div className="flex items-center gap-2 group-data-[colapsada=true]/barra:flex-col">
+        <MacNotifier />
         <NotificationBell
           notifications={notifications}
           unreadCount={unreadCount}

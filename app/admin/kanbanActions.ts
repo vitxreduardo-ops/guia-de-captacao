@@ -75,7 +75,7 @@ async function syncCalendar(cardId: string) {
 async function notifyAssignees(params: {
   userIds: string[];
   actorId: string | null;
-  kind?: "card_assigned" | "card_moved" | "card_approved";
+  kind?: "card_assigned" | "card_moved" | "card_approved" | "card_paid";
   title: string;
   body: string;
   link: string;
@@ -265,6 +265,19 @@ export async function answerPaymentQuestionAction(params: {
         }${params.paidAt ? `, em ${formatBacklogDateShort(params.paidAt)}` : ""}`
       : `${PAYMENT_QUESTION} Ainda não`,
   });
+
+  if (params.paid) {
+    const { title, assigneeIds, board } = await getBacklogCardBrief(params.cardId);
+    await notifyAssignees({
+      userIds: assigneeIds,
+      actorId: session?.userId ?? null,
+      kind: "card_paid",
+      title: "Pagamento confirmado",
+      body: title,
+      link: backlogBoardPath(board),
+      entityId: params.cardId,
+    }).catch((err) => console.error("Falha ao avisar do pagamento", err));
+  }
 
   revalidateBacklog();
 }

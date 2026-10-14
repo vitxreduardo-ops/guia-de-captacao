@@ -13,7 +13,7 @@ import {
 import { createIdea } from "@/lib/editorialCalendar";
 import { listDisplayItemsByIds } from "@/lib/galleries";
 import { setMaterialMedia } from "@/lib/backlog";
-import { notifyUser } from "@/lib/notifications";
+import { notifyAdmins, notifyUser } from "@/lib/notifications";
 
 async function review(cardId: string, feedback: string | null) {
   const reviewer = await requireReviewer();
@@ -81,6 +81,13 @@ export async function addIdeaAction(formData: FormData) {
     internal: false,
     createdBy: user.id,
   });
+  await notifyAdmins({
+    actorId: user.id,
+    kind: "client_idea",
+    title: "Cliente sugeriu uma ideia",
+    body: title,
+    link: "/admin/clientes/entregas",
+  }).catch((err) => console.error("Falha ao avisar da ideia", err));
   revalidatePath("/cliente", "layout");
   revalidatePath("/admin/area-do-cliente", "layout");
 }
