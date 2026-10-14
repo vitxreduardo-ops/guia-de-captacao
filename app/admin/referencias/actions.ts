@@ -32,6 +32,7 @@ async function readFields(
     // Sem título, o domínio já identifica melhor que um card em branco.
     title: String(formData.get("title") ?? "").trim(),
     note: String(formData.get("note") ?? "").trim(),
+    client: String(formData.get("client") ?? "").trim(),
     tags: canonicalizeTags(
       parseTags(formData.get("tags")),
       await listReferenceTags()

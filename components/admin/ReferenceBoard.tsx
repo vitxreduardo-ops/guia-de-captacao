@@ -272,6 +272,19 @@ function PinForm({
       </div>
 
       <div>
+        <label className={labelClass} htmlFor="pin-client">
+          Referência pra algum cliente? (opcional)
+        </label>
+        <input
+          id="pin-client"
+          name="client"
+          defaultValue={pin?.client ?? ""}
+          placeholder="Nome do cliente"
+          className={inputClass}
+        />
+      </div>
+
+      <div>
         <label className={labelClass} htmlFor="pin-note">
           Anotação (opcional)
         </label>
@@ -344,7 +357,7 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
       if (!term) return true;
 
       return normalize(
-        [pin.title, pin.note, pinHost(pin.url), ...pin.tags].join(" ")
+        [pin.title, pin.note, pin.client, pinHost(pin.url), ...pin.tags].join(" ")
       ).includes(term);
     });
   }, [pins, query, activeTags]);
@@ -377,7 +390,7 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Buscar por nicho, título, anotação ou site..."
+            placeholder="Buscar por nicho, título, cliente ou site..."
             aria-label="Buscar nas referências"
             className={`${inputClass} pl-9 ${query ? "pr-9" : ""}`}
           />
@@ -483,6 +496,11 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
                   {host ? (
                     <p className="truncate text-xs text-neutral-400">{host}</p>
                   ) : null}
+                  {pin.client ? (
+                    <p className="mt-1 truncate text-xs font-medium text-neutral-700">
+                      Para {pin.client}
+                    </p>
+                  ) : null}
                   {pin.note ? (
                     <p className="mt-1 line-clamp-2 text-xs text-neutral-500">
                       {pin.note}
@@ -512,14 +530,15 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
                   ) : null}
                 </div>
 
-                {/* Só aparecem no hover/foco pra não competir com a imagem,
+                {/* Só aparecem no hover/foco pra não competir com a imagem (no toque,
+                    onde não existe hover, ficam sempre visíveis),
                     mas seguem no DOM e alcançáveis pelo teclado. */}
-                <div className="absolute top-2 right-2 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                <div className="absolute top-2 right-2 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
                   <button
                     type="button"
                     onClick={() => setEditing(pin)}
                     aria-label={`Editar ${pin.title || host}`}
-                    className="flex size-7 items-center justify-center rounded-md bg-white/90 text-neutral-500 hover:bg-white hover:text-neutral-900"
+                    className="flex size-7 items-center justify-center rounded-md bg-white/90 pointer-coarse:size-9 pointer-coarse:shadow-sm text-neutral-500 hover:bg-white hover:text-neutral-900"
                   >
                     <PencilIcon className="size-4" />
                   </button>
@@ -527,7 +546,7 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
                     type="button"
                     onClick={() => handleDelete(pin)}
                     aria-label={`Excluir ${pin.title || host}`}
-                    className="flex size-7 items-center justify-center rounded-md bg-white/90 text-neutral-500 hover:bg-red-50 hover:text-red-600"
+                    className="flex size-7 items-center justify-center rounded-md bg-white/90 pointer-coarse:size-9 pointer-coarse:shadow-sm text-neutral-500 hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash2Icon className="size-4" />
                   </button>

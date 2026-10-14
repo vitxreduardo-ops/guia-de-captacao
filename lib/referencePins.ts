@@ -12,6 +12,8 @@ export interface ReferencePin {
   /** Arquivo próprio na pasta de referências do Drive. Vazio = link colado. */
   drive_file_id: string;
   note: string;
+  /** Cliente a quem a referência serve. Vazio = referência geral. */
+  client: string;
   /** Nicho e qualquer outra etiqueta livre — ver `lib/tags.ts`. */
   tags: string[];
   created_at: string;
@@ -30,6 +32,7 @@ function toReferencePin(row: Record<string, unknown>): ReferencePin {
     drive_file_id:
       typeof row.drive_file_id === "string" ? row.drive_file_id : "",
     note: typeof row.note === "string" ? row.note : "",
+    client: typeof row.client === "string" ? row.client : "",
     tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
     created_at: String(row.created_at ?? ""),
   };

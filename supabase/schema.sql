@@ -582,4 +582,8 @@ create index if not exists reference_pins_drive_file_id_idx
   on reference_pins (drive_file_id)
   where drive_file_id <> '';
 
+-- Pra quem a referência serve (ver supabase/migrations/0084_reference_pin_client.sql).
+alter table reference_pins
+  add column if not exists client text not null default '';
+
 alter table reference_pins enable row level security;
