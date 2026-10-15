@@ -27,6 +27,8 @@ import {
 } from "@/lib/clientLogos";
 import { requireTeam } from "@/lib/session";
 
+export type SalvarResultado = { ok: true } | { ok: false; motivo: string };
+
 function revalidateBudget(id: string, slug?: string | null) {
   revalidatePath(`/admin/orcamentos/${id}`);
   revalidatePath("/admin/orcamentos");
@@ -40,12 +42,30 @@ function revalidateBudget(id: string, slug?: string | null) {
  * mesma normalização da leitura, então campo faltando ganha default e campo do
  * tipo errado não entra. Uma action não confia no que o navegador manda.
  */
-export async function saveBudgetSectionsAction(id: string, sections: unknown) {
-  await requireTeam("orcamentos");
-  await updateBudgetSections(id, parseSections(sections));
+export async function saveBudgetSectionsAction(
+  id: string,
+  sections: unknown
+): Promise<SalvarResultado> {
+  // Devolve o motivo em vez de lançar: com a sessão vencida o editor segura o
+  // que está na tela e avisa, em vez de perder o rascunho num erro genérico.
+  try {
+    await requireTeam("orcamentos");
+  } catch {
+    return {
+      ok: false,
+      motivo: "Sessão expirada. Entre de novo em outra aba.",
+    };
+  }
 
-  const budget = await getBudgetWithSections(id);
-  revalidateBudget(id, budget?.slug);
+  try {
+    await updateBudgetSections(id, parseSections(sections));
+    const budget = await getBudgetWithSections(id);
+    revalidateBudget(id, budget?.slug);
+    return { ok: true };
+  } catch (error) {
+    console.error("[saveBudgetSectionsAction] falhou:", error);
+    return { ok: false, motivo: "Não consegui gravar no banco." };
+  }
 }
 
 /**
@@ -123,18 +143,34 @@ export async function deleteClientLogoAction(id: string) {
   await deleteClientLogo(id);
 }
 
-export async function updateBudgetInfoAction(formData: FormData) {
-  await requireTeam("orcamentos");
-  const id = String(formData.get("id"));
+export async function saveBudgetInfoAction(
+  id: string,
+  fields: { title: string; client_name: string; client_whatsapp: string }
+): Promise<SalvarResultado> {
+  try {
+    await requireTeam("orcamentos");
+  } catch {
+    return {
+      ok: false,
+      motivo: "Sessão expirada. Entre de novo em outra aba.",
+    };
+  }
 
-  await updateBudgetInfo(id, {
-    title: String(formData.get("title") ?? "").trim() || "Sem título",
-    client_name: String(formData.get("client_name") ?? "").trim(),
-    client_whatsapp: String(formData.get("client_whatsapp") ?? "").trim(),
-  });
-
-  const budget = await getBudgetWithSections(id);
-  revalidateBudget(id, budget?.slug);
+  try {
+    const title = String(fields.title ?? "").trim();
+    await updateBudgetInfo(id, {
+      // Título apagado no meio da digitação não vira "Sem título" no banco.
+      ...(title ? { title } : {}),
+      client_name: String(fields.client_name ?? "").trim(),
+      client_whatsapp: String(fields.client_whatsapp ?? "").trim(),
+    });
+    const budget = await getBudgetWithSections(id);
+    revalidateBudget(id, budget?.slug);
+    return { ok: true };
+  } catch (error) {
+    console.error("[saveBudgetInfoAction] falhou:", error);
+    return { ok: false, motivo: "Não consegui gravar no banco." };
+  }
 }
 
 export async function setBudgetStatusAction(formData: FormData) {
