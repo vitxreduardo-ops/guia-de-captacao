@@ -28,7 +28,7 @@ const SPLASH_SCREENS: [number, number, number][] = [
 ];
 
 export const metadata: Metadata = {
-  title: "Guia de Captação",
+  title: "Tatú Estúdio",
   description: "Guias de gravação: roteiros, referências e checklist por projeto.",
   // Aberto pela Tela de Início do iPhone, vira app sem a barra do Safari —
   // condição do iOS pra entregar notificações push.
