@@ -40,6 +40,13 @@ export function LogoLibrary({
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
+  // Enviar e apagar esperam o servidor, e nesse meio-tempo a lista de escolhidos
+  // pode ter mudado. Depois do await, o que vale é a versão mais recente — a da
+  // closure do clique devolveria a seção velha e desfaria a edição.
+  const maisRecente = useRef({ escolhidos, onChange });
+  useEffect(() => {
+    maisRecente.current = { escolhidos, onChange };
+  });
 
   useEffect(() => {
     let cancelado = false;
@@ -91,9 +98,10 @@ export function LogoLibrary({
         : [...lista, resultado.logo];
     });
     // Recém-enviado entra escolhido: quem subiu o arquivo quer usá-lo agora.
-    if (!urlsEscolhidas.has(resultado.logo.logo_url)) {
-      onChange([
-        ...escolhidos,
+    const atuais = maisRecente.current.escolhidos;
+    if (!atuais.some((l) => l.url === resultado.logo.logo_url)) {
+      maisRecente.current.onChange([
+        ...atuais,
         { name: resultado.logo.name, url: resultado.logo.logo_url },
       ]);
     }
@@ -124,7 +132,9 @@ export function LogoLibrary({
 
     await deleteClientLogoAction(logo.id);
     setAcervo((atual) => (atual ?? []).filter((l) => l.id !== logo.id));
-    if (usado) onChange(escolhidos.filter((l) => l.url !== logo.logo_url));
+    const { escolhidos: atuais, onChange: mudar } = maisRecente.current;
+    if (atuais.some((l) => l.url === logo.logo_url))
+      mudar(atuais.filter((l) => l.url !== logo.logo_url));
   }
 
   return (
