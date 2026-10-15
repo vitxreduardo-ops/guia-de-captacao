@@ -7,6 +7,7 @@ import {
   TextList,
 } from "@/components/admin/budget/RepeatableList";
 import { LogoLibrary } from "@/components/admin/budget/LogoLibrary";
+import { PriceInput } from "@/components/admin/budget/PriceInput";
 import { UploadButton } from "@/components/admin/budget/UploadButton";
 import {
   MAX_BLUR,
@@ -411,16 +412,9 @@ export function SectionFields({
                       Destaque
                     </label>
                   </div>
-                  <input
-                    type="number"
+                  <PriceInput
                     value={pacote.price}
-                    min={0}
-                    step="0.01"
-                    onChange={(e) =>
-                      trocar({ ...pacote, price: Number(e.target.value) || 0 })
-                    }
-                    className={FIELD_CLASS}
-                    placeholder="Preço"
+                    onChange={(price) => trocar({ ...pacote, price })}
                   />
                   <input
                     value={pacote.subtitle}

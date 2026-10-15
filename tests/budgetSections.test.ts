@@ -295,3 +295,17 @@ describe("secoesPadrao", () => {
     expect(faq.data.items.every((i) => i.answer.trim() !== "")).toBe(true);
   });
 });
+
+describe("preço do pacote", () => {
+  it("nunca fica negativo depois do parse", () => {
+    const secoes = parseSections([
+      {
+        kind: "pricing",
+        enabled: true,
+        data: { packages: [{ name: "A", price: -50 }] },
+      },
+    ]);
+    const pricing = secoes.find((s) => s.kind === "pricing");
+    expect(pricing?.kind === "pricing" && pricing.data.packages[0].price).toBe(0);
+  });
+});
