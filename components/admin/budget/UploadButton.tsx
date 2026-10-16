@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Upload } from "lucide-react";
 import { uploadBudgetMediaAction } from "@/app/admin/orcamentos/[id]/actions";
 
@@ -24,6 +24,14 @@ export function UploadButton({
   const input = useRef<HTMLInputElement>(null);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  // O envio demora, e quem chama monta o `onUploaded` em cima da seção do
+  // momento do clique. Chamar aquela versão devolveria a seção velha com a URL
+  // nova e apagaria o que foi digitado enquanto o arquivo subia — por isso a
+  // chamada vai sempre pela versão mais recente.
+  const aoEnviar = useRef(onUploaded);
+  useEffect(() => {
+    aoEnviar.current = onUploaded;
+  });
 
   async function enviar(file: File) {
     setEnviando(true);
@@ -39,7 +47,7 @@ export function UploadButton({
       setErro(resultado.error);
       return;
     }
-    onUploaded(resultado.url);
+    aoEnviar.current(resultado.url);
   }
 
   return (

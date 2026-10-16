@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ExternalLink, PanelRightClose, PanelRightOpen } from "lucide-react";
 import { saveBudgetSectionsAction } from "@/app/admin/orcamentos/[id]/actions";
 import {
@@ -8,20 +8,24 @@ import {
   ZoomControls,
 } from "@/components/admin/budget/BudgetPreviewPane";
 import { BudgetSectionPanel } from "@/components/admin/budget/BudgetSectionPanel";
+import { useAutosave, type EstadoSave } from "@/components/admin/budget/useAutosave";
 import type { BudgetSection } from "@/lib/budgetSections";
 import type { BudgetWithSections } from "@/lib/budgets";
 
-const DEBOUNCE_MS = 900;
-
-type SaveState = "idle" | "pending" | "saving" | "saved" | "error";
-
-const SAVE_LABEL: Record<SaveState, string> = {
-  idle: "",
-  pending: "Editando…",
-  saving: "Salvando…",
-  saved: "Salvo",
-  error: "Não salvou",
-};
+function rotuloSave(estado: EstadoSave) {
+  switch (estado.tipo) {
+    case "pendente":
+      return "Editando…";
+    case "salvando":
+      return "Salvando…";
+    case "salvo":
+      return "Salvo";
+    case "erro":
+      return `Não salvou: ${estado.motivo}`;
+    default:
+      return "";
+  }
+}
 
 /**
  * O editor da proposta: preview à esquerda, painel de seções à direita.
@@ -54,41 +58,29 @@ export function BudgetEditor({
   // O zoom do preview mora aqui porque o controle dele fica na barra do painel,
   // e não sobre a proposta.
   const [zoom, setZoom] = useState<number | null>(null);
-  const [saveState, setSaveState] = useState<SaveState>("idle");
-
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // O save lê daqui, e não da closure, para nunca gravar uma versão anterior
-  // à última tecla digitada.
-  const pending = useRef<BudgetSection[] | null>(null);
-
-  const flush = useCallback(async () => {
-    const payload = pending.current;
-    if (!payload) return;
-    pending.current = null;
-
-    setSaveState("saving");
-    try {
-      await saveBudgetSectionsAction(budget.id, payload);
-      setSaveState("saved");
-    } catch (error) {
-      console.error("[BudgetEditor] falhou ao salvar as seções:", error);
-      setSaveState("error");
-    }
-  }, [budget.id]);
+  const {
+    estado,
+    agendar,
+    ocupado,
+    rascunho,
+    descartarRascunho,
+    fecharRascunho,
+  } =
+    useAutosave<BudgetSection[]>({
+      chave: `orcamento-rascunho-${budget.id}`,
+      servidor: budget.sections,
+      salvar: (valor) => saveBudgetSectionsAction(budget.id, valor),
+    });
 
   const schedule = useCallback(
     (next: BudgetSection[], immediate = false) => {
       setSections(next);
-      pending.current = next;
-      setSaveState("pending");
-
-      if (timer.current) clearTimeout(timer.current);
       // Ligar uma seção, adicionar ou remover um item não é digitação: são
       // cliques isolados, e esperar quase um segundo por eles só faz o "Salvo"
       // chegar atrasado.
-      timer.current = setTimeout(flush, immediate ? 0 : DEBOUNCE_MS);
+      agendar(next, immediate);
     },
-    [flush]
+    [agendar]
   );
 
   // A aba Configuração salva pelo servidor: a calculadora escreve os pacotes
@@ -96,30 +88,16 @@ export function BudgetEditor({
   // desatualizado e — pior — o próximo autosave gravaria o estado antigo por
   // cima, apagando os pacotes recém-gerados.
   //
-  // Só adota quando não há save pendente: o rascunho de quem está digitando
-  // vale mais que a versão do servidor, que é justamente a de antes.
+  // Só adota quando não há save pendente nem em voo: o rascunho de quem está
+  // digitando vale mais que a versão do servidor, que é justamente a de antes.
   useEffect(() => {
-    if (pending.current) return;
+    if (ocupado()) return;
     const doServidor = JSON.stringify(budget.sections);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSections((atual) =>
       doServidor === JSON.stringify(atual) ? atual : budget.sections
     );
-  }, [budget.sections]);
-
-  // Fechar a aba com um save agendado perderia a última edição.
-  useEffect(() => {
-    function avisar(event: BeforeUnloadEvent) {
-      if (pending.current) event.preventDefault();
-    }
-    window.addEventListener("beforeunload", avisar);
-    return () => window.removeEventListener("beforeunload", avisar);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, []);
+  }, [budget.sections, ocupado]);
 
   const toggleEnabled = useCallback(
     (kind: string) => {
@@ -180,17 +158,48 @@ export function BudgetEditor({
           painelAberto ? "" : "hidden"
         }`}
       >
+        {rascunho ? (
+          <div
+            role="alert"
+            className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900"
+          >
+            <p>
+              Sobraram edições não gravadas de{" "}
+              {new Date(rascunho.at).toLocaleString("pt-BR")}.
+            </p>
+            <div className="mt-2 flex gap-3 font-medium">
+              <button
+                type="button"
+                onClick={() => {
+                  schedule(rascunho.valor, true);
+                  fecharRascunho();
+                }}
+                className="underline"
+              >
+                Recuperar
+              </button>
+              <button
+                type="button"
+                onClick={descartarRascunho}
+                className="underline"
+              >
+                Descartar
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="flex items-center justify-between gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2.5">
           <span
             className={`text-xs ${
-              saveState === "error" ? "text-red-600" : "text-neutral-500"
+              estado.tipo === "erro" ? "text-red-600" : "text-neutral-500"
             }`}
             // O estado de salvamento muda sozinho: quem usa leitor de tela
             // precisa ouvir, mas sem interromper o que está sendo lido.
             role="status"
             aria-live="polite"
           >
-            {SAVE_LABEL[saveState]}
+            {rotuloSave(estado)}
           </span>
           <div className="flex items-center gap-2">
             <ZoomControls zoom={zoom} onChange={setZoom} />

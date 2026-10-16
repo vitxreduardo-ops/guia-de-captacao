@@ -273,7 +273,7 @@ function parseData<K extends SectionKind>(
           const p = obj(item);
           return {
             name: str(p.name),
-            price: num(p.price),
+            price: Math.max(0, num(p.price)),
             subtitle: str(p.subtitle),
             description: str(p.description),
             features: textList(p.features),
