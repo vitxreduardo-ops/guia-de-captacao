@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { formatBRL, INVOICE_PAYMENT_PRESETS } from "@/lib/billingTypes";
+import { formatBRL } from "@/lib/billingTypes";
+import { CobrarLink, ContaSelect } from "@/components/admin/ContaPix";
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from "@/lib/backlogTypes";
 import type { PaymentMethod } from "@/lib/backlogTypes";
 import type { MoneyClient, MoneyItem } from "@/lib/dinheiroTypes";
-import { diaPorExtenso, frasePrazo, linkWhatsApp } from "@/lib/dinheiroTexto";
+import { diaPorExtenso, frasePrazo } from "@/lib/dinheiroTexto";
 import {
   markPaidAction,
   markPartialAction,
@@ -231,7 +232,6 @@ function ClienteLinha({
   const [venc, setVenc] = useState(false);
   const [pending, startTransition] = useTransition();
   const cor = STATUS[client.status];
-  const wa = client.status !== "pago" ? linkWhatsApp(client, mesNome, client.openCents) : null;
 
   const resumo =
     client.status === "pago"
@@ -294,15 +294,14 @@ function ClienteLinha({
           </ul>
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            {wa ? (
-              <a
-                href={wa}
-                target="_blank"
-                rel="noreferrer"
+            {client.status !== "pago" ? (
+              <CobrarLink
+                cliente={client}
+                mesNome={mesNome}
+                cents={client.openCents}
+                rotulo="Cobrar no WhatsApp"
                 className={`inline-flex items-center rounded-lg border border-neutral-300 px-4 text-base text-neutral-800 hover:bg-neutral-50 ${PRESS}`}
-              >
-                Cobrar no WhatsApp
-              </a>
+              />
             ) : null}
 
             <form
@@ -311,17 +310,7 @@ function ClienteLinha({
             >
               <input type="hidden" name="cliente" value={client.id} />
               <input type="hidden" name="mes" value={mes} />
-              <select
-                name="pagamento"
-                aria-label="Conta para o cliente pagar"
-                className="min-h-11 rounded-lg border border-neutral-300 bg-white px-3 text-base"
-              >
-                {INVOICE_PAYMENT_PRESETS.map((p) => (
-                  <option key={p.label} value={p.text}>
-                    Conta {p.label}
-                  </option>
-                ))}
-              </select>
+              <ContaSelect name="pagamento" ariaLabel="Conta que recebe o Pix (vai na cobrança e no PDF)" />
               <button
                 type="submit"
                 className={`rounded-lg border border-neutral-300 px-4 text-base text-neutral-800 hover:bg-neutral-50 ${PRESS}`}

@@ -218,4 +218,11 @@ Conta: 8768541554-0`,
   },
 ] as const;
 
+/** A chave Pix de uma conta pronta: a linha "PIX: ..." do texto, ou null se não tiver. */
+export function pixKeyOf(text: string): string | null {
+  const line = text.split("\n").find((l) => /^\s*pix\s*:/i.test(l));
+  const key = line?.replace(/^\s*pix\s*:\s*/i, "").trim();
+  return key ? key : null;
+}
+
 export const DEFAULT_INVOICE_PAYMENT = INVOICE_PAYMENT_PRESETS[0].text;

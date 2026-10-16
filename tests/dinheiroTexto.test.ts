@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { pixKeyOf } from "@/lib/billingTypes";
 import { diaPorExtenso, frasePrazo, linkWhatsApp, quando } from "@/lib/dinheiroTexto";
 
 // "Hoje" fixo: quinta-feira, 15/10/2026.
@@ -52,8 +53,35 @@ describe("linkWhatsApp", () => {
     expect(texto).toMatch(/1\.200,00/);
   });
 
+  it("coloca a chave Pix da conta escolhida, em linha própria", () => {
+    const url = linkWhatsApp(cliente, "outubro de 2026", 120000, {
+      label: "Inter",
+      chave: "53.107.038/0001-24",
+    })!;
+    const texto = decodeURIComponent(url.split("text=")[1]);
+    expect(texto).toContain("Chave Pix (Inter):\n53.107.038/0001-24");
+    expect(texto.endsWith("Qualquer dúvida é só chamar!")).toBe(true);
+  });
+
+  it("sem conta, a mensagem sai sem o bloco do Pix", () => {
+    const url = linkWhatsApp(cliente, "outubro de 2026", 120000)!;
+    expect(decodeURIComponent(url.split("text=")[1])).not.toContain("Pix");
+  });
+
   it("não gera link sem telefone válido", () => {
     expect(linkWhatsApp({ ...cliente, phone: null }, "outubro", 100)).toBeNull();
     expect(linkWhatsApp({ ...cliente, phone: "123" }, "outubro", 100)).toBeNull();
+  });
+});
+
+describe("pixKeyOf", () => {
+  it("pega a linha PIX da conta, com ou sem espaços e maiúsculas", () => {
+    expect(pixKeyOf("PIX: 53.107.038/0001-24\nBanco: 077 - Inter")).toBe("53.107.038/0001-24");
+    expect(pixKeyOf("Banco: X\n  pix :  ana@exemplo.com ")).toBe("ana@exemplo.com");
+  });
+
+  it("devolve null quando não há chave", () => {
+    expect(pixKeyOf("Banco: 077\nConta: 123")).toBeNull();
+    expect(pixKeyOf("PIX:   ")).toBeNull();
   });
 });
