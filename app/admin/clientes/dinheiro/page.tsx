@@ -248,6 +248,7 @@ async function ContasAba({
       <p className="mb-3 text-base text-neutral-600">
         O cliente paga no mês seguinte ao do trabalho, no dia combinado. Por isso o
         que foi feito em {nome} vence em {monthLabel(shiftMonth(month, 1))}.
+        Se o combinado foi outro, toque em Editar na entrega, ou em Mudar vencimento no cliente.
       </p>
 
       <div className="mb-6 flex flex-wrap gap-x-8 gap-y-4 rounded-xl border border-neutral-200 bg-white p-4">

@@ -39,13 +39,14 @@ interface CardRow {
   unit_price_cents: number | null;
   paid_at: string | null;
   paid_cents: number | null;
+  due_on: string | null;
   payment_method: string | null;
   custom_service: string | null;
   services: { name: string } | { name: string }[] | null;
 }
 
 const CARD_FIELDS =
-  "id, client_id, column_id, title, post_date, billing_month, quantity, unit_price_cents, paid_at, paid_cents, payment_method, custom_service, services(name)";
+  "id, client_id, column_id, title, post_date, billing_month, quantity, unit_price_cents, paid_at, paid_cents, due_on, payment_method, custom_service, services(name)";
 
 const cardMonth = (row: CardRow): string | null =>
   row.billing_month
@@ -66,7 +67,14 @@ async function billableColumns() {
   return (data ?? []) as { id: string; paid: boolean; position: number }[];
 }
 
-function toItem(row: CardRow, paid: boolean): MoneyItem {
+/** Vencimento da entrega: o escolhido à mão ou o dia combinado, no mês seguinte ao do trabalho. */
+function effectiveDue(row: CardRow, paymentDay: number | null): string | null {
+  if (row.due_on) return row.due_on;
+  const m = cardMonth(row);
+  return m ? dueOf(m, paymentDay) : null;
+}
+
+function toItem(row: CardRow, paid: boolean, dueOn: string | null = row.due_on): MoneyItem {
   const service = Array.isArray(row.services) ? row.services[0] : row.services;
   const quantity = row.quantity ?? 1;
   const unitCents = row.unit_price_cents ?? 0;
@@ -86,6 +94,8 @@ function toItem(row: CardRow, paid: boolean): MoneyItem {
     paid,
     paidAt: row.paid_at,
     method: row.payment_method,
+    dueOn,
+    dueCustom: row.due_on !== null,
   };
 }
 
@@ -180,14 +190,14 @@ export async function getMoneyMonth(
     const client = byClient.get(card.client_id);
     if (!m || !client) continue;
     const paid = paidByColumn.get(card.column_id) ?? false;
-    const item = toItem(card, paid);
+    const item = toItem(card, paid, effectiveDue(card, client.paymentDay));
 
     if (m === from) {
       client.items.push(item);
       client.paidCents += item.receivedCents;
       client.openCents += item.openCents;
     } else if (!paid && item.openCents > 0) {
-      const due = dueOf(m, client.paymentDay);
+      const due = item.dueOn;
       const key = `${client.id}|${m}`;
       const row = elsewhereMap.get(key) ?? {
         clientId: client.id,
@@ -195,9 +205,15 @@ export async function getMoneyMonth(
         month: m,
         cents: 0,
         dueDate: due,
-        overdue: due !== null && due < hoje,
+        overdue: false,
       };
       row.cents += item.openCents;
+      if (due && (!row.dueDate || due < row.dueDate)) row.dueDate = due;
+      // Atrasado é o que passou do vencimento; o resto do mês pode ainda estar no prazo.
+      if (due && due < hoje) {
+        row.overdue = true;
+        row.overdueCents = (row.overdueCents ?? 0) + item.openCents;
+      }
       elsewhereMap.set(key, row);
     }
   }
@@ -205,9 +221,15 @@ export async function getMoneyMonth(
   const list = [...byClient.values()].filter((c) => c.items.length > 0);
   for (const c of list) {
     c.items.sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
-    const late = c.dueDate !== null && c.dueDate < hoje;
-    c.status = c.openCents === 0 ? "pago" : late ? "atrasado" : "aberto";
-    if (c.status === "atrasado") overdueCents += c.openCents;
+    const open = c.items.filter((i) => i.openCents > 0);
+    // O vencimento do cliente é o mais próximo entre as entregas em aberto.
+    const dues = open.map((i) => i.dueOn).filter((d): d is string => d !== null).sort();
+    c.dueDate = dues[0] ?? c.dueDate;
+    const lateCents = open
+      .filter((i) => i.dueOn !== null && i.dueOn < hoje)
+      .reduce((sum, i) => sum + i.openCents, 0);
+    c.status = c.openCents === 0 ? "pago" : lateCents > 0 ? "atrasado" : "aberto";
+    overdueCents += lateCents;
   }
   const rank = { atrasado: 0, aberto: 1, pago: 2 } as const;
   list.sort(
@@ -220,7 +242,7 @@ export async function getMoneyMonth(
   const elsewhere = [...elsewhereMap.values()].sort((a, b) =>
     a.month.localeCompare(b.month)
   );
-  for (const row of elsewhere) if (row.overdue) overdueCents += row.cents;
+  for (const row of elsewhere) overdueCents += row.overdueCents ?? 0;
 
   return {
     month: from,
@@ -307,7 +329,7 @@ export async function getOpenByClient(
     if (!m) continue;
     const cents = toItem(card, false).openCents;
     if (cents === 0) continue;
-    const due = dueOf(m, days.get(card.client_id) ?? null);
+    const due = effectiveDue(card, days.get(card.client_id) ?? null);
     const slot = (result[card.client_id] ??= { openCents: 0, atrasado: false });
     slot.openCents += cents;
     if (due && due < hoje) slot.atrasado = true;
@@ -397,11 +419,11 @@ export async function getTodayView(
       list = "received";
       date = card.paid_at;
     } else {
-      date = dueOf(m, (client.payment_day as number | null) ?? null);
+      date = effectiveDue(card, (client.payment_day as number | null) ?? null);
       list = !date ? "noDay" : date < hoje ? "late" : date <= limiteIso ? "upcoming" : "noDay";
       if (date && date > limiteIso) continue;
     }
-    const key = `${list}|${card.client_id}|${list === "received" ? "" : m}`;
+    const key = `${list}|${card.client_id}|${list === "received" ? "" : `${m}|${date}`}`;
     const row = rows.get(key) ?? {
       clientId: card.client_id,
       name: client.name as string,
@@ -556,7 +578,14 @@ export async function getCardClientIds(cardIds: string[]): Promise<string[]> {
 /** Corrige o que a entrega diz sobre dinheiro: nome, quantidade, valor e produto. */
 export async function updateCardBilling(
   cardId: string,
-  fields: { title: string; quantity: number; unitCents: number; customService: string }
+  fields: {
+    title: string;
+    quantity: number;
+    unitCents: number;
+    customService: string;
+    /** AAAA-MM-DD, ou null pra voltar ao vencimento automático. */
+    dueOn: string | null;
+  }
 ) {
   if (!Number.isInteger(fields.quantity) || fields.quantity < 1) {
     throw new Error("A quantidade precisa ser 1 ou mais.");
@@ -569,9 +598,19 @@ export async function updateCardBilling(
       quantity: fields.quantity,
       unit_price_cents: fields.unitCents,
       custom_service: fields.customService.trim() || null,
+      due_on: fields.dueOn,
       updated_at: new Date().toISOString(),
     })
     .eq("id", cardId);
+  if (error) throw error;
+}
+
+/** Muda o vencimento de várias entregas de uma vez. Null volta ao automático. */
+export async function setCardsDue(cardIds: string[], dueOn: string | null) {
+  const { error } = await getSupabaseServerClient()
+    .from("backlog_cards")
+    .update({ due_on: dueOn, updated_at: new Date().toISOString() })
+    .in("id", cardIds);
   if (error) throw error;
 }
 

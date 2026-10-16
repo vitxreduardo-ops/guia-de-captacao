@@ -16,6 +16,10 @@ export interface MoneyItem {
   paid: boolean;
   paidAt: string | null;
   method: string | null;
+  /** Vencimento desta entrega: o escolhido à mão ou o do dia combinado com o cliente. */
+  dueOn: string | null;
+  /** true quando o vencimento foi escolhido à mão (e não calculado). */
+  dueCustom: boolean;
 }
 
 /** pago = tudo recebido; atrasado = passou do dia combinado; aberto = ainda no prazo. */
@@ -43,6 +47,8 @@ export interface MoneyOpenElsewhere {
   cents: number;
   dueDate: string | null;
   overdue: boolean;
+  /** Quanto desse mês já passou do vencimento. */
+  overdueCents?: number;
 }
 
 export interface MoneyMonth {
