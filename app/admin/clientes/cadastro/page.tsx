@@ -1,30 +1,28 @@
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { ClientTabs } from "@/components/admin/ClientTabs";
 import { ClientRegistry, type ClientSummary } from "@/components/admin/ClientRegistry";
-import { getYearTotals } from "@/lib/billing";
+import { getOpenByClient } from "@/lib/dinheiro";
 import { listGalleryClients } from "@/lib/galleries";
 import { getCurrentClientScope } from "@/lib/clientAccess";
 
 export const dynamic = "force-dynamic";
 
-export default async function ClientesCadastroPage() {
-  const year = new Date().getFullYear();
+export default async function ClientesCadastroPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ abrir?: string }>;
+}) {
+  const { abrir } = await searchParams;
   const clientScope = await getCurrentClientScope();
   const [todos, totals] = await Promise.all([
     listGalleryClients({ includeArchived: true, clientScope }),
-    getYearTotals(year, clientScope),
+    getOpenByClient(clientScope),
   ]);
 
   const clients = todos.filter((client) => !client.archived_at);
   const archived = todos.filter((client) => client.archived_at);
 
-  const summaries: Record<string, ClientSummary> = {};
-  for (const row of totals) {
-    summaries[row.clientId] = {
-      entregasNoAno: row.deliveries,
-      faturadoNoAnoCents: row.totalCents,
-    };
-  }
+  const summaries: Record<string, ClientSummary> = totals;
 
   return (
     <div className="mx-auto w-full max-w-5xl pb-10">
@@ -33,7 +31,7 @@ export default async function ClientesCadastroPage() {
         trail={[
           { label: "Admin", href: "/admin" },
           { label: "Clientes", href: "/admin/clientes" },
-          { label: "Cadastro" },
+          { label: "Lista de clientes" },
         ]}
       />
 
@@ -45,7 +43,7 @@ export default async function ClientesCadastroPage() {
         clients={clients}
         archived={archived}
         summaries={summaries}
-        year={year}
+        abrir={abrir}
       />
     </div>
   );

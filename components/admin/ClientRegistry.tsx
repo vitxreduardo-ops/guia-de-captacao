@@ -12,7 +12,7 @@ import {
 } from "@/app/admin/clientes/cadastro/actions";
 
 const inputClass =
-  "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none";
+  "w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-base focus:border-neutral-500 focus:outline-none";
 const PRESS =
   "transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] pointer-coarse:min-h-11";
 
@@ -30,7 +30,7 @@ function Campo({
 }) {
   return (
     <label className={`block ${className}`}>
-      <span className="mb-1 block text-xs font-medium text-neutral-600">
+      <span className="mb-1 block text-sm font-medium text-neutral-700">
         {label}
       </span>
       {children}
@@ -42,18 +42,21 @@ function Campo({
 }
 
 export interface ClientSummary {
-  entregasNoAno: number;
-  faturadoNoAnoCents: number;
+  /** Tudo que ainda não foi pago, de qualquer mês. */
+  openCents: number;
+  atrasado: boolean;
 }
 
 function ClientRow({
   client,
   summary,
+  abrir,
 }: {
   client: GalleryClient;
   summary: ClientSummary;
+  abrir: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(abrir);
   const [pending, startTransition] = useTransition();
 
   if (editing) {
@@ -72,7 +75,7 @@ function ClientRow({
         >
           <input type="hidden" name="id" value={client.id} />
 
-          <Campo label="Nome curto" hint="O que aparece nos cards e na galeria">
+          <Campo label="Nome do cliente" hint="O que aparece nos cards e na galeria">
             <input
               name="name"
               defaultValue={client.name}
@@ -82,15 +85,9 @@ function ClientRow({
             />
           </Campo>
 
-          <Campo label="Empresa" hint="Razão social, como sai na nota">
-            <input
-              name="company_name"
-              defaultValue={client.company_name ?? ""}
-              className={inputClass}
-            />
-          </Campo>
+          
 
-          <Campo label="Responsável">
+          <Campo label="Nome de quem recebe a cobrança">
             <input
               name="contact_name"
               defaultValue={client.contact_name ?? ""}
@@ -110,25 +107,11 @@ function ClientRow({
             />
           </Campo>
 
-          <Campo label="E-mail" hint="Para onde a nota é enviada">
-            <input
-              name="email"
-              type="email"
-              defaultValue={client.email ?? ""}
-              className={inputClass}
-            />
-          </Campo>
+          
 
-          <Campo label="CNPJ ou CPF">
-            <input
-              name="document"
-              inputMode="numeric"
-              defaultValue={client.document ?? ""}
-              className={inputClass}
-            />
-          </Campo>
+          
 
-          <Campo label="Dia de vencimento" hint="Do mês seguinte ao da entrega">
+          <Campo label="Dia em que o cliente paga" hint="Todo mês, sobre as entregas do mês anterior">
             <input
               name="payment_day"
               type="number"
@@ -140,15 +123,48 @@ function ClientRow({
             />
           </Campo>
 
-          <Campo label="Endereço" className="sm:col-span-2">
+          
+
+          
+
+          
+
+          <details className="rounded-lg border border-neutral-200 sm:col-span-2">
+            <summary className="cursor-pointer px-3 py-3 text-base text-neutral-700 min-h-11">
+              Mais dados (empresa, CNPJ, e-mail, endereço, observações)
+            </summary>
+            <div className="grid gap-3 p-3 pt-0 sm:grid-cols-2">
+              <Campo label="Empresa" hint="Razão social, como sai na nota">
+            <input
+              name="company_name"
+              defaultValue={client.company_name ?? ""}
+              className={inputClass}
+            />
+          </Campo>
+              <Campo label="E-mail" hint="Para onde a nota é enviada">
+            <input
+              name="email"
+              type="email"
+              defaultValue={client.email ?? ""}
+              className={inputClass}
+            />
+          </Campo>
+              <Campo label="CNPJ ou CPF">
+            <input
+              name="document"
+              inputMode="numeric"
+              defaultValue={client.document ?? ""}
+              className={inputClass}
+            />
+          </Campo>
+              <Campo label="Endereço" className="sm:col-span-2">
             <input
               name="address"
               defaultValue={client.address ?? ""}
               className={inputClass}
             />
           </Campo>
-
-          <Campo
+              <Campo
             label="Descrição para roteiros"
             hint="O chat de Roteiros lê isto ao escolher o cliente"
             className="sm:col-span-2"
@@ -162,8 +178,7 @@ function ClientRow({
               className={inputClass}
             />
           </Campo>
-
-          <Campo label="Observações" className="sm:col-span-2">
+              <Campo label="Observações" className="sm:col-span-2">
             <textarea
               name="notes"
               defaultValue={client.notes ?? ""}
@@ -172,6 +187,8 @@ function ClientRow({
               className={inputClass}
             />
           </Campo>
+            </div>
+          </details>
 
           <label className="flex items-center gap-1.5 text-xs text-neutral-600 sm:col-span-2">
             <input
@@ -246,8 +263,8 @@ function ClientRow({
     // O nome ocupa a linha inteira no celular: dividindo espaço com as
     // métricas, "LoopFilmes - Rede Câmara" virava "L…" — o dado principal
     // reduzido a uma letra. No desktop os dois voltam para a mesma linha.
-    <li className="group flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-sm">
-      <span className="w-full truncate font-medium text-neutral-900 sm:w-auto sm:min-w-0 sm:flex-1">
+    <li className="group flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-4 text-base">
+      <span className="w-full text-lg font-semibold text-neutral-900">
         {client.name}
         {client.contact_name ? (
           <span className="ml-2 text-xs font-normal text-neutral-500">
@@ -256,49 +273,37 @@ function ClientRow({
         ) : null}
       </span>
 
-      {client.payment_day ? (
-        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-xs text-amber-700 tabular-nums">
-          vence dia {client.payment_day}
-        </span>
-      ) : null}
-
-      {/* Entregas vêm do quadro, faturado vem das notas fechadas. Quando há
-          trabalho e nenhum mês fechado, "R$ 0,00 faturado" lê como erro — o
-          texto precisa dizer que falta fechar, não que não houve receita. */}
-      <span className="text-xs text-neutral-500 tabular-nums">
-        {summary.entregasNoAno === 0 && summary.faturadoNoAnoCents === 0
-          ? "sem entregas no ano"
-          : summary.faturadoNoAnoCents === 0
-            ? `${summary.entregasNoAno} ${
-                summary.entregasNoAno === 1 ? "entrega" : "entregas"
-              } · nenhum mês fechado`
-            : `${summary.entregasNoAno} ${
-                summary.entregasNoAno === 1 ? "entrega" : "entregas"
-              } · ${formatBRL(summary.faturadoNoAnoCents)} faturado`}
+      <span className="text-base text-neutral-600">
+        {client.payment_day ? `Paga todo dia ${client.payment_day}` : "Sem dia de pagamento"}
       </span>
 
-      {client.status === "published" ? (
-        <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-700">
-          galeria no ar
-        </span>
-      ) : (
-        <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600">
-          rascunho
-        </span>
-      )}
+      <Link
+        href="/admin/clientes/dinheiro?aba=contas"
+        className={`rounded-lg px-3 text-base font-medium hover:underline pointer-coarse:min-h-11 inline-flex items-center ${
+          summary.openCents === 0
+            ? "text-emerald-700"
+            : summary.atrasado
+              ? "text-red-700"
+              : "text-amber-700"
+        }`}
+      >
+        {summary.openCents === 0
+          ? "Tudo pago"
+          : `${summary.atrasado ? "Atrasado: " : "Deve "}${formatBRL(summary.openCents)}`}
+      </Link>
 
       <Link
         href={`/admin/galerias/${client.id}`}
-        className="rounded-md text-xs text-neutral-500 underline hover:text-neutral-800 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center pointer-coarse:px-2"
+        className="inline-flex min-h-11 items-center rounded-lg px-3 text-base text-neutral-600 underline hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none"
       >
-        Galeria
+        Galeria de fotos
       </Link>
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className="text-xs text-neutral-500 opacity-0 transition-opacity hover:text-neutral-800 focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100 pointer-coarse:min-h-11 pointer-coarse:px-2 pointer-coarse:inline-flex pointer-coarse:items-center focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none rounded-md"
+        className={`rounded-lg border border-neutral-300 px-4 text-base text-neutral-800 hover:bg-neutral-50 ${PRESS}`}
       >
-        Editar
+        Editar dados
       </button>
     </li>
   );
@@ -343,22 +348,21 @@ export function ClientRegistry({
   clients,
   archived,
   summaries,
-  year,
+  abrir,
 }: {
   clients: GalleryClient[];
   archived: GalleryClient[];
   summaries: Record<string, ClientSummary>;
-  year: number;
+  abrir?: string;
 }) {
-  const vazio: ClientSummary = { entregasNoAno: 0, faturadoNoAnoCents: 0 };
+  const vazio: ClientSummary = { openCents: 0, atrasado: false };
 
   return (
     <section>
       <div className="mb-2 flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold text-neutral-900">
-          Clientes cadastrados
+        <h2 className="text-lg font-semibold text-neutral-900">
+          Seus clientes
         </h2>
-        <span className="text-xs text-neutral-500">números de {year}</span>
       </div>
 
       <div className="rounded-lg border border-neutral-200 bg-white">
@@ -369,6 +373,7 @@ export function ClientRegistry({
                 key={client.id}
                 client={client}
                 summary={summaries[client.id] ?? vazio}
+                abrir={client.id === abrir}
               />
             ))}
           </ul>
@@ -380,7 +385,7 @@ export function ClientRegistry({
         >
           <input
             name="name"
-            placeholder="Nome do cliente"
+            placeholder="Nome do novo cliente"
             required
             className={`${inputClass} min-w-0 flex-1`}
           />
