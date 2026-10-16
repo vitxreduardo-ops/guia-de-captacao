@@ -11,6 +11,7 @@ import {
   markPaidAction,
   markPartialAction,
   markUnpaidAction,
+  setDueAction,
   updateClientContactAction,
   updateItemAction,
 } from "@/app/admin/clientes/dinheiro/actions";
@@ -77,6 +78,14 @@ function ItemLinha({ item }: { item: MoneyItem }) {
             <input name="valor" required inputMode="decimal" defaultValue={paraCampo(item.unitCents)} className={CAMPO} />
           </label>
           <label className="block sm:col-span-3">
+            <span className="mb-1 block text-sm font-medium text-neutral-700">Vence em</span>
+            <input name="vencimento" type="date" defaultValue={item.dueCustom ? (item.dueOn ?? "") : ""} className={`${CAMPO} sm:w-56`} />
+            <span className="mt-1 block text-sm text-neutral-600">
+              Deixe vazio para seguir o dia combinado com o cliente
+              {item.dueOn && !item.dueCustom ? ` (hoje: ${diaPorExtenso(item.dueOn)})` : ""}.
+            </span>
+          </label>
+          <label className="block sm:col-span-3">
             <span className="mb-1 block text-sm font-medium text-neutral-700">Produto ou serviço (opcional)</span>
             <input name="produto" defaultValue={item.serviceName ?? ""} placeholder="Ex.: Reel editado" className={CAMPO} />
           </label>
@@ -103,6 +112,12 @@ function ItemLinha({ item }: { item: MoneyItem }) {
             {item.serviceName ?? "Sem serviço"}
             {item.date ? ` · ${diaPorExtenso(item.date)}` : ""}
           </p>
+          {!item.paid ? (
+            <p className={`text-sm ${item.dueOn && item.dueOn < new Date().toLocaleDateString("sv-SE") ? "text-red-700" : "text-neutral-600"}`}>
+              {frasePrazo(item.dueOn)}
+              {item.dueCustom ? " (data escolhida)" : ""}
+            </p>
+          ) : null}
           {entrou ? (
             <p className="text-sm text-amber-700">
               Já entrou {formatBRL(item.receivedCents)} · falta {formatBRL(item.openCents)}
@@ -213,6 +228,7 @@ function ClienteLinha({
 }) {
   const [aberto, setAberto] = useState(abertoInicial);
   const [contato, setContato] = useState(false);
+  const [venc, setVenc] = useState(false);
   const [pending, startTransition] = useTransition();
   const cor = STATUS[client.status];
   const wa = client.status !== "pago" ? linkWhatsApp(client, mesNome, client.openCents) : null;
@@ -314,6 +330,17 @@ function ClienteLinha({
               </button>
             </form>
 
+            {client.status !== "pago" ? (
+              <button
+                type="button"
+                onClick={() => setVenc(!venc)}
+                aria-expanded={venc}
+                className={`rounded-lg px-3 text-base text-neutral-700 underline hover:text-neutral-900 ${PRESS}`}
+              >
+                Mudar vencimento
+              </button>
+            ) : null}
+
             <button
               type="button"
               onClick={() => setContato(!contato)}
@@ -330,6 +357,36 @@ function ClienteLinha({
               Todos os dados
             </Link>
           </div>
+
+          {venc ? (
+            <form
+              action={(f) =>
+                startTransition(async () => {
+                  await setDueAction(f);
+                  setVenc(false);
+                })
+              }
+              className="mt-3 flex flex-wrap items-end gap-3 rounded-lg bg-neutral-50 p-3"
+            >
+              {client.items
+                .filter((i) => i.openCents > 0)
+                .map((i) => (
+                  <input key={i.cardId} type="hidden" name="card" value={i.cardId} />
+                ))}
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-neutral-700">
+                  Novo vencimento das {client.items.filter((i) => i.openCents > 0).length} entregas em aberto
+                </span>
+                <input name="vencimento" type="date" className={`${CAMPO} sm:w-56`} />
+              </label>
+              <button type="submit" disabled={pending} className={`rounded-lg bg-neutral-900 px-5 text-base font-medium text-white hover:bg-neutral-800 disabled:opacity-50 ${PRESS}`}>
+                {pending ? "Salvando…" : "Aplicar"}
+              </button>
+              <p className="w-full text-sm text-neutral-600">
+                Deixe a data vazia e toque em Aplicar para voltar ao vencimento automático.
+              </p>
+            </form>
+          ) : null}
 
           {contato ? (
             <form

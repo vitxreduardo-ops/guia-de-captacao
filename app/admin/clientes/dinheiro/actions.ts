@@ -6,6 +6,7 @@ import {
   getCardClientIds,
   markCardsPaid,
   markCardsUnpaid,
+  setCardsDue,
   updateCardBilling,
   updateClientContact,
 } from "@/lib/dinheiro";
@@ -18,6 +19,16 @@ function revalidateMoney() {
   revalidatePath("/admin/clientes/dinheiro");
   revalidatePath("/admin/clientes/entregas");
   revalidatePath("/admin/clientes/cadastro");
+}
+
+/** Data AAAA-MM-DD válida, ou null (campo vazio = vencimento automático). */
+function readDate(value: FormDataEntryValue | null): string | null {
+  const text = String(value ?? "").trim();
+  if (text === "") return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text) || Number.isNaN(Date.parse(text))) {
+    throw new Error("Data de vencimento inválida.");
+  }
+  return text;
 }
 
 async function readCardIds(formData: FormData): Promise<string[]> {
@@ -68,6 +79,7 @@ export async function updateItemAction(formData: FormData) {
     quantity: Number(formData.get("quantidade")),
     unitCents: parseBRLToCents(formData.get("valor")),
     customService: String(formData.get("produto") ?? ""),
+    dueOn: readDate(formData.get("vencimento")),
   });
   revalidateMoney();
 }
@@ -83,5 +95,13 @@ export async function updateClientContactAction(formData: FormData) {
     phone: String(formData.get("telefone") ?? ""),
     contactName: String(formData.get("responsavel") ?? ""),
   });
+  revalidateMoney();
+}
+
+/** Muda (ou limpa) o vencimento de várias entregas de um cliente de uma vez. */
+export async function setDueAction(formData: FormData) {
+  await requireTeam("clientes");
+  const ids = await readCardIds(formData);
+  await setCardsDue(ids, readDate(formData.get("vencimento")));
   revalidateMoney();
 }
