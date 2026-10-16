@@ -17,7 +17,8 @@ import {
 import { formatBRL, monthKey, monthLabel } from "@/lib/billingTypes";
 import { getExpenseYear, listExpenses, listExpensesByMonth } from "@/lib/expenses";
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expensesTypes";
-import { linkWhatsApp, quando } from "@/lib/dinheiroTexto";
+import { quando } from "@/lib/dinheiroTexto";
+import { CobrarLink, ContaSelect } from "@/components/admin/ContaPix";
 import { getCurrentClientScope } from "@/lib/clientAccess";
 
 export const dynamic = "force-dynamic";
@@ -99,7 +100,6 @@ function ListaHoje({ rows, mostrarCobrar }: { rows: TodayRow[]; mostrarCobrar?: 
   return (
     <ul className="divide-y divide-neutral-100 rounded-xl border border-neutral-200 bg-white">
       {rows.map((row) => {
-        const wa = mostrarCobrar ? linkWhatsApp(row, monthLabel(row.month), row.cents) : null;
         return (
           <li key={`${row.clientId}${row.month}${row.date}`} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
             <div className="min-w-0 flex-1 basis-44">
@@ -110,16 +110,15 @@ function ListaHoje({ rows, mostrarCobrar }: { rows: TodayRow[]; mostrarCobrar?: 
               </p>
             </div>
             <span className="text-base font-medium text-neutral-900 tabular-nums">{formatBRL(row.cents)}</span>
-            {wa ? (
-              <a
-                href={wa}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`Cobrar ${row.name} no WhatsApp`}
+            {mostrarCobrar ? (
+              <CobrarLink
+                cliente={row}
+                mesNome={monthLabel(row.month)}
+                cents={row.cents}
+                rotulo="Cobrar"
+                ariaLabel={`Cobrar ${row.name} no WhatsApp`}
                 className={`inline-flex min-h-11 items-center rounded-lg border border-neutral-300 px-4 text-base hover:bg-neutral-50 ${FOCO}`}
-              >
-                Cobrar
-              </a>
+              />
             ) : null}
             {mostrarCobrar !== undefined ? (
               <Link
@@ -194,6 +193,15 @@ async function HojeAba({ scope }: { scope: string[] | null }) {
         <Numero label="Vence em 7 dias" value={sum(v.upcoming)} />
         <Numero label="Entrou em 7 dias" value={sum(v.received)} tone="text-emerald-700" />
       </div>
+
+      {v.late.length + v.upcoming.length + v.noDay.length > 0 ? (
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <label htmlFor="conta-cobranca" className="text-base text-neutral-700">
+            Chave Pix que vai na mensagem de cobrança:
+          </label>
+          <ContaSelect id="conta-cobranca" ariaLabel="Conta que recebe o Pix" />
+        </div>
+      ) : null}
 
       {tudoEmDia && v.received.length === 0 ? (
         <p className="rounded-xl border border-dashed border-neutral-300 p-8 text-center text-lg text-neutral-600">

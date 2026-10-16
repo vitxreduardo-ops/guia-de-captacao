@@ -42,14 +42,18 @@ export function frasePrazo(dueDate: string | null): string {
 export function linkWhatsApp(
   who: { name: string; contactName: string | null; phone: string | null },
   mesNome: string,
-  cents: number
+  cents: number,
+  pix?: { label: string; chave: string } | null
 ): string | null {
   const digits = (who.phone ?? "").replace(/\D/g, "");
   if (digits.length < 10) return null;
   const numero = digits.length <= 11 ? `55${digits}` : digits;
   const primeiro = (who.contactName ?? who.name).split(" ")[0];
-  const texto = `Oi, ${primeiro}! Tudo bem? Passando pra lembrar do pagamento de ${mesNome}: ${formatBRL(
+  const cobranca = `Oi, ${primeiro}! Tudo bem? Passando pra lembrar do pagamento de ${mesNome}: ${formatBRL(
     cents
-  )}. Qualquer dúvida é só chamar!`;
+  )}.`;
+  // A chave vai numa linha só dela, pra copiar com um toque.
+  const chave = pix ? `\n\nChave Pix (${pix.label}):\n${pix.chave}` : "";
+  const texto = `${cobranca}${chave}\n\nQualquer dúvida é só chamar!`;
   return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`;
 }
