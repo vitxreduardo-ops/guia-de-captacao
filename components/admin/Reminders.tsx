@@ -99,7 +99,7 @@ export function PaymentsDue({
           </span>
         </h2>
         <Link
-          href="/admin/clientes/resumo"
+          href="/admin/clientes/dinheiro"
           className="shrink-0 rounded text-xs text-neutral-500 hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           Clientes
@@ -111,7 +111,7 @@ export function PaymentsDue({
           const status = dueStatus(payment.dueDate, today);
           return (
             <li key={payment.clientId}>
-              <Link href="/admin/clientes/resumo" className={LINHA}>
+              <Link href="/admin/clientes/dinheiro" className={LINHA}>
                 <span className="block break-words text-neutral-800">
                   {payment.clientName}
                   <span className="text-neutral-500 tabular-nums">

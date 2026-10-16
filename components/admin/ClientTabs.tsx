@@ -7,9 +7,12 @@ import { motion, useReducedMotion } from "motion/react";
 export const CLIENT_TABS = [
   { href: "/admin/clientes/entregas", label: "Entregas" },
   { href: "/admin/clientes/entregas/calendario", label: "Calendário" },
-  { href: "/admin/clientes/faturamento", label: "Faturamento" },
-  { href: "/admin/clientes/resumo", label: "Resumo" },
-  { href: "/admin/clientes/cadastro", label: "Cadastro" },
+  { href: "/admin/clientes/dinheiro?aba=painel", label: "Painel" },
+  { href: "/admin/clientes/dinheiro?aba=hoje", label: "Cobranças" },
+  { href: "/admin/clientes/dinheiro?aba=contas", label: "Contas" },
+  { href: "/admin/clientes/dinheiro?aba=resultado", label: "Entradas" },
+  { href: "/admin/clientes/dinheiro?aba=saidas", label: "Saídas" },
+  { href: "/admin/clientes/cadastro", label: "Clientes" },
 ];
 
 /**
@@ -23,11 +26,15 @@ export const CLIENT_TABS = [
 export function ClientTabs({
   tabs = CLIENT_TABS,
   label = "Seções de clientes",
+  current: currentHref,
 }: {
   tabs?: { href: string; label: string }[];
   label?: string;
+  /** Endereço (com query) da aba ativa, quando o caminho sozinho não basta. */
+  current?: string;
 } = {}) {
-  const pathname = usePathnameInterno("/admin");
+  const interno = usePathnameInterno("/admin");
+  const pathname = currentHref ?? interno;
   const reduceMotion = useReducedMotion();
 
   return (

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getInvoice } from "@/lib/billing";
+import { getLiveInvoice } from "@/lib/dinheiro";
 import { renderInvoicePdfBuffer } from "@/components/pdf/InvoicePdfDocument";
 import {
   DEFAULT_INVOICE_CLOSING,
@@ -23,15 +23,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Informe cliente e mês" }, { status: 400 });
   }
 
+  const scope = await getCurrentClientScope();
   try {
-    assertClientAllowed(await getCurrentClientScope(), clientId);
+    assertClientAllowed(scope, clientId);
   } catch {
     return NextResponse.json({ error: "Cliente fora do seu acesso" }, { status: 403 });
   }
 
-  const invoice = await getInvoice(clientId, month);
+  // Montado na hora com o que está no quadro: não precisa "fechar o mês".
+  const invoice = await getLiveInvoice(clientId, month, scope);
   if (!invoice) {
-    return NextResponse.json({ error: "Mês não fechado" }, { status: 404 });
+    return NextResponse.json({ error: "Sem entregas neste mês" }, { status: 404 });
   }
 
   // Sem `texto` na URL vale o fecho padrão; com o campo vazio, o relatório sai

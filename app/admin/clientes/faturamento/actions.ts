@@ -13,9 +13,8 @@ import { getCurrentSession, requireTeam } from "@/lib/session";
 import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
 
 function revalidateBilling() {
-  revalidatePath("/admin/clientes/faturamento");
+  revalidatePath("/admin/clientes/dinheiro");
   revalidatePath("/admin/clientes/entregas");
-  revalidatePath("/admin/clientes/resumo");
 }
 
 // -------------------------------------------------------------- catálogo

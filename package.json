@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:teste": "env $(cat .env.teste) next dev -p 3001",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
