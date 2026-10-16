@@ -551,6 +551,50 @@ export async function getCardClientIds(cardIds: string[]): Promise<string[]> {
   return [...new Set((data ?? []).map((r) => r.client_id as string))];
 }
 
+// --------------------------------------------------------------- edição
+
+/** Corrige o que a entrega diz sobre dinheiro: nome, quantidade, valor e produto. */
+export async function updateCardBilling(
+  cardId: string,
+  fields: { title: string; quantity: number; unitCents: number; customService: string }
+) {
+  if (!Number.isInteger(fields.quantity) || fields.quantity < 1) {
+    throw new Error("A quantidade precisa ser 1 ou mais.");
+  }
+  if (fields.unitCents < 0) throw new Error("O valor não pode ser negativo.");
+  const { error } = await getSupabaseServerClient()
+    .from("backlog_cards")
+    .update({
+      title: fields.title.trim(),
+      quantity: fields.quantity,
+      unit_price_cents: fields.unitCents,
+      custom_service: fields.customService.trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", cardId);
+  if (error) throw error;
+}
+
+/** Só os dados que a cobrança usa; o resto do cadastro fica em Clientes. */
+export async function updateClientContact(
+  clientId: string,
+  fields: { paymentDay: number | null; phone: string; contactName: string }
+) {
+  if (fields.paymentDay !== null && !(fields.paymentDay >= 1 && fields.paymentDay <= 31)) {
+    throw new Error("O dia de pagamento vai de 1 a 31.");
+  }
+  const { error } = await getSupabaseServerClient()
+    .from("gallery_clients")
+    .update({
+      payment_day: fields.paymentDay,
+      phone: fields.phone.trim() || null,
+      contact_name: fields.contactName.trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", clientId);
+  if (error) throw error;
+}
+
 // ------------------------------------------------------------------ PDF
 
 /** Relatório do mês montado na hora, no formato da nota — sem precisar fechar. */

@@ -6,7 +6,9 @@ import {
   addRecurringExpense,
   deleteExpense,
   deleteRecurringExpense,
+  editRecurringFromMonth,
   stopRecurringExpense,
+  updateExpense,
 } from "@/lib/expenses";
 import { normalizeExpenseCategory } from "@/lib/expensesTypes";
 import { parseBRLToCents } from "@/lib/billingTypes";
@@ -55,5 +57,30 @@ export async function stopRecurringAction(formData: FormData) {
 export async function deleteRecurringAction(formData: FormData) {
   await requireFullAccess();
   await deleteRecurringExpense(String(formData.get("id")));
+  revalidatePath("/admin/clientes/dinheiro");
+}
+
+function readExpenseFields(formData: FormData) {
+  return {
+    description: String(formData.get("descricao") ?? ""),
+    amountCents: parseBRLToCents(formData.get("valor")),
+    category: normalizeExpenseCategory(formData.get("categoria")),
+  };
+}
+
+export async function updateExpenseAction(formData: FormData) {
+  await requireFullAccess();
+  const date = String(formData.get("data") ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Data inválida.");
+  await updateExpense(String(formData.get("id")), { ...readExpenseFields(formData), spentOn: date });
+  revalidatePath("/admin/clientes/dinheiro");
+}
+
+export async function updateRecurringAction(formData: FormData) {
+  await requireFullAccess();
+  await editRecurringFromMonth(String(formData.get("id")), String(formData.get("mes")), {
+    ...readExpenseFields(formData),
+    dayOfMonth: Number(formData.get("dia")),
+  });
   revalidatePath("/admin/clientes/dinheiro");
 }

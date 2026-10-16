@@ -610,7 +610,7 @@ async function SaidasAba({
         </p>
       ) : (
         <ul className="divide-y divide-neutral-100 rounded-xl border border-neutral-200 bg-white">
-          {list.map((e) => <SaidaLinha key={e.id} expense={e} month={month} />)}
+          {list.map((e) => <SaidaLinha key={e.id} expense={e} month={month} monthName={nome} />)}
         </ul>
       )}
     </>

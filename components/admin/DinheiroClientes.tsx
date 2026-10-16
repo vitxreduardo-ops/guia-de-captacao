@@ -11,7 +11,13 @@ import {
   markPaidAction,
   markPartialAction,
   markUnpaidAction,
+  updateClientContactAction,
+  updateItemAction,
 } from "@/app/admin/clientes/dinheiro/actions";
+
+const CAMPO =
+  "min-h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-base focus:border-neutral-500 focus:outline-none";
+const paraCampo = (cents: number) => (cents / 100).toFixed(2).replace(".", ",");
 
 const PRESS =
   "transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] min-h-11";
@@ -37,12 +43,57 @@ function SeletorForma({ id }: { id: string }) {
 function ItemLinha({ item }: { item: MoneyItem }) {
   const [pending, startTransition] = useTransition();
   const [parcial, setParcial] = useState(false);
+  const [editando, setEditando] = useState(false);
   const dados = () => {
     const f = new FormData();
     f.append("card", item.cardId);
     return f;
   };
   const entrou = item.receivedCents > 0 && !item.paid;
+
+  if (editando) {
+    return (
+      <li className="py-3">
+        <form
+          action={(f) =>
+            startTransition(async () => {
+              await updateItemAction(f);
+              setEditando(false);
+            })
+          }
+          className="grid gap-3 rounded-lg bg-neutral-50 p-3 sm:grid-cols-[1fr_6rem_9rem]"
+        >
+          <input type="hidden" name="card" value={item.cardId} />
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-neutral-700">Nome da entrega</span>
+            <input name="titulo" required defaultValue={item.title} autoFocus className={CAMPO} />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-neutral-700">Quantidade</span>
+            <input name="quantidade" type="number" min={1} required defaultValue={item.quantity} className={CAMPO} />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-neutral-700">Valor de cada uma</span>
+            <input name="valor" required inputMode="decimal" defaultValue={paraCampo(item.unitCents)} className={CAMPO} />
+          </label>
+          <label className="block sm:col-span-3">
+            <span className="mb-1 block text-sm font-medium text-neutral-700">Produto ou serviço (opcional)</span>
+            <input name="produto" defaultValue={item.serviceName ?? ""} placeholder="Ex.: Reel editado" className={CAMPO} />
+          </label>
+          <div className="flex flex-wrap items-center gap-2 sm:col-span-3">
+            <button type="submit" disabled={pending} className={`rounded-lg bg-neutral-900 px-5 text-base font-medium text-white hover:bg-neutral-800 disabled:opacity-50 ${PRESS}`}>
+              {pending ? "Salvando…" : "Salvar"}
+            </button>
+            <button type="button" onClick={() => setEditando(false)} className={`rounded-lg px-3 text-base text-neutral-700 underline ${PRESS}`}>
+              Cancelar
+            </button>
+            <p className="text-sm text-neutral-600">Também muda no card do quadro de Entregas.</p>
+          </div>
+        </form>
+      </li>
+    );
+  }
+
   return (
     <li className="py-3">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -61,6 +112,14 @@ function ItemLinha({ item }: { item: MoneyItem }) {
         <span className="text-base font-medium text-neutral-900 tabular-nums">
           {formatBRL(item.totalCents)}
         </span>
+        <button
+          type="button"
+          onClick={() => setEditando(true)}
+          aria-label={`Editar ${item.title || "esta entrega"}`}
+          className={`rounded-lg px-3 text-sm text-neutral-600 underline hover:text-neutral-900 ${PRESS}`}
+        >
+          Editar
+        </button>
         {item.paid ? (
           <button
             type="button"
@@ -153,6 +212,7 @@ function ClienteLinha({
   aberto: boolean;
 }) {
   const [aberto, setAberto] = useState(abertoInicial);
+  const [contato, setContato] = useState(false);
   const [pending, startTransition] = useTransition();
   const cor = STATUS[client.status];
   const wa = client.status !== "pago" ? linkWhatsApp(client, mesNome, client.openCents) : null;
@@ -254,13 +314,56 @@ function ClienteLinha({
               </button>
             </form>
 
+            <button
+              type="button"
+              onClick={() => setContato(!contato)}
+              aria-expanded={contato}
+              className={`rounded-lg px-3 text-base text-neutral-700 underline hover:text-neutral-900 ${PRESS}`}
+            >
+              Editar contato e dia de pagamento
+            </button>
+
             <Link
               href={`/admin/clientes/cadastro?abrir=${client.id}`}
               className={`ml-auto inline-flex items-center rounded-lg px-3 text-base text-neutral-600 underline hover:text-neutral-900 ${PRESS}`}
             >
-              Dados do cliente
+              Todos os dados
             </Link>
           </div>
+
+          {contato ? (
+            <form
+              action={(f) =>
+                startTransition(async () => {
+                  await updateClientContactAction(f);
+                  setContato(false);
+                })
+              }
+              className="mt-3 grid gap-3 rounded-lg bg-neutral-50 p-3 sm:grid-cols-3"
+            >
+              <input type="hidden" name="client" value={client.id} />
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-neutral-700">Dia em que paga</span>
+                <input name="dia" type="number" min={1} max={31} defaultValue={client.paymentDay ?? ""} placeholder="10" className={CAMPO} />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-neutral-700">Telefone (WhatsApp)</span>
+                <input name="telefone" type="tel" inputMode="tel" defaultValue={client.phone ?? ""} placeholder="(00) 00000-0000" className={CAMPO} />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-neutral-700">Quem recebe a cobrança</span>
+                <input name="responsavel" defaultValue={client.contactName ?? ""} className={CAMPO} />
+              </label>
+              <div className="flex items-center gap-2 sm:col-span-3">
+                <button type="submit" disabled={pending} className={`rounded-lg bg-neutral-900 px-5 text-base font-medium text-white hover:bg-neutral-800 disabled:opacity-50 ${PRESS}`}>
+                  {pending ? "Salvando…" : "Salvar"}
+                </button>
+                <button type="button" onClick={() => setContato(false)} className={`rounded-lg px-3 text-base text-neutral-700 underline ${PRESS}`}>
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          ) : null}
         </div>
       ) : null}
     </li>

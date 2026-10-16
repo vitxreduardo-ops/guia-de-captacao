@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { formatBRL } from "@/lib/billingTypes";
 
 /**
@@ -85,7 +85,24 @@ export function EntradasLinha({
   const a = ativo === null ? null : points[ativo];
   const entrouAtivo = a?.cents ?? 0;
   const saiuAtivo = ativo === null ? 0 : (saidas?.[ativo] ?? 0);
-  const leftPct = ativo === null || points.length < 2 ? 0 : ((PAD + ativo * step) / W) * 100;
+  // Cartão que segue o mouse (telas largas): fica ao lado do ponteiro e vira
+  // pro outro lado quando falta espaço, pra nunca cobrir o que se quer ler.
+  const cartaoRef = useRef<HTMLDivElement>(null);
+  const [lugar, setLugar] = useState<{ left: number; top: number } | null>(null);
+  const posicionar = (x: number, y: number) => {
+    const w = cartaoRef.current?.offsetWidth ?? 256;
+    const h = cartaoRef.current?.offsetHeight ?? 320;
+    const gap = 18;
+    const margem = 8;
+    let left = x + gap;
+    if (left + w > window.innerWidth - margem) left = x - gap - w;
+    let top = y + gap;
+    if (top + h > window.innerHeight - margem) top = y - gap - h;
+    setLugar({
+      left: Math.max(margem, left),
+      top: Math.max(margem, top),
+    });
+  };
 
   // Pontos em HTML, não em SVG: o gráfico estica com a largura da tela e um
   // círculo de SVG viraria elipse.
@@ -124,7 +141,13 @@ export function EntradasLinha({
   ) : null;
 
   return (
-    <figure className="m-0" onMouseLeave={() => setAtivo(null)}>
+    <figure
+      className="m-0"
+      onMouseLeave={() => {
+        setAtivo(null);
+        setLugar(null);
+      }}
+    >
       {saidas ? (
         <p className="mb-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-neutral-700">
           <span className="inline-flex items-center gap-1.5">
@@ -168,8 +191,16 @@ export function EntradasLinha({
               key={p.label + i}
               type="button"
               aria-label={`${p.title}: entrou ${formatBRL(p.cents)}${saidas ? `, saiu ${formatBRL(saidas[i] ?? 0)}` : ""}`}
-              onMouseEnter={() => setAtivo(i)}
-              onFocus={() => setAtivo(i)}
+              onMouseEnter={(e) => {
+                setAtivo(i);
+                posicionar(e.clientX, e.clientY);
+              }}
+              onMouseMove={(e) => posicionar(e.clientX, e.clientY)}
+              onFocus={(e) => {
+                setAtivo(i);
+                const r = e.currentTarget.getBoundingClientRect();
+                posicionar(r.left + r.width / 2, r.top + r.height / 2);
+              }}
               onBlur={() => setAtivo(null)}
               onClick={() => setAtivo(i)}
               className="h-full flex-1 cursor-default focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none"
@@ -177,16 +208,18 @@ export function EntradasLinha({
           ))}
         </div>
 
-        {/* Telas largas: o cartão flutua sobre o gráfico. */}
-        {cartao ? (
-          <div
-            className="pointer-events-none absolute top-0 z-10 hidden w-64 rounded-lg border border-neutral-200 bg-white p-3 text-sm shadow-md sm:block"
-            style={{ left: `min(max(0px, calc(${leftPct}% - 8rem)), calc(100% - 16rem))` }}
-          >
-            {cartao}
-          </div>
-        ) : null}
       </div>
+
+      {/* Telas largas: o cartão acompanha o mouse em qualquer posição. */}
+      {cartao && lugar ? (
+        <div
+          ref={cartaoRef}
+          className="pointer-events-none fixed z-50 hidden w-64 rounded-lg border border-neutral-200 bg-white p-3 text-sm shadow-lg sm:block"
+          style={{ left: lugar.left, top: lugar.top }}
+        >
+          {cartao}
+        </div>
+      ) : null}
 
       <figcaption className="mt-1 flex justify-between text-xs text-neutral-600 sm:text-sm">
         {points.map((p) => (

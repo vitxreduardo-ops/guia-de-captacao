@@ -1,14 +1,18 @@
 "use client";
 
-import { useRef, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from "@/lib/expensesTypes";
 import { formatBRL } from "@/lib/billingTypes";
+
+const paraCampo = (cents: number) => (cents / 100).toFixed(2).replace(".", ",");
 import type { Expense } from "@/lib/expensesTypes";
 import {
   addExpenseAction,
   deleteExpenseAction,
   deleteRecurringAction,
   stopRecurringAction,
+  updateExpenseAction,
+  updateRecurringAction,
 } from "@/app/admin/clientes/dinheiro/saidas";
 
 const CAMPO =
@@ -67,8 +71,78 @@ export function SaidasForm({ today }: { today: string }) {
   );
 }
 
-export function SaidaLinha({ expense, month }: { expense: Expense; month: string }) {
+export function SaidaLinha({
+  expense,
+  month,
+  monthName,
+}: {
+  expense: Expense;
+  month: string;
+  monthName: string;
+}) {
   const [pending, startTransition] = useTransition();
+  const [editando, setEditando] = useState(false);
+
+  if (editando) {
+    const fixa = Boolean(expense.recurringId);
+    return (
+      <li className="px-4 py-3">
+        <form
+          action={(f) =>
+            startTransition(async () => {
+              await (fixa ? updateRecurringAction(f) : updateExpenseAction(f));
+              setEditando(false);
+            })
+          }
+          className="grid gap-3 sm:grid-cols-[1fr_9rem_10rem]"
+        >
+          <input type="hidden" name="id" value={fixa ? expense.recurringId : expense.id} />
+          <input type="hidden" name="mes" value={month} />
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-neutral-700">O que foi?</span>
+            <input name="descricao" required defaultValue={expense.description} autoFocus className={CAMPO} />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-sm font-medium text-neutral-700">Quanto?</span>
+            <input name="valor" required inputMode="decimal" defaultValue={paraCampo(expense.amountCents)} className={CAMPO} />
+          </label>
+          {fixa ? (
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-neutral-700">Dia do mês</span>
+              <input name="dia" type="number" min={1} max={31} required defaultValue={Number(expense.spentOn.slice(8, 10))} className={CAMPO} />
+            </label>
+          ) : (
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-neutral-700">Quando?</span>
+              <input name="data" type="date" required defaultValue={expense.spentOn} className={CAMPO} />
+            </label>
+          )}
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-sm font-medium text-neutral-700">Tipo</span>
+            <select name="categoria" defaultValue={expense.category} className={CAMPO}>
+              {EXPENSE_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{EXPENSE_CATEGORY_LABELS[c]}</option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-end gap-2">
+            <button type="submit" disabled={pending} className={`rounded-lg bg-neutral-900 px-5 text-base font-medium text-white hover:bg-neutral-800 disabled:opacity-50 ${PRESS}`}>
+              {pending ? "Salvando…" : "Salvar"}
+            </button>
+            <button type="button" onClick={() => setEditando(false)} className={`rounded-lg px-3 text-base text-neutral-700 underline ${PRESS}`}>
+              Cancelar
+            </button>
+          </div>
+          {fixa ? (
+            <p className="text-sm text-neutral-600 sm:col-span-3">
+              A mudança vale de {monthName} em diante. Os meses anteriores continuam como estavam.
+            </p>
+          ) : null}
+        </form>
+      </li>
+    );
+  }
+
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
       <div className="min-w-0 flex-1 basis-44">
@@ -79,6 +153,14 @@ export function SaidaLinha({ expense, month }: { expense: Expense; month: string
         </p>
       </div>
       <span className="text-base font-medium text-neutral-900 tabular-nums">{formatBRL(expense.amountCents)}</span>
+      <button
+        type="button"
+        onClick={() => setEditando(true)}
+        aria-label={`Editar ${expense.description || "saída"}`}
+        className={`rounded-lg border border-neutral-300 px-4 text-base text-neutral-800 hover:bg-neutral-50 ${PRESS}`}
+      >
+        Editar
+      </button>
       {expense.recurringId ? (
         <>
           <span className="rounded-md bg-neutral-100 px-2 py-1 text-sm text-neutral-700">Todo mês</span>
