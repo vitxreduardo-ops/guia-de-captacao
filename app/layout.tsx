@@ -28,8 +28,16 @@ const SPLASH_SCREENS: [number, number, number][] = [
 ];
 
 export const metadata: Metadata = {
+  // Sem isto o Next não consegue montar a URL absoluta da imagem do preview,
+  // e o WhatsApp mostra o card sem imagem.
+  metadataBase: new URL("https://www.tatuestudio.com.br"),
   title: "Tatú Estúdio",
   description: "Guias de gravação: roteiros, referências e checklist por projeto.",
+  openGraph: {
+    siteName: "Tatú Estúdio",
+    locale: "pt_BR",
+    type: "website",
+  },
   // Aberto pela Tela de Início do iPhone, vira app sem a barra do Safari —
   // condição do iOS pra entregar notificações push.
   appleWebApp: {
