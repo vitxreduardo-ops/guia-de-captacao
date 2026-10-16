@@ -208,3 +208,75 @@ export async function deleteRecurringExpense(id: string) {
     .eq("id", id);
   if (error) throw error;
 }
+
+/** Corrige uma despesa avulsa. */
+export async function updateExpense(
+  id: string,
+  fields: { description: string; amountCents: number; category: ExpenseCategory; spentOn: string }
+) {
+  if (!(fields.amountCents > 0)) throw new Error("Informe um valor maior que zero.");
+  const { error } = await getSupabaseServerClient()
+    .from("expenses")
+    .update({
+      description: fields.description.trim(),
+      amount_cents: fields.amountCents,
+      category: fields.category,
+      spent_on: fields.spentOn,
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Muda uma despesa fixa a partir de um mês, sem mexer nos anteriores: a antiga
+ * termina no mês passado e uma nova começa neste. Se a fixa começou neste mês
+ * (ou depois), é só corrigir a própria linha — não há histórico a proteger.
+ */
+export async function editRecurringFromMonth(
+  id: string,
+  month: string,
+  fields: { description: string; amountCents: number; category: ExpenseCategory; dayOfMonth: number }
+) {
+  if (!(fields.amountCents > 0)) throw new Error("Informe um valor maior que zero.");
+  if (!(fields.dayOfMonth >= 1 && fields.dayOfMonth <= 31)) throw new Error("Dia do mês inválido.");
+  const supabase = getSupabaseServerClient();
+  const first = monthKey(month);
+
+  const { data: old, error } = await supabase
+    .from("recurring_expenses")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error) throw error;
+
+  const values = {
+    description: fields.description.trim(),
+    amount_cents: fields.amountCents,
+    category: fields.category,
+    day_of_month: fields.dayOfMonth,
+  };
+
+  if (monthKey(old.starts_on as string) >= first) {
+    const { error: upError } = await supabase.from("recurring_expenses").update(values).eq("id", id);
+    if (upError) throw upError;
+    return;
+  }
+
+  const { error: insError } = await supabase.from("recurring_expenses").insert({
+    ...values,
+    starts_on: first,
+    ends_on: old.ends_on ?? null,
+    created_by: old.created_by ?? null,
+  });
+  if (insError) throw insError;
+
+  const y = Number(first.slice(0, 4));
+  const m = Number(first.slice(5, 7));
+  const lastDayBefore = new Date(y, m - 1, 0); // último dia do mês anterior
+  const endsOn = `${lastDayBefore.getFullYear()}-${String(lastDayBefore.getMonth() + 1).padStart(2, "0")}-${String(lastDayBefore.getDate()).padStart(2, "0")}`;
+  const { error: endError } = await supabase
+    .from("recurring_expenses")
+    .update({ ends_on: endsOn })
+    .eq("id", id);
+  if (endError) throw endError;
+}

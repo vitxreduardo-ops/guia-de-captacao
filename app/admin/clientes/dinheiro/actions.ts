@@ -6,6 +6,8 @@ import {
   getCardClientIds,
   markCardsPaid,
   markCardsUnpaid,
+  updateCardBilling,
+  updateClientContact,
 } from "@/lib/dinheiro";
 import { parseBRLToCents } from "@/lib/billingTypes";
 import { normalizePaymentMethod } from "@/lib/backlogTypes";
@@ -54,5 +56,32 @@ export async function markPartialAction(formData: FormData) {
     method,
     new Date().toLocaleDateString("sv-SE")
   );
+  revalidateMoney();
+}
+
+/** Corrige nome, quantidade, valor e produto de uma entrega, sem sair da tela. */
+export async function updateItemAction(formData: FormData) {
+  await requireTeam("clientes");
+  const [id] = await readCardIds(formData);
+  await updateCardBilling(id, {
+    title: String(formData.get("titulo") ?? ""),
+    quantity: Number(formData.get("quantidade")),
+    unitCents: parseBRLToCents(formData.get("valor")),
+    customService: String(formData.get("produto") ?? ""),
+  });
+  revalidateMoney();
+}
+
+/** Dia de pagamento, telefone e responsável, direto da cobrança. */
+export async function updateClientContactAction(formData: FormData) {
+  await requireTeam("clientes");
+  const clientId = String(formData.get("client"));
+  assertClientAllowed(await getCurrentClientScope(), clientId);
+  const day = String(formData.get("dia") ?? "").trim();
+  await updateClientContact(clientId, {
+    paymentDay: day === "" ? null : Number(day),
+    phone: String(formData.get("telefone") ?? ""),
+    contactName: String(formData.get("responsavel") ?? ""),
+  });
   revalidateMoney();
 }
