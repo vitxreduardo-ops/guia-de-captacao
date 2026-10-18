@@ -1,6 +1,7 @@
-import { ChevronDown, ChevronRight, Cloud, HardDrive, Plus, ShieldCheck, TriangleAlert } from "lucide-react";
+import { ChevronRight, Plus, ShieldCheck, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { EspacosGrade, type EspacoCard } from "@/components/admin/EspacosGrade";
 import {
   ApagarBotao,
   BuscaArmazenamento,
@@ -84,24 +85,6 @@ function Rosca({ partes, totalGb, usadoGb }: { partes: { cor: string; gb: number
   );
 }
 
-function Barra({ pct, cheio, nome }: { pct: number; cheio: boolean; nome: string }) {
-  return (
-    <div
-      role="progressbar"
-      aria-valuenow={Math.min(pct, 100)}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-label={`${nome} ${pct}% cheio`}
-      className="h-2 overflow-hidden rounded-full bg-neutral-100"
-    >
-      <div
-        className={`h-full rounded-full ${cheio ? "bg-red-500" : "bg-neutral-800"}`}
-        style={{ width: `${Math.min(pct, 100)}%` }}
-      />
-    </div>
-  );
-}
-
 function Material({
   i,
   locId,
@@ -161,87 +144,48 @@ function Material({
   );
 }
 
-function Espaco({ l, items, copias }: { l: StorageLocation; items: StorageItem[]; copias: Map<string, number> }) {
-  const pct = usedPercent(l);
-  const cheio = isFull(l);
+/** O que aparece dentro do espaço aberto: materiais com subpastas, sincronizar e apagar. */
+function EspacoCorpo({ l, items, copias }: { l: StorageLocation; items: StorageItem[]; copias: Map<string, number> }) {
   const cor = PAPEL[l.role].cor;
   const aqui = items.filter((i) => i.locationIds.includes(l.id)).sort((a, b) => b.sizeGb - a.sizeGb);
   const maior = aqui[0]?.sizeGb || 1;
-  const Icone = l.deviceKey ? HardDrive : Cloud;
 
   return (
-    <details open={cheio} className={`group ${CARTAO}`}>
-      <summary
-        className={`flex cursor-pointer list-none flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl p-4 pointer-coarse:min-h-11 [&::-webkit-details-marker]:hidden ${FOCO}`}
-      >
-        <span
-          className="grid size-11 shrink-0 place-items-center rounded-xl"
-          style={{ backgroundColor: `${cor}1a`, color: cor }}
-        >
-          <Icone aria-hidden="true" className="size-5" />
-        </span>
-        <div className="min-w-0 flex-1 basis-40">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate text-base font-semibold text-neutral-900">{l.name}</p>
-            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${PAPEL[l.role].etiqueta}`}>
-              {STORAGE_ROLE_LABELS[l.role]}
-            </span>
-            {cheio ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
-                <TriangleAlert aria-hidden="true" className="size-3" /> Quase cheio
-              </span>
-            ) : null}
-          </div>
-          <p className="text-sm text-neutral-500">{lido(l)}</p>
-        </div>
-        <div className="order-last w-full sm:order-none sm:w-52">
-          <Barra pct={pct} cheio={cheio} nome={l.name} />
-        </div>
-        <div className="text-right">
-          <p className="text-base font-semibold text-neutral-900 tabular-nums">
-            {formatGb(l.usedGb)} <span className="font-normal text-neutral-500">de {formatGb(l.capacityGb)}</span>
-          </p>
-          <p className="text-sm text-neutral-500 tabular-nums">{formatGb(freeGb(l))} livres</p>
-        </div>
-        <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-neutral-400 transition-transform group-open:rotate-180" />
-      </summary>
-
-      <div className="border-t border-neutral-100 p-4">
-        {aqui.length ? (
-          <>
-            <ul className="space-y-2.5">
-              {aqui.slice(0, 8).map((i) => (
-                <Material key={i.id} i={i} locId={l.id} cor={cor} maior={maior} n={copias.get(i.id) ?? 0} />
-              ))}
-            </ul>
-            {aqui.length > 8 ? (
-              <details className="mt-3">
-                <summary className={`inline-flex min-h-9 cursor-pointer items-center rounded-md text-sm text-neutral-700 underline ${FOCO}`}>
-                  Ver os outros {aqui.length - 8} menores
-                </summary>
-                <ul className="mt-2 space-y-2.5">
-                  {aqui.slice(8).map((i) => (
-                    <Material key={i.id} i={i} locId={l.id} cor={cor} maior={maior} n={copias.get(i.id) ?? 0} />
-                  ))}
-                </ul>
-              </details>
-            ) : null}
-          </>
+    <div>
+      {aqui.length ? (
+        <>
+          <ul className="space-y-2.5">
+            {aqui.slice(0, 8).map((i) => (
+              <Material key={i.id} i={i} locId={l.id} cor={cor} maior={maior} n={copias.get(i.id) ?? 0} />
+            ))}
+          </ul>
+          {aqui.length > 8 ? (
+            <details className="mt-3">
+              <summary className={`inline-flex min-h-9 cursor-pointer items-center rounded-md text-sm text-neutral-700 underline ${FOCO}`}>
+                Ver os outros {aqui.length - 8} menores
+              </summary>
+              <ul className="mt-2 space-y-2.5">
+                {aqui.slice(8).map((i) => (
+                  <Material key={i.id} i={i} locId={l.id} cor={cor} maior={maior} n={copias.get(i.id) ?? 0} />
+                ))}
+              </ul>
+            </details>
+          ) : null}
+        </>
+      ) : (
+        <p className="text-sm text-neutral-500">
+          {l.deviceKey ? "Nenhuma pasta lida neste disco ainda." : "Nenhum material marcado aqui."}
+        </p>
+      )}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-3">
+        {l.deviceKey ? (
+          <SincronizarBotao deviceKey={l.deviceKey} conectado={l.connected} />
         ) : (
-          <p className="text-sm text-neutral-500">
-            {l.deviceKey ? "Nenhuma pasta lida neste disco ainda." : "Nenhum material marcado aqui."}
-          </p>
+          <UsadoInline id={l.id} usedGb={l.usedGb} />
         )}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-3">
-          {l.deviceKey ? (
-            <SincronizarBotao deviceKey={l.deviceKey} conectado={l.connected} />
-          ) : (
-            <UsadoInline id={l.id} usedGb={l.usedGb} />
-          )}
-          <ApagarBotao id={l.id} tipo="espaco" nome={l.name} />
-        </div>
+        <ApagarBotao id={l.id} tipo="espaco" nome={l.name} />
       </div>
-    </details>
+    </div>
   );
 }
 
@@ -324,6 +268,20 @@ export default async function ArmazenamentoPage({
     n: locations.filter((l) => l.role === role).length,
   }));
   const visiveis = filtro ? locations.filter((l) => l.role === filtro) : locations;
+  const espacos: EspacoCard[] = visiveis.map((l) => ({
+    id: l.id,
+    nome: l.name,
+    tipo: l.deviceKey ? "disco" : "nuvem",
+    cor: PAPEL[l.role].cor,
+    papel: STORAGE_ROLE_LABELS[l.role],
+    etiqueta: PAPEL[l.role].etiqueta,
+    pct: usedPercent(l),
+    cheio: isFull(l),
+    uso: `${formatGb(l.usedGb)} de ${formatGb(l.capacityGb)}`,
+    livre: `${formatGb(freeGb(l))} livres`,
+    lido: lido(l),
+    conteudo: <EspacoCorpo l={l} items={items} copias={copias} />,
+  }));
   const nome = (id: string) => locations.find((l) => l.id === id)?.name;
 
   const linha = (i: StorageItem) => {
@@ -449,10 +407,8 @@ export default async function ArmazenamentoPage({
         </nav>
       ) : null}
 
-      <div className="mb-4 space-y-3">
-        {visiveis.map((l) => (
-          <Espaco key={l.id} l={l} items={items} copias={copias} />
-        ))}
+      <div className="mb-4">
+        <EspacosGrade espacos={espacos} />
       </div>
 
       <details className="group mb-10">
