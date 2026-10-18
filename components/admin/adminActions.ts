@@ -1,6 +1,7 @@
 import {
   Briefcase,
   CalendarClock,
+  HardDrive,
   House,
   Clapperboard,
   ClipboardList,
@@ -36,6 +37,7 @@ const ACTIONS: AdminAction[] = [
   { href: "/admin/prospeccao", label: "Prospecção", icon: Target },
   { href: "/admin/radar", label: "Radar", icon: Radar },
   { href: "/admin/clientes", label: "Clientes", icon: Briefcase },
+  { href: "/admin/armazenamento", label: "Armazenamento", icon: HardDrive },
   { href: "/admin/area-do-cliente", label: "Área do cliente", icon: UserRoundCheck },
   { href: "/admin/agenda", label: "Agenda", icon: CalendarClock },
   { href: "/admin/lettering", label: "Lettering", icon: PenLine },

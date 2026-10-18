@@ -1,0 +1,174 @@
+"use client";
+
+import { useRef, useTransition } from "react";
+import { STORAGE_ROLE_LABELS, type StorageLocation } from "@/lib/storageTypes";
+import {
+  addCopyAction,
+  addItemAction,
+  addLocationAction,
+  deleteItemAction,
+  deleteLocationAction,
+  updateUsedAction,
+} from "@/app/admin/armazenamento/actions";
+
+const CAMPO =
+  "min-h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-base focus:border-neutral-500 focus:outline-none";
+const BOTAO =
+  "inline-flex min-h-11 items-center rounded-lg border border-neutral-300 px-4 text-base hover:bg-neutral-50 transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] disabled:opacity-50";
+
+/** Roda a ação e limpa o formulário: o cadastro é uma linha só, sem sair da tela. */
+function useEnvio(action: (f: FormData) => Promise<void>) {
+  const [pending, start] = useTransition();
+  const ref = useRef<HTMLFormElement>(null);
+  const submit = (f: FormData) =>
+    start(async () => {
+      await action(f);
+      ref.current?.reset();
+    });
+  return { pending, ref, submit };
+}
+
+export function LocalForm() {
+  const { pending, ref, submit } = useEnvio(addLocationAction);
+  return (
+    <form
+      ref={ref}
+      action={submit}
+      className="grid gap-3 rounded-xl border border-neutral-200 bg-white p-4 sm:grid-cols-2"
+    >
+      <label className="block sm:col-span-2">
+        <span className="mb-1 block text-sm font-medium text-neutral-700">Nome do espaço</span>
+        <input name="nome" required placeholder="Ex.: Extreme SSD" className={CAMPO} />
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium text-neutral-700">Função</span>
+        <select name="papel" className={CAMPO}>
+          {Object.entries(STORAGE_ROLE_LABELS).map(([k, v]) => (
+            <option key={k} value={k}>{v}</option>
+          ))}
+        </select>
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium text-neutral-700">Avisar quando passar de (%)</span>
+        <input name="limite" inputMode="numeric" defaultValue="80" className={CAMPO} />
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium text-neutral-700">Capacidade</span>
+        <input name="capacidade" required inputMode="decimal" placeholder="2" className={CAMPO} />
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium text-neutral-700">Já usado</span>
+        <input name="usado" inputMode="decimal" placeholder="0" className={CAMPO} />
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium text-neutral-700">Medida</span>
+        <select name="unidade" defaultValue="TB" className={CAMPO}>
+          <option>TB</option>
+          <option>GB</option>
+        </select>
+      </label>
+      <div className="flex items-end">
+        <button disabled={pending} className={BOTAO}>
+          {pending ? "Salvando…" : "Adicionar espaço"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+export function MaterialForm({ locations }: { locations: StorageLocation[] }) {
+  const { pending, ref, submit } = useEnvio(addItemAction);
+  // Disco lido pelo app é a verdade: a próxima leitura desfaria a marcação à mão.
+  locations = locations.filter((l) => !l.deviceKey);
+  return (
+    <form
+      ref={ref}
+      action={submit}
+      className="grid gap-3 rounded-xl border border-neutral-200 bg-white p-4 sm:grid-cols-[1fr_8rem]"
+    >
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium text-neutral-700">Material</span>
+        <input name="nome" required placeholder="Ex.: Clínica Sorriso, bruto de outubro" className={CAMPO} />
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium text-neutral-700">Tamanho (GB)</span>
+        <input name="tamanho" inputMode="decimal" placeholder="120" className={CAMPO} />
+      </label>
+      <fieldset className="sm:col-span-2">
+        <legend className="mb-1 text-sm font-medium text-neutral-700">Onde tem cópia?</legend>
+        <div className="flex flex-wrap gap-2">
+          {locations.map((l) => (
+            <label key={l.id} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-neutral-300 px-3 text-base">
+              <input type="checkbox" name="lugares" value={l.id} />
+              {l.name}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <div>
+        <button disabled={pending} className={BOTAO}>
+          {pending ? "Salvando…" : "Adicionar material"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/** Atualizar quanto está usado: um campo, Enter, pronto. */
+export function UsadoInline({ id, usedGb }: { id: string; usedGb: number }) {
+  const tb = usedGb >= 1000;
+  const [pending, start] = useTransition();
+  return (
+    <form action={(f) => start(() => updateUsedAction(f))} className="flex items-center gap-2">
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="unidade" value={tb ? "TB" : "GB"} />
+      <label className="text-sm text-neutral-600" htmlFor={`usado-${id}`}>Usado agora ({tb ? "TB" : "GB"})</label>
+      <input
+        id={`usado-${id}`}
+        name="usado"
+        inputMode="decimal"
+        defaultValue={(tb ? usedGb / 1000 : usedGb).toFixed(tb ? 2 : 0).replace(".", ",")}
+        className="min-h-11 w-24 rounded-lg border border-neutral-300 bg-white px-2 text-base"
+      />
+      <button disabled={pending} className={BOTAO}>{pending ? "…" : "Salvar"}</button>
+    </form>
+  );
+}
+
+export function CopiaSelect({ id, options }: { id: string; options: StorageLocation[] }) {
+  const [pending, start] = useTransition();
+  if (options.length === 0) return null;
+  return (
+    <form action={(f) => start(() => addCopyAction(f))} className="flex items-center gap-2">
+      <input type="hidden" name="id" value={id} />
+      <select name="lugar" aria-label="Copiar para" className="min-h-11 rounded-lg border border-neutral-300 bg-white px-2 text-base">
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>{o.name}</option>
+        ))}
+      </select>
+      <button disabled={pending} className={BOTAO}>{pending ? "…" : "Já copiei"}</button>
+    </form>
+  );
+}
+
+export function ApagarBotao({ id, tipo, nome }: { id: string; tipo: "espaco" | "material"; nome: string }) {
+  const [pending, start] = useTransition();
+  const action = tipo === "espaco" ? deleteLocationAction : deleteItemAction;
+  return (
+    <form
+      action={(f) => {
+        if (!confirm(`Apagar "${nome}"?`)) return;
+        start(() => action(f));
+      }}
+    >
+      <input type="hidden" name="id" value={id} />
+      <button
+        disabled={pending}
+        aria-label={`Apagar ${nome}`}
+        className="inline-flex min-h-11 items-center rounded-lg px-3 text-base text-neutral-600 underline hover:text-neutral-900"
+      >
+        Apagar
+      </button>
+    </form>
+  );
+}
