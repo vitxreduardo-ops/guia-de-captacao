@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import { useState, useTransition } from "react";
 import { Check, Copy, KeyRound, Link2, Pencil, RefreshCw, Trash2, UserPlus } from "lucide-react";
 import {
@@ -103,8 +104,8 @@ function LoginRow({ login, clientId, clientName }: { login: LoginView; clientId:
           <button
             type="button"
             disabled={pending}
-            onClick={() => {
-              if (window.confirm(`Remover o acesso de ${login.full_name || login.username}? A pessoa deixa de entrar no portal.`)) {
+            onClick={async () => {
+              if (await confirmar(`Remover o acesso de ${login.full_name || login.username}? A pessoa deixa de entrar no portal.`, "Remover")) {
                 startTransition(() => deleteClientLoginAction(login.id, clientId));
               }
             }}

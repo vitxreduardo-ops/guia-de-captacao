@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import { useMemo, useRef, useState } from "react";
 import {
   createRadarAction,
@@ -446,13 +447,12 @@ export function RadarTable({
                           <button
                             formAction={deleteRadarAction}
                             aria-label={`Apagar ${row.company || "empresa"}`}
-                            onClick={(event) => {
-                              if (
-                                !confirm(
-                                  `Apagar ${row.company || "esta empresa"} do radar?`
-                                )
-                              )
-                                event.preventDefault();
+                            onClick={async (event) => {
+                              // O envio espera a resposta: barra agora, reenvia se confirmar.
+                              event.preventDefault();
+                              const botao = event.currentTarget;
+                              if (await confirmar(`Apagar ${row.company || "esta empresa"} do radar?`, "Apagar"))
+                                botao.form?.requestSubmit(botao);
                             }}
                             className="min-h-11 rounded px-2 text-sm text-neutral-500 hover:bg-red-50 hover:text-red-700 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none sm:min-h-0 sm:py-1 sm:text-[12px]"
                           >

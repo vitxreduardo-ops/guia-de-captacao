@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import { useEffect, useState } from "react";
 import { gerarRoteiroAction } from "@/app/admin/roteiros/actions";
 import CamposComuns from "@/components/admin/roteiros/CamposComuns";
@@ -73,8 +74,9 @@ export default function GeradorRoteiro({
     if (!temAlgo) return;
 
     // Recarregar, fechar a aba ou digitar outro endereço: diálogo do navegador.
+    let saindo = false;
     function avisarAoFechar(event: BeforeUnloadEvent) {
-      event.preventDefault();
+      if (!saindo) event.preventDefault();
     }
 
     // Links do app (barra lateral, Histórico, Chat) trocam de página sem
@@ -87,13 +89,17 @@ export default function GeradorRoteiro({
       if (!(link instanceof HTMLAnchorElement) || link.target === "_blank") return;
       if (link.origin !== location.origin || link.pathname === location.pathname) return;
 
-      const sair = window.confirm(
-        "Sair desta página? O que está preenchido no formulário será perdido.\n\nOK para sair, Cancelar para permanecer."
-      );
-      if (!sair) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
+      // Barra o clique agora e só segue se a pessoa confirmar na tela.
+      event.preventDefault();
+      event.stopPropagation();
+      void confirmar(
+        "Sair desta página? O que está preenchido no formulário será perdido.",
+        "Sair"
+      ).then((sair) => {
+        if (!sair) return;
+        saindo = true;
+        window.location.assign(link.href);
+      });
     }
 
     window.addEventListener("beforeunload", avisarAoFechar);

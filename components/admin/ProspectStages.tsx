@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import { useState, useTransition } from "react";
 import {
   createStageAction,
@@ -160,8 +161,8 @@ function StageRow({
         </button>
         <button
           type="button"
-          onClick={() => {
-            if (!window.confirm(`Apagar a etapa "${stage.name}"?`)) return;
+          onClick={async () => {
+            if (!(await confirmar(`Apagar a etapa "${stage.name}"?`, "Apagar"))) return;
             const formData = new FormData();
             formData.set("id", stage.id);
             startTransition(async () => {

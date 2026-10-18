@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import { useMemo, useState, useTransition } from "react";
 import {
   PencilIcon,
@@ -448,8 +449,8 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
     );
   }
 
-  function handleDelete(pin: ReferencePin) {
-    if (!window.confirm(`Excluir a referência "${pin.title || pin.url}"?`)) return;
+  async function handleDelete(pin: ReferencePin) {
+    if (!(await confirmar(`Excluir a referência "${pin.title || pin.url}"?`, "Excluir"))) return;
     const formData = new FormData();
     formData.set("id", pin.id);
     startTransition(async () => {

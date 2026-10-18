@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import { useState } from "react";
 import {
   generatePackagesFromCalcAction,
@@ -252,15 +253,13 @@ export function BudgetRecurringCalculator({
           <button
             type="submit"
             formAction={generatePackagesFromCalcAction}
-            onClick={(event) => {
-              if (
-                hasPackages &&
-                !window.confirm(
-                  "Isso substitui os pacotes fixos que já estão na proposta. Continuar?"
-                )
-              ) {
-                event.preventDefault();
-              }
+            onClick={async (event) => {
+              if (!hasPackages) return;
+              // O envio espera a resposta: barra agora, reenvia se confirmar.
+              event.preventDefault();
+              const botao = event.currentTarget;
+              if (await confirmar("Isso substitui os pacotes fixos que já estão na proposta. Continuar?", "Substituir"))
+                botao.form?.requestSubmit(botao);
             }}
             className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
           >
