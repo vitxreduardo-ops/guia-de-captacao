@@ -1,4 +1,4 @@
-import { ChevronDown, Cloud, HardDrive, Plus, ShieldCheck, TriangleAlert } from "lucide-react";
+import { ChevronDown, ChevronRight, Cloud, HardDrive, Plus, ShieldCheck, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import {
@@ -6,6 +6,7 @@ import {
   CopiaSelect,
   LocalForm,
   MaterialForm,
+  SincronizarBotao,
   UsadoInline,
 } from "@/components/admin/ArmazenamentoForms";
 import { listStorage } from "@/lib/armazenamento";
@@ -98,6 +99,65 @@ function Barra({ pct, cheio, nome }: { pct: number; cheio: boolean; nome: string
   );
 }
 
+function Material({
+  i,
+  locId,
+  cor,
+  maior,
+  n,
+}: {
+  i: StorageItem;
+  locId: string;
+  cor: string;
+  maior: number;
+  n: number;
+}) {
+  const subs = i.subfolders[locId] ?? [];
+  const maiorSub = subs[0]?.sizeGb || 1;
+  const linha = (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 sm:grid-cols-[12rem_minmax(0,1fr)_5rem_6rem]">
+      <span className="flex min-w-0 items-center gap-1 text-sm font-medium text-neutral-900">
+        {subs.length ? (
+          <ChevronRight aria-hidden="true" className="size-3.5 shrink-0 text-neutral-400 transition-transform group-open/sub:rotate-90" />
+        ) : (
+          <span className="w-3.5 shrink-0" />
+        )}
+        <span className="truncate">{i.name}</span>
+      </span>
+      <span className="order-last col-span-2 h-1.5 overflow-hidden rounded-full bg-neutral-100 sm:order-none sm:col-span-1">
+        <span className="block h-full rounded-full" style={{ width: `${Math.max(2, (i.sizeGb / maior) * 100)}%`, backgroundColor: cor }} />
+      </span>
+      <span className="text-right text-sm text-neutral-600 tabular-nums">{formatGb(i.sizeGb)}</span>
+      <span
+        className={`justify-self-end rounded-full px-2 py-0.5 text-xs font-medium ${
+          n < 2 ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
+        }`}
+      >
+        {n < 2 ? "só aqui" : `${n} cópias`}
+      </span>
+    </div>
+  );
+  if (!subs.length) return <li>{linha}</li>;
+  return (
+    <li>
+      <details className="group/sub">
+        <summary className={`cursor-pointer list-none rounded-md [&::-webkit-details-marker]:hidden ${FOCO}`}>{linha}</summary>
+        <ul className="mt-2 mb-1 ml-1.5 space-y-1.5 border-l border-neutral-200 pl-4">
+          {subs.map((x) => (
+            <li key={x.name} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_5rem]">
+              <span className="truncate text-sm text-neutral-700">{x.name}</span>
+              <span className="order-last col-span-2 h-1 overflow-hidden rounded-full bg-neutral-100 sm:order-none sm:col-span-1">
+                <span className="block h-full rounded-full opacity-60" style={{ width: `${Math.max(2, (x.sizeGb / maiorSub) * 100)}%`, backgroundColor: cor }} />
+              </span>
+              <span className="text-right text-sm text-neutral-500 tabular-nums">{formatGb(x.sizeGb)}</span>
+            </li>
+          ))}
+        </ul>
+      </details>
+    </li>
+  );
+}
+
 function Espaco({ l, items, copias }: { l: StorageLocation; items: StorageItem[]; copias: Map<string, number> }) {
   const pct = usedPercent(l);
   const cheio = isFull(l);
@@ -145,37 +205,36 @@ function Espaco({ l, items, copias }: { l: StorageLocation; items: StorageItem[]
 
       <div className="border-t border-neutral-100 p-4">
         {aqui.length ? (
-          <ul className="space-y-2.5">
-            {aqui.slice(0, 8).map((i) => {
-              const n = copias.get(i.id) ?? 0;
-              return (
-                <li key={i.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 sm:grid-cols-[12rem_minmax(0,1fr)_5rem_6rem]">
-                  <span className="truncate text-sm font-medium text-neutral-900">{i.name}</span>
-                  <span className="order-last col-span-2 h-1.5 overflow-hidden rounded-full bg-neutral-100 sm:order-none sm:col-span-1">
-                    <span className="block h-full rounded-full" style={{ width: `${Math.max(2, (i.sizeGb / maior) * 100)}%`, backgroundColor: cor }} />
-                  </span>
-                  <span className="text-right text-sm text-neutral-600 tabular-nums">{formatGb(i.sizeGb)}</span>
-                  <span
-                    className={`justify-self-end rounded-full px-2 py-0.5 text-xs font-medium ${
-                      n < 2 ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"
-                    }`}
-                  >
-                    {n < 2 ? "só aqui" : `${n} cópias`}
-                  </span>
-                </li>
-              );
-            })}
+          <>
+            <ul className="space-y-2.5">
+              {aqui.slice(0, 8).map((i) => (
+                <Material key={i.id} i={i} locId={l.id} cor={cor} maior={maior} n={copias.get(i.id) ?? 0} />
+              ))}
+            </ul>
             {aqui.length > 8 ? (
-              <li className="text-sm text-neutral-500">e mais {aqui.length - 8} menores</li>
+              <details className="mt-3">
+                <summary className={`inline-flex min-h-9 cursor-pointer items-center rounded-md text-sm text-neutral-700 underline ${FOCO}`}>
+                  Ver os outros {aqui.length - 8} menores
+                </summary>
+                <ul className="mt-2 space-y-2.5">
+                  {aqui.slice(8).map((i) => (
+                    <Material key={i.id} i={i} locId={l.id} cor={cor} maior={maior} n={copias.get(i.id) ?? 0} />
+                  ))}
+                </ul>
+              </details>
             ) : null}
-          </ul>
+          </>
         ) : (
           <p className="text-sm text-neutral-500">
             {l.deviceKey ? "Nenhuma pasta lida neste disco ainda." : "Nenhum material marcado aqui."}
           </p>
         )}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-3">
-          {l.deviceKey ? <span /> : <UsadoInline id={l.id} usedGb={l.usedGb} />}
+          {l.deviceKey ? (
+            <SincronizarBotao deviceKey={l.deviceKey} conectado={l.connected} />
+          ) : (
+            <UsadoInline id={l.id} usedGb={l.usedGb} />
+          )}
           <ApagarBotao id={l.id} tipo="espaco" nome={l.name} />
         </div>
       </div>
