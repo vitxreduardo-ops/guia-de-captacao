@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { formatBRL } from "@/lib/billingTypes";
@@ -235,13 +236,14 @@ function ClientRow({
             <button
               type="button"
               disabled={pending}
-              onClick={() => {
+              onClick={async () => {
                 // A pergunta nomeia o que vai junto: entregas e notas somem em
                 // cascata, e é isso que separa excluir de arquivar.
                 if (
-                  !window.confirm(
-                    `Excluir "${client.name}" e tudo que está pendurado nele — entregas, notas fechadas e a galeria?\n\nNão dá para desfazer. Se a ideia é só tirar da frente, use Arquivar.`
-                  )
+                  !(await confirmar(
+                    `Excluir "${client.name}" e tudo que está pendurado nele — entregas, notas fechadas e a galeria?\n\nNão dá para desfazer. Se a ideia é só tirar da frente, use Arquivar.`,
+                    "Excluir"
+                  ))
                 ) {
                   return;
                 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import { useRef, useState, useTransition } from "react";
 import {
   addNoteAction,
@@ -646,8 +647,8 @@ function Details({
         </button>
         <button
           type="button"
-          onClick={() => {
-            if (!window.confirm(`Apagar "${prospect.name}" e todo o histórico?`)) return;
+          onClick={async () => {
+            if (!(await confirmar(`Apagar "${prospect.name}" e todo o histórico?`, "Apagar"))) return;
             const formData = new FormData();
             formData.set("id", prospect.id);
             startTransition(() => deleteProspectAction(formData));

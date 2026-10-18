@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import { useRef, useState, useTransition } from "react";
 import {
   Dialog,
@@ -481,8 +482,8 @@ export function BacklogCardDrawer({
     });
   }
 
-  function handleDelete() {
-    if (!window.confirm(`Excluir "${card.title}"? Essa ação não pode ser desfeita.`)) {
+  async function handleDelete() {
+    if (!(await confirmar(`Excluir "${card.title}"? Essa ação não pode ser desfeita.`, "Excluir"))) {
       return;
     }
     startTransition(async () => {

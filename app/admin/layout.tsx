@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ConfirmHost } from "@/components/ConfirmHost";
 import { AdminAccount } from "@/components/admin/AdminAccount";
 import { AdminMenuButton } from "@/components/admin/AdminMenuButton";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
@@ -34,6 +35,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     // Fundo bege da moldura, cartão branco por cima: a barra lateral fica
     // solta sobre o fundo, sem painel nem fio, e quem tem borda é o conteúdo.
     <div className="flex min-h-svh bg-neutral-100">
+      <ConfirmHost />
       {/* Sem sessão (o login mora sob /admin) não há pra onde ir: a barra
           seria uma lista de links que todos devolvem pro login. */}
       {session ? (

@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import { useRef } from "react";
 import type { ContractPiece } from "@/lib/contractBody";
 
@@ -196,8 +197,8 @@ export function PieceEditor({ piece, label, on, onChange, onRemove }: Props) {
         <p className="text-[11px] font-medium text-neutral-500">Tabela</p>
         <button
           type="button"
-          onClick={() => {
-            if (confirm("Remover esta tabela?")) onRemove();
+          onClick={async () => {
+            if (await confirmar("Remover esta tabela?", "Remover")) onRemove();
           }}
           className="rounded px-1.5 text-[11px] text-neutral-400 hover:text-red-600"
         >

@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 /* eslint-disable @next/next/no-img-element -- os logos vêm de qualquer domínio
    colado ou enviado, e a otimização do Next exige domínio declarado na config. */
 
@@ -128,7 +129,7 @@ export function LogoLibrary({
     const aviso = usado
       ? `Tirar "${logo.name || "este logo"}" da biblioteca? Ele sai também desta proposta; as outras que já o usam não mudam.`
       : `Tirar "${logo.name || "este logo"}" da biblioteca? As propostas que já o usam não mudam.`;
-    if (!window.confirm(aviso)) return;
+    if (!(await confirmar(aviso, "Tirar"))) return;
 
     await deleteClientLogoAction(logo.id);
     setAcervo((atual) => (atual ?? []).filter((l) => l.id !== logo.id));

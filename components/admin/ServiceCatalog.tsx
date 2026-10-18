@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import { useState, useTransition } from "react";
 import { formatBRL, type Service } from "@/lib/billingTypes";
 import {
@@ -73,8 +74,8 @@ function ServiceRow({ service }: { service: Service }) {
           </button>
           <button
             type="button"
-            onClick={() => {
-              if (!window.confirm(`Excluir "${service.name}"?`)) return;
+            onClick={async () => {
+              if (!(await confirmar(`Excluir "${service.name}"?`, "Excluir"))) return;
               const formData = new FormData();
               formData.set("id", service.id);
               startTransition(() => deleteServiceAction(formData));

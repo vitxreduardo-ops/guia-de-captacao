@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ContractBody } from "@/components/contract/ContractBody";
 import { Interruptor, PieceEditor } from "@/components/admin/ContractPieces";
@@ -617,8 +618,8 @@ export function ContractEditor({
           )}
           <button
             type="button"
-            onClick={() => {
-              if (confirm(`Remover "${c.title}" e todo o texto dela?`)) {
+            onClick={async () => {
+              if (await confirmar(`Remover "${c.title}" e todo o texto dela?`, "Remover")) {
                 mudar(clausulas.filter((x) => x.id !== c.id));
               }
             }}

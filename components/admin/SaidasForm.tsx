@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import { useRef, useState, useTransition } from "react";
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from "@/lib/expensesTypes";
 import { formatBRL } from "@/lib/billingTypes";
@@ -167,8 +168,8 @@ export function SaidaLinha({
           <button
             type="button"
             disabled={pending}
-            onClick={() => {
-              if (!window.confirm(`Parar de repetir "${expense.description}" depois deste mês? Os meses até aqui continuam contando.`)) return;
+            onClick={async () => {
+              if (!(await confirmar(`Parar de repetir "${expense.description}" depois deste mês? Os meses até aqui continuam contando.`, "Parar de repetir"))) return;
               const f = new FormData();
               f.set("id", expense.recurringId!);
               f.set("mes", month);
@@ -181,8 +182,8 @@ export function SaidaLinha({
           <button
             type="button"
             disabled={pending}
-            onClick={() => {
-              if (!window.confirm(`Apagar "${expense.description}" de TODOS os meses? Use só se foi lançada errado.`)) return;
+            onClick={async () => {
+              if (!(await confirmar(`Apagar "${expense.description}" de TODOS os meses? Use só se foi lançada errado.`, "Apagar"))) return;
               const f = new FormData();
               f.set("id", expense.recurringId!);
               startTransition(() => deleteRecurringAction(f));
@@ -196,8 +197,8 @@ export function SaidaLinha({
         <button
           type="button"
           disabled={pending}
-          onClick={() => {
-            if (!window.confirm(`Apagar "${expense.description}" de ${formatBRL(expense.amountCents)}?`)) return;
+          onClick={async () => {
+            if (!(await confirmar(`Apagar "${expense.description}" de ${formatBRL(expense.amountCents)}?`, "Apagar"))) return;
             const f = new FormData();
             f.set("id", expense.id);
             startTransition(() => deleteExpenseAction(f));

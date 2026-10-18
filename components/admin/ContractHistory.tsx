@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import { useState } from "react";
 import { restoreRevisionAction } from "@/app/admin/contratos/[id]/actions";
 import type { ContractRevisionResumo } from "@/lib/contracts";
@@ -15,9 +16,10 @@ export function ContractHistory({
 
   async function restaurar(r: ContractRevisionResumo, quando: string) {
     if (
-      !confirm(
+      !(await confirmar(
         `Voltar o contrato para a versão de ${quando}? O texto atual fica guardado aqui no histórico.`,
-      )
+        "Voltar versão",
+      ))
     )
       return;
     const res = await restoreRevisionAction(contractId, r.id);

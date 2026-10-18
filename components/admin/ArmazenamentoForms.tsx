@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useTransition } from "react";
+import { confirmar } from "@/components/ConfirmHost";
 import { STORAGE_ROLE_LABELS, type StorageLocation } from "@/lib/storageTypes";
 import {
   addCopyAction,
@@ -155,20 +156,19 @@ export function ApagarBotao({ id, tipo, nome }: { id: string; tipo: "espaco" | "
   const [pending, start] = useTransition();
   const action = tipo === "espaco" ? deleteLocationAction : deleteItemAction;
   return (
-    <form
-      action={(f) => {
-        if (!confirm(`Apagar "${nome}"?`)) return;
+    <button
+      type="button"
+      disabled={pending}
+      aria-label={`Apagar ${nome}`}
+      onClick={async () => {
+        if (!(await confirmar(`Apagar "${nome}" só do sistema Tatú? Os arquivos no disco não são apagados.`, "Apagar"))) return;
+        const f = new FormData();
+        f.set("id", id);
         start(() => action(f));
       }}
+      className="inline-flex min-h-11 items-center rounded-lg px-3 text-base text-neutral-600 underline hover:text-neutral-900 disabled:opacity-50"
     >
-      <input type="hidden" name="id" value={id} />
-      <button
-        disabled={pending}
-        aria-label={`Apagar ${nome}`}
-        className="inline-flex min-h-11 items-center rounded-lg px-3 text-base text-neutral-600 underline hover:text-neutral-900"
-      >
-        Apagar
-      </button>
-    </form>
+      {pending ? "Apagando…" : "Apagar"}
+    </button>
   );
 }

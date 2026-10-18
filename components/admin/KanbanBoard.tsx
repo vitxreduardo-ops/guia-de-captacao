@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import {
   createContext,
   useCallback,
@@ -692,11 +693,12 @@ function ColumnHeader({
           </button>
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               if (
-                !window.confirm(
-                  `Excluir a coluna "${column.name}"? ${nouns.contagemExcluida(count)} junto.`
-                )
+                !(await confirmar(
+                  `Excluir a coluna "${column.name}"? ${nouns.contagemExcluida(count)} junto.`,
+                  "Excluir"
+                ))
               ) {
                 return;
               }

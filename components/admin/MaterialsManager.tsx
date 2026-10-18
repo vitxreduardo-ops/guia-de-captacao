@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import { useState, useTransition } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { deleteMaterialAction } from "@/app/admin/area-do-cliente/actions";
@@ -121,8 +122,8 @@ export function MaterialsManager({
                       type="button"
                       disabled={pending}
                       aria-label={`Excluir ${row.title}`}
-                      onClick={() => {
-                        if (window.confirm(`Excluir "${row.title}"? O card some do quadro de Entregas também.`)) {
+                      onClick={async () => {
+                        if (await confirmar(`Excluir "${row.title}"? O card some do quadro de Entregas também.`, "Excluir")) {
                           startTransition(() => deleteMaterialAction(row.id, clientId));
                         }
                       }}

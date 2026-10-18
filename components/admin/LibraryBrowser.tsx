@@ -1,5 +1,6 @@
 "use client";
 
+import { confirmar } from "@/components/ConfirmHost";
 import { useMemo, useState, useTransition } from "react";
 import { PencilIcon, PlusIcon, SearchIcon, Trash2Icon, XIcon } from "lucide-react";
 import {
@@ -340,8 +341,8 @@ export function LibraryBrowser({ links }: { links: LibraryLink[] }) {
     );
   }
 
-  function handleDelete(link: LibraryLink) {
-    if (!window.confirm(`Excluir o link "${link.title}"?`)) return;
+  async function handleDelete(link: LibraryLink) {
+    if (!(await confirmar(`Excluir o link "${link.title}"?`, "Excluir"))) return;
     const formData = new FormData();
     formData.set("id", link.id);
     startTransition(async () => {
