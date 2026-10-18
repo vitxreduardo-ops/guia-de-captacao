@@ -1,5 +1,6 @@
 "use client";
 
+import { Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { confirmar } from "@/components/ConfirmHost";
@@ -230,6 +231,55 @@ export function SincronizarBotao({ deviceKey, conectado }: { deviceKey: string; 
         </span>
       ) : !conectado ? (
         <span className="text-sm text-neutral-500">Conecte o disco para sincronizar</span>
+      ) : null}
+    </div>
+  );
+}
+
+/** Busca ao digitar: espera 250 ms parado e põe o termo no endereço, que a página lê. */
+export function BuscaArmazenamento({ inicial }: { inicial: string }) {
+  const router = useRouter();
+  const [valor, setValor] = useState(inicial);
+  const [pending, start] = useTransition();
+  const espera = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  function ir(v: string) {
+    clearTimeout(espera.current);
+    espera.current = setTimeout(
+      () =>
+        start(() =>
+          router.replace(v.trim() ? `/admin/armazenamento?q=${encodeURIComponent(v.trim())}` : "/admin/armazenamento")
+        ),
+      250
+    );
+  }
+
+  return (
+    <div className="relative mb-5" role="search">
+      <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-neutral-400" />
+      <input
+        type="text"
+        value={valor}
+        onChange={(e) => {
+          setValor(e.target.value);
+          ir(e.target.value);
+        }}
+        placeholder="Buscar pasta ou cliente em todos os discos"
+        aria-label="Buscar pasta ou cliente em todos os discos"
+        className="min-h-12 w-full rounded-2xl border border-neutral-200 bg-white pr-12 pl-11 text-base shadow-[0_1px_2px_rgba(30,28,24,0.04)] focus:border-neutral-400 focus:outline-none"
+      />
+      {valor ? (
+        <button
+          type="button"
+          aria-label="Limpar busca"
+          onClick={() => {
+            setValor("");
+            ir("");
+          }}
+          className="absolute top-1/2 right-2 grid size-9 -translate-y-1/2 place-items-center rounded-full text-neutral-500 hover:bg-neutral-100 pointer-coarse:size-11"
+        >
+          {pending ? <span className="size-4 animate-spin rounded-full border-2 border-neutral-300 border-t-neutral-700" /> : <X aria-hidden="true" className="size-4" />}
+        </button>
       ) : null}
     </div>
   );

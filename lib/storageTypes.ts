@@ -134,3 +134,46 @@ export function reconcileFolders(
   }
   return { creates, updates: [...updates.values()] };
 }
+
+/** Sem acento nem maiúscula: "Clínica" acha "clinica". */
+export function normalizarBusca(texto: string): string {
+  return texto.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+}
+
+export interface Resultado {
+  item: StorageItem;
+  /** Todos os discos onde o material existe. */
+  locais: StorageLocation[];
+  /** O nome do material bate na busca. */
+  pastaBate: boolean;
+  /** Subpastas que batem, cada uma no disco em que está. */
+  subs: { local: StorageLocation; sub: SubFolder }[];
+}
+
+/**
+ * Acha materiais e subpastas em todos os discos. Todas as palavras da busca
+ * precisam aparecer. Se o material já bate pelo nome, só entram as subpastas
+ * que também batem pelo próprio nome — listar todas seria ruído.
+ */
+export function buscar(items: StorageItem[], locations: StorageLocation[], consulta: string): Resultado[] {
+  const termos = normalizarBusca(consulta).split(/\s+/).filter(Boolean);
+  if (!termos.length) return [];
+  const bate = (texto: string) => {
+    const n = normalizarBusca(texto);
+    return termos.every((t) => n.includes(t));
+  };
+  const porId = new Map(locations.map((l) => [l.id, l]));
+  const out: Resultado[] = [];
+  for (const item of items) {
+    const locais = item.locationIds.map((id) => porId.get(id)).filter((l): l is StorageLocation => !!l);
+    const pastaBate = bate(item.name);
+    const subs: Resultado["subs"] = [];
+    for (const local of locais) {
+      for (const sub of item.subfolders[local.id] ?? []) {
+        if (pastaBate ? bate(sub.name) : bate(`${item.name} ${sub.name}`)) subs.push({ local, sub });
+      }
+    }
+    if (pastaBate || subs.length) out.push({ item, locais, pastaBate, subs });
+  }
+  return out.sort((a, b) => b.item.sizeGb - a.item.sizeGb);
+}

@@ -3,6 +3,7 @@ import {
   formatGb,
   isFull,
   onlyOnePlace,
+  buscar,
   parseGb,
   reconcileFolders,
   usedPercent,
@@ -65,5 +66,23 @@ describe("armazenamento", () => {
       subfolders: { b: [{ name: "Bruto", sizeGb: 9 }], a: [{ name: "Final", sizeGb: 2 }] },
     });
     expect(r.updates).toContainEqual({ id: "2", sizeGb: 5, locationIds: ["b"], subfolders: {} });
+  });
+
+  it("busca pasta e subpasta em todos os discos, sem acento", () => {
+    const locs = [loc("a", 0), loc("b", 0)];
+    const items: StorageItem[] = [
+      { id: "1", name: "Clínica Sorriso", sizeGb: 10, locationIds: ["a", "b"], subfolders: { a: [{ name: "Bruto", sizeGb: 8 }], b: [{ name: "Final", sizeGb: 2 }] } },
+      { id: "2", name: "Marcus", sizeGb: 50, locationIds: ["a"], subfolders: { a: [{ name: "Tawane", sizeGb: 20 }, { name: "Itacare", sizeGb: 5 }] } },
+      { id: "3", name: "Outro", sizeGb: 1, locationIds: ["b"], subfolders: {} },
+    ];
+    const porNome = buscar(items, locs, "clinica");
+    expect(porNome.map((r) => r.item.id)).toEqual(["1"]);
+    expect(porNome[0].locais.map((l) => l.id)).toEqual(["a", "b"]);
+    expect(porNome[0].subs).toEqual([]);
+    const porSub = buscar(items, locs, "tawane");
+    expect(porSub.map((r) => r.item.id)).toEqual(["2"]);
+    expect(porSub[0].subs.map((s) => s.sub.name)).toEqual(["Tawane"]);
+    expect(buscar(items, locs, "marcus itacare")[0].subs.map((s) => s.sub.name)).toEqual(["Itacare"]);
+    expect(buscar(items, locs, "  ")).toEqual([]);
   });
 });

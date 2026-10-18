@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import {
   ApagarBotao,
+  BuscaArmazenamento,
   CopiaSelect,
   LocalForm,
   MaterialForm,
@@ -13,6 +14,7 @@ import { listStorage } from "@/lib/armazenamento";
 import { requireTeam } from "@/lib/session";
 import {
   STORAGE_ROLE_LABELS,
+  buscar,
   formatGb,
   freeGb,
   isFull,
@@ -21,6 +23,7 @@ import {
   usedPercent,
   type StorageItem,
   type StorageLocation,
+  type Resultado,
   type StorageRole,
 } from "@/lib/storageTypes";
 
@@ -242,13 +245,69 @@ function Espaco({ l, items, copias }: { l: StorageLocation; items: StorageItem[]
   );
 }
 
+function Disco({ l }: { l: StorageLocation }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-2 py-0.5 text-xs text-neutral-700">
+      <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: PAPEL[l.role].cor }} />
+      {l.name}
+      {l.deviceKey && !l.connected ? <span className="text-neutral-400">desconectado</span> : null}
+    </span>
+  );
+}
+
+function Resultados({ resultados, consulta }: { resultados: Resultado[]; consulta: string }) {
+  const discos = new Set(resultados.flatMap((r) => r.locais.map((l) => l.id)));
+  if (!resultados.length) {
+    return (
+      <p className={`${CARTAO} p-6 text-base text-neutral-600`}>
+        Nenhuma pasta com &ldquo;{consulta}&rdquo; em nenhum disco. Confira a grafia ou sincronize o disco certo.
+      </p>
+    );
+  }
+  return (
+    <section aria-label="Resultados da busca">
+      <p className="mb-3 text-sm text-neutral-500" role="status">
+        {resultados.length} {resultados.length === 1 ? "pasta" : "pastas"} em {discos.size} {discos.size === 1 ? "disco" : "discos"}
+      </p>
+      <ul className={`${CARTAO} divide-y divide-neutral-100`}>
+        {resultados.map(({ item, locais, pastaBate, subs }) => (
+          <li key={item.id} className="px-4 py-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <div className="min-w-0 flex-1 basis-48">
+                <p className="truncate text-base font-semibold text-neutral-900">{item.name}</p>
+                {!pastaBate ? <p className="text-sm text-neutral-500">tem subpasta com esse nome</p> : null}
+              </div>
+              <span className="text-sm text-neutral-600 tabular-nums">{formatGb(item.sizeGb)}</span>
+              <div className="flex flex-wrap gap-1.5">
+                {locais.map((l) => <Disco key={l.id} l={l} />)}
+              </div>
+            </div>
+            {subs.length ? (
+              <ul className="mt-2 ml-1.5 space-y-1.5 border-l border-neutral-200 pl-4">
+                {subs.map(({ local, sub }) => (
+                  <li key={`${local.id}-${sub.name}`} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="min-w-0 flex-1 basis-40 truncate text-sm text-neutral-700">{sub.name}</span>
+                    <span className="text-sm text-neutral-500 tabular-nums">{formatGb(sub.sizeGb)}</span>
+                    <Disco l={local} />
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export default async function ArmazenamentoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ papel?: string }>;
+  searchParams: Promise<{ papel?: string; q?: string }>;
 }) {
   await requireTeam("armazenamento");
-  const { papel } = await searchParams;
+  const { papel, q } = await searchParams;
+  const consulta = (q ?? "").slice(0, 80);
   const filtro = papel === "estudio" || papel === "backup" || papel === "entrega" ? normalizeStorageRole(papel) : null;
   const { locations, items } = await listStorage();
 
@@ -295,6 +354,12 @@ export default async function ArmazenamentoPage({
         trail={[{ label: "Admin", href: "/admin" }, { label: "Armazenamento" }]}
       />
 
+      <BuscaArmazenamento inicial={consulta} />
+
+      {consulta.trim() ? (
+        <Resultados resultados={buscar(items, locations, consulta)} consulta={consulta.trim()} />
+      ) : (
+      <>
       {locations.length ? (
         <section className="mb-6 grid gap-4 lg:grid-cols-[1fr_19rem]">
           <div className={`${CARTAO} flex flex-wrap items-center gap-x-8 gap-y-5 p-5`}>
@@ -433,6 +498,8 @@ export default async function ArmazenamentoPage({
           </details>
         ) : null}
       </section>
+      </>
+      )}
     </div>
   );
 }
