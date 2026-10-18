@@ -37,6 +37,7 @@ export async function listStorage(): Promise<{
       name: r.name as string,
       sizeGb: Number(r.size_gb),
       locationIds: (r.location_ids as string[]) ?? [],
+      subfolders: (r.subfolders as StorageItem["subfolders"]) ?? {},
     })),
   };
 }
@@ -136,14 +137,19 @@ export async function applyReading(volumes: ReadVolume[]) {
     const { creates, updates } = reconcileFolders(items, id, v.folders);
     if (creates.length) {
       const { error } = await db.from("storage_items").insert(
-        creates.map((c) => ({ name: c.name, size_gb: c.sizeGb, location_ids: c.locationIds }))
+        creates.map((c) => ({
+          name: c.name,
+          size_gb: c.sizeGb,
+          location_ids: c.locationIds,
+          subfolders: c.subfolders,
+        }))
       );
       if (error) throw error;
     }
     for (const u of updates) {
       const { error } = await db
         .from("storage_items")
-        .update({ size_gb: u.sizeGb, location_ids: u.locationIds })
+        .update({ size_gb: u.sizeGb, location_ids: u.locationIds, subfolders: u.subfolders })
         .eq("id", u.id);
       if (error) throw error;
     }

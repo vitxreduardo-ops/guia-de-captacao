@@ -24,11 +24,18 @@ export interface StorageLocation {
   readAt: string | null;
 }
 
+export interface SubFolder {
+  name: string;
+  sizeGb: number;
+}
+
 export interface StorageItem {
   id: string;
   name: string;
   sizeGb: number;
   locationIds: string[];
+  /** Pastas dentro do material, por espaço: o que cada disco tem lá dentro. */
+  subfolders: Record<string, SubFolder[]>;
 }
 
 /** "1,8 TB" a partir de 1000 GB; abaixo, "179 GB". */
@@ -64,6 +71,13 @@ export function onlyOnePlace(items: StorageItem[], locations: StorageLocation[])
 export interface ReadFolder {
   name: string;
   sizeGb: number;
+  subfolders?: SubFolder[];
+}
+
+export interface FolderChange {
+  sizeGb: number;
+  locationIds: string[];
+  subfolders: Record<string, SubFolder[]>;
 }
 
 const nameKey = (n: string) => n.normalize("NFC").trim().toLowerCase();
@@ -78,38 +92,44 @@ export function reconcileFolders(
   locationId: string,
   folders: ReadFolder[]
 ): {
-  creates: { name: string; sizeGb: number; locationIds: string[] }[];
-  updates: { id: string; sizeGb: number; locationIds: string[] }[];
+  creates: (FolderChange & { name: string })[];
+  updates: (FolderChange & { id: string })[];
 } {
   const byName = new Map(items.map((i) => [nameKey(i.name), i]));
   const seen = new Set<string>();
-  const creates: { name: string; sizeGb: number; locationIds: string[] }[] = [];
-  const updates = new Map<string, { id: string; sizeGb: number; locationIds: string[] }>();
+  const creates: (FolderChange & { name: string })[] = [];
+  const updates = new Map<string, FolderChange & { id: string }>();
 
   for (const f of folders) {
     const key = nameKey(f.name);
     if (!key || seen.has(key)) continue;
     seen.add(key);
+    const subs = f.subfolders ?? [];
     const item = byName.get(key);
     if (!item) {
-      creates.push({ name: f.name, sizeGb: f.sizeGb, locationIds: [locationId] });
+      creates.push({ name: f.name, sizeGb: f.sizeGb, locationIds: [locationId], subfolders: { [locationId]: subs } });
       continue;
     }
     const has = item.locationIds.includes(locationId);
-    if (!has || Math.abs(item.sizeGb - f.sizeGb) > 0.01) {
+    const mudouSubs = JSON.stringify(item.subfolders[locationId] ?? []) !== JSON.stringify(subs);
+    if (!has || mudouSubs || Math.abs(item.sizeGb - f.sizeGb) > 0.01) {
       updates.set(item.id, {
         id: item.id,
         sizeGb: f.sizeGb,
         locationIds: has ? item.locationIds : [...item.locationIds, locationId],
+        subfolders: { ...item.subfolders, [locationId]: subs },
       });
     }
   }
   for (const item of items) {
     if (seen.has(nameKey(item.name)) || !item.locationIds.includes(locationId)) continue;
+    const resto = { ...item.subfolders };
+    delete resto[locationId];
     updates.set(item.id, {
       id: item.id,
       sizeGb: item.sizeGb,
       locationIds: item.locationIds.filter((id) => id !== locationId),
+      subfolders: resto,
     });
   }
   return { creates, updates: [...updates.values()] };

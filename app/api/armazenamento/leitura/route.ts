@@ -21,7 +21,16 @@ export async function POST(request: Request) {
     if (!key || !name || !capacityGb || usedGb === null) continue;
     const folders = Array.isArray(raw.folders)
       ? (raw.folders as Record<string, unknown>[])
-          .map((f) => ({ name: String(f.name ?? "").trim(), sizeGb: num(f.sizeGb) ?? 0 }))
+          .map((f) => ({
+            name: String(f.name ?? "").trim(),
+            sizeGb: num(f.sizeGb) ?? 0,
+            subfolders: Array.isArray(f.subfolders)
+              ? (f.subfolders as Record<string, unknown>[])
+                  .map((x) => ({ name: String(x.name ?? "").trim(), sizeGb: num(x.sizeGb) ?? 0 }))
+                  .filter((x) => x.name)
+                  .slice(0, 40)
+              : [],
+          }))
           .filter((f) => f.name)
       : undefined;
     volumes.push({ key, name, capacityGb, usedGb, folders });

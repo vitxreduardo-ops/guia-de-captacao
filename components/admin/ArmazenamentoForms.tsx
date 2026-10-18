@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { confirmar } from "@/components/ConfirmHost";
 import { STORAGE_ROLE_LABELS, type StorageLocation } from "@/lib/storageTypes";
 import {
@@ -170,5 +171,66 @@ export function ApagarBotao({ id, tipo, nome }: { id: string; tipo: "espaco" | "
     >
       {pending ? "Apagando…" : "Apagar"}
     </button>
+  );
+}
+
+/** Ponte que o app do Mac abre na página (window.webkit.messageHandlers.guia). No navegador comum não existe. */
+function ponte() {
+  return (
+    window as unknown as { webkit?: { messageHandlers?: { guia?: { postMessage(m: unknown): void } } } }
+  ).webkit?.messageHandlers?.guia;
+}
+
+/** Pede ao app do Mac para reler só este disco e atualiza a tela quando ele termina. */
+export function SincronizarBotao({ deviceKey, conectado }: { deviceKey: string; conectado: boolean }) {
+  const router = useRouter();
+  const noApp = useSyncExternalStore(
+    () => () => {},
+    () => Boolean(ponte()),
+    () => false
+  );
+  const [estado, setEstado] = useState<"parado" | "lendo" | "ok" | "erro" | "semApp">("parado");
+
+  useEffect(() => {
+    function fim(e: Event) {
+      const d = (e as CustomEvent<{ key: string; ok: boolean }>).detail;
+      if (d?.key !== deviceKey) return;
+      setEstado(d.ok ? "ok" : "erro");
+      if (d.ok) router.refresh();
+    }
+    window.addEventListener("guia-sync", fim);
+    return () => window.removeEventListener("guia-sync", fim);
+  }, [deviceKey, router]);
+
+  const rotulo = {
+    parado: "Sincronizar este disco",
+    lendo: "Sincronizando… pode levar alguns minutos",
+    ok: "Sincronizado agora",
+    erro: "Não consegui ler o disco",
+    semApp: "Só o app do Mac lê o disco. Abra por lá.",
+  }[estado];
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <button
+        type="button"
+        disabled={!conectado || estado === "lendo"}
+        onClick={() => {
+          if (!noApp) return setEstado("semApp");
+          setEstado("lendo");
+          ponte()?.postMessage({ acao: "sincronizar", key: deviceKey });
+        }}
+        className={BOTAO}
+      >
+        {estado === "lendo" ? "Sincronizando…" : "Sincronizar este disco"}
+      </button>
+      {estado !== "parado" ? (
+        <span role="status" className="text-sm text-neutral-600">
+          {rotulo}
+        </span>
+      ) : !conectado ? (
+        <span className="text-sm text-neutral-500">Conecte o disco para sincronizar</span>
+      ) : null}
+    </div>
   );
 }
