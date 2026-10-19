@@ -21,6 +21,8 @@ export interface EspacoCard {
   uso: string;
   livre: string;
   lido: string;
+  /** Disco conectado ao Mac agora. Nulo em espaço cadastrado à mão (nuvem), que não conecta. */
+  conectado: boolean | null;
   /** O que aparece quando o espaço abre: materiais, subpastas, sincronizar. Vem pronto do servidor. */
   conteudo: ReactNode;
 }
@@ -34,6 +36,21 @@ function Icone({ tipo, cor, grande }: { tipo: EspacoCard["tipo"]; cor: string; g
     >
       <I aria-hidden="true" className="size-5" />
     </span>
+  );
+}
+
+/** Bolinha de conexão: verde = conectado agora, cinza = desconectado. O texto fica só pro leitor de tela. */
+function Ponto({ conectado }: { conectado: boolean }) {
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className={`size-2.5 shrink-0 rounded-full ${
+          conectado ? "bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.2)]" : "bg-neutral-300"
+        }`}
+      />
+      <span className="sr-only">{conectado ? "Conectado" : "Desconectado"}</span>
+    </>
   );
 }
 
@@ -151,12 +168,17 @@ export function EspacosGrade({ espacos }: { espacos: EspacoCard[] }) {
                     data-espaco={e.id}
                     onClick={() => ir(e.id)}
                     style={{ borderRadius: 16 }}
-                    className="flex min-w-0 flex-col items-start gap-3 border border-neutral-200 bg-white p-4 text-left shadow-[0_1px_2px_rgba(30,28,24,0.04)] transition-colors hover:bg-neutral-50 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none active:bg-neutral-100"
+                    className="relative flex min-w-0 flex-col items-start gap-3 border border-neutral-200 bg-white p-4 text-left shadow-[0_1px_2px_rgba(30,28,24,0.04)] transition-colors hover:bg-neutral-50 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none active:bg-neutral-100"
                     whileTap={{ scale: 0.98 }}
                   >
                     <motion.span layoutId={`icone-${e.id}-${geracao}`}>
                       <Icone tipo={e.tipo} cor={e.cor} grande />
                     </motion.span>
+                    {e.conectado !== null ? (
+                      <span className="absolute top-4 right-4 inline-flex items-center">
+                        <Ponto conectado={e.conectado} />
+                      </span>
+                    ) : null}
                     <span className="block w-full min-w-0">
                       <motion.span
                         layoutId={`nome-${e.id}-${geracao}`}
@@ -225,7 +247,10 @@ function Painel({ espaco, geracao, fechar }: { espaco: EspacoCard; geracao: numb
           >
             {espaco.nome}
           </motion.span>
-          <span className="block text-sm text-neutral-500">{espaco.lido}</span>
+          <span className="flex items-center gap-1.5 text-sm text-neutral-500">
+            {espaco.conectado !== null ? <Ponto conectado={espaco.conectado} /> : null}
+            {espaco.lido}
+          </span>
         </h2>
         <div className="w-full sm:w-56">
           <Barra pct={espaco.pct} cheio={espaco.cheio} nome={espaco.nome} />

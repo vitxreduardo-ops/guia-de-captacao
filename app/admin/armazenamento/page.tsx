@@ -9,6 +9,7 @@ import {
   LocalForm,
   MaterialForm,
   SincronizarBotao,
+  SincronizarTodosBotao,
   UsadoInline,
 } from "@/components/admin/ArmazenamentoForms";
 import { listStorage } from "@/lib/armazenamento";
@@ -267,7 +268,13 @@ export default async function ArmazenamentoPage({
     gb: locations.filter((l) => l.role === role).reduce((s, l) => s + l.usedGb, 0),
     n: locations.filter((l) => l.role === role).length,
   }));
-  const visiveis = filtro ? locations.filter((l) => l.role === filtro) : locations;
+  // Conectados primeiro, depois os cadastrados à mão, por último os desconectados; dentro de cada grupo, a ordem de cadastro.
+  const grupo = (l: StorageLocation) => (l.deviceKey ? (l.connected ? 0 : 2) : 1);
+  const ordenados = [...locations].sort((a, b) => grupo(a) - grupo(b));
+  const visiveis = filtro ? ordenados.filter((l) => l.role === filtro) : ordenados;
+  const discos = locations.filter((l) => l.deviceKey);
+  const conectadosLista = discos.filter((l) => l.connected);
+  const conectados = conectadosLista.length;
   const espacos: EspacoCard[] = visiveis.map((l) => ({
     id: l.id,
     nome: l.name,
@@ -280,6 +287,7 @@ export default async function ArmazenamentoPage({
     uso: `${formatGb(l.usedGb)} de ${formatGb(l.capacityGb)}`,
     livre: `${formatGb(freeGb(l))} livres`,
     lido: lido(l),
+    conectado: l.deviceKey ? l.connected : null,
     conteudo: <EspacoCorpo l={l} items={items} copias={copias} />,
   }));
   const nome = (id: string) => locations.find((l) => l.id === id)?.name;
@@ -346,6 +354,29 @@ export default async function ArmazenamentoPage({
                   <p className="text-sm text-neutral-500">materiais</p>
                 </div>
               </div>
+              {discos.length ? (
+                <div className="mt-3 border-t border-neutral-100 pt-3">
+                  <p className="mb-1.5 text-sm font-medium text-neutral-900">Conectados agora</p>
+                  {conectadosLista.length ? (
+                    <ul className="space-y-1">
+                      {conectadosLista.map((l) => (
+                        <li key={l.id}>
+                          <a
+                            href={`/admin/armazenamento?espaco=${l.id}`}
+                            className={`flex min-h-8 items-center gap-2 rounded-md text-sm text-neutral-700 hover:text-neutral-900 pointer-coarse:min-h-11 ${FOCO}`}
+                          >
+                            <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.2)]" />
+                            <span className="flex-1 truncate">{l.name}</span>
+                            <span className="tabular-nums text-neutral-500">{formatGb(freeGb(l))} livres</span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-neutral-500">Nenhum disco conectado ao Mac agora.</p>
+                  )}
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -387,7 +418,8 @@ export default async function ArmazenamentoPage({
       )}
 
       {locations.length ? (
-        <nav aria-label="Filtrar por função" className="mb-3 flex flex-wrap gap-2">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <nav aria-label="Filtrar por função" className="flex flex-wrap gap-2">
           {[{ id: null, label: "Todos", n: locations.length }, ...partes.filter((p) => p.n).map((p) => ({ id: p.role, label: STORAGE_ROLE_LABELS[p.role], n: p.n }))].map((c) => {
             const ativo = filtro === c.id;
             return (
@@ -405,6 +437,8 @@ export default async function ArmazenamentoPage({
             );
           })}
         </nav>
+        {discos.length ? <SincronizarTodosBotao conectados={conectados} discos={discos.length} /> : null}
+        </div>
       ) : null}
 
       <div className="mb-4">
