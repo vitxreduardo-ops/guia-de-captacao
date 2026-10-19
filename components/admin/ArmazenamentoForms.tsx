@@ -284,3 +284,64 @@ export function BuscaArmazenamento({ inicial }: { inicial: string }) {
     </div>
   );
 }
+
+/** Pede ao app do Mac para reler todos os discos conectados de uma vez e mostra quantos estão conectados. */
+export function SincronizarTodosBotao({ conectados, discos }: { conectados: number; discos: number }) {
+  const router = useRouter();
+  const noApp = useSyncExternalStore(
+    () => () => {},
+    () => Boolean(ponte()),
+    () => false
+  );
+  const [estado, setEstado] = useState<"parado" | "lendo" | "ok" | "erro" | "semApp">("parado");
+
+  useEffect(() => {
+    function fim(e: Event) {
+      const d = (e as CustomEvent<{ key: string; ok: boolean }>).detail;
+      if (d?.key !== "todos") return;
+      setEstado(d.ok ? "ok" : "erro");
+      if (d.ok) router.refresh();
+    }
+    window.addEventListener("guia-sync", fim);
+    return () => window.removeEventListener("guia-sync", fim);
+  }, [router]);
+
+  const texto = {
+    parado: "",
+    lendo: "Sincronizando… pode levar alguns minutos",
+    ok: "Tudo sincronizado agora",
+    erro: "Não consegui ler os discos",
+    semApp: "Só o app do Mac lê os discos. Abra por lá.",
+  }[estado];
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <span className="inline-flex items-center gap-2 text-sm text-neutral-600">
+        <span
+          aria-hidden="true"
+          className={`size-2.5 rounded-full ${
+            conectados ? "bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.2)]" : "bg-neutral-300"
+          }`}
+        />
+        {conectados} de {discos} {discos === 1 ? "disco conectado" : "discos conectados"}
+      </span>
+      <button
+        type="button"
+        disabled={!conectados || estado === "lendo"}
+        onClick={() => {
+          if (!noApp) return setEstado("semApp");
+          setEstado("lendo");
+          ponte()?.postMessage({ acao: "sincronizar", key: "todos" });
+        }}
+        className={BOTAO}
+      >
+        {estado === "lendo" ? "Sincronizando…" : "Sincronizar todos os conectados"}
+      </button>
+      {texto ? (
+        <span role="status" className="text-sm text-neutral-600">
+          {texto}
+        </span>
+      ) : null}
+    </div>
+  );
+}
