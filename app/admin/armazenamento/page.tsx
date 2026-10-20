@@ -1,6 +1,7 @@
 import { ChevronRight, Plus, ShieldCheck, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { AtencaoDialog } from "@/components/admin/AtencaoDialog";
 import { EspacosGrade, type EspacoCard } from "@/components/admin/EspacosGrade";
 import {
   ApagarBotao,
@@ -16,6 +17,7 @@ import { listStorage } from "@/lib/armazenamento";
 import { requireTeam } from "@/lib/session";
 import {
   STORAGE_ROLE_LABELS,
+  acharDuplicados,
   buscar,
   formatGb,
   freeGb,
@@ -272,6 +274,7 @@ export default async function ArmazenamentoPage({
   const grupo = (l: StorageLocation) => (l.deviceKey ? (l.connected ? 0 : 2) : 1);
   const ordenados = [...locations].sort((a, b) => grupo(a) - grupo(b));
   const visiveis = filtro ? ordenados.filter((l) => l.role === filtro) : ordenados;
+  const duplicados = acharDuplicados(items, locations);
   const discos = locations.filter((l) => l.deviceKey);
   const conectadosLista = discos.filter((l) => l.connected);
   const conectados = conectadosLista.length;
@@ -327,7 +330,7 @@ export default async function ArmazenamentoPage({
       ) : (
       <>
       {locations.length ? (
-        <section className="mb-6 grid gap-4 lg:grid-cols-[1fr_19rem]">
+        <section className="mb-6 grid items-start gap-4 lg:grid-cols-[1fr_19rem]">
           <div className={`${CARTAO} flex flex-wrap items-center gap-x-8 gap-y-5 p-5`}>
             <Rosca partes={partes} totalGb={totalCap} usadoGb={totalUsado} />
             <div className="min-w-0 flex-1 basis-56">
@@ -382,32 +385,120 @@ export default async function ArmazenamentoPage({
 
           <aside className={`${CARTAO} p-5`} aria-label="Atenção">
             <h2 className="mb-3 text-lg font-semibold text-neutral-900">Atenção</h2>
-            {cheios.length + sozinhos.length === 0 ? (
+            {cheios.length + sozinhos.length + duplicados.length === 0 ? (
               <p className="flex items-start gap-2 text-sm text-neutral-600">
                 <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-emerald-600" />
                 Nada pra resolver agora. Todo material tem cópia e há espaço em todos os discos.
               </p>
             ) : (
-              <ul className="space-y-3">
-                {cheios.map((l) => (
-                  <li key={l.id} role="alert" className="flex items-start gap-2 text-sm text-neutral-800">
-                    <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-red-600" />
-                    <span>
-                      <strong>{l.name}</strong> está {usedPercent(l)}% cheio. Sobram {formatGb(freeGb(l))}; o aviso é a
-                      partir de {l.limitPercent}%.
-                    </span>
-                  </li>
-                ))}
-                {sozinhos.length ? (
-                  <li className="flex items-start gap-2 text-sm text-neutral-800">
-                    <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-amber-600" />
-                    <span>
-                      {sozinhos.length} {sozinhos.length === 1 ? "material existe" : "materiais existem"} num lugar só.{" "}
-                      <a href="#so-um-lugar" className="underline">Ver quais</a>
-                    </span>
-                  </li>
+              // Cada item resume numa linha e abre a lista completa num diálogo com o fundo desfocado.
+              <div className="space-y-3 [&>*+*]:border-t [&>*+*]:border-neutral-100 [&>*+*]:pt-3">
+                {cheios.length ? (
+                  <AtencaoDialog
+                    titulo="Discos no limite"
+                    descricao="Passaram do limite de uso combinado. Mova o que já tem cópia para outro lugar."
+                    resumo={
+                      <span className="flex items-center gap-4">
+                        <span className="text-5xl leading-none font-semibold text-red-600 tabular-nums">{cheios.length}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-base font-semibold text-neutral-900">
+                            {cheios.length === 1 ? "disco no limite" : "discos no limite"}
+                          </span>
+                          <span className="block text-sm text-neutral-500">Toque para ver quais revisar</span>
+                        </span>
+                      </span>
+                    }
+                  >
+                    <ul className="divide-y divide-neutral-100">
+                      {cheios.map((l) => (
+                        <li key={l.id}>
+                          <a
+                            href={`/admin/armazenamento?espaco=${l.id}`}
+                            className={`flex min-h-11 items-center gap-2 text-sm text-neutral-800 hover:text-neutral-950 ${FOCO}`}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`size-2.5 shrink-0 rounded-full ${
+                                !l.deviceKey ? "bg-transparent" : l.connected ? "bg-emerald-500" : "bg-neutral-300"
+                              }`}
+                            />
+                            <span className="min-w-0 flex-1 truncate font-medium">{l.name}</span>
+                            <span className="shrink-0 text-red-600 tabular-nums">{usedPercent(l)}%</span>
+                            <span className="w-24 shrink-0 text-right text-neutral-500 tabular-nums">{formatGb(freeGb(l))} livres</span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </AtencaoDialog>
                 ) : null}
-              </ul>
+                {duplicados.length ? (
+                  <AtencaoDialog
+                    titulo="Possíveis duplicidades"
+                    descricao="Pastas com o mesmo tamanho no mesmo disco. Confira antes de apagar: o sistema não compara o conteúdo."
+                    resumo={
+                      <span className="flex items-start gap-2 text-sm text-neutral-800">
+                        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                        <span className="flex-1">
+                          <strong className="text-base">{duplicados.length}</strong>{" "}
+                          {duplicados.length === 1 ? "possível duplicidade" : "possíveis duplicidades"}
+                        </span>
+                      </span>
+                    }
+                  >
+                    <ul className="space-y-4">
+                      {duplicados.slice(0, 50).map((g, i) => (
+                        <li key={`${g.local.id}-${i}`}>
+                          <p className="text-xs font-medium text-neutral-700">
+                            {g.local.name} · {formatGb(g.sizeGb)} cada
+                          </p>
+                          <ul className="mt-1 space-y-0.5 border-l border-neutral-200 pl-3 text-sm text-neutral-800">
+                            {g.caminhos.map((c) => (
+                              <li key={c} className="break-words">{c}</li>
+                            ))}
+                          </ul>
+                        </li>
+                      ))}
+                    </ul>
+                    {duplicados.length > 50 ? (
+                      <p className="mt-3 text-xs text-neutral-500">e mais {duplicados.length - 50}</p>
+                    ) : null}
+                  </AtencaoDialog>
+                ) : null}
+                {sozinhos.length ? (
+                  <AtencaoDialog
+                    titulo="Materiais num lugar só"
+                    descricao="Se esse disco falhar, perde. Copie para outro disco; os maiores primeiro."
+                    resumo={
+                      <span className="flex items-start gap-2 text-sm text-neutral-800">
+                        <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-amber-600" />
+                        <span className="flex-1">
+                          <strong className="text-base">{sozinhos.length}</strong>{" "}
+                          {sozinhos.length === 1 ? "material existe" : "materiais existem"} num lugar só
+                        </span>
+                      </span>
+                    }
+                  >
+                    <ul className="divide-y divide-neutral-100">
+                      {sozinhos.slice(0, 50).map((i) => {
+                        const aqui = i.locationIds.map(nome).filter(Boolean);
+                        return (
+                          <li key={i.id} className="flex items-baseline gap-3 py-2 text-sm">
+                            <span className="min-w-0 flex-1 truncate font-medium text-neutral-900">{i.name}</span>
+                            <span className="shrink-0 text-neutral-500 tabular-nums">{formatGb(i.sizeGb)}</span>
+                            <span className="w-28 shrink-0 truncate text-right text-neutral-500">
+                              {aqui.length ? aqui.join(", ") : "sem lugar"}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <p className="mt-3 text-sm">
+                      {sozinhos.length > 50 ? `e mais ${sozinhos.length - 50}. ` : ""}
+                      <a href="#so-um-lugar" className="underline">Ver tudo e marcar cópias</a>
+                    </p>
+                  </AtencaoDialog>
+                ) : null}
+              </div>
             )}
           </aside>
         </section>
