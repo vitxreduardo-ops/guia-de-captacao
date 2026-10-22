@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 
-export function CopyLinkButton({ text }: { text: string }) {
+export function CopyLinkButton({
+  text,
+  className = "border-neutral-300 text-neutral-700 hover:border-neutral-500",
+}: {
+  text: string;
+  className?: string;
+}) {
   const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
 
   async function copy() {
@@ -22,7 +28,7 @@ export function CopyLinkButton({ text }: { text: string }) {
     <button
       type="button"
       onClick={copy}
-      className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 transition-transform hover:border-neutral-500 active:scale-[0.97]"
+      className={`rounded-md border px-3 py-1.5 text-sm transition-transform active:scale-[0.97] ${className}`}
     >
       {status === "copied"
         ? "Copiado!"

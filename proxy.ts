@@ -9,7 +9,7 @@ const SUBDOMINIOS: Record<string, string> = { sistema: "/admin", cliente: "/clie
 // Rotas da raiz que valem em qualquer subdomínio: links públicos que o painel
 // gera a partir do host atual, a API e os ícones.
 const RAIZ = new Set([
-  "api", "briefing", "contrato", "convite", "galeria", "guia", "orcamento",
+  "api", "briefing", "contrato", "convite", "galeria", "guia", "mapa", "orcamento",
   "signup", "splash", "apple-icon", "_next",
 ]);
 
