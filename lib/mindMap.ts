@@ -23,6 +23,11 @@ export interface MindNode {
    */
   ox?: number;
   oy?: number;
+  /**
+   * Só nos filhos da raiz: de que lado ela fica. Sem isto o lado vem da ordem;
+   * com isto, o ramo arrastado pro outro lado passa a abrir virado pra lá.
+   */
+  side?: 1 | -1;
   /** Texto dentro de uma caixa arredondada (a raiz sempre tem). */
   box?: boolean;
   /** Cor da caixa (#rrggbb); sem ela, a caixa usa o padrão. */
@@ -44,7 +49,7 @@ export const GRID = 24;
 export const snap = (v: number) => Math.round(v / GRID) * GRID;
 
 export type NodePatch = Partial<
-  Pick<MindNode, "text" | "color" | "collapsed" | "icon" | "note" | "link" | "ox" | "oy" | "bg" | "dotOpacity" | "box" | "boxColor">
+  Pick<MindNode, "text" | "color" | "collapsed" | "icon" | "note" | "link" | "ox" | "oy" | "bg" | "dotOpacity" | "box" | "boxColor" | "side">
 >;
 
 export const PALETTE = [
@@ -119,6 +124,7 @@ export function parseMap(raw: unknown): MindNode {
     }
     if (v.collapsed === true) node.collapsed = true;
     if (v.box === true) node.box = true;
+    if (v.side === 1 || v.side === -1) node.side = v.side;
     if (typeof v.boxColor === "string" && /^#[0-9a-f]{6}$/i.test(v.boxColor)) {
       node.boxColor = v.boxColor.toLowerCase();
     }
@@ -237,6 +243,24 @@ export function moveNode(
   });
 }
 
+/**
+ * Se o ramo `id` (filho da raiz) foi arrastado pro outro lado da raiz, vira o
+ * ramo pra abrir pra lá (filhos e texto acompanham) e ajusta o deslocamento
+ * pra ele ficar exatamente onde foi solto. Qualquer outro nó volta igual.
+ */
+export function flipIfCrossed(root: MindNode, id: string): MindNode {
+  if (!root.children.some((c) => c.id === id)) return root;
+  const find = (t: MindNode) => layout(t).items.find((i) => i.node.id === id)!;
+  const p = find(root);
+  if ((p.x + p.w / 2) * p.side >= 0) return root;
+  const flipped = updateNode(root, id, { side: p.side === 1 ? -1 : 1, ox: undefined, oy: undefined });
+  const q = find(flipped);
+  return updateNode(flipped, id, {
+    ox: Math.round(p.x - q.x) || undefined,
+    oy: Math.round(p.y - q.y) || undefined,
+  });
+}
+
 /** Pinta (ou despinta) todas as caixas do mapa: as dos nós com caixa e a da raiz. */
 export function setBoxColorAll(root: MindNode, color: string | undefined): MindNode {
   const walk = (n: MindNode, isRoot: boolean): MindNode => {
@@ -252,9 +276,10 @@ export const DEFAULT_BOX = "#e4e6d6";
 /** Tira todos os deslocamentos livres: o mapa volta à organização automática. */
 export function clearOffsets(root: MindNode): MindNode {
   const walk = (n: MindNode): MindNode => {
-    const { ox: _ox, oy: _oy, ...rest } = n;
+    const { ox: _ox, oy: _oy, side: _side, ...rest } = n;
     void _ox;
     void _oy;
+    void _side;
     return { ...rest, children: n.children.map(walk) };
   };
   return walk(root);
@@ -355,9 +380,11 @@ export function layout(root: MindNode): Layout {
   // Metade dos ramos pra cada lado; o da direita fica com o que sobrar.
   const total = root.children.length;
   const rightCount = Math.ceil(total / 2);
+  const pairs = root.children.map((c, i) => [c, i] as [MindNode, number]);
+  const sideOf = (c: MindNode, i: number): 1 | -1 => c.side ?? (i < rightCount ? 1 : -1);
   const sides: [1 | -1, [MindNode, number][]][] = [
-    [1, root.children.slice(0, rightCount).map((c, i) => [c, i] as [MindNode, number])],
-    [-1, root.children.slice(rightCount).map((c, i) => [c, rightCount + i] as [MindNode, number])],
+    [1, pairs.filter(([c, i]) => sideOf(c, i) === 1)],
+    [-1, pairs.filter(([c, i]) => sideOf(c, i) === -1)],
   ];
 
   for (const [side, branches] of sides) {
