@@ -70,6 +70,16 @@ export default async function MindMapEditorPage({
         <span className={`text-sm ${published ? "text-emerald-700" : "text-amber-700"}`}>
           {published ? "Publicado" : "Rascunho"}
         </span>
+        {!published && (
+          <a
+            href={publicPath}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md border border-[#838059]/30 px-3 py-1 text-sm hover:bg-[#838059]/15"
+          >
+            Ver prévia
+          </a>
+        )}
         {published && (
           <>
             <a
