@@ -1,6 +1,7 @@
 "use client";
 
 import { confirmar } from "@/components/ConfirmHost";
+import { InstagramMediaPicker } from "@/components/admin/InstagramMediaPicker";
 import { useRef, useState, useTransition } from "react";
 import {
   Dialog,
@@ -709,18 +710,7 @@ export function BacklogCardDrawer({
             Conta conectada: @{igClient.instagram}. A legenda e o formato vêm
             do bloco acima.
           </p>
-          <label className={labelClass} htmlFor="backlog-ig-media">
-            Links públicos da mídia (um por linha; carrossel: 2 a 20)
-          </label>
-          <textarea
-            id="backlog-ig-media"
-            name="ig_media_urls"
-            defaultValue={card.ig_media_urls.join("\n")}
-            rows={3}
-            disabled={igLocked}
-            placeholder="https://..."
-            className={inputClass}
-          />
+          <InstagramMediaPicker initial={card.ig_media_urls} disabled={igLocked} />
           <label className={labelClass} htmlFor="backlog-ig-at">
             Publicar em (horário de Brasília)
           </label>
@@ -755,7 +745,11 @@ export function BacklogCardDrawer({
         </a>
       )}
     </div>
-  ) : null;
+  ) : (
+    <p className="rounded-md border border-dashed border-neutral-300 p-3 text-xs text-neutral-500">
+      Escolha o cliente e salve para publicar no Instagram dele.
+    </p>
+  );
 
   const descriptionField = (
     <div>
