@@ -177,3 +177,47 @@ export function buscar(items: StorageItem[], locations: StorageLocation[], consu
   }
   return out.sort((a, b) => b.item.sizeGb - a.item.sizeGb);
 }
+
+export interface GrupoDuplicado {
+  local: StorageLocation;
+  /** Tamanho de cada pasta do grupo. */
+  sizeGb: number;
+  caminhos: string[];
+}
+
+// ponytail: duplicidade = pastas do mesmo nível no mesmo disco com tamanho igual (±1 MB); não compara o conteúdo.
+// Troque os dois valores abaixo para ficar mais ou menos exigente. Hash de arquivo só se isso não bastar.
+const DUP_MIN_GB = 0.5;
+const DUP_TOLERANCIA_GB = 0.001;
+
+/**
+ * Pastas que provavelmente são cópia uma da outra dentro do mesmo disco.
+ * Subpastas têm tamanho certo por disco. O tamanho do material, não: é o da última
+ * leitura de qualquer disco, então só entra se o material existe em um disco só.
+ */
+export function acharDuplicados(items: StorageItem[], locations: StorageLocation[]): GrupoDuplicado[] {
+  const ids = new Set(locations.map((l) => l.id));
+  const out: GrupoDuplicado[] = [];
+  for (const local of locations) {
+    const nivel: { caminho: string; sizeGb: number; material: boolean }[] = [];
+    for (const item of items) {
+      if (!item.locationIds.includes(local.id)) continue;
+      if (item.locationIds.filter((id) => ids.has(id)).length === 1) {
+        nivel.push({ caminho: item.name, sizeGb: item.sizeGb, material: true });
+      }
+      for (const sub of item.subfolders[local.id] ?? []) {
+        nivel.push({ caminho: `${item.name} › ${sub.name}`, sizeGb: sub.sizeGb, material: false });
+      }
+    }
+    const grupos = new Map<string, { sizeGb: number; caminhos: string[] }>();
+    for (const e of nivel) {
+      if (e.sizeGb < DUP_MIN_GB) continue;
+      const chave = `${e.material ? "m" : "s"}${Math.round(e.sizeGb / DUP_TOLERANCIA_GB)}`;
+      const g = grupos.get(chave) ?? { sizeGb: e.sizeGb, caminhos: [] };
+      g.caminhos.push(e.caminho);
+      grupos.set(chave, g);
+    }
+    for (const g of grupos.values()) if (g.caminhos.length > 1) out.push({ local, ...g });
+  }
+  return out.sort((a, b) => b.sizeGb - a.sizeGb);
+}

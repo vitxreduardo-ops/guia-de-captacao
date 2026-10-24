@@ -93,7 +93,7 @@ export interface BacklogCard {
   payment_method: PaymentMethod | null;
   billing_month: string | null;
   tags: string[];
-  /** Publicação automática no Instagram (ver supabase/migrations/0091). */
+  /** Publicação automática no Instagram (ver supabase/migrations/0094). */
   ig_status: IgStatus | null;
   ig_publish_at: string | null;
   ig_media_urls: string[];

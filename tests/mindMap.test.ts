@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  clearOffsets, isDark, setBoxColorAll, moveNode, preorder, revealUpTo, addChild, addSibling, findNode, layout, newMap, parseMap, removeNode, updateNode,
+  clearOffsets, flipIfCrossed, isDark, setBoxColorAll, moveNode, preorder, revealUpTo, addChild, addSibling, findNode, layout, newMap, parseMap, removeNode, updateNode,
   type MindNode,
 } from "@/lib/mindMap";
 
@@ -177,5 +177,36 @@ describe("caixa", () => {
     expect(m.boxColor).toBe("#112233");
     expect(findNode(m, "c")?.boxColor).toBeUndefined();
     expect(findNode(setBoxColorAll(m, undefined), "b")?.boxColor).toBeUndefined();
+  });
+});
+
+describe("arrastar ramo pro outro lado", () => {
+  const big: MindNode = updateNode(tree, "c", { ox: 0 });
+  const withKid = addChild(big, "c", { id: "c1", text: "filho", children: [] });
+  const at = (m: MindNode, id: string) => layout(m).items.find((i) => i.node.id === id)!;
+
+  it("ramo que cruza a raiz vira pro novo lado e fica onde foi solto", () => {
+    const dragged = updateNode(withKid, "c", { ox: 700 });
+    const before = at(dragged, "c");
+    expect(before.side).toBe(-1);
+    const next = flipIfCrossed(dragged, "c");
+    const after = at(next, "c");
+    expect(after.side).toBe(1);
+    expect(after.x).toBeCloseTo(before.x);
+    expect(after.y).toBeCloseTo(before.y);
+    expect(at(next, "c1").x).toBeGreaterThan(after.x); // filhos abrem pra direita
+  });
+  it("sem cruzar, ou nó que não é ramo, nada muda; voltar desvira", () => {
+    const near = updateNode(withKid, "c", { ox: -50 });
+    expect(flipIfCrossed(near, "c")).toBe(near);
+    const deep = updateNode(withKid, "c1", { ox: 900 });
+    expect(flipIfCrossed(deep, "c1")).toBe(deep);
+    const flipped = flipIfCrossed(updateNode(withKid, "c", { ox: 700 }), "c");
+    const back = flipIfCrossed(updateNode(flipped, "c", { ox: (flipped.children[2].ox ?? 0) - 900 }), "c");
+    expect(at(back, "c").side).toBe(-1);
+  });
+  it("reorganizar tira o lado escolhido", () => {
+    const f = flipIfCrossed(updateNode(withKid, "c", { ox: 700 }), "c");
+    expect(JSON.stringify(clearOffsets(f))).not.toMatch(/"side"/);
   });
 });

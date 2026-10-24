@@ -7,6 +7,7 @@ import {
   BudgetPreviewPane,
   ZoomControls,
 } from "@/components/admin/budget/BudgetPreviewPane";
+import { BudgetAiFill } from "@/components/admin/budget/BudgetAiFill";
 import { BudgetSectionPanel } from "@/components/admin/budget/BudgetSectionPanel";
 import { useAutosave, type EstadoSave } from "@/components/admin/budget/useAutosave";
 import type { BudgetSection } from "@/lib/budgetSections";
@@ -258,6 +259,8 @@ export function BudgetEditor({
         {tab === "config" ? (
           <div className="space-y-4">{config}</div>
         ) : (
+        <>
+        <BudgetAiFill sections={sections} onApply={(next) => schedule(next, true)} />
         <BudgetSectionPanel
           sections={sections}
           openKind={openKind}
@@ -268,6 +271,7 @@ export function BudgetEditor({
           onChange={changeSection}
           budgetId={budget.id}
         />
+        </>
         )}
       </div>
     </div>

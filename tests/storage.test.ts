@@ -3,6 +3,7 @@ import {
   formatGb,
   isFull,
   onlyOnePlace,
+  acharDuplicados,
   buscar,
   parseGb,
   reconcileFolders,
@@ -84,5 +85,19 @@ describe("armazenamento", () => {
     expect(porSub[0].subs.map((s) => s.sub.name)).toEqual(["Tawane"]);
     expect(buscar(items, locs, "marcus itacare")[0].subs.map((s) => s.sub.name)).toEqual(["Itacare"]);
     expect(buscar(items, locs, "  ")).toEqual([]);
+  });
+
+  it("acha pastas do mesmo tamanho no mesmo disco, sem misturar discos nem níveis", () => {
+    const locs = [loc("a", 0), loc("b", 0)];
+    const items: StorageItem[] = [
+      { id: "1", name: "Marcus", sizeGb: 100, locationIds: ["a"], subfolders: { a: [{ name: "Tawane", sizeGb: 20 }, { name: "Pequena", sizeGb: 0.1 }] } },
+      { id: "2", name: "Marcus copia", sizeGb: 100, locationIds: ["a"], subfolders: { a: [{ name: "Tawane", sizeGb: 20.0004 }, { name: "Pequena", sizeGb: 0.1 }] } },
+      { id: "3", name: "Outro", sizeGb: 100, locationIds: ["a", "b"], subfolders: { b: [{ name: "Tawane", sizeGb: 20 }] } },
+    ];
+    const g = acharDuplicados(items, locs);
+    expect(g.map((x) => [x.local.id, x.sizeGb, x.caminhos])).toEqual([
+      ["a", 100, ["Marcus", "Marcus copia"]],
+      ["a", 20, ["Marcus › Tawane", "Marcus copia › Tawane"]],
+    ]);
   });
 });

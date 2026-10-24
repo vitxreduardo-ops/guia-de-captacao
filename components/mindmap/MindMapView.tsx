@@ -7,7 +7,7 @@ import {
   Layers, Magnet, Move, Palette, RotateCcw, Trash2, Undo2, X,
 } from "lucide-react";
 import {
-  DEFAULT_BOX, GRID, PALETTE, isDark, setBoxColorAll, addChild, clearOffsets, addSibling, findNode, layout, moveNode, newId, preorder,
+  DEFAULT_BOX, GRID, flipIfCrossed, PALETTE, isDark, setBoxColorAll, addChild, clearOffsets, addSibling, findNode, layout, moveNode, newId, preorder,
   removeNode, revealUpTo, snap, updateNode, type MindNode, type NodePatch, type Placed,
 } from "@/lib/mindMap";
 import { download, svgToPng, toSvg } from "@/lib/mindMapExport";
@@ -101,7 +101,10 @@ export function MindMapView({
   // Durante o arrasto livre o desenho usa a posição provisória; o `lay` (e o
   // reenquadramento que depende dele) só muda quando a pessoa solta.
   const renderLay = useMemo(
-    () => (freeDrag ? layout(updateNode(shown, freeDrag.id, { ox: freeDrag.ox, oy: freeDrag.oy })) : lay),
+    () =>
+      freeDrag
+        ? layout(flipIfCrossed(updateNode(shown, freeDrag.id, { ox: freeDrag.ox, oy: freeDrag.oy }), freeDrag.id))
+        : lay,
     [freeDrag, shown, lay]
   );
   const currentId = presenting ? order[step] : null;
@@ -457,7 +460,7 @@ export function MindMapView({
       patch((r) => moveNode(r, id, overId, pos));
     } else if (nd?.started && nd.mode === "free" && freeDrag) {
       const { id, ox, oy } = freeDrag;
-      edit(id, { ox: ox || undefined, oy: oy || undefined });
+      patch((r) => flipIfCrossed(updateNode(r, id, { ox: ox || undefined, oy: oy || undefined }), id));
     }
     setFreeDrag(null);
     setDragUi(null);
