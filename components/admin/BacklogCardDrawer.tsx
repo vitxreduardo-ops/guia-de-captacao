@@ -23,6 +23,7 @@ import {
   type BacklogGuideOption,
   type BacklogUserOption,
   type ServiceOption,
+  isoToBrasilia,
 } from "@/lib/backlogTypes";
 import { formatBRL } from "@/lib/billingTypes";
 import {
@@ -683,6 +684,79 @@ export function BacklogCardDrawer({
     </div>
   );
 
+  const igClient = clients.find((c) => c.id === card.client_id);
+  const igLocked =
+    card.ig_status === "publicando" || card.ig_status === "publicado";
+  const igStatusLabel: Record<string, string> = {
+    agendado: "Agendado",
+    publicando: "Publicando…",
+    publicado: "Publicado",
+    falhou: "Falhou",
+  };
+  const instagramField = card.client_id ? (
+    <div className="flex flex-col gap-2 rounded-md border border-neutral-200 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className={labelClass}>Publicar no Instagram do cliente</span>
+        {card.ig_status ? (
+          <span className="text-xs font-medium text-neutral-700">
+            {igStatusLabel[card.ig_status]}
+          </span>
+        ) : null}
+      </div>
+      {igClient?.instagram ? (
+        <>
+          <p className="text-xs text-neutral-500">
+            Conta conectada: @{igClient.instagram}. A legenda e o formato vêm
+            do bloco acima.
+          </p>
+          <label className={labelClass} htmlFor="backlog-ig-media">
+            Links públicos da mídia (um por linha; carrossel: 2 a 20)
+          </label>
+          <textarea
+            id="backlog-ig-media"
+            name="ig_media_urls"
+            defaultValue={card.ig_media_urls.join("\n")}
+            rows={3}
+            disabled={igLocked}
+            placeholder="https://..."
+            className={inputClass}
+          />
+          <label className={labelClass} htmlFor="backlog-ig-at">
+            Publicar em (horário de Brasília)
+          </label>
+          <input
+            id="backlog-ig-at"
+            type="datetime-local"
+            name="ig_publish_at"
+            defaultValue={card.ig_publish_at ? isoToBrasilia(card.ig_publish_at) : ""}
+            disabled={igLocked}
+            className={inputClass}
+          />
+          <label className="flex items-center gap-2 text-sm text-neutral-700">
+            <input
+              type="checkbox"
+              name="ig_schedule"
+              defaultChecked={card.ig_status === "agendado" || igLocked}
+              disabled={igLocked}
+              className="h-4 w-4"
+            />
+            Agendar publicação automática
+          </label>
+          {card.ig_error ? (
+            <p className="text-xs text-red-600">{card.ig_error}</p>
+          ) : null}
+        </>
+      ) : (
+        <a
+          href={`/api/instagram/oauth/start?cliente=${card.client_id}`}
+          className="w-fit rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+        >
+          Conectar Instagram deste cliente
+        </a>
+      )}
+    </div>
+  ) : null;
+
   const descriptionField = (
     <div>
       <label className={labelClass} htmlFor="backlog-description">
@@ -807,6 +881,7 @@ export function BacklogCardDrawer({
                     {captionField}
                   </div>
                 </details>
+                {instagramField}
               </>
             ) : (
               <>
