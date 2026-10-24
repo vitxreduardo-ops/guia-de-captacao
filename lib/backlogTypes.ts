@@ -38,6 +38,8 @@ export function normalizeBacklogBoard(value: unknown): BacklogBoardKind {
   return value === "entregas" ? "entregas" : "instagram";
 }
 
+export type IgStatus = "agendado" | "publicando" | "publicado" | "falhou";
+
 export interface BacklogColumn {
   id: string;
   name: string;
@@ -91,6 +93,11 @@ export interface BacklogCard {
   payment_method: PaymentMethod | null;
   billing_month: string | null;
   tags: string[];
+  /** Publicação automática no Instagram (ver supabase/migrations/0091). */
+  ig_status: IgStatus | null;
+  ig_publish_at: string | null;
+  ig_media_urls: string[];
+  ig_error: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -207,6 +214,8 @@ export interface BacklogClientOption {
   name: string;
   /** Dia de vencimento, para marcar o que já passou da data no quadro. */
   payment_day: number | null;
+  /** @ da conta de Instagram conectada; null quando ainda não conectou. */
+  instagram?: string | null;
 }
 
 /**
@@ -436,4 +445,16 @@ export function parseBacklogTags(value: unknown): string[] {
 export function formatBacklogDateShort(isoDate: string): string {
   const [, month, day] = isoDate.split("-");
   return `${day}/${month}`;
+}
+
+/** `<input type="datetime-local">` em horário de Brasília (UTC-3, sem horário de verão) → ISO. */
+export function brasiliaToISO(value: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}:00-03:00`);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+/** ISO → valor de `datetime-local` em horário de Brasília. */
+export function isoToBrasilia(iso: string): string {
+  return new Date(new Date(iso).getTime() - 3 * 3_600_000).toISOString().slice(0, 16);
 }

@@ -23,6 +23,7 @@ import {
   type BacklogGuideOption,
   type BacklogUserOption,
   type ServiceOption,
+  brasiliaToISO,
 } from "@/lib/backlogTypes";
 import { parseBRLToCents } from "@/lib/billingTypes";
 
@@ -138,7 +139,7 @@ export async function getBacklogBoard(
       cards: [],
       checklist: [],
       activity: [],
-      clients: (clientsResult.data ?? []) as BacklogClientOption[],
+      clients: await withInstagram((clientsResult.data ?? []) as BacklogClientOption[]),
       guides: (guidesResult.data ?? []) as BacklogGuideOption[],
       users: (usersResult.data ?? []) as BacklogUserOption[],
       services: (servicesResult.data ?? []) as ServiceOption[],
@@ -243,7 +244,7 @@ export async function getBacklogBoard(
     cards,
     checklist: (checklistResult.data ?? []) as BacklogChecklistItem[],
     activity: (activityResult.data ?? []) as BacklogActivity[],
-    clients: (clientsResult.data ?? []) as BacklogClientOption[],
+    clients: await withInstagram((clientsResult.data ?? []) as BacklogClientOption[]),
     guides: (guidesResult.data ?? []) as BacklogGuideOption[],
     users: (usersResult.data ?? []) as BacklogUserOption[],
     services: (servicesResult.data ?? []) as ServiceOption[],
@@ -330,6 +331,19 @@ export async function deleteBacklogColumn(id: string) {
   if (error) throw error;
 }
 
+/** Marca em cada cliente qual @ do Instagram já está conectado. */
+async function withInstagram(
+  clients: BacklogClientOption[]
+): Promise<BacklogClientOption[]> {
+  const { data } = await getSupabaseServerClient()
+    .from("instagram_accounts")
+    .select("client_id, username");
+  const byClient = new Map(
+    (data ?? []).map((row) => [row.client_id as string, row.username as string])
+  );
+  return clients.map((c) => ({ ...c, instagram: byClient.get(c.id) ?? null }));
+}
+
 // ------------------------------------------------------------------ cards
 
 export interface BacklogCardInput {
@@ -358,6 +372,9 @@ export interface BacklogCardInput {
   paid_at: string | null;
   payment_method: PaymentMethod | null;
   billing_month: string | null;
+  ig_schedule: boolean;
+  ig_publish_at: string | null;
+  ig_media_urls: string[];
 }
 
 export function readBacklogCardInput(formData: FormData): BacklogCardInput {
@@ -396,6 +413,12 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
     billing_month: normalizeDate(
       String(formData.get("billing_month") ?? "").replace(/^(\d{4}-\d{2})$/, "$1-01")
     ),
+    ig_schedule: formData.get("ig_schedule") === "on",
+    ig_publish_at: brasiliaToISO(String(formData.get("ig_publish_at") ?? "")),
+    ig_media_urls: String(formData.get("ig_media_urls") ?? "")
+      .split(/\s+/)
+      .map((u) => normalizeUrl(u))
+      .filter((u): u is string => Boolean(u)),
   };
 }
 
@@ -529,10 +552,27 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
   // limpa quando desmarca, então a data nunca fica mentindo.
   const { data: current, error: currentError } = await supabase
     .from("backlog_cards")
-    .select("sent_whatsapp, sent_whatsapp_at")
+    .select("sent_whatsapp, sent_whatsapp_at, ig_status")
     .eq("id", id)
     .single();
   if (currentError) throw currentError;
+
+  // Depois que o cron pegou o card (publicando/publicado) o Instagram não é
+  // mais editável: mexer na mídia ou no status aqui duplicaria o post.
+  const igLocked =
+    current.ig_status === "publicando" || current.ig_status === "publicado";
+  if (!igLocked && fields.ig_schedule && !fields.ig_publish_at) {
+    throw new Error("Informe data e hora da publicação no Instagram.");
+  }
+  const igFields = igLocked
+    ? {}
+    : {
+        ig_media_urls: fields.ig_media_urls,
+        ig_publish_at: fields.ig_publish_at,
+        ig_status: fields.ig_schedule ? "agendado" : null,
+        ig_error: null,
+        ig_container_id: null,
+      };
 
   const sentAt = fields.sent_whatsapp
     ? current.sent_whatsapp
@@ -569,6 +609,7 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
       paid_at: fields.paid_at,
       payment_method: fields.payment_method,
       billing_month: fields.billing_month,
+      ...igFields,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
@@ -688,6 +729,11 @@ export async function duplicateBacklogCard(id: string): Promise<BacklogCard> {
       ...rest,
       title: `${rest.title as string} (cópia)`,
       sent_whatsapp: false,
+      // A cópia nunca herda a publicação: senão o mesmo post sairia duas vezes.
+      ig_status: null,
+      ig_container_id: null,
+      ig_media_id: null,
+      ig_error: null,
       position: (last?.position ?? -1) + 1,
     })
     .select("*")
