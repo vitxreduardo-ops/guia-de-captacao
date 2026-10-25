@@ -10,6 +10,7 @@ import {
   requireReviewer,
   reviewPortalCard,
 } from "@/lib/clientPortal";
+import { setClientPostDone } from "@/lib/clientArea";
 import { createIdea } from "@/lib/editorialCalendar";
 import { listDisplayItemsByIds } from "@/lib/galleries";
 import { setMaterialMedia } from "@/lib/backlog";
@@ -114,4 +115,12 @@ export async function attachMaterialMediaAction(
   });
   revalidatePath("/cliente", "layout");
   revalidatePath("/admin/area-do-cliente", "layout");
+}
+
+/** "Feito" no calendário: o cliente marca o que já postou; a equipe também, na prévia. */
+export async function setPostDoneAction(cardId: string, done: boolean) {
+  if (typeof done !== "boolean" || !/^[0-9a-f-]{36}$/i.test(String(cardId))) return;
+  const { clientId } = await requireReviewer();
+  await setClientPostDone(clientId, cardId, done);
+  revalidatePath("/cliente/calendario");
 }

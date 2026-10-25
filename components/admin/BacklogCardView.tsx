@@ -259,6 +259,12 @@ export function BacklogCardView({
             </Field>
           ) : null}
 
+          {card.client_plan ? (
+            <Field label="Plano pro cliente">
+              <p className="whitespace-pre-wrap">{card.client_plan}</p>
+            </Field>
+          ) : null}
+
           {card.description ? (
             <Field label="Observações internas">
               <p className="whitespace-pre-wrap">{card.description}</p>

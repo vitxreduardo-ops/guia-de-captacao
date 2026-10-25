@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CreatorTag } from "@/components/CreatorTag";
-import { MonthGrid } from "@/components/MonthGrid";
 import { listClientPosts } from "@/lib/clientArea";
 import { getPortalSession } from "@/lib/clientPortal";
 import { listIdeas } from "@/lib/editorialCalendar";
 import { groupByMonth, MONTH_NAMES, nextMonths } from "@/lib/editorialMonths";
 import { IdeaForm } from "../IdeaForm";
+import { MonthPlanner } from "./MonthPlanner";
 
 export const dynamic = "force-dynamic";
 
@@ -34,9 +34,9 @@ export default async function CalendarioPage({
   const { clientId, preview, viewerId } = await getPortalSession();
   const params = await searchParams;
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
+  const today = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
   const year = Number(params.ano) || now.getFullYear();
-  const monthly = params.vista === "mes";
+  const monthly = params.vista !== "ano";
   const month = Math.min(12, Math.max(1, Number(params.mes) || now.getMonth() + 1));
 
   const tabs = (
@@ -100,33 +100,7 @@ export default async function CalendarioPage({
           <Arrow href={link(next)} label="Próximo mês" dir="r" />
         </div>
 
-        <MonthGrid year={year} month={month} postDates={visible.map((p) => p.post_date)} today={today} />
-
-        <section aria-labelledby="programacao">
-          <h3 id="programacao" className="mb-2 text-xl font-semibold">
-            Programação de postagens <span className="text-base font-normal text-[var(--tatu-muted)]">({visible.length})</span>
-          </h3>
-          {visible.length ? (
-            <ul>
-              {visible.map((p) => (
-                <li key={p.id} className="flex items-center gap-3 border-b border-[var(--tatu-taupe)] py-2.5 last:border-b-0">
-                  <span className="w-10 shrink-0 text-center">
-                    <span className="block text-xl font-semibold leading-none">{Number(p.post_date.slice(8, 10))}</span>
-                    <span className="block text-[11px] uppercase text-[var(--tatu-muted)]">
-                      {new Date(`${p.post_date}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "")}
-                    </span>
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{p.title || "Sem título"}</span>
-                    <span className="block text-sm capitalize text-[var(--tatu-muted)]">{p.format}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[var(--tatu-muted)]">Nenhuma postagem programada para este mês.</p>
-          )}
-        </section>
+        <MonthPlanner key={`${year}-${month}`} year={year} month={month} today={today} posts={visible} />
 
         <section aria-labelledby="ideias-mes">
           <h3 id="ideias-mes" className="mb-2 text-xl font-semibold">

@@ -48,6 +48,16 @@ retomar sem reconstruir a investigação. Última revisão: 06/09/2026.
       surpresa, não fluidez. O assentamento (deslizar até o lugar) esse sim foi
       feito.
 
+## Portal do cliente
+
+- [ ] **Calendário usa a data de entrega como data de postagem.** O
+      calendário do portal (`app/cliente/calendario/MonthPlanner.tsx`) põe
+      cada card no dia do `post_date`, que no quadro de entregas se chama
+      "Data da entrega". Os 20 itens de novembro/2026 da Denize Oliveira foram
+      criados com a data de publicação nesse campo, por decisão do Vitor em
+      25/10/2026 ("por enquanto"). Para separar: o portal passa a usar a data
+      de `ig_publish_at` quando existir, e a entrega volta a ser anterior.
+
 ## Prospecção
 
 - [ ] **Lapidar a tabela de contatos.** Clicar num contato abre a ficha

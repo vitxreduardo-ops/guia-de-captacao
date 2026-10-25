@@ -349,6 +349,8 @@ async function withInstagram(
 export interface BacklogCardInput {
   title: string;
   description: string;
+  /** Só vem do formulário do quadro de entregas; ausente = não mexe. */
+  client_plan?: string;
   format: BacklogFormat;
   client_id: string | null;
   guide_id: string | null;
@@ -381,6 +383,7 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
   return {
     title: String(formData.get("title") ?? "").trim(),
     description: String(formData.get("description") ?? "").trim(),
+    client_plan: formData.has("client_plan") ? String(formData.get("client_plan")).trim() : undefined,
     format: normalizeBacklogFormat(formData.get("format")),
     client_id: normalizeUuid(formData.get("client_id")),
     guide_id: normalizeUuid(formData.get("guide_id")),
@@ -444,6 +447,7 @@ export async function createBacklogCard(
       position: (last?.position ?? -1) + 1,
       title: fields.title.trim() || "Novo material",
       description: fields.description ?? "",
+      client_plan: fields.client_plan ?? "",
       format: fields.format ?? "reel",
       client_id: fields.client_id ?? null,
       guide_id: fields.guide_id ?? null,
@@ -585,6 +589,7 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
     .update({
       title: fields.title || "Novo material",
       description: fields.description,
+      client_plan: fields.client_plan,
       format: fields.format,
       client_id: fields.client_id,
       guide_id: fields.guide_id,
