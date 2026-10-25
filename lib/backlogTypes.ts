@@ -65,6 +65,8 @@ export interface BacklogCard {
   position: number;
   title: string;
   description: string;
+  /** Plano mostrado ao cliente no portal; linhas "Rótulo: valor". */
+  client_plan: string;
   format: BacklogFormat;
   drive_url: string | null;
   cover_url: string | null;

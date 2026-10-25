@@ -49,6 +49,17 @@ export interface ClientPost {
   post_date: string;
   /** A coluna do card está liberada ao cliente. */
   visible: boolean;
+  caption: string;
+  /** Plano do item pro cliente, linhas "Rótulo: valor". */
+  client_plan: string;
+  /** Publicado no Instagram, em coluna de entrega concluída ou marcado no portal. */
+  done: boolean;
+  /** Feito pelo quadro ou pela publicação automática: o portal não desmarca. */
+  locked: boolean;
+  /** Horário marcado pra publicar no Instagram; não é o `post_date`. */
+  ig_publish_at: string | null;
+  /** Slug do roteiro, só quando o guia está publicado. */
+  guide_slug: string | null;
 }
 
 /** Postagens agendadas do cliente entre duas datas (`YYYY-MM-DD`, inclusive). */
@@ -56,19 +67,32 @@ export async function listClientPosts(clientId: string, from: string, to: string
   const supabase = getSupabaseServerClient();
   const { data, error } = await supabase
     .from("backlog_cards")
-    .select("id, title, format, post_date, column:backlog_columns(client_visible)")
+    .select(
+      "id, title, format, post_date, caption, client_plan, client_done_at, ig_status, ig_publish_at, column:backlog_columns(client_visible, billable), guide:guides(slug, status)",
+    )
     .eq("client_id", clientId)
     .gte("post_date", from)
     .lte("post_date", to)
     .order("post_date");
   if (error) throw error;
-  return (data ?? []).map((row) => ({
-    id: row.id as string,
-    title: row.title as string,
-    format: row.format as string,
-    post_date: row.post_date as string,
-    visible: Boolean((row.column as unknown as { client_visible: boolean } | null)?.client_visible),
-  }));
+  return (data ?? []).map((row) => {
+    const column = row.column as unknown as { client_visible: boolean; billable: boolean } | null;
+    const guide = row.guide as unknown as { slug: string; status: string } | null;
+    const locked = row.ig_status === "publicado" || Boolean(column?.billable);
+    return {
+      id: row.id as string,
+      title: row.title as string,
+      format: row.format as string,
+      post_date: row.post_date as string,
+      visible: Boolean(column?.client_visible),
+      caption: (row.caption as string | null) ?? "",
+      client_plan: (row.client_plan as string | null) ?? "",
+      done: locked || Boolean(row.client_done_at),
+      locked,
+      ig_publish_at: (row.ig_publish_at as string | null) ?? null,
+      guide_slug: guide?.status === "published" ? guide.slug : null,
+    };
+  });
 }
 
 export interface ClientMaterial {
@@ -116,4 +140,26 @@ export async function listClientMaterials(clientId: string): Promise<ClientMater
       changes_requested_at: row.changes_requested_at as string | null,
     };
   });
+}
+
+/**
+ * Marca ou desmarca "feito" no calendário do portal. Só vale pra card do
+ * próprio cliente numa coluna liberada; a coluna e o ig_status não mudam.
+ */
+export async function setClientPostDone(clientId: string, cardId: string, done: boolean): Promise<void> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("backlog_cards")
+    .select("id, column:backlog_columns!inner(client_visible)")
+    .eq("id", cardId)
+    .eq("client_id", clientId)
+    .eq("column.client_visible", true)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return;
+  const { error: updateError } = await supabase
+    .from("backlog_cards")
+    .update({ client_done_at: done ? new Date().toISOString() : null })
+    .eq("id", cardId);
+  if (updateError) throw updateError;
 }
