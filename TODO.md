@@ -58,6 +58,32 @@ retomar sem reconstruir a investigação. Última revisão: 06/09/2026.
       25/10/2026 ("por enquanto"). Para separar: o portal passa a usar a data
       de `ig_publish_at` quando existir, e a entrega volta a ser anterior.
 
+## Repertório
+
+- [ ] **Conferir a primeira coleta real.** O leitor de RSS (`lib/rss.ts`)
+      foi testado com recortes no formato WordPress (o do GKPB, Propmark e
+      Meio & Mensagem), mas a máquina onde foi escrito não alcançava os
+      portais. Depois do deploy: "Atualizar agora" e olhar Repertório >
+      Fontes. O TecMundo (`rss.tecmundo.com.br/feed`) bloqueia leitura
+      automática no robots.txt; se responder 403, decidir entre apagar a
+      fonte ou deixá-la desligada.
+
+- [ ] **Mundo do Marketing sem feed.** O site (Framer) não respondeu em
+      `/feed` em 26/10/2026. Sem RSS, a alternativa é a newsletter de
+      quarta, fora do sistema. Ler o HTML da página de notícias quebraria a
+      cada mudança de layout.
+
+- [ ] **Fontes de fisioterapia.** O tema existe nas sugestões, mas ainda
+      não tem fonte. Perguntar ao cliente que portais ele lê.
+
+- [ ] **Busca ignora acento só parcialmente.** É `ilike`: "noticia" não
+      acha "notícia". Se incomodar, coluna gerada com `unaccent` e índice
+      trigram em `repertorio_noticias`.
+
+- [ ] **Limite de crons da Vercel.** O `vercel.json` agora tem dois crons
+      diários (lembretes e Repertório). Conferir se o plano aceita; se não,
+      o botão "Atualizar agora" cobre a coleta.
+
 ## Prospecção
 
 - [ ] **Lapidar a tabela de contatos.** Clicar num contato abre a ficha
