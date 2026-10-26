@@ -150,7 +150,8 @@ export type RoteiroJson = RoteiroAIDA | RoteiroPAS | RoteiroMidtrack | Roteiro6C
 
 export type PreenchimentoInicial = {
   comum: ComumParams;
-  framework: Framework;
+  /** Nulo quando o formulário vem de fora do histórico (notícia do Repertório). */
+  framework: Framework | null;
   tags: string[];
 };
 

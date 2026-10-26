@@ -3,6 +3,8 @@ import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import ChatRoteiro from "@/components/admin/roteiros/ChatRoteiro";
 import GeradorRoteiro from "@/components/admin/roteiros/GeradorRoteiro";
+import { getNoticia } from "@/lib/repertorio";
+import { preenchimentoDeNoticia } from "@/lib/repertorioTypes";
 import { clientesDoChat } from "@/lib/roteiroContexto";
 import { getRoteiro } from "@/lib/roteiros";
 import { preenchimentoDe } from "@/lib/roteiroTypes";
@@ -11,12 +13,15 @@ export default async function RoteirosPage({
   searchParams,
 }: PageProps<"/admin/roteiros">) {
   // ?de=<id> vem do "Usar como base" do histórico: abre o formulário
-  // preenchido com aquele roteiro, sem gerar nada.
-  const { de } = await searchParams;
-  const [base, clientes] = await Promise.all([
+  // preenchido com aquele roteiro, sem gerar nada. ?noticia=<id> vem do
+  // "Gerar roteiro" do Repertório: tema e contexto a partir da notícia.
+  const { de, noticia: noticiaId } = await searchParams;
+  const [base, noticia, clientes] = await Promise.all([
     typeof de === "string" ? getRoteiro(de) : null,
+    typeof noticiaId === "string" && typeof de !== "string" ? getNoticia(noticiaId) : null,
     clientesDoChat(),
   ]);
+  const inicial = base ? preenchimentoDe(base) : noticia ? preenchimentoDeNoticia(noticia) : null;
 
   return (
     // No desktop a página inteira cabe na janela (o cartão do admin tem 0,5rem
@@ -69,7 +74,19 @@ export default async function RoteirosPage({
       <div className="xl:grid xl:min-h-0 xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)] xl:grid-rows-[minmax(0,1fr)] xl:gap-6">
         <div className="xl:min-h-0 xl:overflow-y-auto xl:pr-1">
           {/* key: trocar de base remonta o formulário em vez de manter o anterior. */}
-          <GeradorRoteiro key={base?.id ?? "novo"} inicial={base ? preenchimentoDe(base) : null} />
+          {noticia && !base ? (
+            <p className="mb-4 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
+              Preenchido com uma notícia do{" "}
+              <Link href="/admin/repertorio" className="underline underline-offset-2">
+                Repertório
+              </Link>
+              : {noticia.titulo}. Falta escolher o objetivo e o framework.
+            </p>
+          ) : null}
+          <GeradorRoteiro
+            key={base?.id ?? (noticia ? `noticia-${noticia.id}` : "novo")}
+            inicial={inicial}
+          />
         </div>
 
         <aside aria-label="Chat de roteiros" className="relative hidden xl:block">
