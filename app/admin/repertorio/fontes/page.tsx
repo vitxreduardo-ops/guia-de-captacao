@@ -1,14 +1,27 @@
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { ErroRepertorio } from "@/components/admin/repertorio/ErroRepertorio";
 import { FontesManager } from "@/components/admin/repertorio/FontesManager";
 import { listFontes } from "@/lib/repertorio";
-import { TEMAS_SUGERIDOS } from "@/lib/repertorioTypes";
+import { TEMAS_SUGERIDOS, type Fonte } from "@/lib/repertorioTypes";
 
 export const dynamic = "force-dynamic";
 // Adicionar fonte já lê o feed: a action pode esperar o site responder.
 export const maxDuration = 60;
 
+const TRILHA = [
+  { label: "Admin", href: "/admin" },
+  { label: "Repertório", href: "/admin/repertorio" },
+  { label: "Fontes" },
+];
+
 export default async function RepertorioFontesPage() {
-  const fontes = await listFontes();
+  let fontes: Fonte[];
+  try {
+    fontes = await listFontes();
+  } catch (erro) {
+    console.error("Repertório: falha ao carregar fontes", erro);
+    return <ErroRepertorio erro={erro} title="Fontes" trail={TRILHA} />;
+  }
   const temas = [...new Set([...TEMAS_SUGERIDOS, ...fontes.map((f) => f.tema)])].sort((a, b) =>
     a.localeCompare(b, "pt-BR")
   );
@@ -17,11 +30,7 @@ export default async function RepertorioFontesPage() {
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col pb-10">
       <AdminHeader
         title="Fontes"
-        trail={[
-          { label: "Admin", href: "/admin" },
-          { label: "Repertório", href: "/admin/repertorio" },
-          { label: "Fontes" },
-        ]}
+        trail={TRILHA}
       />
 
       <p className="mb-4 max-w-[60ch] text-[13px] text-neutral-500">

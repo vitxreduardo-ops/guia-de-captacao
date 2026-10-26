@@ -170,6 +170,37 @@ export function preenchimentoDeNoticia(noticia: Noticia): PreenchimentoInicial {
   };
 }
 
+/**
+ * Erro do banco em linguagem de quem vai consertar. O mais comum é a
+ * migração não ter sido rodada: o PostgREST responde "Could not find the
+ * table ... in the schema cache" e o Postgres, "relation ... does not exist".
+ */
+export function explicarErro(mensagem: string): { titulo: string; acao: string } {
+  const faltaTabela = /schema cache|does not exist|não existe|PGRST205|42P01/i.test(mensagem);
+  if (faltaTabela && /repertorio_(fontes|noticias)/.test(mensagem)) {
+    return {
+      titulo: "As tabelas do Repertório ainda não existem no banco.",
+      acao: "No Supabase, abra o SQL Editor e rode o arquivo supabase/migrations/0098_repertorio.sql. Depois recarregue esta página.",
+    };
+  }
+  if (faltaTabela && /repertorio_destaques/.test(mensagem)) {
+    return {
+      titulo: "A tabela dos destaques da semana ainda não existe no banco.",
+      acao: "No Supabase, rode supabase/migrations/0099_repertorio_destaques.sql.",
+    };
+  }
+  if (/Supabase não configurado/i.test(mensagem)) {
+    return {
+      titulo: "O sistema não encontrou a conexão com o Supabase.",
+      acao: "Confira SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY nas variáveis de ambiente da Vercel.",
+    };
+  }
+  return {
+    titulo: "O Repertório não conseguiu carregar.",
+    acao: "Mande a mensagem abaixo para quem cuida do sistema.",
+  };
+}
+
 /** "há 3 h", "há 2 dias": quanto tempo faz a última coleta. */
 export function haQuanto(iso: string, agora = new Date()): string {
   const minutos = Math.max(0, Math.round((agora.getTime() - new Date(iso).getTime()) / 60000));

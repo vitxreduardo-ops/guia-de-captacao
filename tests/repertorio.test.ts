@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   agruparPorDia,
   diaDe,
+  explicarErro,
   haQuanto,
   lerPagina,
   lerVisao,
@@ -115,5 +116,20 @@ describe("lerVisao e lerPagina", () => {
     expect(lerPagina("-1")).toBe(1);
     expect(lerPagina("abc")).toBe(1);
     expect(lerPagina("99999")).toBe(500);
+  });
+});
+
+describe("explicarErro", () => {
+  it("reconhece tabela que falta, pelo PostgREST e pelo Postgres", () => {
+    expect(
+      explicarErro("Erro ao carregar fontes: Could not find the table 'public.repertorio_fontes' in the schema cache").acao
+    ).toContain("0098_repertorio.sql");
+    expect(explicarErro('relation "repertorio_noticias" does not exist').acao).toContain("0098_repertorio.sql");
+    expect(explicarErro('relation "repertorio_destaques" does not exist').acao).toContain("0099");
+  });
+
+  it("explica Supabase sem configuração e cai no genérico no resto", () => {
+    expect(explicarErro("Supabase não configurado: defina SUPABASE_URL").acao).toContain("SUPABASE_URL");
+    expect(explicarErro("timeout qualquer").titulo).toBe("O Repertório não conseguiu carregar.");
   });
 });
