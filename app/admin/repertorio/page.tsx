@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AtualizarAgora } from "@/components/admin/repertorio/AtualizarAgora";
 import { Destaques } from "@/components/admin/repertorio/Destaques";
+import { ErroRepertorio } from "@/components/admin/repertorio/ErroRepertorio";
 import { NoticiaItem } from "@/components/admin/repertorio/NoticiaItem";
 import { listFontes, listNoticias, temasDe } from "@/lib/repertorio";
 import { semanaAtual, ultimoDestaque } from "@/lib/repertorioDestaques";
@@ -16,6 +17,7 @@ import {
   lerPagina,
   lerVisao,
   rotuloDoDia,
+  type Fonte,
 } from "@/lib/repertorioTypes";
 
 export const dynamic = "force-dynamic";
@@ -27,9 +29,17 @@ const um = (valor: string | string[] | undefined) => (typeof valor === "string" 
 const ABA =
   "shrink-0 rounded-sm border-b-2 px-1 pb-2 text-sm focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none";
 
+const TRILHA = [{ label: "Admin", href: "/admin" }, { label: "Repertório" }];
+
 export default async function RepertorioPage({ searchParams }: PageProps<"/admin/repertorio">) {
   const params = await searchParams;
-  const fontes = await listFontes();
+  let fontes: Fonte[];
+  try {
+    fontes = await listFontes();
+  } catch (erro) {
+    console.error("Repertório: falha ao carregar fontes", erro);
+    return <ErroRepertorio erro={erro} title="Repertório" trail={TRILHA} />;
+  }
   const temas = temasDe(fontes);
   const pedido = um(params.tema);
   const tema = pedido && temas.includes(pedido) ? pedido : undefined;
@@ -40,16 +50,23 @@ export default async function RepertorioPage({ searchParams }: PageProps<"/admin
   // Destaques só na abertura de um tema: com filtro ou busca, a pessoa já
   // está procurando outra coisa e o resumo empurraria a lista pra baixo.
   const comDestaques = Boolean(tema) && visao === "todas" && !busca && pagina === 1;
-  const [{ noticias, temMais }, destaque] = await Promise.all([
-    listNoticias({ tema, visao, busca, pagina }),
-    comDestaques && tema
-      ? ultimoDestaque(tema).catch((err) => {
-          // Sem a migração 0099 a lista continua funcionando, só sem resumo.
-          console.error(err);
-          return undefined;
-        })
-      : undefined,
-  ]);
+  let carregado: [Awaited<ReturnType<typeof listNoticias>>, Awaited<ReturnType<typeof ultimoDestaque>> | undefined];
+  try {
+    carregado = await Promise.all([
+      listNoticias({ tema, visao, busca, pagina }),
+      comDestaques && tema
+        ? ultimoDestaque(tema).catch((err) => {
+            // Sem a migração 0099 a lista continua funcionando, só sem resumo.
+            console.error(err);
+            return undefined;
+          })
+        : undefined,
+    ]);
+  } catch (erro) {
+    console.error("Repertório: falha ao carregar notícias", erro);
+    return <ErroRepertorio erro={erro} title="Repertório" trail={TRILHA} />;
+  }
+  const [{ noticias, temMais }, destaque] = carregado;
 
   // O atalho só aparece pra quem enxerga Roteiros; pros outros, ia dar em /admin.
   const session = await getCurrentSession();
@@ -84,7 +101,7 @@ export default async function RepertorioPage({ searchParams }: PageProps<"/admin
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col pb-10">
-      <AdminHeader title="Repertório" trail={[{ label: "Admin", href: "/admin" }, { label: "Repertório" }]} />
+      <AdminHeader title="Repertório" trail={TRILHA} />
 
       <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-1">
