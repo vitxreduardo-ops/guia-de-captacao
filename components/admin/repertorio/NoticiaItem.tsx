@@ -93,7 +93,9 @@ export function NoticiaItem({
           <Check className="size-4" aria-hidden />
           {lida ? "Lida" : "Marcar como lida"}
         </button>
-        {acoes}
+        {/* Fragment: o elemento vem de fora, e sem ele o React cobra `key`
+            como se fosse item de lista entre os botões daqui. */}
+        <>{acoes}</>
       </div>
 
       {erro ? (

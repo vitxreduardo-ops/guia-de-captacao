@@ -1,4 +1,4 @@
-import { Rss, Search } from "lucide-react";
+import { Rss, ScrollText, Search } from "lucide-react";
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AtualizarAgora } from "@/components/admin/repertorio/AtualizarAgora";
@@ -6,6 +6,7 @@ import { Destaques } from "@/components/admin/repertorio/Destaques";
 import { NoticiaItem } from "@/components/admin/repertorio/NoticiaItem";
 import { listFontes, listNoticias, temasDe } from "@/lib/repertorio";
 import { semanaAtual, ultimoDestaque } from "@/lib/repertorioDestaques";
+import { getCurrentSession } from "@/lib/session";
 import {
   VISOES,
   VISAO_ROTULO,
@@ -49,6 +50,12 @@ export default async function RepertorioPage({ searchParams }: PageProps<"/admin
         })
       : undefined,
   ]);
+
+  // O atalho só aparece pra quem enxerga Roteiros; pros outros, ia dar em /admin.
+  const session = await getCurrentSession();
+  const podeRoteiro =
+    session !== null &&
+    (session.role === "admin" || session.allowedSections === null || session.allowedSections.includes("roteiros"));
 
   const ativas = fontes.filter((f) => f.ativa);
   const ultimaColeta = ativas
@@ -206,7 +213,21 @@ export default async function RepertorioPage({ searchParams }: PageProps<"/admin
               <ul className="divide-y divide-neutral-100">
                 {grupo.noticias.map((noticia) => (
                   <li key={noticia.id}>
-                    <NoticiaItem noticia={noticia} mostrarTema={!tema && temas.length > 1} />
+                    <NoticiaItem
+                      noticia={noticia}
+                      mostrarTema={!tema && temas.length > 1}
+                      acoes={
+                        podeRoteiro ? (
+                          <Link
+                            href={`/admin/roteiros?noticia=${noticia.id}`}
+                            className="inline-flex min-h-10 items-center gap-1.5 rounded-md px-2 text-xs text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none sm:min-h-0 sm:py-1"
+                          >
+                            <ScrollText className="size-4" aria-hidden />
+                            Gerar roteiro
+                          </Link>
+                        ) : null
+                      }
+                    />
                   </li>
                 ))}
               </ul>

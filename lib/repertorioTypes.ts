@@ -1,5 +1,7 @@
 // Tipos e regras do Repertório que valem nos dois lados (servidor e tela).
 
+import type { PreenchimentoInicial } from "@/lib/roteiroTypes";
+
 export type Fonte = {
   id: string;
   nome: string;
@@ -125,6 +127,47 @@ export function agruparPorDia<T extends Pick<Noticia, "publicadoEm" | "coletadoE
     else grupos.push({ dia, noticias: [noticia] });
   }
   return grupos;
+}
+
+/**
+ * Formulário do gerador de roteiros a partir de uma notícia. O Repertório só
+ * entrega o tema e o contexto; objetivo e framework ficam com quem vai gerar,
+ * porque a mesma notícia serve a vídeos com propósitos diferentes.
+ *
+ * O contexto separa o que veio da fonte do resto: o prompt do gerador já
+ * proíbe inventar fatos, e aqui fica escrito qual é o fato.
+ */
+export function preenchimentoDeNoticia(noticia: Noticia): PreenchimentoInicial {
+  const dia = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: FUSO,
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(quandoDe(noticia)));
+  const contexto = [
+    `Notícia usada como gancho (${noticia.fonte.nome}, ${dia}):`,
+    noticia.titulo,
+    noticia.resumo,
+    `Link: ${noticia.url}`,
+    "",
+    "Use como fato só o que está escrito acima. O resto do roteiro é leitura de quem trabalha com marketing, não informação da matéria.",
+  ]
+    .filter((linha, i) => linha !== "" || i === 4)
+    .join("\n");
+
+  return {
+    comum: {
+      tema: noticia.titulo.slice(0, 200),
+      objetivo: "",
+      contexto,
+      duracaoSegundos: 60,
+      tom: "",
+      nicho: "",
+      nichoCustom: "",
+    },
+    framework: null,
+    tags: ["repertório"],
+  };
 }
 
 /** "há 3 h", "há 2 dias": quanto tempo faz a última coleta. */

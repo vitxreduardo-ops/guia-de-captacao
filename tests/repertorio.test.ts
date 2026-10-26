@@ -5,6 +5,7 @@ import {
   haQuanto,
   lerPagina,
   lerVisao,
+  preenchimentoDeNoticia,
   rotuloDoDia,
   termosDaBusca,
 } from "@/lib/repertorioTypes";
@@ -66,6 +67,43 @@ describe("haQuanto", () => {
     expect(haQuanto("2026-10-26T09:00:00Z", agora)).toBe("há 3 h");
     expect(haQuanto("2026-10-25T10:00:00Z", agora)).toBe("há 1 dia");
     expect(haQuanto("2026-10-22T12:00:00Z", agora)).toBe("há 4 dias");
+  });
+});
+
+describe("preenchimentoDeNoticia", () => {
+  const noticia = {
+    id: "n1",
+    url: "https://gkpb.com.br/200004/aussie-campanha/",
+    titulo: "Aussie transforma dificuldade de pronunciar o próprio nome em campanha",
+    resumo: "A marca assume o jeito errado de falar.",
+    publicadoEm: "2026-10-23T02:00:00Z",
+    coletadoEm: "2026-10-26T09:00:00Z",
+    guardada: false,
+    lida: false,
+    fonte: { id: "f", nome: "GKPB", tema: "Marketing" },
+  };
+
+  it("leva tema e contexto, deixa objetivo e framework pra quem gera", () => {
+    const { comum, framework, tags } = preenchimentoDeNoticia(noticia);
+    expect(comum.tema).toBe(noticia.titulo);
+    expect(comum.objetivo).toBe("");
+    expect(framework).toBeNull();
+    expect(tags).toEqual(["repertório"]);
+  });
+
+  it("escreve no contexto o que é fato da fonte, com data local e link", () => {
+    const { contexto } = preenchimentoDeNoticia(noticia).comum;
+    // 02:00 UTC do dia 23 ainda é dia 22 em Brasília.
+    expect(contexto).toContain("(GKPB, 22 de outubro de 2026)");
+    expect(contexto).toContain(noticia.resumo);
+    expect(contexto).toContain(`Link: ${noticia.url}`);
+    expect(contexto).toContain("Use como fato só o que está escrito acima.");
+  });
+
+  it("não deixa linha vazia quando a notícia não tem resumo", () => {
+    const { contexto } = preenchimentoDeNoticia({ ...noticia, resumo: "" }).comum;
+    expect(contexto).not.toMatch(/\n\n\n/);
+    expect(contexto.split("\n")[2]).toBe(`Link: ${noticia.url}`);
   });
 });
 
