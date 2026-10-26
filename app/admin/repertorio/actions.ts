@@ -10,6 +10,8 @@ import {
   marcarNoticia,
   updateFonte,
 } from "@/lib/repertorio";
+import { gerarDestaques } from "@/lib/repertorioDestaques";
+import type { DestaquesDaSemana } from "@/lib/repertorioIa";
 import type { ResultadoColeta } from "@/lib/repertorioTypes";
 import { feedPermitido } from "@/lib/rss";
 import { requireTeam } from "@/lib/session";
@@ -123,6 +125,20 @@ export async function coletarFonteAction(id: string): Promise<Resultado<{ novas:
     return { ok: true, data: { novas } };
   } catch (err) {
     revalidar();
+    return { ok: false, error: mensagem(err) };
+  }
+}
+
+/** Destaques da semana de um tema, pela IA. Sob demanda: só gasta quando alguém pede. */
+export async function gerarDestaquesAction(tema: string): Promise<Resultado<DestaquesDaSemana>> {
+  await requireTeam("repertorio");
+  const limpo = typeof tema === "string" ? tema.trim().slice(0, 60) : "";
+  if (!limpo) return { ok: false, error: "Escolha um tema." };
+  try {
+    const destaques = await gerarDestaques(limpo);
+    revalidatePath("/admin/repertorio");
+    return { ok: true, data: destaques };
+  } catch (err) {
     return { ok: false, error: mensagem(err) };
   }
 }

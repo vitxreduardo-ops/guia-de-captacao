@@ -2,8 +2,10 @@ import { Rss, Search } from "lucide-react";
 import Link from "next/link";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AtualizarAgora } from "@/components/admin/repertorio/AtualizarAgora";
+import { Destaques } from "@/components/admin/repertorio/Destaques";
 import { NoticiaItem } from "@/components/admin/repertorio/NoticiaItem";
 import { listFontes, listNoticias, temasDe } from "@/lib/repertorio";
+import { semanaAtual, ultimoDestaque } from "@/lib/repertorioDestaques";
 import {
   VISOES,
   VISAO_ROTULO,
@@ -34,7 +36,19 @@ export default async function RepertorioPage({ searchParams }: PageProps<"/admin
   const busca = (um(params.q) ?? "").trim().slice(0, 100);
   const pagina = lerPagina(params.pagina);
 
-  const { noticias, temMais } = await listNoticias({ tema, visao, busca, pagina });
+  // Destaques só na abertura de um tema: com filtro ou busca, a pessoa já
+  // está procurando outra coisa e o resumo empurraria a lista pra baixo.
+  const comDestaques = Boolean(tema) && visao === "todas" && !busca && pagina === 1;
+  const [{ noticias, temMais }, destaque] = await Promise.all([
+    listNoticias({ tema, visao, busca, pagina }),
+    comDestaques && tema
+      ? ultimoDestaque(tema).catch((err) => {
+          // Sem a migração 0098 a lista continua funcionando, só sem resumo.
+          console.error(err);
+          return undefined;
+        })
+      : undefined,
+  ]);
 
   const ativas = fontes.filter((f) => f.ativa);
   const ultimaColeta = ativas
@@ -154,6 +168,12 @@ export default async function RepertorioPage({ searchParams }: PageProps<"/admin
           </label>
         </form>
       </div>
+
+      {comDestaques && tema && destaque !== undefined ? (
+        <div className="mt-3">
+          <Destaques key={tema} tema={tema} inicial={destaque} semanaAtual={semanaAtual()} />
+        </div>
+      ) : null}
 
       {noticias.length === 0 ? (
         <p className="mt-4 rounded-lg border border-dashed border-neutral-300 px-4 py-8 text-center text-sm text-neutral-500">

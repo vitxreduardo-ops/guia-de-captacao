@@ -149,14 +149,19 @@ export async function getNoticia(id: string): Promise<Noticia | null> {
   return paraNoticia(data as unknown as LinhaNoticia);
 }
 
-/** Notícias de um tema desde uma data, para os destaques da semana. */
+/**
+ * Notícias de um tema desde uma data, para os destaques da semana. Vale a
+ * data do feed: a primeira coleta de uma fonte traz matérias de semanas
+ * atrás, todas com coletado_em de hoje. Só sem data no feed usa a coleta.
+ */
 export async function noticiasDoTemaDesde(tema: string, desde: string, limite: number): Promise<Noticia[]> {
   const { data, error } = await getSupabaseServerClient()
     .from(NOTICIAS)
     .select(SELECT_NOTICIA)
     .eq("fonte.ativa", true)
     .eq("fonte.tema", tema)
-    .gte("coletado_em", desde)
+    // Data entre aspas: o PostgREST trata `.` e `:` do ISO como texto.
+    .or(`publicado_em.gte."${desde}",and(publicado_em.is.null,coletado_em.gte."${desde}")`)
     .order("publicado_em", { ascending: false, nullsFirst: false })
     .limit(limite);
   if (error) throw new Error(`Erro ao carregar notícias: ${error.message}`);
