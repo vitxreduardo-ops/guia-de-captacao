@@ -52,7 +52,7 @@ async function review(cardId: string, feedback: string | null) {
   // Segue para o próximo material que ainda não recebeu decisão; sem mais
   // nenhum, volta para a lista.
   const cards = await listPortalCards(reviewer.clientId);
-  const next = cards.find((c) => c.id !== cardId && !c.approved_at && !c.changes_requested_at);
+  const next = cards.find((c) => c.in_review && c.id !== cardId && !c.approved_at && !c.changes_requested_at);
   redirect(next ? `/cliente/materiais?abrir=${next.id}` : "/cliente/materiais");
 }
 
@@ -95,7 +95,7 @@ export async function addIdeaAction(formData: FormData) {
 
 /**
  * Conecta os arquivos que já estão no Drive a um material, pela prévia do
- * portal. Só a equipe: `getPortalSession` só devolve `preview` para admin, e o
+ * portal. Só a equipe: `getPortalSession` só devolve `preview` pra admin e membro, e o
  * cliente que chegar aqui não faz nada. Os ids passam pelo filtro da galeria
  * do cliente, então nunca entra arquivo de outro.
  */

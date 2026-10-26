@@ -22,6 +22,8 @@ export interface PortalCard {
   approver: { username: string; role: string } | null;
   guide: { slug: string; title: string } | null;
   column: { name: string; color: string } | null;
+  /** Já chegou na coluna Aprovação (ou depois): é material pra revisar. */
+  in_review: boolean;
 }
 
 export interface PortalClient {
@@ -64,12 +66,12 @@ export async function requireReviewer(): Promise<{
   if (!preview && viewerId) return { userId: viewerId, clientId, byTeam: false };
 
   const session = await getCurrentSession();
-  if (!session || session.role !== "admin") redirect("/cliente/sair");
+  if (!session || session.role === "client") redirect("/cliente/sair");
   return { userId: session.userId, clientId, byTeam: true };
 }
 
 /**
- * Quem está olhando o portal e de qual cliente: o cliente logado, ou um admin
+ * Quem está olhando o portal e de qual cliente: o cliente logado, ou alguém da equipe
  * em "ver como o cliente" (cookie de prévia, só leitura). Sessão que não é
  * nenhuma das duas volta pro login — o proxy já barra, mas a página não deve
  * confiar só nele.
@@ -92,12 +94,21 @@ export async function getPortalSession(): Promise<{
       viewerName: user.full_name.split(" ")[0] || null,
     };
   }
-  if (user?.role === "admin") {
+  // Equipe (admin ou membro) usa a prévia; membro só de cliente do seu escopo.
+  if (user && user.role !== "client") {
     const clientId = (await cookies()).get(PREVIEW_COOKIE)?.value;
     // Sem cliente escolhido o admin vê a lista pra escolher, em vez de ser
     // mandado de volta ao painel (era o que acontecia ao reabrir o portal
     // pelo ícone da Tela de Início ou por uma notificação).
     if (!clientId) redirect("/cliente/escolher");
+    // Cookie dura 30 dias: o cliente pode ter sido apagado nesse meio tempo.
+    const { data } = await getSupabaseServerClient()
+      .from("gallery_clients")
+      .select("id")
+      .eq("id", clientId)
+      .maybeSingle();
+    const scope = user.role === "admin" ? null : user.allowed_client_ids;
+    if (!data || (scope !== null && !scope.includes(clientId))) redirect("/cliente/escolher");
     return { clientId, preview: true, viewerId: null, viewerName: null };
   }
   redirect("/cliente/sair");
@@ -114,12 +125,30 @@ export async function getPortalClient(clientId: string): Promise<PortalClient> {
   return data as PortalClient;
 }
 
+/**
+ * Posição da coluna "Aprovação" no quadro de entregas: dali em diante o card
+ * é material pra revisar; antes disso (Briefado, produção, edição) só aparece
+ * no calendário. Casada por nome porque o admin pode recriar a coluna. Sem
+ * ela, tudo que é visível conta, como antes.
+ */
+export async function getReviewStartPosition(): Promise<number> {
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("backlog_columns")
+    .select("name, position")
+    .eq("board", "entregas");
+  if (error) throw error;
+  const plain = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").trim().toLowerCase();
+  return (data ?? []).find((c) => plain(c.name as string) === "aprovacao")?.position ?? -Infinity;
+}
+
 export async function listPortalCards(clientId: string): Promise<PortalCard[]> {
   const supabase = getSupabaseServerClient();
+  const reviewFrom = await getReviewStartPosition();
   const { data, error } = await supabase
     .from("backlog_cards")
     .select(
-      "id, title, format, cover_url, drive_url, caption, post_date, approved_at, changes_requested_at, client_feedback, media_image_ids, approver:approved_by(username, role), guide:guides(slug, title, status), column:backlog_columns!inner(name, color, client_visible)"
+      "id, title, format, cover_url, drive_url, caption, post_date, approved_at, changes_requested_at, client_feedback, media_image_ids, approver:approved_by(username, role), guide:guides(slug, title, status), column:backlog_columns!inner(name, color, client_visible, position)"
     )
     .eq("client_id", clientId)
     .eq("column.client_visible", true)
@@ -138,6 +167,7 @@ export async function listPortalCards(clientId: string): Promise<PortalCard[]> {
           ? { slug: guide.slug, title: guide.title }
           : null,
       column: row.column as unknown as PortalCard["column"],
+      in_review: ((row.column as unknown as { position: number }).position ?? 0) >= reviewFrom,
       approver: row.approver as unknown as PortalCard["approver"],
     } as PortalCard;
   });

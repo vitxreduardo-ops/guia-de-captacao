@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
+import { getCurrentClientScope } from "@/lib/clientAccess";
 import { PREVIEW_COOKIE } from "@/lib/clientPortal";
 import { getCurrentSession } from "@/lib/session";
 
@@ -10,7 +10,8 @@ import { getCurrentSession } from "@/lib/session";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const session = await getCurrentSession();
-  if (session?.role !== "admin") {
+  // Equipe toda (admin e membro); o escopo de clientes é checado abaixo.
+  if (!session || session.role === "client") {
     return NextResponse.redirect(new URL("/admin/login", url));
   }
 
@@ -24,7 +25,10 @@ export async function GET(request: Request) {
   }
 
   const clientId = url.searchParams.get("cliente") ?? "";
-  assertClientAllowed(await getCurrentClientScope(), clientId);
+  const scope = await getCurrentClientScope();
+  if (scope !== null && !scope.includes(clientId)) {
+    return NextResponse.redirect(new URL("/cliente/escolher", url));
+  }
   const response = NextResponse.redirect(new URL("/cliente", url));
   response.cookies.set(PREVIEW_COOKIE, clientId, {
     httpOnly: true,

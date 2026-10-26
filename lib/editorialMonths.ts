@@ -80,6 +80,11 @@ export function monthWeeks(year: number, month: number): (number | null)[][] {
   return Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, w * 7 + 7));
 }
 
+/** "Hoje" em `YYYY-MM-DD`, pelo relógio de Brasília (o servidor roda em UTC). */
+export function todayISO(now: Date = new Date()): string {
+  return now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+}
+
 /** "Amanhã" em `YYYY-MM-DD`, pelo relógio de Brasília (o cron roda em UTC). */
 export function tomorrowISO(now: Date = new Date()): string {
   const today = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });

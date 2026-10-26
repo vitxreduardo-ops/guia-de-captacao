@@ -1,5 +1,6 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getReviewStartPosition } from "@/lib/clientPortal";
 import { nextMonths } from "@/lib/editorialMonths";
 
 export interface ClientAreaSummary {
@@ -19,7 +20,7 @@ export async function getClientAreaSummaries(): Promise<Record<string, ClientAre
   const first = (m: { year: number; month: number }) =>
     `${m.year}-${String(m.month).padStart(2, "0")}-01`;
 
-  const [ideas, cards] = await Promise.all([
+  const [ideas, cards, reviewFrom] = await Promise.all([
     supabase
       .from("editorial_ideas")
       .select("client_id")
@@ -27,10 +28,11 @@ export async function getClientAreaSummaries(): Promise<Record<string, ClientAre
       .lte("month", first(span[2])),
     supabase
       .from("backlog_cards")
-      .select("client_id, column:backlog_columns!inner(client_visible)")
+      .select("client_id, column:backlog_columns!inner(client_visible, position)")
       .not("client_id", "is", null)
       .is("approved_at", null)
       .eq("column.client_visible", true),
+    getReviewStartPosition(),
   ]);
   if (ideas.error) throw ideas.error;
   if (cards.error) throw cards.error;
@@ -38,7 +40,10 @@ export async function getClientAreaSummaries(): Promise<Record<string, ClientAre
   const out: Record<string, ClientAreaSummary> = {};
   const slot = (id: string) => (out[id] ??= { ideas: 0, waiting: 0 });
   for (const row of ideas.data ?? []) slot(row.client_id).ideas++;
-  for (const row of cards.data ?? []) slot(row.client_id as string).waiting++;
+  for (const row of cards.data ?? []) {
+    const { position } = row.column as unknown as { position: number };
+    if (position >= reviewFrom) slot(row.client_id as string).waiting++;
+  }
   return out;
 }
 

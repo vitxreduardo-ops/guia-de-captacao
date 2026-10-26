@@ -18,7 +18,7 @@ const HEADING = { fontFamily: "Bootzy, sans-serif", letterSpacing: "0.02em" };
  */
 export default async function EscolherClientePage() {
   const session = await getCurrentSession();
-  if (session?.role !== "admin") redirect("/cliente/sair");
+  if (!session || session.role === "client") redirect("/cliente/sair");
 
   const [clients, logos] = await Promise.all([
     listGalleryClients({ clientScope: await getCurrentClientScope() }),
@@ -32,7 +32,7 @@ export default async function EscolherClientePage() {
           Ver o portal como…
         </h1>
         <p className="mt-2 text-[var(--tatu-muted)]">
-          Escolha o cliente. A visualização é só de leitura e o app lembra a sua escolha.
+          Escolha o cliente. O que você fizer na visualização fica registrado como da equipe, e o app lembra a sua escolha.
         </p>
       </header>
 

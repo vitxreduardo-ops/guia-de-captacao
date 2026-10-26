@@ -19,6 +19,7 @@ export function IdeaForm({
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [done, setDone] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [pending, startTransition] = useTransition();
 
   return (
@@ -44,8 +45,15 @@ export function IdeaForm({
             if (readOnly) return;
             const form = event.currentTarget;
             const data = new FormData(form);
+            setFailed(false);
             startTransition(async () => {
-              await addIdeaAction(data);
+              try {
+                await addIdeaAction(data);
+              } catch {
+                // O texto fica no formulário pra tentar de novo.
+                setFailed(true);
+                return;
+              }
               form.reset();
               dialog.current?.close();
               setDone(true);
@@ -102,6 +110,11 @@ export function IdeaForm({
             className="w-full rounded-xl border border-[var(--tatu-border)] bg-white p-3"
           />
 
+          {failed ? (
+            <p role="alert" className="text-sm font-semibold text-[#a3401a]">
+              Não foi possível enviar. Tente de novo.
+            </p>
+          ) : null}
           {readOnly ? (
             <p className="text-sm text-[var(--tatu-muted)]">
               Indisponível na visualização do painel.

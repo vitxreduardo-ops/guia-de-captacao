@@ -24,6 +24,7 @@ export interface PlannerPost {
 const FORMAT_COLORS: Record<BacklogFormat, string> = {
   reel: "#2f6b4f",
   carrossel: "#9a5f12",
+  card: "#7a3b6b",
   story: "#3e5c9a",
   foto: "#8a4b2d",
 };

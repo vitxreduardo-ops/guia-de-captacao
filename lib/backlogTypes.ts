@@ -6,12 +6,13 @@ import type { ServiceOption } from "@/lib/billingTypes";
 
 export type { ServiceOption };
 
-export const BACKLOG_FORMATS = ["reel", "carrossel", "foto", "story"] as const;
+export const BACKLOG_FORMATS = ["reel", "carrossel", "card", "foto", "story"] as const;
 export type BacklogFormat = (typeof BACKLOG_FORMATS)[number];
 
 export const BACKLOG_FORMAT_LABELS: Record<BacklogFormat, string> = {
   reel: "Reel",
   carrossel: "Carrossel",
+  card: "Card",
   foto: "Foto",
   story: "Story",
 };
