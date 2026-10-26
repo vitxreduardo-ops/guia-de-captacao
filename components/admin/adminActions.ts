@@ -11,6 +11,7 @@ import {
   LayoutGrid,
   Network,
   Library,
+  Newspaper,
   PenLine,
   Receipt,
   ScrollText,
@@ -44,6 +45,7 @@ const ACTIONS: AdminAction[] = [
   { href: "/admin/agenda", label: "Agenda", icon: CalendarClock },
   { href: "/admin/lettering", label: "Lettering", icon: PenLine },
   { href: "/admin/roteiros", label: "Roteiros", icon: ScrollText },
+  { href: "/admin/repertorio", label: "Repertório", icon: Newspaper },
 ];
 
 const ADMIN_ONLY_ACTIONS: AdminAction[] = [
