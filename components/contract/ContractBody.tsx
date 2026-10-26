@@ -113,9 +113,12 @@ function Trecho({
     <>
       {text.split(PLACEHOLDER).map((parte, i) =>
         i % 2 === 1 ? (
-          <button
+          // `span` e não `button`: botão é sempre inline-block e centralizado,
+          // então um trecho preenchido longo virava um bloco no meio da linha.
+          <span
             key={i}
-            type="button"
+            role="button"
+            tabIndex={0}
             data-ph
             title={
               parte.startsWith(PREENCHIDO_ABRE)
@@ -125,14 +128,19 @@ function Trecho({
             onClick={(e) =>
               onPlaceholder(parte.replace(MARCAS, ""), e.currentTarget)
             }
-            className={`cursor-pointer rounded px-0.5 font-medium underline decoration-dotted underline-offset-2 ${
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" && e.key !== " ") return;
+              e.preventDefault();
+              onPlaceholder(parte.replace(MARCAS, ""), e.currentTarget);
+            }}
+            className={`cursor-pointer rounded box-decoration-clone px-0.5 font-medium underline decoration-dotted underline-offset-2 ${
               parte.startsWith(PREENCHIDO_ABRE)
                 ? "bg-emerald-100 text-emerald-800 decoration-emerald-400 hover:bg-emerald-200"
                 : "bg-red-100 text-red-700 decoration-red-400 hover:bg-red-200"
             }`}
           >
             {parte.replace(MARCAS, "")}
-          </button>
+          </span>
         ) : (
           parte
         ),
