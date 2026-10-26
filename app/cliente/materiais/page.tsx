@@ -28,7 +28,7 @@ export default async function MateriaisPage({
   const query = await searchParams;
   const showApproved = query.v === "aprovados";
   const open = query.abrir;
-  const cards = await listPortalCards(clientId);
+  const cards = (await listPortalCards(clientId)).filter((c) => c.in_review);
   const media = await listMediaForCards(clientId, cards);
   // Só a equipe (prévia) conecta arquivos; o cliente nem recebe a lista.
   const pickerImages = preview ? toPickerImages((await getGalleryClientWithImages(clientId))?.images ?? []) : null;

@@ -817,6 +817,11 @@ export function BacklogCardDrawer({
                   {clientField}
                   {guideField}
                 </div>
+                {/* Fora da seção do Instagram: escondido ali, o card ficava
+                    "Reel" por padrão e o portal mostrava o formato errado. */}
+                <div className="grid grid-cols-2 gap-3">
+                  {formatField}
+                </div>
                 {assigneesField}
 
                 {/* Captação antes da entrega: é a ordem em que acontece. */}
@@ -885,10 +890,9 @@ export function BacklogCardDrawer({
                     continuam no formulário e são salvos mesmo recolhidos. */}
                 <details className="rounded-md border border-neutral-200 p-3">
                   <summary className="cursor-pointer text-xs font-medium text-neutral-600">
-                    Instagram (formato, capa, legenda, tags)
+                    Instagram (capa, legenda, tags)
                   </summary>
                   <div className="mt-3 flex flex-col gap-4">
-                    {formatField}
                     {coverField}
                     {whatsappField}
                     {tagsField}

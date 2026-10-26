@@ -104,3 +104,13 @@ describe("tomorrowISO", () => {
     expect(tomorrowISO(new Date("2026-12-31T15:00:00Z"))).toBe("2027-01-01");
   });
 });
+
+import { todayISO } from "@/lib/editorialMonths";
+
+describe("todayISO", () => {
+  it("usa o dia de Brasília, não o de UTC", () => {
+    // 01:00 UTC de 01/11 ainda é 22:00 de 31/10 em Brasília
+    expect(todayISO(new Date("2026-11-01T01:00:00Z"))).toBe("2026-10-31");
+    expect(todayISO(new Date("2026-11-01T15:00:00Z"))).toBe("2026-11-01");
+  });
+});

@@ -3,6 +3,7 @@
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { COOKIE_NAME, createSessionCookieValue } from "@/lib/auth";
+import { PREVIEW_COOKIE } from "@/lib/clientPortal";
 import { getUserByUsername, verifyPassword } from "@/lib/users";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
 
@@ -44,6 +45,8 @@ export async function login(formData: FormData) {
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
   });
+  // Prévia que um admin deixou neste navegador não vale pra outro login.
+  if (user.role === "client") cookieStore.delete(PREVIEW_COOKIE);
 
   // O cookie é por subdomínio: admin que entra pelo cliente.* fica no portal
   // (a prévia), em vez de ser mandado pro sistema.* onde não está logado.
@@ -54,5 +57,6 @@ export async function login(formData: FormData) {
 export async function logout() {
   const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
+  cookieStore.delete(PREVIEW_COOKIE);
   redirect("/admin/login");
 }

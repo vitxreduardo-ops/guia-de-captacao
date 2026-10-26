@@ -146,7 +146,8 @@ export function buildContainerParams(input: PublishInput): {
   if (urls.length === 0) throw new Error("Card sem mídia pública pra publicar.");
   const isVideo = (u: string) => VIDEO_EXT.test(u);
 
-  if (format === "carrossel") {
+  // Card com mais de uma arte sai como carrossel; com uma, como foto.
+  if (format === "carrossel" || (format === "card" && urls.length > 1)) {
     if (urls.length < 2 || urls.length > 20) {
       throw new Error("Carrossel precisa de 2 a 20 mídias.");
     }

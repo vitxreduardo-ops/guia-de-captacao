@@ -4,7 +4,7 @@ import { CreatorTag } from "@/components/CreatorTag";
 import { listClientPosts } from "@/lib/clientArea";
 import { getPortalSession } from "@/lib/clientPortal";
 import { listIdeas } from "@/lib/editorialCalendar";
-import { groupByMonth, MONTH_NAMES, nextMonths } from "@/lib/editorialMonths";
+import { groupByMonth, MONTH_NAMES, nextMonths, todayISO } from "@/lib/editorialMonths";
 import { IdeaForm } from "../IdeaForm";
 import { MonthPlanner } from "./MonthPlanner";
 
@@ -33,8 +33,9 @@ export default async function CalendarioPage({
 }) {
   const { clientId, preview, viewerId } = await getPortalSession();
   const params = await searchParams;
-  const now = new Date();
-  const today = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+  const today = todayISO();
+  // Meio-dia da data de Brasília: getMonth()/getFullYear() acertam em qualquer fuso.
+  const now = new Date(`${today}T12:00:00`);
   const year = Number(params.ano) || now.getFullYear();
   const monthly = params.vista !== "ano";
   const month = Math.min(12, Math.max(1, Number(params.mes) || now.getMonth() + 1));

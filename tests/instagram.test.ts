@@ -26,6 +26,12 @@ describe("buildContainerParams", () => {
     expect(plan.children![1]).toMatchObject({ media_type: "VIDEO", video_url: "https://x/b.mp4" });
     expect(plan.main.media_type).toBe("CAROUSEL");
   });
+  it("card com várias artes vira carrossel; com uma, foto", () => {
+    const many = buildContainerParams({ format: "card", urls: ["https://x/a.jpg", "https://x/b.jpg"], caption: "c" });
+    expect(many.main.media_type).toBe("CAROUSEL");
+    const one = buildContainerParams({ format: "card", urls: ["https://x/a.jpg"], caption: "c" });
+    expect(one.main).toEqual({ image_url: "https://x/a.jpg", caption: "c" });
+  });
   it("carrossel com 1 mídia ou sem mídia falha", () => {
     expect(() => buildContainerParams({ format: "carrossel", urls: ["a"], caption: "" })).toThrow();
     expect(() => buildContainerParams({ format: "foto", urls: [], caption: "" })).toThrow();

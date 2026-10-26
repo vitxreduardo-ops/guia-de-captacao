@@ -33,11 +33,13 @@ export function AttachMediaProvider({
   const [selected, setSelected] = useState<string[]>([]);
   const [link, setLink] = useState("");
   const [pending, startTransition] = useTransition();
+  const [failed, setFailed] = useState(false);
 
   function open(next: Target) {
     setTarget(next);
     setSelected(next.mediaIds);
     setLink(next.driveUrl);
+    setFailed(false);
     dialog.current?.showModal();
   }
 
@@ -86,6 +88,12 @@ export function AttachMediaProvider({
             />
           </label>
 
+          {failed ? (
+            <p role="alert" className="text-sm font-medium text-red-700">
+              Não foi possível salvar. Tente de novo.
+            </p>
+          ) : null}
+
           <div className="flex gap-2">
             <button
               type="button"
@@ -93,8 +101,13 @@ export function AttachMediaProvider({
               onClick={() =>
                 startTransition(async () => {
                   if (!target) return;
-                  await attachMaterialMediaAction(target.id, selected, link);
-                  dialog.current?.close();
+                  setFailed(false);
+                  try {
+                    await attachMaterialMediaAction(target.id, selected, link);
+                    dialog.current?.close();
+                  } catch {
+                    setFailed(true);
+                  }
                 })
               }
               className="min-h-11 rounded-md bg-neutral-900 px-4 text-sm font-medium text-white disabled:opacity-50"

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { TatuLogo } from "@/components/TatuLogo";
 import { logout } from "@/app/admin/login/actions";
 import { PREVIEW_COOKIE } from "@/lib/clientPortal";
+import { getCurrentSession } from "@/lib/session";
 import { PortalNav } from "./PortalNav";
 
 export const metadata = {
@@ -11,7 +12,10 @@ export const metadata = {
 };
 
 export default async function ClienteLayout({ children }: { children: React.ReactNode }) {
-  const preview = Boolean((await cookies()).get(PREVIEW_COOKIE)?.value);
+  // Cookie sozinho não basta: um cliente que entra num navegador onde o admin
+  // usou a prévia veria a faixa da equipe e ficaria sem o botão Sair.
+  const role = (await getCurrentSession())?.role;
+  const preview = Boolean(role && role !== "client" && (await cookies()).get(PREVIEW_COOKIE)?.value);
 
   return (
     <div
@@ -23,7 +27,7 @@ export default async function ClienteLayout({ children }: { children: React.Reac
     >
       {preview ? (
         <div className="flex items-center justify-between gap-3 bg-[var(--tatu-ink)] px-[var(--gutter)] pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] text-sm text-[var(--tatu-cream)]">
-          <span>Visualização do portal como o cliente o vê. Somente leitura.</span>
+          <span>Visualização do portal como o cliente o vê. O que você fizer aqui fica registrado como da equipe.</span>
           <span className="flex shrink-0 items-center gap-4">
             <Link href="/cliente/escolher" className="whitespace-nowrap font-semibold underline underline-offset-4">
               Trocar cliente

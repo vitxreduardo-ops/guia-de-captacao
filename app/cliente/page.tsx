@@ -8,7 +8,7 @@ import {
 } from "@/lib/clientPortal";
 import { CreatorTag } from "@/components/CreatorTag";
 import { listIdeasBetween } from "@/lib/editorialCalendar";
-import { driveTitle, MONTH_NAMES, nextMonths } from "@/lib/editorialMonths";
+import { driveTitle, MONTH_NAMES, nextMonths, todayISO } from "@/lib/editorialMonths";
 import { PushPrompt } from "./PushPrompt";
 
 export const dynamic = "force-dynamic";
@@ -29,10 +29,9 @@ function dayParts(date: string) {
 
 export default async function ClientePage() {
   const { clientId, preview, viewerId, viewerName } = await getPortalSession();
-  const now = new Date();
-  // Mês atual e os dois seguintes (pode virar o ano).
-  const span = nextMonths(now, 3);
-  const today = now.toISOString().slice(0, 10);
+  const today = todayISO();
+  // Mês atual e os dois seguintes (pode virar o ano), pela data de Brasília.
+  const span = nextMonths(new Date(`${today}T12:00:00`), 3);
   const client = await getPortalClient(clientId);
   const [cards, ideas] = await Promise.all([
     listPortalCards(clientId),
@@ -41,8 +40,9 @@ export default async function ClientePage() {
     }),
   ]);
 
-  const waiting = cards.filter((c) => !c.approved_at).length;
-  const approved = cards.length - waiting;
+  const review = cards.filter((c) => c.in_review);
+  const waiting = review.filter((c) => !c.approved_at).length;
+  const approved = review.length - waiting;
   const upcoming = listUpcoming(cards, today);
   const firstName = viewerName || (client.contact_name || client.name).split(" ")[0];
 
@@ -70,8 +70,8 @@ export default async function ClientePage() {
             {waiting} {waiting === 1 ? "material para aprovação" : "materiais para aprovação"}
           </span>
           <span className={`block text-sm ${waiting ? "opacity-80" : "text-[var(--tatu-muted)]"}`}>
-            {cards.length
-              ? `${approved} ${approved === 1 ? "aprovado" : "aprovados"} de ${cards.length}`
+            {review.length
+              ? `${approved} ${approved === 1 ? "aprovado" : "aprovados"} de ${review.length}`
               : "Os materiais liberados pela nossa equipe ficarão disponíveis aqui."}
           </span>
         </span>
