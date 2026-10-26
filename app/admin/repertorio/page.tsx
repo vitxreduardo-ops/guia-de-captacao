@@ -44,7 +44,7 @@ export default async function RepertorioPage({ searchParams }: PageProps<"/admin
     listNoticias({ tema, visao, busca, pagina }),
     comDestaques && tema
       ? ultimoDestaque(tema).catch((err) => {
-          // Sem a migração 0098 a lista continua funcionando, só sem resumo.
+          // Sem a migração 0099 a lista continua funcionando, só sem resumo.
           console.error(err);
           return undefined;
         })
