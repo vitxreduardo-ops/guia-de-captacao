@@ -19,7 +19,12 @@ export const maxDuration = 60;
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+    // `segredoConfigurado` separa "a variável não chegou a este deploy" de
+    // "o valor enviado é outro", sem expor o segredo.
+    return NextResponse.json(
+      { error: "Não autorizado", segredoConfigurado: Boolean(secret) },
+      { status: 401 }
+    );
   }
 
   const supabase = getSupabaseServerClient();
