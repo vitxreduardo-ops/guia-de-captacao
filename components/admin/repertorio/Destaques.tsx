@@ -69,7 +69,8 @@ export function Destaques({
           <h2 id="destaques-titulo" className="text-sm font-semibold text-neutral-900">
             Destaques da semana · {tema}
           </h2>
-          <p className="text-xs text-neutral-500">
+          {/* "gerado há X" é recalculado no navegador; na virada do minuto pode diferir. */}
+          <p suppressHydrationWarning className="text-xs text-neutral-500">
             {destaques
               ? `${atual ? "Últimos 7 dias" : `Semana de ${semanaRotulo(destaques.semana)}`} · ${
                   destaques.totalNoticias

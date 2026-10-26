@@ -159,7 +159,12 @@ function LinhaFonte({ fonte }: { fonte: Fonte }) {
         >
           {fonte.feed_url}
         </a>
-        <span className={`text-xs ${fonte.ultimo_erro ? "text-amber-700" : "text-neutral-400"}`}>
+        {/* "há X min" é calculado de novo no navegador: na virada do minuto
+            pode diferir do servidor, e tudo bem. */}
+        <span
+          suppressHydrationWarning
+          className={`text-xs ${fonte.ultimo_erro ? "text-amber-700" : "text-neutral-400"}`}
+        >
           {fonte.ultimo_erro
             ? `Erro na última leitura: ${fonte.ultimo_erro}`
             : fonte.ultima_coleta_em
