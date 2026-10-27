@@ -544,29 +544,44 @@ export async function replaceGalleryImagesFromDrive(
 ) {
   const supabase = getSupabaseServerClient();
 
-  const { error: deleteError } = await supabase
+  // Arquivo que continua na pasta mantém o id (e a seleção): os cards de
+  // entrega guardam esses ids em `media_image_ids`, e apagar tudo e inserir de
+  // novo deixava a mídia dos materiais em aprovação sumida.
+  const { data: existing, error: existingError } = await supabase
     .from("gallery_images")
-    .delete()
+    .select("id, drive_file_id")
     .eq("client_id", clientId)
     .not("drive_file_id", "is", null);
-  if (deleteError) throw deleteError;
+  if (existingError) throw existingError;
+  const idByFile = new Map((existing ?? []).map((r) => [r.drive_file_id as string, r.id as string]));
 
-  if (files.length > 0) {
-    const rows = files.map((file, index) => ({
-      client_id: clientId,
-      position: index,
-      image_url: `/api/drive-image/${file.id}`,
-      source_url: `https://drive.google.com/file/d/${file.id}/view`,
-      caption: file.name,
-      drive_file_id: file.id,
-      mime_type: file.mimeType,
-      drive_relative_path: file.relativePath || null,
-      drive_modified_time: file.modifiedTime,
-    }));
-    const { error: insertError } = await supabase
-      .from("gallery_images")
-      .insert(rows);
-    if (insertError) throw insertError;
+  const rows = files.map((file, index) => ({
+    client_id: clientId,
+    position: index,
+    image_url: `/api/drive-image/${file.id}`,
+    source_url: `https://drive.google.com/file/d/${file.id}/view`,
+    caption: file.name,
+    drive_file_id: file.id,
+    mime_type: file.mimeType,
+    drive_relative_path: file.relativePath || null,
+    drive_modified_time: file.modifiedTime,
+  }));
+  const kept = rows.filter((r) => idByFile.has(r.drive_file_id)).map((r) => ({ ...r, id: idByFile.get(r.drive_file_id)! }));
+  const added = rows.filter((r) => !idByFile.has(r.drive_file_id));
+  const keptIds = new Set(kept.map((r) => r.id));
+  const removed = (existing ?? []).map((r) => r.id as string).filter((id) => !keptIds.has(id));
+
+  if (removed.length > 0) {
+    const { error } = await supabase.from("gallery_images").delete().in("id", removed);
+    if (error) throw error;
+  }
+  if (kept.length > 0) {
+    const { error } = await supabase.from("gallery_images").upsert(kept);
+    if (error) throw error;
+  }
+  if (added.length > 0) {
+    const { error } = await supabase.from("gallery_images").insert(added);
+    if (error) throw error;
   }
 
   const { error: updateError } = await supabase

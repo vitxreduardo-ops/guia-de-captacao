@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { COOKIE_NAME } from "@/lib/auth";
+import { COOKIE_NAME, sessionCookieOptions } from "@/lib/auth";
 
 /**
  * Sessão cujo usuário não existe mais (acesso apagado): o cookie ainda tem
@@ -8,6 +8,6 @@ import { COOKIE_NAME } from "@/lib/auth";
  */
 export async function GET(request: Request) {
   const response = NextResponse.redirect(new URL("/admin/login", request.url));
-  response.cookies.delete(COOKIE_NAME);
+  response.cookies.set(COOKIE_NAME, "", sessionCookieOptions(request.headers.get("host"), 0));
   return response;
 }

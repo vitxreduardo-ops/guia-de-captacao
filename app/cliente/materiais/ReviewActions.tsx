@@ -27,12 +27,12 @@ export function ReviewActions({ cardId }: { cardId: string }) {
       <div className="grid grid-cols-2 gap-3">
         <details className="group col-span-1 [&[open]]:col-span-2 [&[open]]:order-2">
           <summary className="flex min-h-12 cursor-pointer list-none items-center justify-center rounded-full border border-[var(--tatu-border)] font-semibold [&::-webkit-details-marker]:hidden group-open:hidden">
-            Solicitar ajuste
+            Ajuste
           </summary>
           <form action={requestChangesAction} className="space-y-2">
             <input type="hidden" name="cardId" value={cardId} />
             <label className="block text-sm font-medium" htmlFor={`fb-${cardId}`}>
-              Qual ajuste você gostaria de solicitar?
+              Comente o ajuste que você quer
             </label>
             <textarea
               id={`fb-${cardId}`}
@@ -42,7 +42,7 @@ export function ReviewActions({ cardId }: { cardId: string }) {
               autoFocus
               className="w-full rounded-xl border border-[var(--tatu-border)] bg-white p-3"
             />
-            <Submit>Enviar solicitação</Submit>
+            <Submit>Enviar ajuste</Submit>
           </form>
         </details>
         <form action={approveCardAction} className="col-span-1">

@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 
   const clientId = url.searchParams.get("cliente") ?? "";
   const scope = await getCurrentClientScope();
-  if (scope !== null && !scope.includes(clientId)) {
+  if (!clientId || (scope !== null && !scope.includes(clientId))) {
     return NextResponse.redirect(new URL("/cliente/escolher", url));
   }
   const response = NextResponse.redirect(new URL("/cliente", url));
