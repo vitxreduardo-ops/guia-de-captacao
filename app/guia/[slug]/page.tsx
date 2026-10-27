@@ -1,3 +1,4 @@
+import { VoltarButton } from "@/components/VoltarButton";
 import { AlternativasCena, NotasProducao } from "@/components/AlternativasCena";
 import { CartaoCena } from "@/components/CartaoCena";
 import { notFound } from "next/navigation";
@@ -139,9 +140,7 @@ export default async function PublicGuidePage({
       {fromPortal ? (
         <div className="sticky top-0 z-30 border-b border-neutral-200 bg-white/95 backdrop-blur">
           <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-[max(1rem,env(safe-area-inset-left),env(safe-area-inset-right))] pt-[env(safe-area-inset-top)]">
-            <a href="/cliente/roteiros" className="inline-flex min-h-12 items-center gap-1 text-sm font-medium">
-              ← Roteiros
-            </a>
+            <VoltarButton fallback="/cliente/roteiros" />
             <a href="/cliente" className="inline-flex min-h-12 items-center text-sm text-neutral-600 underline underline-offset-4">
               Portal
             </a>

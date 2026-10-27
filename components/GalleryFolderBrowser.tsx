@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { GalleryThumb } from "@/components/GalleryThumb";
+import { VoltarButton } from "@/components/VoltarButton";
 import { LightboxImage } from "@/components/LightboxImage";
 import { VideoLightbox } from "@/components/VideoLightbox";
 import type { GalleryDisplayItem, GalleryFolderNode } from "@/lib/galleries";
@@ -531,9 +532,7 @@ export function GalleryFolderBrowser({
               ← {path.length > 1 ? path[path.length - 2] : "Todas as pastas"}
             </button>
           ) : (
-            <a href="/cliente" className="inline-flex min-h-12 items-center gap-1 text-sm font-medium">
-              ← Voltar ao portal
-            </a>
+            <VoltarButton fallback="/cliente" />
           )}
           {path.length ? (
             <a href="/cliente" className="inline-flex min-h-12 items-center text-sm text-neutral-600 underline underline-offset-4">

@@ -5,6 +5,7 @@ import { logout } from "@/app/admin/login/actions";
 import { PREVIEW_COOKIE } from "@/lib/clientPortal";
 import { getCurrentSession } from "@/lib/session";
 import { PortalNav } from "./PortalNav";
+import { PortalVoltar } from "./PortalVoltar";
 
 export const metadata = {
   title: "Portal do cliente — Tatú Estúdio Criativo",
@@ -54,6 +55,7 @@ export default async function ClienteLayout({ children }: { children: React.Reac
         <div className="mb-6 hidden md:block">
           <PortalNav />
         </div>
+        <PortalVoltar />
         {children}
       </main>
 
