@@ -21,14 +21,18 @@ function appConfig() {
 /** O `state` carrega o cliente que está conectando. */
 export const INSTAGRAM_STATE_PREFIX = "ig:";
 
-export function buildInstagramAuthUrl(clientId: string): string {
+/** Sufixo do `state` que manda o callback de volta pro cadastro do cliente. */
+export const INSTAGRAM_STATE_CADASTRO = ":cadastro";
+
+export function buildInstagramAuthUrl(clientId: string, voltarAoCadastro = false): string {
   const { appId, redirectUri } = appConfig();
   const params = new URLSearchParams({
     client_id: appId,
     redirect_uri: redirectUri,
     response_type: "code",
     scope: SCOPES,
-    state: INSTAGRAM_STATE_PREFIX + clientId,
+    state:
+      INSTAGRAM_STATE_PREFIX + clientId + (voltarAoCadastro ? INSTAGRAM_STATE_CADASTRO : ""),
   });
   return `https://www.instagram.com/oauth/authorize?${params}`;
 }
@@ -89,6 +93,29 @@ export async function connectInstagramAccount(clientId: string, code: string) {
       expires_at: new Date(Date.now() + long.expires_in * 1000).toISOString(),
     });
   if (error) throw new Error(`Falha ao salvar conta: ${error.message}`);
+}
+
+/**
+ * Só apaga o vínculo aqui. O token não é revogado no Instagram (a API de
+ * Instagram Login não tem endpoint pra isso); ele expira sozinho em 60 dias.
+ * Posts agendados desse cliente falham com "Cliente sem Instagram conectado".
+ */
+export async function disconnectInstagramAccount(clientId: string) {
+  const { error } = await getSupabaseServerClient()
+    .from("instagram_accounts")
+    .delete()
+    .eq("client_id", clientId);
+  if (error) throw new Error(`Falha ao desconectar conta: ${error.message}`);
+}
+
+/** @ conectado de cada cliente, por id. */
+export async function listInstagramUsernames(): Promise<Record<string, string>> {
+  const { data } = await getSupabaseServerClient()
+    .from("instagram_accounts")
+    .select("client_id, username");
+  return Object.fromEntries(
+    (data ?? []).map((row) => [row.client_id as string, row.username as string])
+  );
 }
 
 /** Renova tokens que vencem em até 10 dias. Devolve quantas contas falharam. */

@@ -8,6 +8,7 @@ import type { GalleryClient } from "@/lib/galleries";
 import {
   createClientAction,
   deleteClientAction,
+  disconnectInstagramAction,
   setClientArchivedAction,
   updateClientAction,
 } from "@/app/admin/clientes/cadastro/actions";
@@ -51,10 +52,13 @@ export interface ClientSummary {
 function ClientRow({
   client,
   summary,
+  instagram,
   abrir,
 }: {
   client: GalleryClient;
   summary: ClientSummary;
+  /** @ conectado, ou undefined. */
+  instagram: string | undefined;
   abrir: boolean;
 }) {
   const [editing, setEditing] = useState(abrir);
@@ -129,6 +133,49 @@ function ClientRow({
           
 
           
+
+          <div className="rounded-lg border border-neutral-200 p-3 sm:col-span-2">
+            <span className="block text-sm font-medium text-neutral-700">
+              Instagram para agendar posts
+            </span>
+            <div className="mt-1 flex flex-wrap items-center gap-3">
+              <span className="text-sm text-neutral-600">
+                {instagram ? `Conectado: @${instagram}` : "Nenhuma conta conectada"}
+              </span>
+              <a
+                href={`/api/instagram/oauth/start?cliente=${client.id}&voltar=cadastro`}
+                className={`rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 ${PRESS}`}
+              >
+                {instagram ? "Trocar conta" : "Conectar"}
+              </a>
+              {instagram ? (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={async () => {
+                    if (
+                      !(await confirmar(
+                        `Desconectar @${instagram} de "${client.name}"?\n\nPosts já agendados desse cliente vão falhar até conectar outra conta.`,
+                        "Desconectar"
+                      ))
+                    ) {
+                      return;
+                    }
+                    const dados = new FormData();
+                    dados.set("id", client.id);
+                    startTransition(() => disconnectInstagramAction(dados));
+                  }}
+                  className="text-xs text-red-600 hover:text-red-700 disabled:opacity-50"
+                >
+                  Desconectar
+                </button>
+              ) : null}
+            </div>
+            <span className="mt-1 block text-[11px] text-neutral-400">
+              O Instagram usa a conta aberta neste navegador. Antes de
+              conectar, entre na conta certa do cliente (ou use uma janela anônima).
+            </span>
+          </div>
 
           <details className="rounded-lg border border-neutral-200 sm:col-span-2">
             <summary className="cursor-pointer px-3 py-3 text-base text-neutral-700 min-h-11">
@@ -350,11 +397,13 @@ export function ClientRegistry({
   clients,
   archived,
   summaries,
+  instagram,
   abrir,
 }: {
   clients: GalleryClient[];
   archived: GalleryClient[];
   summaries: Record<string, ClientSummary>;
+  instagram: Record<string, string>;
   abrir?: string;
 }) {
   const vazio: ClientSummary = { openCents: 0, atrasado: false };
@@ -375,6 +424,7 @@ export function ClientRegistry({
                 key={client.id}
                 client={client}
                 summary={summaries[client.id] ?? vazio}
+                instagram={instagram[client.id]}
                 abrir={client.id === abrir}
               />
             ))}

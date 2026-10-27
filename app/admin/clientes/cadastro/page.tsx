@@ -4,6 +4,7 @@ import { ClientRegistry, type ClientSummary } from "@/components/admin/ClientReg
 import { getOpenByClient } from "@/lib/dinheiro";
 import { listGalleryClients } from "@/lib/galleries";
 import { getCurrentClientScope } from "@/lib/clientAccess";
+import { listInstagramUsernames } from "@/lib/instagram";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +15,10 @@ export default async function ClientesCadastroPage({
 }) {
   const { abrir } = await searchParams;
   const clientScope = await getCurrentClientScope();
-  const [todos, totals] = await Promise.all([
+  const [todos, totals, instagram] = await Promise.all([
     listGalleryClients({ includeArchived: true, clientScope }),
     getOpenByClient(clientScope),
+    listInstagramUsernames(),
   ]);
 
   const clients = todos.filter((client) => !client.archived_at);
@@ -43,6 +45,7 @@ export default async function ClientesCadastroPage({
         clients={clients}
         archived={archived}
         summaries={summaries}
+        instagram={instagram}
         abrir={abrir}
       />
     </div>
