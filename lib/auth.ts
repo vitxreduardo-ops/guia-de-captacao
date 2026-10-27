@@ -1,6 +1,26 @@
 import type { UserRole } from "@/lib/users";
 
-export const COOKIE_NAME = "admin_session";
+// Nome novo junto com o `domain`: o cookie antigo era por subdomínio, e os
+// dois com o mesmo nome deixariam o logout sem efeito no sistema.*.
+export const COOKIE_NAME = "tatu_session";
+
+/**
+ * Opções do cookie de sessão. Em sistema./cliente./www. ele vale pro domínio
+ * todo: sem isso o admin logado no sistema.* chegava deslogado no cliente.*
+ * pelo "Ver como o cliente" e caía no login e na escolha de cliente de novo.
+ * `maxAge: 0` apaga (logout).
+ */
+export function sessionCookieOptions(host: string | null, maxAge = 60 * 60 * 24 * 30) {
+  const domain = (host ?? "").split(":")[0].match(/^(?:sistema|cliente|www)\.(.+)$/)?.[1];
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge,
+    ...(domain ? { domain } : {}),
+  };
+}
 
 export interface Session {
   userId: string;

@@ -87,7 +87,8 @@ export async function proxy(request: NextRequest) {
 
   if (!session) {
     const loginUrl = fora("/admin/login");
-    loginUrl.searchParams.set("next", url.pathname);
+    // Com a busca: `/previa?cliente=X` sem ela voltava do login sem cliente.
+    loginUrl.searchParams.set("next", url.pathname + url.search);
     return NextResponse.redirect(loginUrl);
   }
 

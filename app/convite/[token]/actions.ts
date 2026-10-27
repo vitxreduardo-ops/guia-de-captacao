@@ -1,8 +1,8 @@
 "use server";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { COOKIE_NAME, createSessionCookieValue } from "@/lib/auth";
+import { COOKIE_NAME, createSessionCookieValue, sessionCookieOptions } from "@/lib/auth";
 import { createUser, getUserByUsername } from "@/lib/users";
 import { getPendingInviteByToken, markInviteUsed } from "@/lib/invites";
 import { clientIp, rateLimit } from "@/lib/rateLimit";
@@ -46,13 +46,7 @@ export async function acceptInviteAction(formData: FormData) {
     secret
   );
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, cookieValue, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
+  cookieStore.set(COOKIE_NAME, cookieValue, sessionCookieOptions((await headers()).get("host")));
 
   redirect("/admin");
 }
@@ -102,13 +96,7 @@ export async function acceptClientInviteAction(formData: FormData) {
     { userId: user.id, role: "client", allowedSections: null },
     secret
   );
-  (await cookies()).set(COOKIE_NAME, cookieValue, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
+  (await cookies()).set(COOKIE_NAME, cookieValue, sessionCookieOptions((await headers()).get("host")));
 
   redirect("/cliente");
 }
