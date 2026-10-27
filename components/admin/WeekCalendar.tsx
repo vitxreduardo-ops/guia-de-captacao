@@ -535,11 +535,15 @@ export function WeekCalendar({
   return (
     <div className={`${calCard} overflow-hidden`}>
       {/* Sete colunas espremidas num celular ficam ilegíveis: a grade ganha
-          uma largura mínima por coluna e rola de lado. Cabeçalho, faixa de
+          uma largura mínima por coluna e rola de lado. Do tablet pra cima as
+          colunas dividem a largura disponível e nada rola. Cabeçalho, faixa de
           dia todo e colunas ficam dentro do mesmo rolamento, senão eles se
           desalinham. */}
       <div className="overflow-x-auto">
-      <div style={{ minWidth: `${Math.min(days.length, 7) * 6.5}rem` }}>
+      <div
+        style={{ "--grade-min": `${Math.min(days.length, 7) * 6.5}rem` } as React.CSSProperties}
+        className="max-md:min-w-(--grade-min)"
+      >
       {/* Cabeçalho dos dias: fora da área rolável, pra não sumir ao descer */}
       <div className="flex gap-1.5 border-b border-neutral-200 pb-2">
         <div className="w-14 shrink-0" />

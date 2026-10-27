@@ -207,7 +207,7 @@ function CardChip({
         />
         {/* Em célula estreita o título quebra em duas linhas em vez de virar
             duas letras e reticências. */}
-        <span className="line-clamp-2 text-[10px] font-medium leading-tight text-neutral-800 sm:truncate sm:text-[11px]">
+        <span className="line-clamp-2 min-w-0 break-words text-[10px] font-medium leading-tight text-neutral-800 sm:text-[11px]">
           {card.title}
         </span>
         <span className="sr-only">
@@ -954,18 +954,10 @@ export function Calendar({
       </ul>
 
       <div className="w-full min-w-0 max-w-full overflow-x-auto">
-        {/* No celular o mês cabe inteiro (células menores); as vistas de hora
-            não cabem em 375px, então mantêm largura mínima e rolam dentro
-            deste container, sem empurrar a página. */}
-        <div
-          className={
-            view === "today"
-              ? ""
-              : view === "month"
-                ? "sm:min-w-[52rem]"
-                : "min-w-[44rem]"
-          }
-        >
+        {/* O mês cabe em qualquer largura: os dias encolhem e crescem pra
+            baixo. A régua de horas da semana não cabe em celular, então só
+            ali ela mantém largura mínima e rola dentro deste container. */}
+        <div className={view === "7d" ? "max-md:min-w-[44rem]" : ""}>
           {view === "month" ? (
             <div className={calCard}>
               <div className="mb-1.5 grid grid-cols-7 gap-1 sm:gap-1.5">

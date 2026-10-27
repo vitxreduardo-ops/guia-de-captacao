@@ -61,8 +61,8 @@ export function MonthCalendar({
 
   return (
     <div className={calCard}>
-      <div className="overflow-x-auto">
-        <div className="min-w-[44rem] space-y-1.5">
+      <div>
+        <div className="space-y-1.5">
           <div className="flex gap-1.5">
             {DAY_LABELS.map((label) => (
               <div key={label} className={`flex-1 py-1 ${calWeekday}`}>
@@ -84,7 +84,7 @@ export function MonthCalendar({
                 return (
                   <div
                     key={day.key}
-                    className={`min-h-[7rem] min-w-0 flex-1 p-1.5 ${calDayTile(state)}`}
+                    className={`min-h-16 min-w-0 flex-1 p-1 sm:min-h-[7rem] sm:p-1.5 ${calDayTile(state)}`}
                   >
                     <div className="mb-1 px-0.5">
                       <span className={calDayNumber(state)}>{day.day}</span>
@@ -115,16 +115,19 @@ export function MonthCalendar({
                             }}
                             title={`${event.title} · ${event.calendarName}`}
                             style={{ backgroundColor: tint.bg, color: tint.fg }}
-                            className="flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[0.6875rem] transition-[filter,transform] hover:brightness-95 active:scale-90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-1 focus-visible:outline-none"
+                            className="flex w-full flex-wrap items-baseline gap-x-1 rounded px-1 py-0.5 max-sm:h-2 max-sm:p-0 text-left text-[0.6875rem] transition-[filter,transform] hover:brightness-95 active:scale-90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-1 focus-visible:outline-none"
                           >
                             {/* Dia inteiro não tem hora que valha a pena
-                                mostrar: fica só o título, na largura toda. */}
+                                mostrar: fica só o título, na largura toda.
+                                No celular a coluna tem uns 45px: o
+                                compromisso vira uma barra na cor da agenda,
+                                e o título fica só pro leitor de tela. */}
                             {event.allDay ? null : (
-                              <span className="shrink-0 tabular-nums opacity-70">
+                              <span className="shrink-0 tabular-nums opacity-70 max-sm:hidden">
                                 {timeText(event.startMinutes)}
                               </span>
                             )}
-                            <span className="min-w-0 flex-1 truncate">
+                            <span className="line-clamp-2 min-w-0 flex-1 basis-16 break-words max-sm:sr-only">
                               {event.title}
                             </span>
                           </button>
