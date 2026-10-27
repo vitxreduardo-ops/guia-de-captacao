@@ -10,6 +10,7 @@ import {
   updateGalleryClientDetails,
 } from "@/lib/galleries";
 import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
+import { disconnectInstagramAccount } from "@/lib/instagram";
 import { requireTeam } from "@/lib/session";
 
 /**
@@ -42,6 +43,15 @@ export async function updateClientAction(formData: FormData) {
   );
   revalidateClients();
   revalidatePath("/admin/clientes/entregas");
+}
+
+export async function disconnectInstagramAction(formData: FormData) {
+  await requireTeam("clientes");
+  const id = String(formData.get("id"));
+  assertClientAllowed(await getCurrentClientScope(), id);
+
+  await disconnectInstagramAccount(id);
+  revalidateClients();
 }
 
 export async function setClientArchivedAction(formData: FormData) {

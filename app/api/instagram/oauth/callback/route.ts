@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentSession } from "@/lib/session";
-import { connectInstagramAccount, INSTAGRAM_STATE_PREFIX } from "@/lib/instagram";
+import {
+  connectInstagramAccount,
+  INSTAGRAM_STATE_CADASTRO,
+  INSTAGRAM_STATE_PREFIX,
+} from "@/lib/instagram";
 
 export async function GET(request: NextRequest) {
   const session = await getCurrentSession();
@@ -11,10 +15,17 @@ export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const state = params.get("state") ?? "";
   const code = params.get("code");
+  const voltarAoCadastro = state.endsWith(INSTAGRAM_STATE_CADASTRO);
   const clientId = state.startsWith(INSTAGRAM_STATE_PREFIX)
-    ? state.slice(INSTAGRAM_STATE_PREFIX.length)
+    ? state
+        .slice(INSTAGRAM_STATE_PREFIX.length, voltarAoCadastro ? -INSTAGRAM_STATE_CADASTRO.length : undefined)
     : null;
-  const destination = new URL("/admin/clientes/entregas", request.url);
+  const destination = new URL(
+    voltarAoCadastro
+      ? `/admin/clientes/cadastro?abrir=${clientId ?? ""}`
+      : "/admin/clientes/entregas",
+    request.url
+  );
 
   if (!clientId || !code || params.get("error")) {
     destination.searchParams.set("instagram", "negado");

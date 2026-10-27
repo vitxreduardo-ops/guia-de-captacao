@@ -11,5 +11,6 @@ export async function GET(request: NextRequest) {
   if (!clientId) {
     return NextResponse.json({ error: "Falta ?cliente=<id>" }, { status: 400 });
   }
-  return NextResponse.redirect(buildInstagramAuthUrl(clientId));
+  const voltarAoCadastro = request.nextUrl.searchParams.get("voltar") === "cadastro";
+  return NextResponse.redirect(buildInstagramAuthUrl(clientId, voltarAoCadastro));
 }
