@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Check } from "lucide-react";
 import { useRef, useState, useTransition } from "react";
 import { BACKLOG_FORMAT_LABELS, BACKLOG_FORMATS, type BacklogFormat } from "@/lib/backlogTypes";
+import { calCard, calDayNumber, calDayTile, calLegendPill, calWeekday } from "@/lib/calendarStyle";
 import { monthWeeks } from "@/lib/editorialMonths";
 import { setPostDoneAction } from "../actions";
 
@@ -258,24 +259,25 @@ export function MonthPlanner({
       <section aria-label="Calendário do mês" className="space-y-2">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--tatu-muted)]">
           {formats.map((f) => (
-            <span key={f} className="inline-flex items-center gap-1.5">
+            <span key={f} className={`${calLegendPill} bg-white text-[var(--tatu-ink)]`}>
               <span aria-hidden className="inline-block size-3 rounded-[3px] border-2" style={{ borderColor: FORMAT_COLORS[f] }} />
               {BACKLOG_FORMAT_LABELS[f]}
             </span>
           ))}
           <span>Vazio: a fazer. Cheio: feito. Marque no dia ou na lista o que já foi postado.</span>
         </div>
-        <div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-[var(--tatu-taupe)] bg-[var(--tatu-taupe)]">
+        <div className={`${calCard} grid grid-cols-7 gap-1 sm:gap-1.5`}>
           {WEEKDAYS.map((w) => (
-            <div key={w} aria-hidden className="bg-[var(--tatu-cream)] py-1.5 text-center text-[11px] font-semibold uppercase text-[var(--tatu-muted)]">
+            <div key={w} aria-hidden className={`pb-1 ${calWeekday}`}>
               {w}
             </div>
           ))}
           {weeks.flat().map((day, i) => {
-            if (!day) return <div key={i} aria-hidden className="bg-[var(--tatu-cream)]" />;
+            if (!day) return <div key={i} aria-hidden />;
             const iso = `${prefix}${pad(day)}`;
             const items = byDay.get(iso) ?? [];
             const on = iso === selected;
+            const state = { today: iso === today, past: iso < today };
             const aria = `${day}, ${WEEKDAY_NAMES[weekday(iso)]}: ${
               items.length ? items.map((p) => `${label(p)} (${p.done ? "feito" : "a fazer"})`).join("; ") : "sem publicações"
             }`;
@@ -286,18 +288,12 @@ export function MonthPlanner({
                 aria-label={aria}
                 aria-pressed={on}
                 onClick={() => setSelected(iso)}
-                className={`flex min-h-16 flex-col items-center gap-1 px-0.5 py-1.5 outline-offset-[-3px] ${
-                  on ? "bg-white shadow-[inset_0_0_0_2px_var(--tatu-ink)]" : "bg-white/70 hover:bg-white"
+                className={`flex min-h-16 flex-col items-center gap-1 px-0.5 py-1.5 outline-offset-2 transition-[filter] hover:brightness-[0.97] ${calDayTile(state)} ${
+                  on ? "ring-2 ring-[var(--tatu-ink)] ring-offset-2" : ""
                 }`}
               >
-                <span
-                  className={`grid h-6 min-w-6 place-items-center rounded-full px-1 text-xs font-semibold tabular-nums ${
-                    iso === today ? "bg-[var(--tatu-ink)] text-[var(--tatu-cream)]" : ""
-                  }`}
-                >
-                  {day}
-                </span>
-                <span className="flex flex-wrap justify-center gap-0.5">
+                <span className={calDayNumber(state)}>{day}</span>
+                <span className={`flex flex-wrap justify-center gap-0.5 ${state.today && items.length ? "rounded-full bg-white px-1 py-0.5" : ""}`}>
                   {items.map((p) => (
                     <Mark key={p.id} post={p} />
                   ))}
