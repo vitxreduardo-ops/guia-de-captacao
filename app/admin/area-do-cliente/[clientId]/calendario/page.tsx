@@ -2,6 +2,8 @@ import Link from "next/link";
 import { EditorialCapture } from "@/components/admin/EditorialCapture";
 import { IdeaRow } from "@/components/admin/IdeaRow";
 import { MonthGrid } from "@/components/MonthGrid";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { calNavButton } from "@/lib/calendarStyle";
 import { listClientPosts } from "@/lib/clientArea";
 import { listIdeas } from "@/lib/editorialCalendar";
 import { groupByMonth, MONTH_NAMES, nextMonths } from "@/lib/editorialMonths";
@@ -60,9 +62,9 @@ export default async function CalendarioPage({
         <div className="flex flex-wrap items-center justify-between gap-3">
           {switcher}
           <div className="flex items-center gap-3">
-            <Link href={go(prev)} className="text-sm text-neutral-600 underline underline-offset-4">← Anterior</Link>
+            <Link href={go(prev)} aria-label="Mês anterior" className={calNavButton}><ChevronLeft aria-hidden className="h-4 w-4" /></Link>
             <h2 className="min-w-36 text-center text-lg font-semibold">{MONTH_NAMES[month - 1]} {year}</h2>
-            <Link href={go(next)} className="text-sm text-neutral-600 underline underline-offset-4">Próximo →</Link>
+            <Link href={go(next)} aria-label="Próximo mês" className={calNavButton}><ChevronRight aria-hidden className="h-4 w-4" /></Link>
           </div>
         </div>
 

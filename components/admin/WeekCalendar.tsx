@@ -8,6 +8,7 @@ import {
   type NewEventSlot,
 } from "@/components/admin/EventCreate";
 import { updateEventAction } from "@/app/admin/agenda/actions";
+import { calCard, calDayNumber, calDayTile, calWeekday } from "@/lib/calendarStyle";
 import { eventTint } from "@/lib/eventColor";
 import { layoutDay } from "@/lib/dayLayout";
 import type { CalendarSource, WeekEvent } from "@/lib/googleCalendar";
@@ -23,7 +24,7 @@ const DRAG_THRESHOLD_PX = 5;
  * mover" de "quero abrir" —, mas com `touch-action: none` no bloco o gesto
  * não disputa mais com a rolagem, e a espera pôde encurtar. */
 const TOUCH_HOLD_MS = 150;
-const DAY_LABELS = ["DOM.", "SEG.", "TER.", "QUA.", "QUI.", "SEX.", "SÁB."];
+const DAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 /** Dia da semana de uma chave YYYY-MM-DD. As colunas deixaram de ser sempre
  * domingo-a-sábado quando entraram as visões de dia e de 4 dias, então o
@@ -532,7 +533,7 @@ export function WeekCalendar({
   const todayIndex = days.findIndex((day) => day.key === todayKey);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+    <div className={`${calCard} overflow-hidden`}>
       {/* Sete colunas espremidas num celular ficam ilegíveis: a grade ganha
           uma largura mínima por coluna e rola de lado. Cabeçalho, faixa de
           dia todo e colunas ficam dentro do mesmo rolamento, senão eles se
@@ -540,24 +541,24 @@ export function WeekCalendar({
       <div className="overflow-x-auto">
       <div style={{ minWidth: `${Math.min(days.length, 7) * 6.5}rem` }}>
       {/* Cabeçalho dos dias: fora da área rolável, pra não sumir ao descer */}
-      <div className="flex border-b border-neutral-200">
+      <div className="flex gap-1.5 border-b border-neutral-200 pb-2">
         <div className="w-14 shrink-0" />
-        {days.map((day, index) => (
-          <div key={day.key} className="flex-1 border-l border-neutral-100 py-2 text-center">
-            <div className="text-[0.625rem] font-medium uppercase tracking-[0.06em] text-neutral-400">
-              {DAY_LABELS[weekdayOf(day.key)]}
+        {days.map((day, index) => {
+          const state = {
+            today: index === todayIndex,
+            past: todayKey !== null && day.key < todayKey,
+          };
+          return (
+            <div key={day.key} className={`flex-1 py-1.5 text-center ${calDayTile(state)}`}>
+              <div className={`${calWeekday} ${state.today ? "text-white!" : ""}`}>
+                {DAY_LABELS[weekdayOf(day.key)]}
+              </div>
+              <div className="mt-1">
+                <span className={calDayNumber(state)}>{day.day}</span>
+              </div>
             </div>
-            <div
-              className={
-                index === todayIndex
-                  ? "mx-auto mt-1 flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-sm font-medium text-white"
-                  : "mt-1 text-sm text-neutral-700"
-              }
-            >
-              {day.day}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {allDay.length > 0 ? (

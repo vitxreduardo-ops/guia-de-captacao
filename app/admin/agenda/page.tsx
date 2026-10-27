@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { after } from "next/server";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { NavLink } from "@/components/admin/NavLink";
+import { calNavButton } from "@/lib/calendarStyle";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { AgendaFrame } from "@/components/admin/AgendaFrame";
 import { AgendaGrid, AgendaGridSkeleton } from "./AgendaGrid";
@@ -186,16 +188,16 @@ export default async function MinhaAgendaPage({
                   <NavLink
                     href={linkTo(step.back)}
                     ariaLabel="Período anterior"
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 active:scale-90 transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+                    className={`${calNavButton} active:scale-90`}
                   >
-                    ‹
+                    <ChevronLeft aria-hidden className="h-4 w-4" />
                   </NavLink>
                   <NavLink
                     href={linkTo(step.next)}
                     ariaLabel="Próximo período"
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-100 active:scale-90 transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+                    className={`${calNavButton} active:scale-90`}
                   >
-                    ›
+                    <ChevronRight aria-hidden className="h-4 w-4" />
                   </NavLink>
                 </div>
 

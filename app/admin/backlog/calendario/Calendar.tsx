@@ -14,6 +14,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Calendar as DatePicker } from "@/components/ui/calendar";
 import {
   Popover,
@@ -23,6 +24,14 @@ import {
 import { BacklogCardDrawer } from "@/components/admin/BacklogCardDrawer";
 import { BacklogCardView } from "@/components/admin/BacklogCardView";
 import { BacklogFilters } from "@/components/admin/BacklogFilters";
+import {
+  calCard,
+  calDayNumber,
+  calDayTile,
+  calLegendPill,
+  calNavButton,
+  calWeekday,
+} from "@/lib/calendarStyle";
 import {
   BACKLOG_FORMAT_LABELS,
   DEFAULT_DURATION_MINUTES,
@@ -185,7 +194,7 @@ function CardChip({
   return (
     <span
       className={`block rounded px-1 py-0.5 text-left sm:px-1.5 sm:py-1 ${
-        captacao ? "bg-sky-50" : "bg-neutral-50"
+        captacao ? "bg-sky-50" : "bg-white shadow-sm"
       }`}
       title={columnName}
     >
@@ -271,6 +280,7 @@ function DayCell({
   label,
   muted,
   isToday,
+  isPast,
   className,
   children,
 }: {
@@ -280,30 +290,22 @@ function DayCell({
   /** Dia de fora do mês exibido. */
   muted: boolean;
   isToday: boolean;
+  isPast: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `${DAY_PREFIX}${iso}` });
+  const state = { today: isToday, past: isPast, outside: muted };
 
   return (
     <div
       ref={setNodeRef}
-      className={`min-h-16 p-1 sm:min-h-28 sm:p-1.5 ${className ?? ""} ${
-        muted ? "bg-neutral-50" : "bg-white"
-      } ${
-        isOver ? "outline outline-2 -outline-offset-2 outline-neutral-400" : ""
+      className={`min-h-16 min-w-0 p-1 sm:min-h-28 sm:p-1.5 ${className ?? ""} ${calDayTile(state)} ${
+        isOver ? "outline-2 outline-offset-1 outline-olive-600" : ""
       }`}
     >
-      <p
-        className={`mb-1 text-xs ${
-          isToday
-            ? "font-semibold text-neutral-900"
-            : muted
-              ? "text-neutral-300"
-              : "text-neutral-500"
-        }`}
-      >
-        {label}
+      <p className="mb-1 px-0.5">
+        <span className={calDayNumber(state)}>{label}</span>
       </p>
       <ul className="flex flex-col gap-1">{children}</ul>
     </div>
@@ -791,22 +793,23 @@ export function Calendar({
       onDragEnd={handleDragEnd}
       onDragCancel={() => setActiveCardId(null)}
     >
-      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-neutral-200 bg-white p-3">
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-3xl bg-white p-3 shadow-sm ring-1 ring-neutral-200/70">
         {view === "month" ? (
           <>
             <button
               type="button"
               onClick={() => shiftMonth(-1)}
-              className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+              aria-label="Mês anterior"
+              className={calNavButton}
             >
-              ←
+              <ChevronLeft aria-hidden className="h-4 w-4" />
             </button>
             <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
               <PopoverTrigger
                 render={
                   <button
                     type="button"
-                    className="min-w-44 rounded-md px-2 py-1.5 text-center text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
+                    className="min-w-44 rounded-full px-3 py-1.5 text-center text-lg font-semibold tracking-[-0.01em] text-neutral-900 hover:bg-neutral-50"
                   >
                     {MONTH_NAMES[month]} {year} ▾
                   </button>
@@ -835,9 +838,10 @@ export function Calendar({
             <button
               type="button"
               onClick={() => shiftMonth(1)}
-              className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
+              aria-label="Próximo mês"
+              className={calNavButton}
             >
-              →
+              <ChevronRight aria-hidden className="h-4 w-4" />
             </button>
           </>
         ) : (
@@ -921,22 +925,23 @@ export function Calendar({
           : 'Arraste um material pra outro dia pra mudar a data de post, ou solte no menu "Sem data" pra tirar a data.'}
       </p>
 
-      <ul className="mb-3 mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+      <ul className="mb-3 mt-2 flex flex-wrap items-center gap-1.5">
         {entregas ? (
-          <li className="flex items-center gap-1.5 text-xs text-neutral-500">
-            <span aria-hidden className="h-2 w-4 rounded-sm bg-sky-100" />
-            Captação
-            <span
-              aria-hidden
-              className="ml-2 h-2 w-4 rounded-sm bg-neutral-200"
-            />
-            Entrega
-          </li>
+          <>
+            <li className={`${calLegendPill} bg-sky-50 text-sky-800`}>
+              Captação
+            </li>
+            <li
+              className={`${calLegendPill} bg-white text-neutral-700 shadow-sm ring-1 ring-neutral-200`}
+            >
+              Entrega
+            </li>
+          </>
         ) : null}
         {board.columns.map((column) => (
           <li
             key={column.id}
-            className="flex items-center gap-1.5 text-xs text-neutral-500"
+            className={`${calLegendPill} bg-neutral-100 text-neutral-700`}
           >
             <span
               aria-hidden
@@ -962,19 +967,16 @@ export function Calendar({
           }
         >
           {view === "month" ? (
-            <>
-              <div className="grid grid-cols-7 gap-px rounded-t-lg border border-neutral-200 bg-neutral-200">
+            <div className={calCard}>
+              <div className="mb-1.5 grid grid-cols-7 gap-1 sm:gap-1.5">
                 {WEEKDAYS.map((weekday) => (
-                  <div
-                    key={weekday}
-                    className="bg-neutral-50 py-2 text-center text-xs font-medium text-neutral-500"
-                  >
+                  <div key={weekday} className={`py-1 ${calWeekday}`}>
                     {weekday}
                   </div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-7 gap-px border-x border-b border-neutral-200 bg-neutral-200">
+              <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
                 {monthDays.map((day) => (
                   <DayCell
                     key={day.iso}
@@ -982,6 +984,7 @@ export function Calendar({
                     label={String(day.day)}
                     muted={!day.inMonth}
                     isToday={day.iso === todayIso}
+                    isPast={day.iso < todayIso}
                   >
                     {(eventsByDate.get(day.iso) ?? []).map((item) => (
                       <li key={item.id}>
@@ -998,9 +1001,9 @@ export function Calendar({
                   </DayCell>
                 ))}
               </div>
-            </>
+            </div>
           ) : view === "7d" ? (
-            <div className="overflow-hidden rounded-lg border border-neutral-200">
+            <div className="overflow-hidden rounded-3xl shadow-sm ring-1 ring-neutral-200/70">
               <div className="grid grid-cols-[3rem_repeat(7,1fr)] gap-px bg-neutral-200 sm:grid-cols-[5rem_repeat(7,1fr)]">
                 <div className="bg-neutral-50 py-2" />
                 {rangeDays.map((day) => (
@@ -1008,8 +1011,10 @@ export function Calendar({
                     key={day.iso}
                     className={`bg-neutral-50 py-2 text-center text-xs ${
                       day.iso === todayIso
-                        ? "font-semibold text-neutral-900"
-                        : "text-neutral-500"
+                        ? "bg-olive-600! font-semibold text-white"
+                        : day.iso < todayIso
+                          ? "text-neutral-400"
+                          : "font-medium text-neutral-700"
                     }`}
                   >
                     {day.weekday} {pad(day.day)}/{pad(day.month + 1)}
@@ -1061,7 +1066,7 @@ export function Calendar({
               </div>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-neutral-200">
+            <div className="overflow-hidden rounded-3xl shadow-sm ring-1 ring-neutral-200/70">
               {/* Materiais do dia sem horário definido ficam no topo. */}
               <TodayHourRow
                 iso={todayIso}

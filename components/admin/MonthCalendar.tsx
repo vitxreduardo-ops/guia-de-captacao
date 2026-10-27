@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { EventDetails } from "@/components/admin/EventDetails";
+import { calCard, calDayNumber, calDayTile, calWeekday } from "@/lib/calendarStyle";
 import { eventTint } from "@/lib/eventColor";
 import type { WeekEvent } from "@/lib/googleCalendar";
 
-const DAY_LABELS = ["DOM.", "SEG.", "TER.", "QUA.", "QUI.", "SEX.", "SÁB."];
+const DAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 function timeText(minutes: number) {
   const hour = Math.floor(minutes / 60);
@@ -59,43 +60,34 @@ export function MonthCalendar({
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
+    <div className={calCard}>
       <div className="overflow-x-auto">
-        <div className="min-w-[44rem]">
-          <div className="flex border-b border-neutral-200">
+        <div className="min-w-[44rem] space-y-1.5">
+          <div className="flex gap-1.5">
             {DAY_LABELS.map((label) => (
-              <div
-                key={label}
-                className="flex-1 border-l border-neutral-100 py-2 text-center text-[0.625rem] font-medium uppercase tracking-[0.06em] text-neutral-400"
-              >
+              <div key={label} className={`flex-1 py-1 ${calWeekday}`}>
                 {label}
               </div>
             ))}
           </div>
 
           {Array.from({ length: 6 }, (_, week) => (
-            <div key={week} className="flex border-b border-neutral-100 last:border-b-0">
+            <div key={week} className="flex gap-1.5">
               {days.slice(week * 7, week * 7 + 7).map((day, column) => {
                 const index = week * 7 + column;
                 const dayEvents = byDay.get(index) ?? [];
-                const outside = day.key.slice(0, 7) !== monthKey;
+                const state = {
+                  today: day.key === todayKey,
+                  past: todayKey !== null && day.key < todayKey,
+                  outside: day.key.slice(0, 7) !== monthKey,
+                };
                 return (
                   <div
                     key={day.key}
-                    className={`min-h-[7rem] min-w-0 flex-1 border-l border-neutral-100 p-1 ${
-                      outside ? "bg-neutral-50/60" : ""
-                    }`.trim()}
+                    className={`min-h-[7rem] min-w-0 flex-1 p-1.5 ${calDayTile(state)}`}
                   >
-                    <div className="mb-1 text-center">
-                      <span
-                        className={
-                          day.key === todayKey
-                            ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-xs font-medium text-white"
-                            : `text-xs ${outside ? "text-neutral-300" : "text-neutral-600"}`
-                        }
-                      >
-                        {day.day}
-                      </span>
+                    <div className="mb-1 px-0.5">
+                      <span className={calDayNumber(state)}>{day.day}</span>
                     </div>
 
                     <div className="space-y-0.5">
