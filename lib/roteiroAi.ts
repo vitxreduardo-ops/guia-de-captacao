@@ -11,7 +11,7 @@ import { getCurrentSession } from "@/lib/session";
  * DeepSeek só aceita `json_object` — ao trocar pra ele, mandar o schema no
  * prompt e pedir `{ type: "json_object" }`.
  */
-export const MODELO_ROTEIRO = process.env.ROTEIROS_AI_MODEL || "gpt-4o";
+export const MODELO_ROTEIRO = process.env.ROTEIROS_AI_MODEL || "gpt-6.1-terra";
 export const MODELO_TRIAGEM =
   process.env.ROTEIROS_AI_MODEL_TRIAGEM || "gpt-4o-mini";
 

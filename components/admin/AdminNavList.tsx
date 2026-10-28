@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathnameInterno } from "@/lib/usePathnameInterno";
@@ -24,46 +25,59 @@ export function AdminNavList({
 
   return (
     <ul className="space-y-0.5">
-      {adminActions(isAdmin, allowedSections).map((action) => {
+      {adminActions(isAdmin, allowedSections).map((action, i, all) => {
         const active = isActive(pathname, action.href);
+        // Título só no primeiro item de cada grupo. Com a barra fechada o
+        // texto sai e fica um traço, que ainda separa os blocos de ícones.
+        const titulo =
+          action.group && action.group !== all[i - 1]?.group
+            ? action.group
+            : null;
         return (
-          <li key={action.href} className="group/atalho relative">
-            <motion.div
-              whileHover={{ scale: 1.05, x: 2 }}
-              transition={{ type: "spring", bounce: 0, duration: 0.2 }}
-              className="origin-left"
-            >
-              <Link
-                href={action.href}
-                onClick={onNavigate}
-                aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-[color,background-color,border-color,transform] duration-150 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.99] group-data-[colapsada=true]/barra:justify-center group-data-[colapsada=true]/barra:px-0 pointer-coarse:min-h-11 ${
-                  active
-                    ? "border border-neutral-200 bg-white font-medium text-neutral-900 shadow-[0_1px_2px_rgba(30,28,24,0.04)]"
-                    : "border border-transparent text-neutral-600 hover:bg-neutral-200/50 hover:text-neutral-900"
-                }`}
+          <Fragment key={action.href}>
+            {titulo && (
+              <li className="px-2 pt-4 pb-1 text-[11px] font-semibold tracking-wider text-neutral-500 uppercase group-data-[colapsada=true]/barra:mx-2 group-data-[colapsada=true]/barra:mt-2 group-data-[colapsada=true]/barra:mb-1.5 group-data-[colapsada=true]/barra:h-px group-data-[colapsada=true]/barra:overflow-hidden group-data-[colapsada=true]/barra:bg-neutral-200 group-data-[colapsada=true]/barra:p-0 group-data-[colapsada=true]/barra:text-transparent">
+                {titulo}
+              </li>
+            )}
+            <li className="group/atalho relative">
+              <motion.div
+                whileHover={{ scale: 1.05, x: 2 }}
+                transition={{ type: "spring", bounce: 0, duration: 0.2 }}
+                className="origin-left"
               >
-                <action.icon
-                  aria-hidden="true"
-                  className={`size-4 shrink-0 ${active ? "text-neutral-900" : "text-neutral-500"}`}
-                />
-                <span className="truncate group-data-[colapsada=true]/barra:sr-only">
-                  {action.label}
-                </span>
-              </Link>
-            </motion.div>
+                <Link
+                  href={action.href}
+                  onClick={onNavigate}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex items-center gap-3 rounded-md px-2 py-2 text-sm transition-[color,background-color,border-color,transform] duration-150 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.99] group-data-[colapsada=true]/barra:justify-center group-data-[colapsada=true]/barra:px-0 pointer-coarse:min-h-11 ${
+                    active
+                      ? "border border-neutral-200 bg-white font-medium text-neutral-900 shadow-[0_1px_2px_rgba(30,28,24,0.04)]"
+                      : "border border-transparent text-neutral-600 hover:bg-neutral-200/50 hover:text-neutral-900"
+                  }`}
+                >
+                  <action.icon
+                    aria-hidden="true"
+                    className={`size-4 shrink-0 ${active ? "text-neutral-900" : "text-neutral-500"}`}
+                  />
+                  <span className="truncate group-data-[colapsada=true]/barra:sr-only">
+                    {action.label}
+                  </span>
+                </Link>
+              </motion.div>
 
-            {/* Dica própria em vez do `title` do navegador: o nativo só
+              {/* Dica própria em vez do `title` do navegador: o nativo só
                 aparece depois de ~1s, nunca no toque, e não acompanha o foco
                 por teclado. Só existe com a barra fechada, que é quando o
                 rótulo saiu da tela. */}
-            <span
-              role="presentation"
-              className="pointer-events-none absolute top-1/2 left-full z-50 ml-2 hidden -translate-y-1/2 rounded-md bg-neutral-900 px-2 py-1 text-xs whitespace-nowrap text-white opacity-0 transition-opacity duration-100 group-hover/atalho:opacity-100 group-focus-within/atalho:opacity-100 group-data-[colapsada=true]/barra:block"
-            >
-              {action.label}
-            </span>
-          </li>
+              <span
+                role="presentation"
+                className="pointer-events-none absolute top-1/2 left-full z-50 ml-2 hidden -translate-y-1/2 rounded-md bg-neutral-900 px-2 py-1 text-xs whitespace-nowrap text-white opacity-0 transition-opacity duration-100 group-hover/atalho:opacity-100 group-focus-within/atalho:opacity-100 group-data-[colapsada=true]/barra:block"
+              >
+                {action.label}
+              </span>
+            </li>
+          </Fragment>
         );
       })}
     </ul>
