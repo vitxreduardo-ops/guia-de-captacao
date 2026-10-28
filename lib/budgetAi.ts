@@ -1,7 +1,7 @@
 import "server-only";
 import { parseSections, type BudgetSection } from "@/lib/budgetSections";
 
-const MODEL = process.env.OPENAI_MODEL || "gpt-4.1";
+const MODEL = process.env.OPENAI_MODEL || "gpt-6.1-terra";
 
 const text = { type: "string" };
 const list = { type: "array", items: text };

@@ -22,34 +22,124 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type AdminAction = { href: string; label: string; icon: LucideIcon };
+export type AdminGroup = "Criação" | "Clientes" | "Rotina" | "Sistema";
 
+export type AdminAction = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  /** Sem grupo, o item fica no topo, antes do primeiro título. */
+  group?: AdminGroup;
+};
+
+// A ordem aqui é a ordem do menu: os itens de um grupo ficam juntos, e o
+// título do grupo aparece antes do primeiro deles.
 const ACTIONS: AdminAction[] = [
   // Fechada, a barra não mostra o logotipo, que era a única volta pro Painel.
   // Sem este item a pessoa ficava sem caminho de volta pela barra.
   { href: "/admin", label: "Painel", icon: House },
-  { href: "/admin/guias", label: "Guia de Captação", icon: Clapperboard },
-  { href: "/admin/orcamentos", label: "Orçamento", icon: Receipt },
-  { href: "/admin/briefings", label: "Briefing", icon: ClipboardList },
-  { href: "/admin/contratos", label: "Contrato", icon: FileSignature },
-  { href: "/admin/mapas", label: "Mapa mental", icon: Network },
-  { href: "/admin/biblioteca", label: "Biblioteca", icon: Library },
-  { href: "/admin/referencias", label: "Referências", icon: LayoutGrid },
-  { href: "/admin/galerias", label: "Galeria", icon: Images },
-  { href: "/admin/backlog", label: "Backlog", icon: Kanban },
-  { href: "/admin/prospeccao", label: "Prospecção", icon: Target },
-  { href: "/admin/radar", label: "Radar", icon: Radar },
-  { href: "/admin/clientes", label: "Clientes", icon: Briefcase },
-  { href: "/admin/armazenamento", label: "Armazenamento", icon: HardDrive },
-  { href: "/admin/area-do-cliente", label: "Área do cliente", icon: UserRoundCheck },
-  { href: "/admin/agenda", label: "Agenda", icon: CalendarClock },
-  { href: "/admin/lettering", label: "Lettering", icon: PenLine },
-  { href: "/admin/roteiros", label: "Roteiros", icon: ScrollText },
-  { href: "/admin/repertorio", label: "Repertório", icon: Newspaper },
+  {
+    href: "/admin/guias",
+    label: "Guia de Captação",
+    icon: Clapperboard,
+    group: "Criação",
+  },
+  {
+    href: "/admin/roteiros",
+    label: "Roteiros",
+    icon: ScrollText,
+    group: "Criação",
+  },
+  {
+    href: "/admin/lettering",
+    label: "Lettering",
+    icon: PenLine,
+    group: "Criação",
+  },
+  {
+    href: "/admin/biblioteca",
+    label: "Biblioteca",
+    icon: Library,
+    group: "Criação",
+  },
+  {
+    href: "/admin/referencias",
+    label: "Referências",
+    icon: LayoutGrid,
+    group: "Criação",
+  },
+  {
+    href: "/admin/repertorio",
+    label: "Repertório",
+    icon: Newspaper,
+    group: "Criação",
+  },
+  {
+    href: "/admin/mapas",
+    label: "Mapa mental",
+    icon: Network,
+    group: "Criação",
+  },
+  {
+    href: "/admin/clientes",
+    label: "Clientes",
+    icon: Briefcase,
+    group: "Clientes",
+  },
+  {
+    href: "/admin/orcamentos",
+    label: "Orçamento",
+    icon: Receipt,
+    group: "Clientes",
+  },
+  {
+    href: "/admin/briefings",
+    label: "Briefing",
+    icon: ClipboardList,
+    group: "Clientes",
+  },
+  {
+    href: "/admin/contratos",
+    label: "Contrato",
+    icon: FileSignature,
+    group: "Clientes",
+  },
+  {
+    href: "/admin/galerias",
+    label: "Galeria",
+    icon: Images,
+    group: "Clientes",
+  },
+  {
+    href: "/admin/area-do-cliente",
+    label: "Área do cliente",
+    icon: UserRoundCheck,
+    group: "Clientes",
+  },
+  {
+    href: "/admin/prospeccao",
+    label: "Prospecção",
+    icon: Target,
+    group: "Clientes",
+  },
+  { href: "/admin/radar", label: "Radar", icon: Radar, group: "Clientes" },
+  { href: "/admin/backlog", label: "Backlog", icon: Kanban, group: "Rotina" },
+  {
+    href: "/admin/agenda",
+    label: "Agenda",
+    icon: CalendarClock,
+    group: "Rotina",
+  },
+  {
+    href: "/admin/armazenamento",
+    label: "Armazenamento",
+    icon: HardDrive,
+    group: "Rotina",
+  },
 ];
 
 const ADMIN_ONLY_ACTIONS: AdminAction[] = [
-  { href: "/admin/usuarios", label: "Usuários", icon: Users },
+  { href: "/admin/usuarios", label: "Usuários", icon: Users, group: "Sistema" },
 ];
 
 /** Código de seção a partir do href, pro filtro por `allowed_sections` e pro proxy.ts. */
@@ -73,12 +163,14 @@ export function restrictableSections(): { code: string; label: string }[] {
  */
 export function adminActions(
   isAdmin: boolean,
-  allowedSections: string[] | null = null
+  allowedSections: string[] | null = null,
 ): AdminAction[] {
   const base =
     isAdmin || allowedSections === null
       ? ACTIONS
-      : ACTIONS.filter((action) => allowedSections.includes(sectionCode(action.href)));
+      : ACTIONS.filter((action) =>
+          allowedSections.includes(sectionCode(action.href)),
+        );
   return isAdmin ? [...base, ...ADMIN_ONLY_ACTIONS] : base;
 }
 
