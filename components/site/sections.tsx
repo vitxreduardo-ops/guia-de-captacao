@@ -1,7 +1,8 @@
+import { RevealStagger, RevealItem, Reveal } from "@/components/Reveal"
 import { CONFIG, whatsappUrl } from "./config"
 import { cn } from "@/lib/utils"
 import { TatuIcon, TatuWordmark } from "./Logo"
-import { BLOCK, Head, Row } from "./parts"
+import { BLOCK, Head, Row, ScrubText } from "./parts"
 
 const hover = "transition-opacity hover:opacity-[.55]"
 const hideSmall = "max-[860px]:hidden"
@@ -126,9 +127,13 @@ export function Sobre() {
   return (
     <section id="sobre" className={BLOCK}>
       <Head left="Sobre" right="Do diagnóstico à entrega" />
-      {ETAPAS.map((e) => (
-        <Row key={e.title} href="#contato" title={e.title} desc={e.desc} />
-      ))}
+      <RevealStagger>
+        {ETAPAS.map((e) => (
+          <RevealItem key={e.title}>
+            <Row href="#contato" title={e.title} desc={e.desc} />
+          </RevealItem>
+        ))}
+      </RevealStagger>
     </section>
   )
 }
@@ -150,19 +155,19 @@ export function Studio() {
     >
       <p className="text-sm font-medium text-mute">Estúdio</p>
       <div>
-        <p className="max-w-[24em] text-pretty text-[clamp(1.8rem,4vw,3.6rem)] font-medium leading-[1.1] tracking-[-0.03em]">
+        <ScrubText className="text-pretty text-[clamp(1.5rem,2.6vw,2.5rem)] font-medium leading-[1.15] tracking-[-0.025em]">
           Conteúdo bom não resolve atendimento ruim. Antes de filmar ou desenhar, olhamos o caminho inteiro do cliente:
           como ele chega, quem atende e como a venda acontece. Às vezes a resposta é um vídeo. Às vezes é outra coisa, e
           a gente diz.
-        </p>
-        <div className="mt-[72px] grid grid-cols-[repeat(auto-fit,minmax(min(100%,240px),1fr))] gap-8">
+        </ScrubText>
+        <RevealStagger className="mt-[72px] grid grid-cols-[repeat(auto-fit,minmax(min(100%,240px),1fr))] gap-8">
           {FACTS.map((f) => (
-            <div key={f.title} className="border-t border-fg pt-3.5">
+            <RevealItem key={f.title} className="border-t border-fg pt-3.5">
               <h3 className="mb-2 text-[1.1rem] font-semibold tracking-[-0.01em]">{f.title}</h3>
               <p className="text-mute">{f.text}</p>
-            </div>
+            </RevealItem>
           ))}
-        </div>
+        </RevealStagger>
       </div>
     </section>
   )
@@ -173,6 +178,7 @@ export function Contact() {
   const hasAny = Boolean(wa || CONFIG.email)
   return (
     <section id="contato" className={BLOCK}>
+      <Reveal>
       <h2 className="mb-14 text-[clamp(3.4rem,14vw,13rem)] font-extrabold leading-[0.85] tracking-[-0.06em]">
         {wa ? (
           <a href={wa} target="_blank" rel="noopener noreferrer" className="underline decoration-[0.04em] underline-offset-[0.08em] transition-opacity hover:opacity-[.55]">
@@ -182,6 +188,7 @@ export function Contact() {
           "Vamos conversar?"
         )}
       </h2>
+      </Reveal>
       <div>
         {wa && (
           <Row href={wa} title="WhatsApp" desc="Resposta de quem vai trabalhar no projeto" small inheritDesc external />

@@ -1,40 +1,35 @@
-import { useEffect, useState } from "react"
+import { useSyncExternalStore } from "react"
+
+// No servidor e na hidratação valem os valores de servidor (1280 e false); o
+// navegador troca pelos reais logo em seguida, sem descompasso.
+
+function assinarLargura(avisar: () => void) {
+  let timer: number | undefined
+  const onResize = () => {
+    window.clearTimeout(timer)
+    timer = window.setTimeout(avisar, 150)
+  }
+  window.addEventListener("resize", onResize)
+  return () => {
+    window.removeEventListener("resize", onResize)
+    window.clearTimeout(timer)
+  }
+}
 
 /** Largura da janela. Só muda quando a largura muda de fato, para a barra do navegador no celular não refazer a faixa. */
 export function useViewportWidth() {
-  const [width, setWidth] = useState(() => (typeof window === "undefined" ? 1280 : window.innerWidth))
+  return useSyncExternalStore(assinarLargura, () => window.innerWidth, () => 1280)
+}
 
-  useEffect(() => {
-    let timer: number | undefined
-    let last = window.innerWidth
-    const onResize = () => {
-      if (window.innerWidth === last) return
-      last = window.innerWidth
-      window.clearTimeout(timer)
-      timer = window.setTimeout(() => setWidth(window.innerWidth), 150)
-    }
-    window.addEventListener("resize", onResize)
-    return () => {
-      window.removeEventListener("resize", onResize)
-      window.clearTimeout(timer)
-    }
-  }, [])
+const MENOS_MOVIMENTO = "(prefers-reduced-motion: reduce)"
 
-  return width
+function assinarMovimento(avisar: () => void) {
+  const media = window.matchMedia(MENOS_MOVIMENTO)
+  media.addEventListener("change", avisar)
+  return () => media.removeEventListener("change", avisar)
 }
 
 /** Verdadeiro quando a pessoa pediu menos movimento no sistema. */
 export function useReducedMotion() {
-  const [reduced, setReduced] = useState(
-    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  )
-
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)")
-    const onChange = () => setReduced(media.matches)
-    media.addEventListener("change", onChange)
-    return () => media.removeEventListener("change", onChange)
-  }, [])
-
-  return reduced
+  return useSyncExternalStore(assinarMovimento, () => window.matchMedia(MENOS_MOVIMENTO).matches, () => false)
 }
