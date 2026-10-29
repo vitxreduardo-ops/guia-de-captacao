@@ -82,6 +82,9 @@ export async function proxy(request: NextRequest) {
     if (session) {
       return NextResponse.redirect(fora(home));
     }
+    // Fora do cliente.*, o login é o site do estúdio (app/site), que não fica
+    // sob /admin pra não herdar a moldura do painel.
+    if (sub !== "cliente") path = "/site";
     return seguir();
   }
 

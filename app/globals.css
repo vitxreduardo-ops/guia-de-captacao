@@ -342,9 +342,10 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  /* O site do estúdio decide sozinho (MARQUEE e MOTION em components/site/config.ts). */
+  *:not(.site *),
+  *:not(.site *)::before,
+  *:not(.site *)::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -821,5 +822,69 @@ a {
     &::details-content {
       transition: none;
     }
+  }
+}
+
+/*
+  Site do estúdio (a tela de login do sistema). As cores só existem dentro de
+  `.site`, então `bg-bg`, `text-fg` e afins não pegam no resto do app.
+  Contrastes sobre o fundo: creme 14,9:1 · taupe 9,5:1 · taupe sobre a
+  superfície 7,1:1.
+*/
+@theme inline {
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-mute: var(--mute);
+  --color-rule: var(--rule);
+  --color-surface: var(--surface);
+  --animate-marquee: marquee var(--duration, 30s) linear infinite;
+  --animate-marquee-reverse: marquee-reverse var(--duration, 30s) linear infinite;
+  @keyframes marquee {
+    to { transform: translateX(-50%); }
+  }
+  @keyframes marquee-reverse {
+    from { transform: translateX(-50%); }
+    to { transform: translateX(0); }
+  }
+}
+
+html:has(.site) {
+  scroll-behavior: smooth;
+  background: #1c2411;
+  color-scheme: dark;
+}
+@media (prefers-reduced-motion: reduce) {
+  html:has(.site) { scroll-behavior: auto; }
+}
+
+.site {
+  --bg: #1c2411; /* verde mais escuro que o ink */
+  --surface: #2f3b1e; /* o ink do Tatu */
+  --fg: #fff6e3; /* creme */
+  --mute: #cdc7b8; /* taupe */
+  --rule: #4a5632; /* filetes */
+  --gutter-l: max(20px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(20px, env(safe-area-inset-right, 0px));
+  flex: 1;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-archivo), "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  overflow-x: clip;
+
+  & :focus-visible {
+    outline: 2px solid var(--fg);
+    outline-offset: 4px;
+  }
+  & ::selection {
+    background: var(--mute);
+    color: var(--bg);
+  }
+  & .wrap {
+    margin-inline: auto;
+    max-width: 1600px;
+    padding-left: var(--gutter-l);
+    padding-right: var(--gutter-r);
   }
 }
