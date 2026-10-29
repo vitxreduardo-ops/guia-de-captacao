@@ -17,6 +17,17 @@ export const MODELO_TRIAGEM =
 
 export type MensagemChat = { role: "user" | "assistant"; content: string };
 
+/**
+ * GPT-5 em diante e a linha `o*` só aceitam a temperatura padrão (1): mandar
+ * outro valor volta 400. Pros outros modelos a temperatura de cada chamada vale.
+ */
+function semTemperaturaSeNaoAceita(body: Record<string, unknown>) {
+  if (!/^(gpt-[5-9]|gpt-\d{2,}|o\d)/.test(String(body.model))) return body;
+  const resto = { ...body };
+  delete resto.temperature;
+  return resto;
+}
+
 async function completar(body: Record<string, unknown>): Promise<string> {
   const apiKey = process.env.ROTEIROS_AI_KEY;
   if (!apiKey) throw new Error("ROTEIROS_AI_KEY não configurada no servidor.");
@@ -35,7 +46,7 @@ async function completar(body: Record<string, unknown>): Promise<string> {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify(semTemperaturaSeNaoAceita(body)),
   });
 
   if (!response.ok) {
