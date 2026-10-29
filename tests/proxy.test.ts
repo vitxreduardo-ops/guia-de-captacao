@@ -24,6 +24,12 @@ describe("subdomínios", () => {
     );
   });
 
+  it("login do sistema é o site do estúdio", async () => {
+    expect(reescrita(await visita("https://sistema.tatuestudio.com.br/login?error=1"))).toBe(
+      "https://sistema.tatuestudio.com.br/site?error=1"
+    );
+  });
+
   it("link antigo com /admin perde o prefixo", async () => {
     expect(destino(await visita("https://sistema.tatuestudio.com.br/admin/agenda?d=1"))).toBe(
       "https://sistema.tatuestudio.com.br/agenda?d=1"
