@@ -15,6 +15,9 @@ import {
 const DURACOES = [30, 60, 90];
 
 type Props = {
+  clientes: string[];
+  cliente: string;
+  setCliente: (c: string) => void;
   comum: ComumParams;
   setComum: (c: ComumParams) => void;
   framework: Framework | null;
@@ -61,6 +64,9 @@ function Continuar({
 }
 
 export default function CamposComuns({
+  clientes,
+  cliente,
+  setCliente,
   comum,
   setComum,
   framework,
@@ -130,6 +136,31 @@ export default function CamposComuns({
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* Fora dos passos do celular: vem antes de tudo e é opcional. */}
+        <div className="sm:col-span-2">
+          <label htmlFor="roteiro-cliente" className="mb-1 block text-sm text-neutral-500">
+            Cliente
+          </label>
+          <select
+            id="roteiro-cliente"
+            value={cliente}
+            onChange={(e) => setCliente(e.target.value)}
+            className="w-full rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-900 focus:border-neutral-500 focus:outline-none sm:w-1/2"
+          >
+            <option value="">Nenhum</option>
+            {clientes.map((nome) => (
+              <option key={nome} value={nome}>
+                {nome}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-neutral-500">
+            {cliente
+              ? `A IA lê o perfil e os roteiros de ${cliente}.`
+              : "Escolha um cliente pra IA usar o perfil e o tom dele."}
+          </p>
+        </div>
+
         <div id="passo-tema" className={`sm:col-span-2 ${passoClasse(0)}`}>
           <label htmlFor="roteiro-tema" className="mb-1 block text-sm text-neutral-500">Tema</label>
           <textarea

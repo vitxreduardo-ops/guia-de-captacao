@@ -226,6 +226,26 @@ REGRAS:
 
 ${ANTI_CLICHE}`;
 
+/** O que se sabe do cliente escolhido: perfil do cadastro e roteiros dos guias dele. */
+export function blocoDoCliente({
+  cliente,
+  descricaoDoCliente,
+  roteirosDoCliente,
+}: {
+  cliente: string;
+  descricaoDoCliente: string;
+  roteirosDoCliente: string;
+}) {
+  let bloco = `\n\nCLIENTE: ${cliente}\n`;
+  if (descricaoDoCliente) {
+    bloco += `Perfil do cliente (escrito pelo estúdio; vale mais que qualquer suposição sua):\n${descricaoDoCliente}\n\n`;
+  }
+  bloco += roteirosDoCliente
+    ? `Roteiros já planejados para este cliente (mais recentes primeiro). Use para pegar o tom, o vocabulário e o tipo de pauta dele, e evite repetir ideias já feitas. Copie o estilo, não a formatação (** e outras marcações ficam de fora):\n${roteirosDoCliente}`
+    : "Ainda não há roteiros deste cliente nos guias.";
+  return bloco;
+}
+
 /** PROMPT_CHAT mais o que o chat sabe desta vez: cliente e formulário do gerador. */
 export function promptChat({
   cliente,
@@ -239,15 +259,7 @@ export function promptChat({
   formulario: string;
 }) {
   let prompt = PROMPT_CHAT;
-  if (cliente) {
-    prompt += `\n\nCLIENTE DESTA CONVERSA: ${cliente}\n`;
-    if (descricaoDoCliente) {
-      prompt += `Perfil do cliente (escrito pelo estúdio; vale mais que qualquer suposição sua):\n${descricaoDoCliente}\n\n`;
-    }
-    prompt += roteirosDoCliente
-      ? `Roteiros já planejados para este cliente (mais recentes primeiro). Use para pegar o tom, o vocabulário e o tipo de pauta dele, e evite repetir ideias já feitas. Copie o estilo, não a formatação: mesmo que estes roteiros tenham ** ou outras marcações, sua resposta continua em texto puro:\n${roteirosDoCliente}`
-      : "Ainda não há roteiros deste cliente nos guias.";
-  }
+  if (cliente) prompt += blocoDoCliente({ cliente, descricaoDoCliente, roteirosDoCliente });
   if (formulario) {
     prompt += `\n\nFORMULÁRIO DO GERADOR (aberto ao lado do chat; quando a pessoa falar de "esse roteiro", "esse hook", "o tema", é disto):\n${formulario}`;
   }
