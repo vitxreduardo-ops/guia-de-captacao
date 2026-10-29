@@ -45,6 +45,16 @@ export async function proxy(request: NextRequest) {
     return alvo;
   };
 
+  // Portal só no cliente.*: aberto pelo www (o "Ver como o cliente" do painel
+  // no www), o cookie da prévia ficava no www e o app instalado, no cliente.*,
+  // lia outro — abria o cliente errado ou pedia pra escolher de novo.
+  if (sub === "www" && dentro(url.pathname, "/cliente") && !arquivo) {
+    const alvo = url.clone();
+    alvo.hostname = ["cliente", ...resto].join(".");
+    alvo.pathname = url.pathname.slice("/cliente".length) || "/";
+    return NextResponse.redirect(alvo);
+  }
+
   let path = url.pathname;
   if (prefixo && !arquivo) {
     // Link antigo com prefixo (os do próprio app ainda são assim): manda pro
