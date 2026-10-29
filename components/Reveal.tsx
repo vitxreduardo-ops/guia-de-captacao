@@ -1,9 +1,13 @@
 "use client";
 
-import { motion, useReducedMotion, type Variants } from "motion/react";
+import { MotionConfig, motion, type Variants } from "motion/react";
 import type { ReactNode } from "react";
 
 const DISTANCE = 28;
+
+// Quem pediu menos movimento fica só com o fade: o MotionConfig corta o
+// deslocamento no navegador. Ler useReducedMotion aqui mudava o `initial`
+// entre servidor e navegador e a hidratação reclamava.
 
 export function Reveal({
   children,
@@ -16,23 +20,18 @@ export function Reveal({
   delay?: number;
   y?: number;
 }) {
-  const prefersReducedMotion = useReducedMotion();
-
   return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y: prefersReducedMotion ? 0 : y }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: false, amount: 0.3, margin: "-10% 0px -10% 0px" }}
-      transition={{
-        type: "spring",
-        bounce: 0,
-        duration: prefersReducedMotion ? 0.2 : 0.6,
-        delay: prefersReducedMotion ? 0 : delay,
-      }}
-    >
-      {children}
-    </motion.div>
+    <MotionConfig reducedMotion="user">
+      <motion.div
+        className={className}
+        initial={{ opacity: 0, y }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false, amount: 0.3, margin: "-10% 0px -10% 0px" }}
+        transition={{ type: "spring", bounce: 0, duration: 0.6, delay }}
+      >
+        {children}
+      </motion.div>
+    </MotionConfig>
   );
 }
 
@@ -50,27 +49,23 @@ export function RevealStagger({
   className?: string;
   staggerDelay?: number;
 }) {
-  const prefersReducedMotion = useReducedMotion();
-
   const container: Variants = {
     hidden: {},
-    show: {
-      transition: {
-        staggerChildren: prefersReducedMotion ? 0 : staggerDelay,
-      },
-    },
+    show: { transition: { staggerChildren: staggerDelay } },
   };
 
   return (
-    <motion.div
-      className={className}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: false, amount: 0.2, margin: "-10% 0px -10% 0px" }}
-      variants={container}
-    >
-      {children}
-    </motion.div>
+    <MotionConfig reducedMotion="user">
+      <motion.div
+        className={className}
+        initial="hidden"
+        whileInView="show"
+        viewport={{ once: false, amount: 0.2, margin: "-10% 0px -10% 0px" }}
+        variants={container}
+      >
+        {children}
+      </motion.div>
+    </MotionConfig>
   );
 }
 
@@ -83,24 +78,16 @@ export function RevealItem({
   className?: string;
   y?: number;
 }) {
-  const prefersReducedMotion = useReducedMotion();
-
   const item: Variants = {
-    hidden: { opacity: 0, y: prefersReducedMotion ? 0 : y },
-    show: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        type: "spring",
-        bounce: 0,
-        duration: prefersReducedMotion ? 0.2 : 0.5,
-      },
-    },
+    hidden: { opacity: 0, y },
+    show: { opacity: 1, y: 0, transition: { type: "spring", bounce: 0, duration: 0.5 } },
   };
 
   return (
-    <motion.div className={className} variants={item}>
-      {children}
-    </motion.div>
+    <MotionConfig reducedMotion="user">
+      <motion.div className={className} variants={item}>
+        {children}
+      </motion.div>
+    </MotionConfig>
   );
 }

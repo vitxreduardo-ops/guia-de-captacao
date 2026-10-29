@@ -1,13 +1,11 @@
 "use client"
 
-import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react"
+import { useEffect, useRef, type ReactNode } from "react"
 import { CONFIG } from "./config"
 import { Cases } from "./Cases"
 import { MakingOf } from "./MakingOf"
 import { Partners } from "./Partners"
 import { Contact, Footer, Header, Hero, Intro, Sobre, Studio } from "./sections"
-
-const nada = () => () => {}
 
 /**
  * O site do estúdio, que é também a tela de login: "Entrar" abre o bloco
@@ -15,22 +13,18 @@ const nada = () => () => {}
  */
 export default function Site({ login, abrirLogin }: { login: ReactNode; abrirLogin: boolean }) {
   const bloco = useRef<HTMLDivElement>(null)
-  // O site foi feito pra rodar só no navegador (mede a janela já no primeiro
-  // render): renderizado no servidor, Cases e Parceiros não batiam na hidratação.
-  const noNavegador = useSyncExternalStore(nada, () => true, () => false)
 
   // Senha errada volta pra cá com ?error: o bloco já abre com a mensagem.
   useEffect(() => {
     if (abrirLogin) bloco.current?.showPopover()
-  }, [abrirLogin, noNavegador])
+  }, [abrirLogin])
 
   // Com showEmpty desligado, as seções sem conteúdo e os links delas somem
-  const showHero = Boolean(CONFIG.hero) || CONFIG.showEmpty
+  // O Hero só aparece com o reel: um "Em breve" do tamanho da tela era a primeira coisa vista.
+  const showHero = Boolean(CONFIG.hero)
   const showCases = CONFIG.cases.length > 0 || CONFIG.showEmpty
   const showPartners = CONFIG.partners.length > 0 || CONFIG.showEmpty
   const showMaking = CONFIG.makingOf.length > 0 || CONFIG.showEmpty
-
-  if (!noNavegador) return null
 
   return (
     <div className="wrap">

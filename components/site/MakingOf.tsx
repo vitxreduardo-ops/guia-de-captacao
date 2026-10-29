@@ -1,3 +1,4 @@
+import { RevealStagger, RevealItem } from "@/components/Reveal"
 import { CONFIG, type MakingOfItem } from "./config"
 import { BLOCK, Head, Media } from "./parts"
 
@@ -10,7 +11,7 @@ export function MakingOf() {
   return (
     <section id="making" className={BLOCK}>
       <Head left="Making Of" right="Por trás das câmeras" />
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,320px),1fr))] gap-x-6 gap-y-10 pt-9">
+      <RevealStagger className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,320px),1fr))] gap-x-6 gap-y-10 pt-9">
         {list.map((k, i) => {
           const card = (
             <>
@@ -27,17 +28,19 @@ export function MakingOf() {
               </h3>
             </>
           )
-          return k.url ? (
-            <a key={i} href={k.url} target="_blank" rel="noopener noreferrer" className="group block min-w-0">
-              {card}
-            </a>
-          ) : (
-            <div key={i} className="group block min-w-0">
-              {card}
-            </div>
+          return (
+            <RevealItem key={i} className="min-w-0">
+              {k.url ? (
+                <a href={k.url} target="_blank" rel="noopener noreferrer" className="group block min-w-0">
+                  {card}
+                </a>
+              ) : (
+                <div className="group block min-w-0">{card}</div>
+              )}
+            </RevealItem>
           )
         })}
-      </div>
+      </RevealStagger>
     </section>
   )
 }

@@ -1,4 +1,5 @@
 import { useRef, type ReactNode } from "react"
+import { motion, useScroll, useTransform, type MotionValue } from "motion/react"
 import { cn } from "@/lib/utils"
 
 /** Espaçamento entre seções */
@@ -96,5 +97,26 @@ export function Media({ image, video, alt = "", soon, ratio = "aspect-[16/10]", 
       )}
       {children}
     </div>
+  )
+}
+
+function Palavra({ children, progresso, de, ate }: { children: string; progresso: MotionValue<number>; de: number; ate: number }) {
+  const opacity = useTransform(progresso, [de, ate], [0.15, 1])
+  return <motion.span style={{ opacity }}>{children} </motion.span>
+}
+
+/** Parágrafo que acende palavra por palavra conforme a página rola */
+export function ScrubText({ children, className }: { children: string; className?: string }) {
+  const ref = useRef<HTMLParagraphElement>(null)
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start 85%", "end 55%"] })
+  const palavras = children.split(/\s+/).filter(Boolean)
+  return (
+    <p ref={ref} className={className}>
+      {palavras.map((p, i) => (
+        <Palavra key={i} progresso={scrollYProgress} de={i / palavras.length} ate={(i + 1) / palavras.length}>
+          {p}
+        </Palavra>
+      ))}
+    </p>
   )
 }
