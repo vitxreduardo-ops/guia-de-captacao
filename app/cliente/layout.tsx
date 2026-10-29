@@ -32,9 +32,9 @@ export default async function ClienteLayout({ children }: { children: React.Reac
             <Link href="/cliente/escolher" className="whitespace-nowrap font-semibold underline underline-offset-4">
               Trocar cliente
             </Link>
-            <Link href="/cliente/previa?sair=1" className="whitespace-nowrap font-semibold underline underline-offset-4">
+            <a href="/cliente/previa?sair=1" className="whitespace-nowrap font-semibold underline underline-offset-4">
               Voltar ao painel
-            </Link>
+            </a>
           </span>
         </div>
       ) : null}
