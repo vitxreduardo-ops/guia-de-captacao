@@ -15,6 +15,7 @@ import {
   promptMidtrack,
   promptPAS,
   promptChat,
+  blocoDoCliente,
   PROMPT_ORGANIZAR,
   PROMPT_TRIAGEM,
 } from "@/lib/roteiroPrompts";
@@ -100,10 +101,12 @@ export async function gerarRoteiroAction(input: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   extra: any;
   tags: string[];
+  /** Cliente do seletor do formulário; vazio = roteiro sem cliente. */
+  cliente?: string;
 }): Promise<Resultado<{ roteiro: RoteiroJson; id: string | null }>> {
   await requireTeam("roteiros");
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
-  const { framework, extra, tags } = input;
+  const { framework, extra } = input;
   const comum = {
     ...input.comum,
     duracaoSegundos: Math.min(
@@ -129,6 +132,21 @@ export async function gerarRoteiroAction(input: {
     default:
       return { ok: false, error: `Framework desconhecido: ${framework}` };
   }
+
+  // Mesmo contexto que o chat recebe: perfil do cadastro e roteiros dos guias.
+  // Cliente fora do acesso da pessoa é ignorado, como no chat.
+  const pedido = typeof input.cliente === "string" ? input.cliente.trim().slice(0, 200) : "";
+  const cliente = pedido && (await clientePermitido(pedido)) ? pedido : "";
+  if (cliente) {
+    system += blocoDoCliente({
+      cliente,
+      descricaoDoCliente: (await perfilDoCliente(cliente))?.descricao ?? "",
+      roteirosDoCliente: await contextoDoCliente(cliente),
+    });
+  }
+  // O cliente vira tag pra o histórico achar o roteiro por ele.
+  const tags = limparTags(input.tags);
+  if (cliente && !tags.includes(cliente)) tags.unshift(cliente);
 
   let roteiro: RoteiroJson;
   try {
@@ -156,7 +174,7 @@ export async function gerarRoteiroAction(input: {
       tom: comum.tom,
       nicho: comum.nicho,
       roteiro,
-      tags: limparTags(tags),
+      tags,
     });
     revalidatePath("/admin/roteiros/historico");
   } catch (err) {

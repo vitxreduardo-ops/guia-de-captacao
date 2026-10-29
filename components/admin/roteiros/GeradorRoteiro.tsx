@@ -25,9 +25,16 @@ import {
 
 export default function GeradorRoteiro({
   inicial,
+  clientes = [],
 }: {
   inicial?: PreenchimentoInicial | null;
+  /** Nomes pro seletor de cliente, os mesmos do chat. */
+  clientes?: string[];
 }) {
+  // "Usar como base": a primeira tag que é um cliente conhecido volta como cliente.
+  const [cliente, setCliente] = useState(
+    () => inicial?.tags.find((t) => clientes.includes(t)) ?? ""
+  );
   const [comum, setComum] = useState<ComumParams>(
     inicial?.comum ?? {
       tema: "",
@@ -147,6 +154,7 @@ export default function GeradorRoteiro({
         comum: comumResolvido,
         extra: extraAtual(),
         tags,
+        cliente,
       });
       if (!res.ok) {
         setErro(res.error);
@@ -162,6 +170,9 @@ export default function GeradorRoteiro({
   return (
       <div className="space-y-6">
         <CamposComuns
+          clientes={clientes}
+          cliente={cliente}
+          setCliente={setCliente}
           comum={comum}
           setComum={setComum}
           framework={framework}

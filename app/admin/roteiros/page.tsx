@@ -86,6 +86,7 @@ export default async function RoteirosPage({
           <GeradorRoteiro
             key={base?.id ?? (noticia ? `noticia-${noticia.id}` : "novo")}
             inicial={inicial}
+            clientes={clientes}
           />
         </div>
 
