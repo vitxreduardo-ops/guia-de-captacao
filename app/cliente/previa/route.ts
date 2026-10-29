@@ -8,6 +8,10 @@ import { getCurrentSession } from "@/lib/session";
  * dele, só leitura, sem trocar de login. `?sair=1` volta pro calendário.
  */
 export async function GET(request: Request) {
+  // O <Link> do Next pré-carrega os links visíveis: na tela de escolher, cada
+  // cliente da lista gravava o cookie (ganhava o último) e o "Voltar ao painel"
+  // da faixa apagava. Pré-carga não muda nada; só o clique de verdade.
+  if (request.headers.get("next-router-prefetch")) return new Response(null, { status: 204 });
   const url = new URL(request.url);
   const session = await getCurrentSession();
   // Equipe toda (admin e membro); o escopo de clientes é checado abaixo.

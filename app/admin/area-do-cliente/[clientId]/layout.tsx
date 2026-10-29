@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Eye } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
@@ -60,13 +59,13 @@ export default async function ClientAreaClientLayout({
               : "Sem acesso ao portal"}
           </span>
         </div>
-        <Link
+        <a
           href={`/cliente/previa?cliente=${clientId}`}
           className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-neutral-300 px-3 text-sm font-medium hover:bg-neutral-50"
         >
           <Eye className="size-4" aria-hidden />
           Ver como o cliente
-        </Link>
+        </a>
       </div>
 
       <div className="mb-6">

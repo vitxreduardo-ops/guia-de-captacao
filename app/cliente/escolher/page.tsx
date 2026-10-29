@@ -39,14 +39,14 @@ export default async function EscolherClientePage() {
       <ul>
         {clients.map((client) => (
           <li key={client.id} className="border-b border-[var(--tatu-taupe)] last:border-b-0">
-            <Link
+            <a
               href={`/cliente/previa?cliente=${client.id}`}
               className="flex min-h-[4.5rem] items-center gap-3 py-3 hover:text-[var(--tatu-olive)]"
             >
               <ClientAvatar name={client.name} logoUrl={findClientLogo(client.name, logos)} size={48} />
               <span className="min-w-0 flex-1 truncate font-medium">{client.name}</span>
               <ChevronRight className="size-4 shrink-0 text-[var(--tatu-muted)]" aria-hidden />
-            </Link>
+            </a>
           </li>
         ))}
       </ul>
