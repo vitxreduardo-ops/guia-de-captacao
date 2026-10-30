@@ -28,6 +28,24 @@ export default function Site({ login, abrirLogin }: { login: ReactNode; abrirLog
 
   return (
     <div className="wrap">
+      {CONFIG.fundo && (
+        // Atrás só da primeira tela, de ponta a ponta; o degradê embaixo funde no fundo da página.
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-svh overflow-hidden">
+          <video
+            src={CONFIG.fundo}
+            autoPlay
+            muted
+            loop
+            playsInline
+            disablePictureInPicture
+            disableRemotePlayback
+            preload="auto"
+            className="h-full w-full object-cover"
+            style={{ opacity: CONFIG.fundoOpacidade }}
+          />
+          <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-b from-transparent to-bg" />
+        </div>
+      )}
       <Header showCases={showCases} showPartners={showPartners} showMaking={showMaking} />
       {showHero && <Hero />}
       <Intro showCases={showCases} />
