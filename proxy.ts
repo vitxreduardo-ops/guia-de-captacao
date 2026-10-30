@@ -22,8 +22,9 @@ export async function proxy(request: NextRequest) {
   const host = (request.headers.get("host") ?? url.host).split(":")[0];
   const [sub, ...resto] = host.split(".");
   const prefixo = SUBDOMINIOS[sub];
-  // Arquivo (o manifesto do portal) nunca muda de endereço.
-  const arquivo = /\.[a-z]+$/i.test(url.pathname);
+  // Arquivo (o manifesto do portal, o vídeo do site) nunca muda de endereço.
+  // Com dígito na extensão: `.mp4` caía no login.
+  const arquivo = /\.[a-z0-9]+$/i.test(url.pathname);
 
   /** Caminho interno → endereço que o navegador deve ver. */
   const fora = (interno: string): URL => {

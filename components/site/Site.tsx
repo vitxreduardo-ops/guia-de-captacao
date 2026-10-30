@@ -46,9 +46,12 @@ export default function Site({ login, abrirLogin }: { login: ReactNode; abrirLog
           <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-b from-transparent to-bg" />
         </div>
       )}
-      <Header showCases={showCases} showPartners={showPartners} showMaking={showMaking} />
-      {showHero && <Hero />}
-      <Intro showCases={showCases} />
+      {/* Primeira tela: topo e título sobre o vídeo; o resto só entra rolando. */}
+      <div className="min-h-svh">
+        <Header showCases={showCases} showPartners={showPartners} showMaking={showMaking} />
+        {showHero && <Hero />}
+        <Intro showCases={showCases} />
+      </div>
       <Sobre />
       {showPartners && <Partners />}
       {showCases && <Cases />}

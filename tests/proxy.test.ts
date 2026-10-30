@@ -47,6 +47,7 @@ describe("subdomínios", () => {
       "https://sistema.tatuestudio.com.br/guia/abc",
       "https://cliente.tatuestudio.com.br/cliente/manifest.webmanifest",
       "https://cliente.tatuestudio.com.br/api/favicon",
+      "https://sistema.tatuestudio.com.br/video/fundo.mp4",
     ]) {
       const r = await visita(url);
       expect(destino(r)).toBeNull();
