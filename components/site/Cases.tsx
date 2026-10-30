@@ -120,7 +120,7 @@ export function Cases() {
 
   const frame = (
     <div className="relative mx-auto w-full max-w-[1600px] px-[var(--gutter-l)]">
-        <div className="relative grid grid-cols-[min(288px,calc(30vw+48px))_minmax(0,1fr)] pt-12">
+        <div className="relative pt-12">
           <motion.div
               className="pointer-events-none absolute left-0 top-0 z-10"
               initial={false}
@@ -129,7 +129,8 @@ export function Cases() {
             >
               {preview}
             </motion.div>
-          <div className="col-start-2" onPointerLeave={() => setInside(false)}>
+          {/* A linha vale na largura toda: o mouse em qualquer X da faixa de um item abre o quadro. */}
+          <div onPointerLeave={() => setInside(false)}>
             {list.map((c, i) => {
               const on = active === i && inside
               const dim = inside && active !== i
@@ -141,7 +142,7 @@ export function Cases() {
                   {c.url && <span className="ml-3 text-[0.6em]">↗</span>}
                 </>
               )
-              const cls = "block w-fit max-w-full py-1 text-[clamp(2.2rem,5.2vw,4.6rem)] font-semibold leading-[1.08] tracking-[-0.04em] outline-none"
+              const cls = "block py-1 text-center text-[clamp(2.2rem,5.2vw,4.6rem)] font-semibold leading-[1.08] tracking-[-0.04em] outline-none"
               const common = {
                 ref: (el: HTMLElement | null) => {
                   rows.current[i] = el

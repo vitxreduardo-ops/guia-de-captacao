@@ -30,7 +30,7 @@ export default async function SitePage({ searchParams }: { searchParams: SearchP
       : null;
 
   return (
-    <div className={`site ${archivo.variable}`}>
+    <div className={`site relative isolate ${archivo.variable}`}>
       <Site
         login={<LoginForm next={next} errorMessage={errorMessage} />}
         abrirLogin={errorMessage !== null}

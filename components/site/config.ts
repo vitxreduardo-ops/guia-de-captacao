@@ -34,6 +34,10 @@ export const CONFIG = {
   // Hero: link do reel no YouTube ou Vimeo. Ex.: "https://youtu.be/XXXXXXXXXXX"
   hero: "",
 
+  // Vídeo de fundo da primeira tela: arquivo em public/ (sem áudio, leve). Ex.: "/video/fundo.mp4"
+  fundo: "/video/fundo.mp4",
+  fundoOpacidade: 0.2, // de 0 a 1
+
   // Cases. Um por trabalho.
   cases: [] as CaseItem[],
 
