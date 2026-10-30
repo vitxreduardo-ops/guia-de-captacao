@@ -47,7 +47,7 @@ export default function Site({ login, abrirLogin }: { login: ReactNode; abrirLog
         </div>
       )}
       {/* Primeira tela: topo e título sobre o vídeo; o resto só entra rolando. */}
-      <div className="min-h-svh">
+      <div className="flex min-h-svh flex-col">
         <Header showCases={showCases} showPartners={showPartners} showMaking={showMaking} />
         {showHero && <Hero />}
         <Intro showCases={showCases} />
