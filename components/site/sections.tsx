@@ -91,13 +91,14 @@ export function Intro({ showCases }: { showCases: boolean }) {
   const wa = whatsappUrl()
   const link = "border-b border-current pb-px text-fg hover:opacity-[.55]"
   return (
-    <section className="grid grid-cols-[minmax(0,1fr)_minmax(0,3fr)] items-start gap-8 pt-12 max-[860px]:grid-cols-1 max-[860px]:gap-3.5">
-      <p className="text-sm font-medium text-mute">Luís Eduardo Magalhães, Bahia</p>
-      <div>
-        <h1 className="max-w-[21em] text-balance text-[clamp(2rem,5.2vw,4.8rem)] font-medium leading-[1.08] tracking-[-0.03em]">
+    // No celular: título no meio da tela, cidade logo abaixo e os links no pé (o pai é flex-col de altura da tela).
+    <section className="grid grid-cols-[minmax(0,1fr)_minmax(0,3fr)] items-start gap-8 pt-12 max-[860px]:flex max-[860px]:flex-1 max-[860px]:flex-col max-[860px]:items-center max-[860px]:gap-3.5 max-[860px]:pb-10 max-[860px]:text-center">
+      <p className="text-sm font-medium text-mute max-[860px]:order-2">Luís Eduardo Magalhães, Bahia</p>
+      <div className="max-[860px]:contents">
+        <h1 className="max-w-[21em] text-balance max-[860px]:order-1 max-[860px]:mt-auto text-[clamp(2rem,5.2vw,4.8rem)] font-medium leading-[1.08] tracking-[-0.03em]">
           Estúdio de vídeo, arte e estratégia.
         </h1>
-        <p className="mt-7 flex flex-wrap gap-x-7 gap-y-2 text-[1.15rem] text-mute">
+        <p className="mt-7 flex flex-wrap gap-x-7 gap-y-2 text-[1.15rem] text-mute max-[860px]:order-3 max-[860px]:mt-auto max-[860px]:justify-center">
           {showCases && (
             <a href="#cases" className={link}>
               Ver cases ↗
