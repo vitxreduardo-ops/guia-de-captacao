@@ -1,5 +1,6 @@
 import { AlternativasCena, NotasProducao } from "@/components/AlternativasCena";
 import { CartaoCena } from "@/components/CartaoCena";
+import { BotaoVoltar } from "@/components/BotaoVoltar";
 import { notFound } from "next/navigation";
 import {
   toggleCardItemSelectedAction,
@@ -150,6 +151,7 @@ export default async function PublicGuidePage({
       ) : null}
       <div className="mx-auto max-w-3xl px-4 py-12">
         <header className="mb-10 border-b border-neutral-200 pb-6">
+          {fromPortal ? null : <BotaoVoltar />}
           <TatuLogo className="mx-auto mb-10 block h-9 w-auto text-black" />
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
             Guia de gravação
@@ -212,19 +214,29 @@ export default async function PublicGuidePage({
                           gravada={scene.recorded}
                           titulo={`Cena ${sceneIndex + 1}`}
                         >
-                          <p className="whitespace-pre-wrap text-sm text-neutral-600">
-                            {scene.script || "—"}
-                          </p>
+                          <div className="mt-2 border-l-4 border-neutral-900 pl-3">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                              Fala
+                            </p>
+                            <p className="whitespace-pre-wrap text-base font-medium leading-relaxed text-neutral-900">
+                              {scene.script || "—"}
+                            </p>
+                          </div>
 
                           {scene.description ? (
-                            <div className="mt-2">
-                              <p className="text-xs font-medium text-neutral-500">
-                                Descrição de cena
-                              </p>
-                              <p className="whitespace-pre-wrap text-sm text-neutral-600">
+                            <Accordion
+                              className="mt-3 rounded-md border border-neutral-200 bg-white/60"
+                              buttonClassName="min-h-10 px-3 py-2"
+                              summary={
+                                <span className="text-xs font-medium text-neutral-500">
+                                  Descrição de cena
+                                </span>
+                              }
+                            >
+                              <p className="whitespace-pre-wrap border-t border-neutral-200 px-3 py-2 text-sm text-neutral-600">
                                 {scene.description}
                               </p>
-                            </div>
+                            </Accordion>
                           ) : null}
 
                           <AlternativasCena scene={scene} />
