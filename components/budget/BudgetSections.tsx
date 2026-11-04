@@ -10,7 +10,12 @@ import { AboutSection } from "@/components/budget/sections/AboutSection";
 import { PortfolioSection } from "@/components/budget/sections/PortfolioSection";
 import { LogosSection } from "@/components/budget/sections/LogosSection";
 import { ListSection } from "@/components/budget/sections/ListSection";
-import { PricingSection } from "@/components/budget/sections/PricingSection";
+import {
+  AvulsosSection,
+  PricingSection,
+} from "@/components/budget/sections/PricingSection";
+import { WhyExternalSection } from "@/components/budget/sections/WhyExternalSection";
+import { RulesSection } from "@/components/budget/sections/RulesSection";
 import { FaqSection } from "@/components/budget/sections/FaqSection";
 import { FooterSection } from "@/components/budget/sections/FooterSection";
 
@@ -99,9 +104,36 @@ export function BudgetSections({
                 number={number}
               />
             );
+          case "whyExternal":
+            return (
+              <WhyExternalSection
+                key={section.kind}
+                data={section.data}
+                tone={tone}
+                number={number}
+              />
+            );
           case "pricing":
             return (
               <PricingSection
+                key={section.kind}
+                data={section.data}
+                tone={tone}
+                number={number}
+              />
+            );
+          case "avulsos":
+            return (
+              <AvulsosSection
+                key={section.kind}
+                data={section.data}
+                tone={tone}
+                number={number}
+              />
+            );
+          case "regras":
+            return (
+              <RulesSection
                 key={section.kind}
                 data={section.data}
                 tone={tone}

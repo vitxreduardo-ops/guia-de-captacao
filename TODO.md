@@ -215,3 +215,19 @@ interno. O que ficou:
   mas trocar exige mexer na Vercel ao mesmo tempo do deploy e desloga todo
   mundo. Se um dia for trocar a chave de qualquer forma, aproveitar para
   renomear para `SESSION_SECRET`.
+
+## Proposta Standbyte (/orcamento/standbyte): decisões em aberto
+
+Texto da página sem os marcadores [CONFIRMAR]/[DEFINIR]. Valores que vieram
+com marca e ficaram no texto: confirmar.
+
+- Horas por diária (hoje sem número) e duração máxima do vídeo (hoje sem número).
+- Cronograma de storys entra no pacote 01? (hoje só 02 e 03).
+- Organização do perfil: cortesia só no 1º mês? (hoje em todos os pacotes).
+- Outdoor R$ 350 por arte: estimativa, confirmar (mantido no texto).
+- Card de funcionário: preço anual a definir (hoje "A definir").
+- Pagamento 50/50 (aprovação e entrega), dia 10 da mensalidade, multa de rescisão, reajuste IPCA, cancelamento de 100% no dia: confirmar (mantidos no texto).
+- Faixa de 1 a 2 dias de antecedência para captação: não coberta, fora do texto.
+- Produção de stories: módulo opcional sem preço, a confirmar (linha mantida sem menção a módulo).
+- Avulsos fora do texto por decisão em aberto: cobertura de evento, diagnóstico e desconto de 10% para cliente recorrente.
+- Pacotes 01 e 02 se chamam "PRO" no banco: renomear um deles.
