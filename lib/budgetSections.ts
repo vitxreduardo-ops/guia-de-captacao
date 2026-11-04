@@ -682,6 +682,91 @@ export function secoesPadrao(): BudgetSection[] {
       },
     },
     {
+      kind: "whyExternal",
+      enabled: false,
+      data: {
+        eyebrow: "CONTEÚDO",
+        title: "Por que esse conteúdo",
+        text: "Explique em duas frases o que a marca mostra hoje e o que passa a mostrar.\n\nSepare o conteúdo de venda direta do que constrói percepção de valor.",
+      },
+    },
+    {
+      kind: "avulsos",
+      enabled: false,
+      data: {
+        eyebrow: "AVULSOS",
+        title: "Peças pontuais, orçadas à parte",
+        subtitle:
+          "Fora da mensalidade, não obrigatório. Cada peça é orçada antes de começar e aprovada por escrito no WhatsApp.",
+        cta: "Solicitar orçamento",
+        // Preço zero de propósito, como nos pacotes: aparece "A definir".
+        packages: [
+          {
+            name: "Vídeo extra",
+            price: 0,
+            unit: "/ peça",
+            subtitle: "Reels",
+            description: "",
+            items: [
+              { title: "Vídeo", detail: "1 vídeo", description: "Roteiro, captação, edição, legenda e trilha licenciada." },
+              { title: "Ajuste", detail: "1 rodada incluída", description: "Rodada extra: 15% do valor da peça." },
+            ],
+          },
+          {
+            name: "Card",
+            price: 0,
+            unit: "/ peça",
+            subtitle: "Peça estática",
+            description: "",
+            items: [
+              { title: "Card", detail: "1 peça", description: "Texto de apoio e 1 adaptação de formato." },
+              { title: "Ajuste", detail: "1 rodada incluída", description: "Rodada extra: 15% do valor da peça." },
+            ],
+          },
+          {
+            name: "Vídeo institucional",
+            price: 0,
+            unit: "/ peça",
+            subtitle: "",
+            description: "",
+            items: [
+              { title: "Vídeo", detail: "1 vídeo", description: "Roteiro, captação, edição e finalização." },
+              { title: "Ajuste", detail: "1 rodada incluída", description: "Rodada extra: 15% do valor da peça." },
+            ],
+          },
+        ],
+        notes: [
+          "Orçamento aprovado por escrito antes de começar.",
+          "Prazos em dias úteis, a partir do briefing aprovado e do sinal pago.",
+        ],
+      },
+    },
+    {
+      kind: "regras",
+      enabled: false,
+      data: {
+        eyebrow: "REGRAS",
+        title: "Como a produção funciona",
+        blocks: [
+          {
+            title: "Ajuste × refação",
+            lines: [
+              "Ajuste (incluído, 1 rodada por entrega): trocar texto, corte, trilha, cor ou ordem das cenas; corrigir erro de informação; ajustar tamanho, posição e fonte.",
+              "Refação ou novo job (cobrado à parte): mudar conceito ou roteiro já aprovado; pedir cenas que não foram captadas; mudar o briefing depois da primeira versão; nova captação.",
+              "Uma rodada é uma única lista consolidada, enviada de uma vez pelo ponto focal. Rodada extra: 15% do valor do item.",
+            ],
+          },
+          {
+            title: "Aprovação",
+            lines: [
+              "Aprovação por escrito no grupo de WhatsApp. Só o ponto focal indicado pelo cliente aprova e pede alterações.",
+              "Sem resposta em 5 dias úteis após a entrega, a peça é considerada aprovada.",
+            ],
+          },
+        ],
+      },
+    },
+    {
       kind: "faq",
       enabled: false,
       data: {
