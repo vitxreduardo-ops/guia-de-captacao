@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { confirmar } from "@/components/ConfirmHost";
 import { useMemo, useState, useTransition } from "react";
 import {
@@ -376,7 +377,14 @@ function PinForm({
   );
 }
 
-export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
+export function ReferenceBoard({
+  pins,
+  salvosAlert = false,
+}: {
+  pins: ReferencePin[];
+  /** A sessão do Instagram dos Salvos caiu: marca o botão. */
+  salvosAlert?: boolean;
+}) {
   const [query, setQuery] = useState("");
   /** Guardadas por chave normalizada, não pela grafia — ver `lib/tags.ts`. */
   const [activeTags, setActiveTags] = useState<string[]>([]);
@@ -484,6 +492,19 @@ export function ReferenceBoard({ pins }: { pins: ReferencePin[] }) {
             </button>
           ) : null}
         </div>
+
+        <Link
+          href="/admin/referencias/salvos"
+          className="relative rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
+        >
+          Salvos do Instagram
+          {salvosAlert ? (
+            <span
+              title="A conta do Instagram caiu"
+              className="absolute -top-1 -right-1 size-3 rounded-full border-2 border-white bg-amber-500"
+            />
+          ) : null}
+        </Link>
 
         <button
           type="button"
