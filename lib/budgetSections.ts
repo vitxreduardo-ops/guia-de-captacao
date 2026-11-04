@@ -22,7 +22,10 @@ export const SECTION_KINDS = [
   "package1Extra",
   "package2Perks",
   "strategy",
+  "whyExternal",
   "pricing",
+  "avulsos",
+  "regras",
   "faq",
   "footer",
 ] as const;
@@ -53,13 +56,30 @@ export interface ClientLogo {
   url: string;
 }
 
+/**
+ * Uma linha do pacote. `detail` é o subtítulo da linha (a quantidade, ex.:
+ * "3 vídeos"); `description` aparece só quando a pessoa abre o "+".
+ */
+export interface PackageItem {
+  title: string;
+  detail: string;
+  description: string;
+}
+
 export interface PricingPackage {
   name: string;
   price: number;
+  /** Texto depois do preço, ex.: "/ mês", "/ arte". */
+  unit: string;
   subtitle: string;
   description: string;
-  features: string[];
+  items: PackageItem[];
   featured: boolean;
+}
+
+export interface RuleBlock {
+  title: string;
+  lines: string[];
 }
 
 export interface FaqItem {
@@ -98,6 +118,7 @@ export interface SectionData {
   package1Extra: ListSectionData;
   package2Perks: ListSectionData;
   strategy: ListSectionData;
+  whyExternal: { eyebrow: string; title: string; text: string };
   pricing: {
     eyebrow: string;
     title: string;
@@ -105,6 +126,17 @@ export interface SectionData {
     cta: string;
     packages: PricingPackage[];
   };
+  /** Mesma forma dos pacotes, para peças pontuais orçadas à parte. */
+  avulsos: {
+    eyebrow: string;
+    title: string;
+    subtitle: string;
+    cta: string;
+    packages: PricingPackage[];
+    /** Linhas de rodapé: regras comuns e outros avulsos. */
+    notes: string[];
+  };
+  regras: { eyebrow: string; title: string; blocks: RuleBlock[] };
   faq: { eyebrow: string; title: string; items: FaqItem[] };
   footer: {
     phrase: string;
@@ -136,7 +168,10 @@ export const SECTION_LABELS: Record<SectionKind, string> = {
   package1Extra: "Mas se você precisa (pacote 1)",
   package2Perks: "Diferenciais do pacote 2",
   strategy: "Estratégia",
+  whyExternal: "Por que vídeos externos",
   pricing: "Valores dos pacotes",
+  avulsos: "Avulsos",
+  regras: "Regras e condições",
   faq: "Perguntas frequentes",
   footer: "Rodapé",
 };
@@ -187,6 +222,40 @@ function textList(value: unknown): string[] {
   return arr(value)
     .map((item) => str(item).trim())
     .filter(Boolean);
+}
+
+/**
+ * Pacotes de preço (e avulsos). Pacote gravado antes das linhas estruturadas
+ * ainda tem `features`, lista de texto: cada texto vira uma linha só com título.
+ */
+function packagesFrom(raw: unknown, unitFallback: string): PricingPackage[] {
+  return arr(raw).map((item) => {
+    const p = obj(item);
+    const structured = arr(p.items)
+      .map((line) => {
+        const l = obj(line);
+        return {
+          title: str(l.title).trim(),
+          detail: str(l.detail).trim(),
+          description: str(l.description).trim(),
+        };
+      })
+      .filter((line) => line.title !== "");
+    const legacy = textList(p.features).map((title) => ({
+      title,
+      detail: "",
+      description: "",
+    }));
+    return {
+      name: str(p.name),
+      price: Math.max(0, num(p.price)),
+      unit: str(p.unit, unitFallback),
+      subtitle: str(p.subtitle),
+      description: str(p.description),
+      items: structured.length > 0 ? structured : legacy,
+      featured: bool(p.featured),
+    };
+  });
 }
 
 function listData(raw: Record<string, unknown>): ListSectionData {
@@ -269,17 +338,36 @@ function parseData<K extends SectionKind>(
         title: str(d.title),
         subtitle: str(d.subtitle),
         cta: str(d.cta),
-        packages: arr(d.packages).map((item) => {
-          const p = obj(item);
-          return {
-            name: str(p.name),
-            price: Math.max(0, num(p.price)),
-            subtitle: str(p.subtitle),
-            description: str(p.description),
-            features: textList(p.features),
-            featured: bool(p.featured),
-          };
-        }),
+        packages: packagesFrom(d.packages, "/ mês"),
+      } as SectionData[K];
+
+    case "avulsos":
+      return {
+        eyebrow: str(d.eyebrow),
+        title: str(d.title),
+        subtitle: str(d.subtitle),
+        cta: str(d.cta),
+        packages: packagesFrom(d.packages, "/ peça"),
+        notes: textList(d.notes),
+      } as SectionData[K];
+
+    case "whyExternal":
+      return {
+        eyebrow: str(d.eyebrow),
+        title: str(d.title),
+        text: str(d.text),
+      } as SectionData[K];
+
+    case "regras":
+      return {
+        eyebrow: str(d.eyebrow),
+        title: str(d.title),
+        blocks: arr(d.blocks)
+          .map((item) => {
+            const b = obj(item);
+            return { title: str(b.title), lines: textList(b.lines) };
+          })
+          .filter((b) => b.title.trim() !== "" || b.lines.length > 0),
       } as SectionData[K];
 
     case "faq":
@@ -364,7 +452,12 @@ export function isEmpty(section: BudgetSection): boolean {
     case "logos":
       return data.logos.length === 0;
     case "pricing":
+    case "avulsos":
       return data.packages.length === 0;
+    case "whyExternal":
+      return data.title.trim() === "" && data.text.trim() === "";
+    case "regras":
+      return data.blocks.length === 0;
     case "faq":
       return data.items.length === 0;
     case "footer":

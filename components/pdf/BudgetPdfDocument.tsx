@@ -250,9 +250,9 @@ function BudgetPdfDocument({ budget }: { budget: BudgetWithSections }) {
                     {money(pkg.price)}
                     <Text style={styles.packagePriceUnit}>/mês</Text>
                   </Text>
-                  {pkg.features.map((feature, i) => (
+                  {pkg.items.map((item, i) => (
                     <Text key={i} style={styles.packageFeature}>
-                      — {feature}
+                      — {item.title}
                     </Text>
                   ))}
                 </View>
