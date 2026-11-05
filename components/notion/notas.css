@@ -1,0 +1,35 @@
+/* Tema do editor das Notas: o BlockNote/Mantine vêm com fonte e azul próprios;
+   aqui eles herdam a tipografia do app e viram uma folha em branco. */
+.notas-editor .bn-container {
+  --bn-font-family: inherit;
+  --bn-colors-editor-background: transparent;
+  --bn-colors-editor-text: #1a1a1a;
+  --bn-colors-side-menu: #9a9a9a;
+  --bn-colors-hovered-background: #f1f1f1;
+  --bn-colors-selected-text: #1a1a1a;
+  --bn-colors-selected-background: #e4e4e4;
+  font-family: inherit;
+}
+.notas-editor .bn-editor {
+  padding-inline: 0;
+  font-size: 16px;
+  line-height: 1.65;
+}
+/* O menu lateral (+ e arrastar) cabe na margem da folha. */
+.notas-editor .bn-editor .bn-block-content[data-content-type="heading"][data-level="1"] { font-size: 1.9em; }
+.notas-editor .bn-editor a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgb(0 0 0 / 0.22);
+  text-underline-offset: 3px;
+}
+/* Sem o contorno azul do Mantine ao selecionar um bloco inteiro (cartão, embed). */
+.notas-editor .ProseMirror-selectednode,
+.notas-editor .bn-block-content.ProseMirror-selectednode > * {
+  outline: 2px solid rgb(0 0 0 / 0.12);
+  border-radius: 0.75rem;
+}
+.notas-editor .bn-block-content[data-content-type="bookmark"],
+.notas-editor .bn-block-content[data-content-type="embed"] {
+  width: 100%;
+}

@@ -12,6 +12,7 @@ import {
   Network,
   Library,
   Newspaper,
+  NotebookText,
   PenLine,
   Receipt,
   ScrollText,
@@ -54,6 +55,12 @@ const ACTIONS: AdminAction[] = [
     href: "/admin/lettering",
     label: "Lettering",
     icon: PenLine,
+    group: "Criação",
+  },
+  {
+    href: "/admin/notas",
+    label: "Notas",
+    icon: NotebookText,
     group: "Criação",
   },
   {
