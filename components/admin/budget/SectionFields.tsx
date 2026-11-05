@@ -7,7 +7,7 @@ import {
   TextList,
 } from "@/components/admin/budget/RepeatableList";
 import { LogoLibrary } from "@/components/admin/budget/LogoLibrary";
-import { PriceInput } from "@/components/admin/budget/PriceInput";
+import { PackagesFields } from "@/components/admin/budget/PackagesFields";
 import { UploadButton } from "@/components/admin/budget/UploadButton";
 import {
   MAX_BLUR,
@@ -376,67 +376,147 @@ export function SectionFields({
               placeholder="Escolher este pacote"
             />
           </Field>
-          <Field label="Pacotes">
+          <PackagesFields
+            packages={data.packages}
+            onChange={(packages) => set({ packages })}
+            featuredAllowed
+          />
+        </div>
+      );
+    }
+
+    case "avulsos": {
+      const { data } = section;
+      const set = (patch: Partial<SectionData["avulsos"]>) =>
+        onChange({ ...section, data: { ...data, ...patch } });
+
+      return (
+        <div className="space-y-3">
+          <Field label="Etiqueta">
+            <input
+              value={data.eyebrow}
+              onChange={(e) => set({ eyebrow: e.target.value })}
+              className={FIELD_CLASS}
+              placeholder="AVULSOS"
+            />
+          </Field>
+          <Field label="Título">
+            <input
+              value={data.title}
+              onChange={(e) => set({ title: e.target.value })}
+              className={FIELD_CLASS}
+              placeholder="Peças pontuais, orçadas à parte"
+            />
+          </Field>
+          <Field label="Texto de apoio">
+            <textarea
+              value={data.subtitle}
+              onChange={(e) => set({ subtitle: e.target.value })}
+              rows={2}
+              className={FIELD_CLASS}
+            />
+          </Field>
+          <Field label="Texto do botão">
+            <input
+              value={data.cta}
+              onChange={(e) => set({ cta: e.target.value })}
+              className={FIELD_CLASS}
+              placeholder="Solicitar orçamento"
+            />
+          </Field>
+          <PackagesFields
+            packages={data.packages}
+            onChange={(packages) => set({ packages })}
+            featuredAllowed={false}
+          />
+          <Field label="Rodapé (uma linha por item)">
+            <TextList
+              items={data.notes}
+              onChange={(notes) => set({ notes })}
+              rotulo="linha"
+              placeholder="Orçamento aprovado por escrito antes de começar."
+            />
+          </Field>
+        </div>
+      );
+    }
+
+    case "whyExternal": {
+      const { data } = section;
+      const set = (patch: Partial<SectionData["whyExternal"]>) =>
+        onChange({ ...section, data: { ...data, ...patch } });
+
+      return (
+        <div className="space-y-3">
+          <Field label="Etiqueta">
+            <input
+              value={data.eyebrow}
+              onChange={(e) => set({ eyebrow: e.target.value })}
+              className={FIELD_CLASS}
+            />
+          </Field>
+          <Field label="Título">
+            <input
+              value={data.title}
+              onChange={(e) => set({ title: e.target.value })}
+              className={FIELD_CLASS}
+            />
+          </Field>
+          <Field label="Texto">
+            <textarea
+              value={data.text}
+              onChange={(e) => set({ text: e.target.value })}
+              rows={8}
+              className={FIELD_CLASS}
+              placeholder="Parágrafos separados por linha em branco"
+            />
+          </Field>
+        </div>
+      );
+    }
+
+    case "regras": {
+      const { data } = section;
+      const set = (patch: Partial<SectionData["regras"]>) =>
+        onChange({ ...section, data: { ...data, ...patch } });
+
+      return (
+        <div className="space-y-3">
+          <Field label="Etiqueta">
+            <input
+              value={data.eyebrow}
+              onChange={(e) => set({ eyebrow: e.target.value })}
+              className={FIELD_CLASS}
+            />
+          </Field>
+          <Field label="Título">
+            <input
+              value={data.title}
+              onChange={(e) => set({ title: e.target.value })}
+              className={FIELD_CLASS}
+            />
+          </Field>
+          <Field label="Blocos">
             <RepeatableList
-              items={data.packages}
-              onChange={(packages) => set({ packages })}
-              rotulo="Pacote"
-              vazio="Nenhum pacote — a seção some e o botão da capa não aparece."
-              novoItem={() => ({
-                name: "",
-                price: 0,
-                subtitle: "",
-                description: "",
-                features: [],
-                featured: false,
-              })}
+              items={data.blocks}
+              onChange={(blocks) => set({ blocks })}
+              rotulo="Bloco"
+              vazio="Nenhum bloco — a seção some."
+              novoItem={() => ({ title: "", lines: [] })}
             >
-              {(pacote, trocar) => (
+              {(bloco, trocar) => (
                 <>
-                  <div className="flex items-center justify-between gap-2">
-                    <input
-                      value={pacote.name}
-                      onChange={(e) => trocar({ ...pacote, name: e.target.value })}
-                      className={FIELD_CLASS}
-                      placeholder="Nome do pacote"
-                    />
-                    <label className="flex shrink-0 items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-500">
-                      <input
-                        type="checkbox"
-                        checked={pacote.featured}
-                        onChange={(e) =>
-                          trocar({ ...pacote, featured: e.target.checked })
-                        }
-                        className="h-3.5 w-3.5 accent-neutral-900"
-                      />
-                      Destaque
-                    </label>
-                  </div>
-                  <PriceInput
-                    value={pacote.price}
-                    onChange={(price) => trocar({ ...pacote, price })}
-                  />
                   <input
-                    value={pacote.subtitle}
-                    onChange={(e) =>
-                      trocar({ ...pacote, subtitle: e.target.value })
-                    }
+                    value={bloco.title}
+                    onChange={(e) => trocar({ ...bloco, title: e.target.value })}
                     className={FIELD_CLASS}
-                    placeholder="Subtítulo (ex.: campeão de vendas)"
-                  />
-                  <input
-                    value={pacote.description}
-                    onChange={(e) =>
-                      trocar({ ...pacote, description: e.target.value })
-                    }
-                    className={FIELD_CLASS}
-                    placeholder="Descrição (ex.: 6 vídeos · diária completa)"
+                    placeholder="Ex.: Ajuste × refação"
                   />
                   <TextList
-                    items={pacote.features}
-                    onChange={(features) => trocar({ ...pacote, features })}
-                    rotulo="item"
-                    placeholder="Direção criativa"
+                    items={bloco.lines}
+                    onChange={(lines) => trocar({ ...bloco, lines })}
+                    rotulo="linha"
+                    placeholder="Uma regra por linha"
                   />
                 </>
               )}

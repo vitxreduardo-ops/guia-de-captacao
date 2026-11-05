@@ -105,9 +105,9 @@ describe("parseSections", () => {
   });
 
   it("descarta a linha vazia que o split de features deixa", () => {
-    const pricing = parseSections(backfilled)[8];
-    if (pricing.kind !== "pricing") throw new Error("kind inesperado");
-    expect(pricing.data.packages[0].features).toEqual([
+    const pricing = parseSections(backfilled).find((s) => s.kind === "pricing");
+    if (pricing?.kind !== "pricing") throw new Error("kind inesperado");
+    expect(pricing.data.packages[0].items.map((i) => i.title)).toEqual([
       "Direção criativa",
       "Captação mensal",
     ]);
@@ -116,13 +116,13 @@ describe("parseSections", () => {
 
   it("completa um orçamento sem a coluna preenchida, tudo desligado", () => {
     const sections = parseSections([]);
-    expect(sections).toHaveLength(11);
+    expect(sections).toHaveLength(14);
     expect(sections.every((s) => !s.enabled)).toBe(true);
   });
 
   it("não quebra com jsonb corrompido", () => {
     for (const lixo of [null, "texto", 42, [{ kind: "inexistente" }], [null]]) {
-      expect(parseSections(lixo)).toHaveLength(11);
+      expect(parseSections(lixo)).toHaveLength(14);
     }
   });
 
@@ -132,7 +132,7 @@ describe("parseSections", () => {
       { kind: "faq", enabled: true, data: { items: [{ question: "  ", answer: "x" }] } },
     ]);
     const logos = sections[3];
-    const faq = sections[9];
+    const faq = sections[12];
     if (logos.kind !== "logos" || faq.kind !== "faq") throw new Error("kind inesperado");
     expect(logos.data.logos).toEqual([{ name: "B", url: "/b.svg" }]);
     expect(faq.data.items).toEqual([]);
@@ -246,9 +246,9 @@ describe("capa: mídia de fundo e desfoque", () => {
 });
 
 describe("secoesPadrao", () => {
-  it("entrega as 11 seções, com capa, leitura e rodapé ligados", () => {
+  it("entrega as 14 seções, com capa, leitura e rodapé ligados", () => {
     const padrao = secoesPadrao();
-    expect(padrao).toHaveLength(11);
+    expect(padrao).toHaveLength(14);
     expect(padrao.filter((s) => s.enabled).map((s) => s.kind)).toEqual([
       "cover",
       "about",
