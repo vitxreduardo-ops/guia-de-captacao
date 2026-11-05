@@ -5,6 +5,7 @@ import ChatRoteiro from "@/components/admin/roteiros/ChatRoteiro";
 import GeradorRoteiro from "@/components/admin/roteiros/GeradorRoteiro";
 import { getNoticia } from "@/lib/repertorio";
 import { preenchimentoDeNoticia } from "@/lib/repertorioTypes";
+import { textoDaMateria } from "@/lib/repertorioMateria";
 import { clientesDoChat } from "@/lib/roteiroContexto";
 import { getRoteiro } from "@/lib/roteiros";
 import { preenchimentoDe } from "@/lib/roteiroTypes";
@@ -21,7 +22,8 @@ export default async function RoteirosPage({
     typeof noticiaId === "string" && typeof de !== "string" ? getNoticia(noticiaId) : null,
     clientesDoChat(),
   ]);
-  const inicial = base ? preenchimentoDe(base) : noticia ? preenchimentoDeNoticia(noticia) : null;
+  const materia = noticia && !base ? await textoDaMateria(noticia.url) : null;
+  const inicial = base ? preenchimentoDe(base) : noticia ? preenchimentoDeNoticia(noticia, materia) : null;
 
   return (
     // No desktop a página inteira cabe na janela (o cartão do admin tem 0,5rem
