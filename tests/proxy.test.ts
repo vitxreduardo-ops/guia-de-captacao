@@ -55,6 +55,25 @@ describe("subdomínios", () => {
     }
   });
 
+  it("home do www é o site, sem redirecionar", async () => {
+    const r = await visita("https://www.tatuestudio.com.br/");
+    expect(destino(r)).toBeNull();
+    expect(reescrita(r)).toBe("https://www.tatuestudio.com.br/site");
+    expect(r.headers.get("x-robots-tag")).toBeNull();
+  });
+
+  it("só a home do www pode ir pro Google", async () => {
+    for (const url of [
+      "https://sistema.tatuestudio.com.br/login",
+      "https://cliente.tatuestudio.com.br/login",
+      "https://www.tatuestudio.com.br/orcamento/abc",
+    ]) {
+      expect((await visita(url)).headers.get("x-robots-tag")).toBe("noindex");
+    }
+    const robots = await visita("https://sistema.tatuestudio.com.br/robots.txt");
+    expect(await robots.text()).toContain("Disallow: /");
+  });
+
   it("www segue como antes", async () => {
     expect(destino(await visita("https://www.tatuestudio.com.br/admin"))).toBe(
       "https://www.tatuestudio.com.br/admin/login?next=%2Fadmin"

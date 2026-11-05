@@ -16,7 +16,24 @@ const RAIZ = new Set([
 const dentro = (path: string, prefixo: string) =>
   path === prefixo || path.startsWith(prefixo + "/");
 
+// O que pode ir pro Google: a home do www e os arquivos que falam dela. O resto
+// (painel, portal, links de orçamento/contrato/galeria de cliente) leva noindex.
+const INDEXAVEL = new Set(["/", "/robots.txt", "/sitemap.xml", "/llms.txt"]);
+
 export async function proxy(request: NextRequest) {
+  const sub = (request.headers.get("host") ?? request.nextUrl.host).split(".")[0];
+  const privado = sub in SUBDOMINIOS;
+  if (privado && request.nextUrl.pathname === "/robots.txt") {
+    return new NextResponse("User-agent: *\nDisallow: /\n", { headers: { "content-type": "text/plain" } });
+  }
+  const resposta = await rotear(request);
+  if (privado || !INDEXAVEL.has(request.nextUrl.pathname)) {
+    resposta.headers.set("X-Robots-Tag", "noindex");
+  }
+  return resposta;
+}
+
+async function rotear(request: NextRequest) {
   const url = request.nextUrl;
   // Header, não `url.hostname`: no dev o Next monta a URL com "localhost".
   const host = (request.headers.get("host") ?? url.host).split(":")[0];
@@ -45,6 +62,18 @@ export async function proxy(request: NextRequest) {
     }
     return alvo;
   };
+
+  // A home do www é o site do estúdio, sem redirecionar (é o endereço que vai
+  // pro Google). Quem já está logado segue pro painel, como antes.
+  if (!prefixo && url.pathname === "/") {
+    const secret = process.env.ADMIN_PASSWORD;
+    const logado = secret ? await getSession(request.cookies.get(COOKIE_NAME)?.value, secret) : null;
+    if (!logado) {
+      const alvo = url.clone();
+      alvo.pathname = "/site";
+      return NextResponse.rewrite(alvo);
+    }
+  }
 
   let path = url.pathname;
   if (prefixo && !arquivo) {
