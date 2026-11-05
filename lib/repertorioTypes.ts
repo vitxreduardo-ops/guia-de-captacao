@@ -137,7 +137,7 @@ export function agruparPorDia<T extends Pick<Noticia, "publicadoEm" | "coletadoE
  * O contexto separa o que veio da fonte do resto: o prompt do gerador já
  * proíbe inventar fatos, e aqui fica escrito qual é o fato.
  */
-export function preenchimentoDeNoticia(noticia: Noticia): PreenchimentoInicial {
+export function preenchimentoDeNoticia(noticia: Noticia, materia?: string | null): PreenchimentoInicial {
   const dia = new Intl.DateTimeFormat("pt-BR", {
     timeZone: FUSO,
     day: "numeric",
@@ -147,7 +147,7 @@ export function preenchimentoDeNoticia(noticia: Noticia): PreenchimentoInicial {
   const contexto = [
     `Notícia usada como gancho (${noticia.fonte.nome}, ${dia}):`,
     noticia.titulo,
-    noticia.resumo,
+    materia ? `Texto da matéria:\n${materia}` : noticia.resumo,
     `Link: ${noticia.url}`,
     "",
     "Use como fato só o que está escrito acima. O resto do roteiro é leitura de quem trabalha com marketing, não informação da matéria.",
