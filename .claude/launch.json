@@ -32,6 +32,10 @@
         "dev:teste"
       ],
       "port": 3001
+    },
+    {
+      "name": "guia-existente",
+      "url": "http://localhost:3000"
     }
   ]
 }
