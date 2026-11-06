@@ -9,6 +9,7 @@ import CamposEspecificos, {
   ExtraAIDA,
   ExtraMidtrack,
   ExtraPAS,
+  ExtraStartupDaReal,
 } from "@/components/admin/roteiros/CamposEspecificos";
 import ResultadoRoteiro from "@/components/admin/roteiros/ResultadoRoteiro";
 import TagEditor from "@/components/admin/roteiros/TagEditor";
@@ -64,6 +65,7 @@ export default function GeradorRoteiro({
     payoffDesejado: "",
   });
   const [extra6Chapeus, setExtra6Chapeus] = useState<Extra6Chapeus>({ angulos: [] });
+  const [extraStartup, setExtraStartup] = useState<ExtraStartupDaReal>({ angulos: {} });
   const [tags, setTags] = useState<string[]>(inicial?.tags ?? []);
 
   const [carregando, setCarregando] = useState(false);
@@ -133,6 +135,8 @@ export default function GeradorRoteiro({
         return extraMidtrack;
       case "6Chapeus":
         return extra6Chapeus;
+      case "@startupdareal":
+        return extraStartup;
       default:
         return {};
     }
@@ -192,6 +196,8 @@ export default function GeradorRoteiro({
             setExtraMidtrack={setExtraMidtrack}
             extra6Chapeus={extra6Chapeus}
             setExtra6Chapeus={setExtra6Chapeus}
+            extraStartup={extraStartup}
+            setExtraStartup={setExtraStartup}
           />
         )}
 

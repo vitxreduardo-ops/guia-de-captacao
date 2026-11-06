@@ -1,4 +1,15 @@
-export type Framework = "AIDA" | "PAS" | "Midtrack" | "6Chapeus";
+export type Framework = "AIDA" | "PAS" | "Midtrack" | "6Chapeus" | "@startupdareal";
+
+/** As sete etapas do @startupdareal, na ordem do vídeo: chave do JSON e rótulo da tela. */
+export const ETAPAS_STARTUPDAREAL = [
+  ["motivacao", "Motivação"],
+  ["contexto", "Contexto"],
+  ["questao", "Questão central"],
+  ["exemplos", "Exemplos"],
+  ["objecoes", "Objeções"],
+  ["amarracao", "Amarração"],
+  ["fechamento", "Fechamento"],
+] as const;
 
 export type ComumParams = {
   tema: string;
@@ -72,6 +83,31 @@ export const ANGULOS_6CHAPEUS = [
   "Tendencia",
 ] as const;
 
+export type Angulo6Chapeus = (typeof ANGULOS_6CHAPEUS)[number];
+
+/** Termômetro do @startupdareal: quanto de cada ângulo dos 6 Chapéus o texto tem. */
+export const INTENSIDADES_ANGULO = ["nada", "leve", "medio", "forte"] as const;
+export type IntensidadeAngulo = (typeof INTENSIDADES_ANGULO)[number];
+export const ROTULO_INTENSIDADE: Record<IntensidadeAngulo, string> = {
+  nada: "Nada",
+  leve: "Leve",
+  medio: "Médio",
+  forte: "Forte",
+};
+/** Pedido antes de gerar. Ângulo ausente = a IA decide. */
+export type AlvoAngulos = Partial<Record<Angulo6Chapeus, IntensidadeAngulo>>;
+
+/** Só ângulos e intensidades conhecidos: o pedido vem do navegador. */
+export function limparAlvo(v: unknown): AlvoAngulos {
+  const alvo: AlvoAngulos = {};
+  if (!v || typeof v !== "object") return alvo;
+  for (const a of ANGULOS_6CHAPEUS) {
+    const i = (v as Record<string, unknown>)[a];
+    if (INTENSIDADES_ANGULO.includes(i as IntensidadeAngulo)) alvo[a] = i as IntensidadeAngulo;
+  }
+  return alvo;
+}
+
 export const EMOCOES_MIDTRACK = ["Surpresa", "Indignação", "Ternura", "Curiosidade"];
 
 export const INTENSIDADES_PAS = ["Leve", "Moderado", "Forte"];
@@ -90,6 +126,8 @@ export function extrairPreview(framework: string, json: unknown): string {
         return roteiro?.hook?.texto ?? "";
       case "6Chapeus":
         return roteiro?.roteiros?.[0]?.hook ?? "";
+      case "@startupdareal":
+        return (json as Partial<RoteiroStartupDaReal> | null)?.motivacao?.texto ?? "";
       default:
         return "";
     }
@@ -146,7 +184,18 @@ export type RoteiroMidtrack = {
 export type Roteiro6Chapeus = {
   roteiros: { angulo: string; hook: string; corpo: string; cta: string }[];
 };
-export type RoteiroJson = RoteiroAIDA | RoteiroPAS | RoteiroMidtrack | Roteiro6Chapeus;
+export type RoteiroStartupDaReal = Record<(typeof ETAPAS_STARTUPDAREAL)[number][0], Texto> & {
+  /** Medido pela IA no texto que ela escreveu. */
+  termometro: { angulo: Angulo6Chapeus; intensidade: IntensidadeAngulo; motivo: string }[];
+  /** O que foi pedido no formulário; o servidor junta depois de gerar. */
+  alvo?: AlvoAngulos;
+};
+export type RoteiroJson =
+  | RoteiroAIDA
+  | RoteiroPAS
+  | RoteiroMidtrack
+  | Roteiro6Chapeus
+  | RoteiroStartupDaReal;
 
 export type PreenchimentoInicial = {
   comum: ComumParams;
@@ -190,7 +239,8 @@ function cena(script: string, extra: Partial<CenaImportada> = {}): CenaImportada
 /**
  * Roteiro do gerador vira vídeo(s) do guia: cada bloco é uma cena. Os hooks
  * alternativos vão na primeira cena (onde está o hook), os CTAs na última e
- * as notas de produção no vídeo. 6 Chapéus vira um vídeo por ângulo.
+ * as notas de produção no vídeo. 6 Chapéus vira um vídeo por ângulo e o
+ * @startupdareal, um vídeo com uma cena por etapa.
  */
 export function roteiroParaVideos(
   framework: Framework,
@@ -246,6 +296,16 @@ export function roteiroParaVideos(
         cenas: [cena(a.hook), cena(a.corpo), cena(a.cta)],
         notas_producao: "",
       }));
+    }
+    case "@startupdareal": {
+      const r = json as RoteiroStartupDaReal;
+      return [
+        {
+          titulo: tema,
+          cenas: ETAPAS_STARTUPDAREAL.map(([chave]) => cena(r[chave].texto)),
+          notas_producao: "",
+        },
+      ];
     }
   }
 }

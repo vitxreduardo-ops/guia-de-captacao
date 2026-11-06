@@ -2,6 +2,8 @@
 // Usados no response_format: json_schema da chamada de IA (lib/roteiroAi.ts).
 // Structured Outputs exige additionalProperties: false e todos os campos em "required".
 
+import { ANGULOS_6CHAPEUS, ETAPAS_STARTUPDAREAL, INTENSIDADES_ANGULO } from "@/lib/roteiroTypes";
+
 export const schemaAIDA = {
   name: "roteiro_aida",
   strict: true,
@@ -180,6 +182,40 @@ export const schema6Chapeus = {
   },
 };
 
+const textoObrigatorio = {
+  type: "object",
+  properties: { texto: { type: "string" } },
+  required: ["texto"],
+  additionalProperties: false,
+};
+
+export const schemaStartupDaReal = {
+  name: "roteiro_startupdareal",
+  strict: true,
+  schema: {
+    type: "object",
+    // Etapas antes do termômetro: o modelo escreve primeiro e mede depois.
+    properties: {
+      ...Object.fromEntries(ETAPAS_STARTUPDAREAL.map(([chave]) => [chave, textoObrigatorio])),
+      termometro: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            angulo: { type: "string", enum: [...ANGULOS_6CHAPEUS] },
+            intensidade: { type: "string", enum: [...INTENSIDADES_ANGULO] },
+            motivo: { type: "string" },
+          },
+          required: ["angulo", "intensidade", "motivo"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: [...ETAPAS_STARTUPDAREAL.map(([chave]) => chave), "termometro"],
+    additionalProperties: false,
+  },
+};
+
 export const schemaTriagem = {
   name: "triagem_framework",
   strict: true,
@@ -188,7 +224,7 @@ export const schemaTriagem = {
     properties: {
       framework_sugerido: {
         type: "string",
-        enum: ["AIDA", "PAS", "Midtrack", "6Chapeus"],
+        enum: ["AIDA", "PAS", "Midtrack", "6Chapeus", "@startupdareal"],
       },
       justificativa: { type: "string" },
     },
@@ -267,6 +303,8 @@ export function getSchemaPorFramework(framework: string) {
       return schemaMidtrack;
     case "6Chapeus":
       return schema6Chapeus;
+    case "@startupdareal":
+      return schemaStartupDaReal;
     default:
       throw new Error(`Framework desconhecido: ${framework}`);
   }

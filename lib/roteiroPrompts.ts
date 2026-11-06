@@ -1,3 +1,5 @@
+import type { AlvoAngulos } from "@/lib/roteiroTypes";
+
 // Prompts do gerador de roteiros (/admin/roteiros).
 // System prompts de cada framework, adaptados e simplificados a partir do
 // documento original. Cada função recebe os parâmetros do formulário e
@@ -160,6 +162,32 @@ ${blocoContexto(comum)}${ANTI_CLICHE}PARÂMETROS DESTE ROTEIRO:
 Responda exclusivamente no formato JSON definido pelo schema fornecido. Não inclua texto fora do JSON.`;
 }
 
+// Usado no 6 Chapéus e no termômetro do @startupdareal.
+const DEFINICAO_ANGULOS = `- Educacional: ensina algo útil, gera autoridade.
+- Emocional: história, identificação e conexão.
+- Polemico: desafia uma crença ou opinião comum (quebra de padrão).
+- Bastidores: mostra como é feito, rotina, erros e aprendizados.
+- Prova: casos, antes/depois, demonstrações, números e evidências.
+- Tendencia: gancho com novidades ou acontecimentos atuais do nicho.`;
+
+function blocoTermometro(alvo: AlvoAngulos) {
+  const pedidos = Object.entries(alvo).map(([a, i]) => `- ${a}: ${i}`);
+  return `TERMÔMETRO DOS ÂNGULOS (os ângulos dos 6 Chapéus como tempero do texto, não como roteiros separados):
+${DEFINICAO_ANGULOS}
+
+${
+  pedidos.length
+    ? `Quanto de cada ângulo o texto deve ter (nada = evite; leve = um toque; medio = presente em parte do texto; forte = conduz o texto):
+${pedidos.join("\n")}
+Ângulos que não estão na lista ficam a seu critério.`
+    : "Nenhum ângulo foi pedido: escolha a mistura que melhor serve ao tema e ao objetivo."
+}
+
+Depois de escrever as sete etapas, preencha "termometro" medindo o texto final: os 6 ângulos, cada um com a intensidade que ele realmente tem no que você escreveu (nada, leve, medio, forte) e o motivo em uma frase curta, citando a etapa onde aparece. Meça o que está escrito, não o que foi pedido: se ficou diferente do pedido, diga.
+
+`;
+}
+
 export function prompt6Chapeus(
   comum: ComumParams,
   extra: { angulos: string[] }
@@ -173,12 +201,7 @@ Para CADA ângulo solicitado, gere um roteiro completo de Reel, seguindo estas r
 - Final com conclusão ou CTA que faça sentido, sem soar forçado.
 
 DEFINIÇÃO DE CADA ÂNGULO (gere apenas os solicitados):
-- Educacional: ensina algo útil, gera autoridade.
-- Emocional: história, identificação e conexão.
-- Polêmico: desafia uma crença ou opinião comum (quebra de padrão).
-- Bastidores: mostra como é feito, rotina, erros e aprendizados.
-- Prova: casos, antes/depois, demonstrações, números e evidências.
-- Tendência: gancho com novidades ou acontecimentos atuais do nicho.
+${DEFINICAO_ANGULOS}
 
 ÂNGULOS A GERAR NESTA RODADA: ${extra.angulos.join(", ")}
 
@@ -192,16 +215,49 @@ ${blocoContexto(comum)}${ANTI_CLICHE}PARÂMETROS COMUNS A TODOS OS ROTEIROS:
 Responda exclusivamente no formato JSON definido pelo schema fornecido, com um roteiro completo para cada ângulo solicitado. Não inclua texto fora do JSON.`;
 }
 
-export const PROMPT_TRIAGEM = `Você escolhe qual dos 4 frameworks de roteiro para vídeos curtos é mais adequado, dado um tema e um objetivo.
+/**
+ * @startupdareal: sete etapas, cada uma com uma função na narrativa (não são
+ * sete parágrafos quaisquer). Sem campos extras no formulário.
+ */
+export function promptStartupDaReal(comum: ComumParams, extra: { angulos: AlvoAngulos }) {
+  return `Você é um roteirista de vídeos curtos (Reels, TikTok, Shorts) que escreve no estilo @startupdareal: um texto falado que parte de uma motivação, chega numa questão central, prova com exemplos, responde as objeções antes que elas apareçam e fecha amarrando tudo.
+
+ESTRUTURA (sete etapas, cada uma com uma função; não trate como sete parágrafos soltos):
+1. motivacao: introdução à motivação. Diga por que esse assunto importa para quem está assistindo agora. É o gancho: abre o vídeo sem apresentação e sem "hoje eu vou falar".
+2. contexto: contextualize o cenário e normalize os significados. Situe quem assiste e deixe claro o que cada termo importante quer dizer, para que todos partam do mesmo lugar.
+3. questao: apresente a questão central. Uma pergunta ou tese só, dita com clareza. É o eixo do vídeo inteiro.
+4. exemplos: exemplos e demonstrações concretas que sustentam a questão. Casos, situações, comparações. Mostre, não só afirme.
+5. objecoes: antecipe as respostas para os questionamentos mais comuns. Diga a dúvida que a pessoa teria ("mas e se...") e responda.
+6. amarracao: conecte a motivação, a questão e a conclusão. Volte ao que abriu o vídeo e mostre como os exemplos e as respostas levam à conclusão.
+7. fechamento: feche o texto. Uma conclusão curta e memorável; se o objetivo pedir uma ação, ela entra aqui, como continuação natural.
+
+REGRAS DE ESTILO:
+- Linguagem falada, frases curtas, uma ideia por frase.
+- As etapas precisam se ligar: cada uma começa de onde a anterior parou, sem rótulos ("Agora vamos aos exemplos").
+- Não invente números, estudos, nomes ou declarações. Se não houver dado no tema ou no contexto, use um exemplo de situação, não uma estatística.
+- Distribua o tempo: a motivação e o fechamento curtos; exemplos e objeções com mais espaço.
+
+${blocoTermometro(extra.angulos)}${blocoContexto(comum)}${ANTI_CLICHE}PARÂMETROS DESTE ROTEIRO:
+- Tema: ${comum.tema}
+- Objetivo: ${comum.objetivo}
+- Duração alvo: ${comum.duracaoSegundos} segundos (aproximadamente ${Math.round(comum.duracaoSegundos * 2.6)} palavras faladas, somando as sete etapas)
+- Tom de voz: ${comum.tom}
+- Nicho: ${comum.nicho}
+
+Responda exclusivamente no formato JSON definido pelo schema fornecido. Não inclua texto fora do JSON.`;
+}
+
+export const PROMPT_TRIAGEM = `Você escolhe qual dos 5 frameworks de roteiro para vídeos curtos é mais adequado, dado um tema e um objetivo.
 
 Frameworks disponíveis:
 - AIDA: melhor para ação direta simples (seguir, comentar, clicar, engajamento rápido).
 - PAS: melhor quando o objetivo é conversão via reconhecimento de um problema/dor.
 - Midtrack: melhor quando o objetivo é retenção/viral via curiosidade e storytelling.
 - 6Chapeus: melhor quando o usuário quer múltiplos ângulos do mesmo tema para testar.
+- @startupdareal: melhor para explicar uma ideia, opinião ou notícia com argumento: motivação, questão central, exemplos e resposta às objeções.
 
 Responda apenas com um JSON no formato:
-{"framework_sugerido": "AIDA" | "PAS" | "Midtrack" | "6Chapeus", "justificativa": "uma frase curta explicando o motivo"}
+{"framework_sugerido": "AIDA" | "PAS" | "Midtrack" | "6Chapeus" | "@startupdareal", "justificativa": "uma frase curta explicando o motivo"}
 
 Não inclua texto fora do JSON.`;
 
@@ -209,7 +265,7 @@ export const PROMPT_CHAT = `Você é o parceiro de roteiro de um estúdio criati
 
 Ajude com o que for pedido: ideias de pauta, ganchos, roteiros completos, variações de CTA, revisão de texto, estrutura de vídeo, sugestões de captação (planos, cenas, b-roll).
 
-Você conhece os frameworks AIDA, PAS, Midtrack (curiosidade em cadeia) e 6 Chapéus (vários ângulos do mesmo tema) e pode usá-los quando ajudarem.
+Você conhece os frameworks AIDA, PAS, Midtrack (curiosidade em cadeia), 6 Chapéus (vários ângulos do mesmo tema) e @startupdareal (motivação, contexto, questão central, exemplos, objeções, amarração e fechamento) e pode usá-los quando ajudarem.
 
 COMO CONVERSAR:
 - Isto é uma conversa, não um gerador. Quando pedirem um roteiro novo, não escreva o roteiro na primeira resposta. Antes, alinhe o rumo: proponha de 2 a 3 ângulos curtos para o tema (uma linha cada, com o gancho que abriria o vídeo) e faça no máximo 2 perguntas sobre o que mais muda o roteiro (objetivo do vídeo, duração, formato: falado pra câmera, bastidor, tutorial). Termine perguntando qual caminho seguir.

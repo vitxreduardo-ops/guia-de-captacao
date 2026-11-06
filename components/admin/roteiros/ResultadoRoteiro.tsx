@@ -5,9 +5,16 @@ import type {
   Framework,
   Roteiro6Chapeus,
   RoteiroAIDA,
+  RoteiroStartupDaReal,
   RoteiroJson,
   RoteiroMidtrack,
   RoteiroPAS,
+} from "@/lib/roteiroTypes";
+import {
+  ANGULOS_6CHAPEUS,
+  ETAPAS_STARTUPDAREAL,
+  INTENSIDADES_ANGULO,
+  ROTULO_INTENSIDADE,
 } from "@/lib/roteiroTypes";
 
 type Segmento = { rotulo: string; texto: string };
@@ -205,7 +212,76 @@ export default function ResultadoRoteiro({
     );
   }
 
+  if (framework === "@startupdareal") {
+    const roteiro = json as RoteiroStartupDaReal;
+    const segmentos: Segmento[] = ETAPAS_STARTUPDAREAL.map(([chave, rotulo]) => ({
+      rotulo,
+      texto: roteiro[chave]?.texto ?? "",
+    }));
+    const textoCompleto = segmentos.map((s) => s.texto).join("\n\n");
+    return (
+      <div className="rounded-lg border border-neutral-200 bg-white p-6">
+        <Cabecalho titulo="Roteiro — @startupdareal" textoCompleto={textoCompleto} />
+        <RegaTimecode segmentos={segmentos} duracaoTotal={duracaoSegundos} />
+        {segmentos.map((s) => (
+          <Bloco key={s.rotulo} titulo={s.rotulo} texto={s.texto} />
+        ))}
+        <Termometro roteiro={roteiro} />
+      </div>
+    );
+  }
+
   return null;
+}
+
+/**
+ * Quanto de cada ângulo dos 6 Chapéus o texto tem, medido pela IA, com o
+ * pedido do formulário ao lado quando houve.
+ */
+function Termometro({ roteiro }: { roteiro: RoteiroStartupDaReal }) {
+  const medidos = roteiro.termometro ?? [];
+  if (medidos.length === 0) return null;
+  const alvo = roteiro.alvo ?? {};
+  return (
+    <div className="mt-4 rounded-md bg-neutral-50 p-3">
+      <div className="mb-2 font-mono text-xs uppercase tracking-wide text-neutral-500">
+        Termômetro do texto
+      </div>
+      <ul className="space-y-2">
+        {ANGULOS_6CHAPEUS.map((a) => {
+          const medido = medidos.find((m) => m.angulo === a);
+          if (!medido) return null;
+          const nivel = INTENSIDADES_ANGULO.indexOf(medido.intensidade);
+          const pedido = alvo[a];
+          return (
+            <li key={a} className="text-sm">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="w-24 text-neutral-700">{a}</span>
+                {/* 3 segmentos: nada = vazio, forte = cheio. */}
+                <span className="flex gap-0.5" aria-hidden>
+                  {[1, 2, 3].map((n) => (
+                    <span
+                      key={n}
+                      className={`h-2 w-6 rounded-sm ${n <= nivel ? "bg-neutral-900" : "bg-neutral-200"}`}
+                    />
+                  ))}
+                </span>
+                <span className="text-neutral-900">{ROTULO_INTENSIDADE[medido.intensidade]}</span>
+                {pedido && (
+                  <span
+                    className={`text-xs ${pedido === medido.intensidade ? "text-neutral-500" : "text-amber-700"}`}
+                  >
+                    pedido: {ROTULO_INTENSIDADE[pedido].toLowerCase()}
+                  </span>
+                )}
+              </div>
+              {medido.motivo && <p className="mt-0.5 text-xs text-neutral-500">{medido.motivo}</p>}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
 }
 
 function Cabecalho({ titulo, textoCompleto }: { titulo: string; textoCompleto: string }) {
