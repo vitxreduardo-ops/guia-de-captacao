@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { roteiroParaVideos } from "@/lib/roteiroTypes";
+import { limparAlvo, roteiroParaVideos } from "@/lib/roteiroTypes";
 
 describe("roteiroParaVideos", () => {
   it("AIDA: hooks na primeira cena, CTAs na última, notas no vídeo", () => {
@@ -41,5 +41,23 @@ describe("roteiroParaVideos", () => {
     });
     expect(videos.map((v) => v.titulo)).toEqual(["T — Emocional", "T — Prova"]);
     expect(videos[1].cenas.map((c) => c.script)).toEqual(["h2", "b2", "c2"]);
+  });
+
+  it("@startupdareal vira um vídeo com uma cena por etapa, na ordem", () => {
+    const etapas = ["motivacao", "contexto", "questao", "exemplos", "objecoes", "amarracao", "fechamento"];
+    const json = { ...Object.fromEntries(etapas.map((e) => [e, { texto: e }])), termometro: [] };
+    const videos = roteiroParaVideos("@startupdareal", "T", json as never);
+    expect(videos).toHaveLength(1);
+    expect(videos[0].cenas.map((c) => c.script)).toEqual(etapas);
+  });
+});
+
+describe("limparAlvo", () => {
+  it("só passa ângulo e intensidade conhecidos", () => {
+    expect(
+      limparAlvo({ Educacional: "forte", Prova: "muito", Inventado: "leve", Emocional: "nada" })
+    ).toEqual({ Educacional: "forte", Emocional: "nada" });
+    expect(limparAlvo(null)).toEqual({});
+    expect(limparAlvo("forte")).toEqual({});
   });
 });

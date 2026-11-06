@@ -14,6 +14,7 @@ import {
   promptAIDA,
   promptMidtrack,
   promptPAS,
+  promptStartupDaReal,
   promptChat,
   blocoDoCliente,
   PROMPT_ORGANIZAR,
@@ -38,6 +39,7 @@ import {
   DURACAO_MAX,
   DURACAO_MIN,
   STATUS_ROTEIRO,
+  limparAlvo,
   type Framework,
   type RoteiroJson,
   type RoteiroOrganizado,
@@ -129,6 +131,9 @@ export async function gerarRoteiroAction(input: {
     case "6Chapeus":
       system = prompt6Chapeus(comum, extra);
       break;
+    case "@startupdareal":
+      system = promptStartupDaReal(comum, { angulos: limparAlvo(extra?.angulos) });
+      break;
     default:
       return { ok: false, error: `Framework desconhecido: ${framework}` };
   }
@@ -159,6 +164,10 @@ export async function gerarRoteiroAction(input: {
     });
   } catch (err) {
     return { ok: false, error: mensagem(err) };
+  }
+  // O pedido do termômetro fica junto do roteiro pra tela comparar com o medido.
+  if (framework === "@startupdareal") {
+    roteiro = { ...roteiro, alvo: limparAlvo(extra?.angulos) } as RoteiroJson;
   }
 
   // Falha ao salvar não derruba a geração: o roteiro já custou a chamada e

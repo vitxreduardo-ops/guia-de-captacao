@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Tooltip } from "@base-ui/react/tooltip";
 import { sugerirFrameworkAction } from "@/app/admin/roteiros/actions";
 import {
   ComumParams,
@@ -26,11 +27,43 @@ type Props = {
   setJustificativa: (j: string | null) => void;
 };
 
-const FRAMEWORKS: { valor: Framework; rotulo: string; descricao: string }[] = [
-  { valor: "AIDA", rotulo: "AIDA", descricao: "ação direta e simples" },
-  { valor: "PAS", rotulo: "PAS", descricao: "conversão via dor/problema" },
-  { valor: "Midtrack", rotulo: "Midtrack", descricao: "retenção via curiosidade" },
-  { valor: "6Chapeus", rotulo: "6 Chapéus", descricao: "múltiplos ângulos" },
+// comoFunciona aparece no tooltip ao passar o mouse (ou focar com o teclado).
+const FRAMEWORKS: { valor: Framework; rotulo: string; descricao: string; comoFunciona: string }[] = [
+  {
+    valor: "AIDA",
+    rotulo: "AIDA",
+    descricao: "ação direta e simples",
+    comoFunciona:
+      "Atenção, Interesse, Desejo e Ação. Abre com um gancho que para o scroll, mostra uma situação que a pessoa reconhece, diz o que muda na vida dela e fecha com uma única ação. Bom para seguir, comentar e clicar.",
+  },
+  {
+    valor: "PAS",
+    rotulo: "PAS",
+    descricao: "conversão via dor/problema",
+    comoFunciona:
+      "Problema, Agitação e Solução. Começa pela dor que o público reconhece, mostra o tamanho real dela e apresenta a solução como consequência, sem vender primeiro. Bom para conversão.",
+  },
+  {
+    valor: "Midtrack",
+    rotulo: "Midtrack",
+    descricao: "retenção via curiosidade",
+    comoFunciona:
+      "Curiosidade em cadeia: gancho, contexto e pequenas revelações, cada uma abrindo uma pergunta nova, até o clímax e o payoff que fecha tudo. Bom para retenção e alcance.",
+  },
+  {
+    valor: "6Chapeus",
+    rotulo: "6 Chapéus",
+    descricao: "múltiplos ângulos",
+    comoFunciona:
+      "Um roteiro curto (gancho, corpo e CTA) para cada ângulo escolhido: educacional, emocional, polêmico, bastidores, prova e tendência. Bom para testar abordagens do mesmo tema.",
+  },
+  {
+    valor: "@startupdareal",
+    rotulo: "@startupdareal",
+    descricao: "argumento em 7 etapas",
+    comoFunciona:
+      "Motivação, contexto, questão central, exemplos, objeções, amarração e fechamento: cada etapa tem uma função no argumento. Os ângulos dos 6 Chapéus viram termômetro: você escolhe quanto de cada um e o resultado mostra quanto o texto ficou. Bom para explicar uma ideia, opinião ou notícia.",
+  },
 ];
 
 // Celular: os campos aparecem um por vez, na ordem abaixo, e os anteriores
@@ -355,19 +388,28 @@ export default function CamposComuns({
           <label className="mb-2 block text-sm text-neutral-500">Framework</label>
           <div className="flex flex-wrap gap-2">
             {FRAMEWORKS.map((f) => (
-              <button
-                key={f.valor}
-                type="button"
-                onClick={() => setFramework(f.valor)}
-                className={`rounded-md border px-3 py-2 text-left text-sm transition-colors ${
-                  framework === f.valor
-                    ? "border-neutral-900 bg-neutral-900 text-white"
-                    : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400"
-                }`}
-              >
-                <div className="font-medium">{f.rotulo}</div>
-                <div className="text-xs text-neutral-500">{f.descricao}</div>
-              </button>
+              <Tooltip.Root key={f.valor}>
+                <Tooltip.Trigger
+                  delay={300}
+                  type="button"
+                  onClick={() => setFramework(f.valor)}
+                  className={`rounded-md border px-3 py-2 text-left text-sm transition-colors ${
+                    framework === f.valor
+                      ? "border-neutral-900 bg-neutral-900 text-white"
+                      : "border-neutral-200 bg-neutral-50 text-neutral-900 hover:border-neutral-400"
+                  }`}
+                >
+                  <div className="font-medium">{f.rotulo}</div>
+                  <div className="text-xs text-neutral-500">{f.descricao}</div>
+                </Tooltip.Trigger>
+                <Tooltip.Portal>
+                  <Tooltip.Positioner side="top" sideOffset={6} className="z-50">
+                    <Tooltip.Popup className="max-w-72 rounded-md bg-neutral-900 px-3 py-2 text-xs leading-relaxed text-white shadow-md transition-opacity data-[ending-style]:opacity-0 data-[starting-style]:opacity-0">
+                      {f.comoFunciona}
+                    </Tooltip.Popup>
+                  </Tooltip.Positioner>
+                </Tooltip.Portal>
+              </Tooltip.Root>
             ))}
           </div>
         </div>

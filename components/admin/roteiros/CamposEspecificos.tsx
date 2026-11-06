@@ -5,7 +5,10 @@ import {
   CTAS,
   EMOCOES_MIDTRACK,
   Framework,
+  INTENSIDADES_ANGULO,
   INTENSIDADES_PAS,
+  ROTULO_INTENSIDADE,
+  type AlvoAngulos,
 } from "@/lib/roteiroTypes";
 
 export type ExtraAIDA = { cta: string; numHooks: number };
@@ -16,6 +19,7 @@ export type ExtraMidtrack = {
   payoffDesejado: string;
 };
 export type Extra6Chapeus = { angulos: string[] };
+export type ExtraStartupDaReal = { angulos: AlvoAngulos };
 
 type Props = {
   framework: Framework;
@@ -27,6 +31,8 @@ type Props = {
   setExtraMidtrack: (v: ExtraMidtrack) => void;
   extra6Chapeus: Extra6Chapeus;
   setExtra6Chapeus: (v: Extra6Chapeus) => void;
+  extraStartup: ExtraStartupDaReal;
+  setExtraStartup: (v: ExtraStartupDaReal) => void;
 };
 
 function Rotulo({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
@@ -237,6 +243,57 @@ export default function CamposEspecificos(props: Props) {
           </div>
         </div>
       )}
+
+      {framework === "@startupdareal" && (
+        <div>
+          <Rotulo>Termômetro dos ângulos</Rotulo>
+          <p className="mb-3 text-xs text-neutral-500">
+            Quanto de cada ângulo dos 6 Chapéus o texto deve ter. Sem marcar, a IA decide; clique de novo
+            para desmarcar.
+          </p>
+          <div className="space-y-2">
+            {ANGULOS_6CHAPEUS.map((a) => {
+              const atual = props.extraStartup.angulos[a];
+              return (
+                <div
+                  key={a}
+                  role="radiogroup"
+                  aria-label={a}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-1"
+                >
+                  <span className="w-24 text-sm text-neutral-700">{a}</span>
+                  <div className="flex gap-1">
+                    {INTENSIDADES_ANGULO.map((i) => {
+                      const ativo = atual === i;
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          role="radio"
+                          aria-checked={ativo}
+                          onClick={() => {
+                            const angulos = { ...props.extraStartup.angulos };
+                            if (ativo) delete angulos[a];
+                            else angulos[a] = i;
+                            props.setExtraStartup({ angulos });
+                          }}
+                          className={`rounded-md border px-2.5 py-1 text-xs ${
+                            ativo
+                              ? "border-neutral-900 bg-neutral-900 text-white"
+                              : "border-neutral-200 bg-neutral-50 text-neutral-500 hover:border-neutral-400"
+                          }`}
+                        >
+                          {ROTULO_INTENSIDADE[i]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -251,5 +308,7 @@ function rotuloFramework(f: Framework) {
       return "Midtrack";
     case "6Chapeus":
       return "6 Chapéus";
+    case "@startupdareal":
+      return "@startupdareal";
   }
 }
