@@ -3,6 +3,8 @@ import { AdminHeader } from "@/components/admin/AdminHeader";
 import { Accordion } from "@/components/Accordion";
 import { ClientTabs } from "@/components/admin/ClientTabs";
 import { DinheiroClientes } from "@/components/admin/DinheiroClientes";
+import { Extrato } from "@/components/admin/Extrato";
+import { AbrirCliente, ClienteGavetaProvider } from "@/components/admin/ClienteGaveta";
 import { EntradasLinha } from "@/components/admin/EntradasLinha";
 import { SaidaLinha, SaidasForm } from "@/components/admin/SaidasForm";
 import { ServiceCatalog } from "@/components/admin/ServiceCatalog";
@@ -11,6 +13,7 @@ import {
   getMoneyMonth,
   getMoneyYear,
   getPaidByClient,
+  getStatement,
   getTodayView,
   type TodayRow,
 } from "@/lib/dinheiro";
@@ -30,10 +33,10 @@ const MES_CURTO = [
 
 type Aba = "painel" | "hoje" | "contas" | "resultado" | "saidas";
 const ABAS: { id: Aba; label: string; dica: string }[] = [
-  { id: "painel", label: "Painel", dica: "O retrato do mês em uma tela" },
-  { id: "hoje", label: "Cobranças", dica: "O que pede sua atenção agora" },
+  { id: "painel", label: "Visão do mês", dica: "O retrato do mês: quanto entrou, quanto saiu e quem falta pagar" },
+  { id: "hoje", label: "Cobrar", dica: "O que pede sua atenção agora" },
   { id: "contas", label: "Contas", dica: "Cada cliente, mês a mês, para marcar o que foi pago" },
-  { id: "resultado", label: "Entradas", dica: "Quanto entrou de dinheiro no mês e no ano" },
+  { id: "resultado", label: "Entradas", dica: "Quanto entrou de dinheiro no mês e no ano, e o extrato" },
   { id: "saidas", label: "Saídas", dica: "O que saiu de dinheiro do estúdio" },
 ];
 
@@ -52,6 +55,8 @@ function shiftMonth(month: string, delta: number): string {
   const total = Number(month.slice(0, 4)) * 12 + Number(month.slice(5, 7)) - 1 + delta;
   return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, "0")}-01`;
 }
+
+const thisMonthKey = () => monthKey(new Date());
 
 function href(aba: Aba, month?: string, base?: string) {
   const q = new URLSearchParams({ aba });
@@ -103,7 +108,7 @@ function ListaHoje({ rows, mostrarCobrar }: { rows: TodayRow[]; mostrarCobrar?: 
         return (
           <li key={`${row.clientId}${row.month}${row.date}`} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
             <div className="min-w-0 flex-1 basis-44">
-              <p className="text-base font-medium text-neutral-900">{row.name}</p>
+              <Link href={`/admin/clientes/${row.clientId}`} className={`text-base font-medium text-neutral-900 hover:underline ${FOCO}`}>{row.name}</Link>
               <p className="text-sm text-neutral-500">
                 {mostrarCobrar === undefined ? "recebido " : `de ${monthLabel(row.month)} · `}
                 {row.date ? quando(row.date) : "sem dia combinado"}
@@ -143,10 +148,11 @@ export default async function DinheiroPage({
 }) {
   const params = await searchParams;
   const scope = await getCurrentClientScope();
-  const aba: Aba = ABAS.some((a) => a.id === params.aba) ? (params.aba as Aba) : "hoje";
+  const aba: Aba = ABAS.some((a) => a.id === params.aba) ? (params.aba as Aba) : "painel";
   const thisMonth = monthKey(new Date());
   const month = params.mes && /^\d{4}-(0[1-9]|1[0-2])/.test(params.mes) ? monthKey(params.mes) : thisMonth;
-  const base = params.base === "pagamento" ? "pagamento" : "trabalho";
+  // Dinheiro conta no dia em que entrou: quem paga atrasado cai no mês do pagamento, não no do trabalho.
+  const base = params.base === "trabalho" ? "trabalho" : "pagamento";
   const year = Number(month.slice(0, 4));
   const nome = monthLabel(month);
   const mesCurto = (m: string) => MES_CURTO[Number(m.slice(5, 7)) - 1];
@@ -162,10 +168,22 @@ export default async function DinheiroPage({
         ]}
       />
 
-      <div className="mb-4">
-        <ClientTabs current={`/admin/clientes/dinheiro?aba=${aba}`} />
+      <div className="mb-3">
+        <ClientTabs current="/admin/clientes/dinheiro" />
       </div>
 
+      <nav aria-label="Telas de Dinheiro" className="mb-2 flex flex-wrap gap-1.5">
+        {ABAS.map((a) => (
+          <Link
+            key={a.id}
+            href={href(a.id)}
+            aria-current={a.id === aba ? "page" : undefined}
+            className={`inline-flex min-h-11 items-center rounded-full px-4 text-base ${FOCO} ${a.id === aba ? "bg-neutral-900 font-medium text-white" : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"}`}
+          >
+            {a.label}
+          </Link>
+        ))}
+      </nav>
       <p className="mb-5 text-base text-neutral-600">{ABAS.find((a) => a.id === aba)?.dica}</p>
 
       {aba === "painel" ? (
@@ -227,6 +245,9 @@ async function HojeAba({ scope }: { scope: string[] | null }) {
       {v.received.length > 0 ? (
         <Secao titulo="Entrou nos últimos 7 dias">
           <ListaHoje rows={v.received} />
+          <Link href={href("resultado", thisMonthKey())} className={`mt-2 inline-flex min-h-11 items-center rounded-lg text-base text-neutral-700 underline hover:text-neutral-900 ${FOCO}`}>
+            Ver o extrato completo
+          </Link>
         </Secao>
       ) : null}
     </>
@@ -273,7 +294,7 @@ async function ContasAba({
             {data.elsewhere.map((row) => (
               <li key={`${row.clientId}${row.month}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2.5">
                 <span className="min-w-0 flex-1 basis-40 text-base text-neutral-900">
-                  {row.clientName}<span className="text-neutral-600"> · {monthLabel(row.month)}</span>
+                  <Link href={`/admin/clientes/${row.clientId}`} className="hover:underline">{row.clientName}</Link><span className="text-neutral-600"> · {monthLabel(row.month)}</span>
                 </span>
                 <span className={`text-base font-medium tabular-nums ${row.overdue ? "text-red-700" : "text-neutral-900"}`}>
                   {formatBRL(row.cents)}{row.overdue ? " (atrasado)" : ""}
@@ -317,11 +338,15 @@ async function ResultadoAba({
 }) {
   const prev = shiftMonth(month, -1);
   const prevYear = Number(prev.slice(0, 4));
-  const [yearMonths, prevYearMonths, data] = await Promise.all([
+  const [yearMonths, prevYearMonths, data, extrato] = await Promise.all([
     getMoneyYear(year, scope, base),
     prevYear === year ? null : getMoneyYear(prevYear, scope, base),
     getMoneyMonth(month, scope),
+    getStatement(month, scope),
   ]);
+  const extratoPagos = extrato.filter((r) => r.kind === "pago");
+  const extratoTotal = extratoPagos.reduce((s, r) => s + r.totalCents, 0);
+  const extratoAtencao = extrato.length - extratoPagos.length;
   const idx = (m: string) => Number(m.slice(5, 7)) - 1;
   const nowSlot = yearMonths[idx(month)];
   const prevSlot = (prevYearMonths ?? yearMonths)[idx(prev)];
@@ -329,8 +354,17 @@ async function ResultadoAba({
   const yearOpen = yearMonths.reduce((s, m) => s + m.openCents, 0);
   const comMovimento = yearMonths.filter((m) => m.paidCents > 0).length;
   const tallest = Math.max(1, ...yearMonths.map((m) => m.paidCents + m.openCents));
-  const ranking = data.clients
-    .map((c) => ({ id: c.id, name: c.name, cents: c.paidCents + c.openCents }))
+  const porPagamento = new Map<string, { id: string; name: string; cents: number }>();
+  for (const r of extrato) {
+    if (r.kind !== "pago") continue;
+    const slot = porPagamento.get(r.clientId) ?? { id: r.clientId, name: r.clientName, cents: 0 };
+    slot.cents += r.totalCents;
+    porPagamento.set(r.clientId, slot);
+  }
+  const ranking = (base === "pagamento"
+    ? [...porPagamento.values()]
+    : data.clients.map((c) => ({ id: c.id, name: c.name, cents: c.paidCents + c.openCents }))
+  )
     .filter((c) => c.cents > 0)
     .sort((a, b) => b.cents - a.cents);
   const topo = ranking[0]?.cents ?? 1;
@@ -409,13 +443,26 @@ async function ResultadoAba({
         </div>
       </Secao>
 
+      <Secao
+        titulo={`Extrato de ${nome}`}
+        dica={extrato.length > 0 ? `${extratoPagos.length} ${extratoPagos.length === 1 ? "pagamento" : "pagamentos"} · ${formatBRL(extratoTotal)}, cada um no dia em que o dinheiro entrou.${extratoAtencao ? ` Mais ${extratoAtencao} pedindo atenção (sem dia ou parcial), de qualquer mês.` : ""} Toque no cliente para editar, mudar data ou desfazer.` : undefined}
+      >
+        {extrato.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-neutral-300 p-6 text-center text-base text-neutral-600">
+            Nenhum pagamento com data em {nome}.
+          </p>
+        ) : (
+          <Extrato rows={extrato} mes={month} />
+        )}
+      </Secao>
+
       {ranking.length > 0 ? (
-        <Secao titulo={`Por cliente em ${mesCurto(month)}.`}>
+        <Secao titulo={base === "pagamento" ? `Quem pagou em ${mesCurto(month)}.` : `Por cliente em ${mesCurto(month)}.`}>
           <ul className="divide-y divide-neutral-100 rounded-xl border border-neutral-200 bg-white">
             {ranking.map((c) => (
               <li key={c.id} className="px-4 py-3">
                 <div className="flex items-baseline justify-between gap-3 text-base">
-                  <span className="min-w-0 truncate text-neutral-900">{c.name}</span>
+                  <Link href={`/admin/clientes/${c.id}`} className="min-w-0 truncate text-neutral-900 hover:underline">{c.name}</Link>
                   <span className="font-medium text-neutral-900 tabular-nums">{formatBRL(c.cents)}</span>
                 </div>
                 <div className="mt-1.5 h-1.5 rounded-full bg-neutral-100">
@@ -441,12 +488,13 @@ async function PainelAba({
   // Despesa é do estúdio todo: só aparece pra quem vê todos os clientes.
   const verSaidas = scope === null;
   const monthsShown = Array.from({ length: 9 }, (_, i) => shiftMonth(month, i - 8));
-  const [data, today, quem, gastos, ...series] = await Promise.all([
+  const [data, today, quem, gastos, extrato, ...series] = await Promise.all([
     getMoneyMonth(month, scope),
     getTodayView(scope),
     getPaidByClient(monthsShown, scope),
     verSaidas ? listExpensesByMonth(monthsShown) : Promise.resolve({} as Record<string, never[]>),
-    ...years.map((y) => getMoneyYear(y, scope)),
+    getStatement(month, scope),
+    ...years.map((y) => getMoneyYear(y, scope, "pagamento")),
     ...(verSaidas ? years.map((y) => getExpenseYear(y)) : []),
   ]);
   const expSeries = verSaidas ? (series.splice(years.length) as unknown as number[][]) : [];
@@ -477,97 +525,177 @@ async function PainelAba({
     ...data.clients.filter((c) => c.status === "atrasado").map((c) => c.id),
     ...data.elsewhere.filter((r) => r.overdue).map((r) => r.clientId),
   ]);
-  const comMovimento = new Set([...data.clients.map((c) => c.id), ...data.elsewhere.map((r) => r.clientId)]);
-  const emDia = comMovimento.size > 0 ? Math.round(((comMovimento.size - atrasados.size) / comMovimento.size) * 100) : 100;
   const sum = (rows: TodayRow[]) => rows.reduce((s, r) => s + r.cents, 0);
-  const topo = Math.max(1, ...data.clients.map((c) => c.paidCents + c.openCents));
+
+  const pagos = new Map<string, { id: string; name: string; cents: number; count: number; atraso: number; dia: string }>();
+  for (const r of extrato) {
+    if (r.kind !== "pago" || !r.paidAt) continue;
+    const slot = pagos.get(r.clientId) ?? { id: r.clientId, name: r.clientName, cents: 0, count: 0, atraso: 0, dia: r.paidAt };
+    slot.cents += r.totalCents;
+    slot.count += 1;
+    if (r.dueOn) slot.atraso = Math.max(slot.atraso, Math.round((Date.parse(r.paidAt) - Date.parse(r.dueOn)) / 86_400_000));
+    if (r.paidAt > slot.dia) slot.dia = r.paidAt;
+    pagos.set(r.clientId, slot);
+  }
+  const pagaram = [...pagos.values()].sort((a, b) => b.cents - a.cents);
+
+  const hojeIso = new Date().toLocaleDateString("sv-SE");
+  const devendo = new Map<string, { id: string; name: string; cents: number; due: string | null; late: boolean; month: string }>();
+  for (const c of data.clients) {
+    if (c.openCents === 0) continue;
+    devendo.set(c.id, { id: c.id, name: c.name, cents: c.openCents, due: c.dueDate, late: c.status === "atrasado", month: data.month });
+  }
+  for (const r of data.elsewhere) {
+    const slot = devendo.get(r.clientId) ?? { id: r.clientId, name: r.clientName, cents: 0, due: r.dueDate, late: false, month: r.month };
+    slot.cents += r.cents;
+    slot.late = slot.late || r.overdue;
+    if (r.dueDate && (!slot.due || r.dueDate < slot.due)) slot.due = r.dueDate;
+    if (r.month < slot.month) slot.month = r.month;
+    devendo.set(r.clientId, slot);
+  }
+  const aindaNao = [...devendo.values()].sort((a, b) => Number(b.late) - Number(a.late) || (a.due ?? "9").localeCompare(b.due ?? "9"));
+
+  const ROW = `flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-neutral-50 ${FOCO}`;
+  const TAG = "rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap";
 
   return (
-    <>
+    <ClienteGavetaProvider>
       <div className="mb-5 flex items-center justify-between gap-3">
-        <Link href={href("painel", shiftMonth(month, -1))} aria-label="Mês anterior" className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-neutral-300 bg-white text-lg hover:bg-neutral-50 ${FOCO}`}>←</Link>
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-neutral-900 first-letter:uppercase">{nome}</h2>
-          {month !== thisMonth ? <Link href={href("painel")} className="text-base text-neutral-600 underline">Voltar para este mês</Link> : null}
-        </div>
-        <Link href={href("painel", shiftMonth(month, 1))} aria-label="Próximo mês" className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-neutral-300 bg-white text-lg hover:bg-neutral-50 ${FOCO}`}>→</Link>
-      </div>
-
-      {verSaidas ? (
-        <div className="mb-3 grid gap-x-8 gap-y-4 rounded-xl border border-neutral-200 bg-white p-4 sm:grid-cols-3">
-          <Numero label={`Sobrou em ${mesCurto(month)}.`} value={sobrou} tone={sobrou < 0 ? "text-red-700" : "text-neutral-900"} note={comparar(sobrou, sobrouAntes, `${mesCurto(prev)}.`)} />
-          <Numero label="Entrou" value={entrou} tone="text-emerald-700" note={comparar(entrou, entrouAntes, `${mesCurto(prev)}.`)} />
-          <Numero label="Saiu" value={saiu} note={comparar(saiu, saiuAntes, `${mesCurto(prev)}.`)} />
-        </div>
-      ) : null}
-
-      <div className="mb-6 grid gap-x-8 gap-y-4 rounded-xl border border-neutral-200 bg-white p-4 sm:grid-cols-3">
-        {verSaidas ? null : <Numero label={`Entrou em ${mesCurto(month)}.`} value={entrou} tone="text-emerald-700" note={comparar(entrou, entrouAntes, `${mesCurto(prev)}.`)} />}
-        <Numero label="Falta receber" value={data.openCents} tone="text-amber-700" />
-        <Numero label="Atrasado" value={data.overdueCents} tone={data.overdueCents ? "text-red-700" : "text-neutral-600"} note={atrasados.size ? `${atrasados.size} ${atrasados.size === 1 ? "cliente" : "clientes"}` : "nada atrasado"} />
-        <div className="min-w-0 flex-1 basis-40">
-          <p className="text-sm text-neutral-600">Clientes em dia</p>
-          <p className="text-xl font-semibold tabular-nums text-neutral-900">{emDia}%</p>
-          <p className="text-sm text-neutral-500">{comMovimento.size - atrasados.size} de {comMovimento.size}</p>
+        <h2 className="text-2xl font-semibold tracking-tight text-neutral-900 first-letter:uppercase">{nome}</h2>
+        <div className="flex items-center gap-2">
+          {month !== thisMonth ? <Link href={href("painel")} className={`inline-flex min-h-11 items-center rounded-lg px-3 text-base text-neutral-600 underline ${FOCO}`}>Este mês</Link> : null}
+          <Link href={href("painel", shiftMonth(month, -1))} aria-label="Mês anterior" className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-neutral-300 bg-white text-lg hover:bg-neutral-50 ${FOCO}`}>←</Link>
+          <Link href={href("painel", shiftMonth(month, 1))} aria-label="Próximo mês" className={`inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-neutral-300 bg-white text-lg hover:bg-neutral-50 ${FOCO}`}>→</Link>
         </div>
       </div>
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-3">
-        <section className="rounded-xl border border-neutral-200 bg-white p-4 lg:col-span-2">
-          <h2 className="text-lg font-semibold text-neutral-900">{verSaidas ? "Entrou e saiu, mês a mês" : "Entrou mês a mês"}</h2>
-          <p className="mb-3 text-base text-neutral-600">Os últimos 9 meses, até {nome}.</p>
-          <EntradasLinha points={points} saidas={verSaidas ? saidasPontos : undefined} />
-        </section>
+      <section aria-label="Resumo do mês" className="mb-4 grid gap-x-8 gap-y-5 rounded-2xl border border-neutral-200 bg-white p-6 sm:grid-cols-[1.3fr_1fr_1fr]">
+        {verSaidas ? (
+          <div>
+            <p className="text-sm text-neutral-600">Sobrou em {nome}</p>
+            <p className={`text-4xl font-bold tracking-tight tabular-nums ${sobrou < 0 ? "text-red-700" : "text-neutral-900"}`}>{formatBRL(sobrou)}</p>
+            <p className="mt-1 text-sm text-neutral-500">{comparar(sobrou, sobrouAntes, `${mesCurto(prev)}.`)}</p>
+          </div>
+        ) : null}
+        <div>
+          <p className="text-sm text-neutral-600">Entrou</p>
+          <p className={`${verSaidas ? "text-2xl" : "text-4xl font-bold tracking-tight"} font-semibold tabular-nums text-emerald-700`}>{formatBRL(entrou)}</p>
+          <p className="mt-1 text-sm text-neutral-500">{comparar(entrou, entrouAntes, `${mesCurto(prev)}.`)}</p>
+        </div>
+        {verSaidas ? (
+          <div>
+            <p className="text-sm text-neutral-600">Saiu</p>
+            <p className="text-2xl font-semibold tabular-nums text-neutral-900">{formatBRL(saiu)}</p>
+            <p className="mt-1 text-sm text-neutral-500">{comparar(saiu, saiuAntes, `${mesCurto(prev)}.`)}</p>
+          </div>
+        ) : null}
+      </section>
 
-        <section className="rounded-xl border border-neutral-200 bg-white p-4">
-          <h2 className="text-lg font-semibold text-neutral-900">Avisos</h2>
-          {today.late.length === 0 && today.upcoming.length === 0 ? (
-            <p className="mt-2 text-base text-neutral-600">Nada atrasado nem vencendo nos próximos 7 dias.</p>
-          ) : (
-            <ul className="mt-2 divide-y divide-neutral-100">
-              {[...today.late.slice(0, 3).map((r) => ({ r, late: true })), ...today.upcoming.slice(0, 3).map((r) => ({ r, late: false }))].map(({ r, late }) => (
-                <li key={`${r.clientId}${r.month}${late}`} className="py-2.5">
-                  <p className="flex items-baseline justify-between gap-2 text-base text-neutral-900">
-                    <span className="min-w-0 truncate">{r.name}</span>
-                    <span className="tabular-nums">{formatBRL(r.cents)}</span>
-                  </p>
-                  <p className={`text-sm ${late ? "text-red-700" : "text-neutral-500"}`}>
-                    {late ? "atrasado" : "vence"} {r.date ? quando(r.date) : ""}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Link href={href("hoje")} className={`mt-2 inline-flex min-h-11 items-center rounded-lg text-base text-neutral-700 underline hover:text-neutral-900 ${FOCO}`}>
-            Ver todas as cobranças ({formatBRL(sum(today.late) + sum(today.upcoming))})
-          </Link>
-        </section>
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
+        <div className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white px-5 py-4">
+          <div>
+            <p className="text-sm text-neutral-600">Falta receber</p>
+            <p className="text-xl font-semibold tabular-nums text-amber-700">{formatBRL(data.openCents)}</p>
+          </div>
+          <span className={`${TAG} bg-amber-50 text-amber-800`}>{aindaNao.length} {aindaNao.length === 1 ? "cliente" : "clientes"}</span>
+        </div>
+        <div className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white px-5 py-4">
+          <div>
+            <p className="text-sm text-neutral-600">Atrasado</p>
+            <p className={`text-xl font-semibold tabular-nums ${data.overdueCents ? "text-red-700" : "text-neutral-500"}`}>{formatBRL(data.overdueCents)}</p>
+          </div>
+          <span className={`${TAG} ${atrasados.size ? "bg-red-50 text-red-800" : "bg-neutral-100 text-neutral-600"}`}>
+            {atrasados.size ? `${atrasados.size} ${atrasados.size === 1 ? "cliente" : "clientes"}` : "nada atrasado"}
+          </span>
+        </div>
       </div>
 
-      {data.clients.length > 0 ? (
-        <Secao titulo={`Quem pagou e quem deve em ${mesCurto(month)}.`}>
-          <ul className="divide-y divide-neutral-100 rounded-xl border border-neutral-200 bg-white">
-            {data.clients.map((c) => {
-              const total = c.paidCents + c.openCents;
-              return (
-                <li key={c.id} className="px-4 py-3">
-                  <div className="flex items-baseline justify-between gap-3 text-base">
-                    <span className="min-w-0 truncate text-neutral-900">{c.name}</span>
-                    <span className="tabular-nums text-neutral-900">
-                      {formatBRL(c.paidCents)} <span className="text-neutral-500">de {formatBRL(total)}</span>
-                    </span>
-                  </div>
-                  <div className="mt-1.5 flex h-1.5 overflow-hidden rounded-full bg-neutral-100" style={{ width: `${Math.max(8, Math.round((total / topo) * 100))}%` }}>
-                    <span className="bg-emerald-500" style={{ width: `${(c.paidCents / total) * 100}%` }} />
-                    <span style={{ ...FALTA_ESTILO, width: `${(c.openCents / total) * 100}%` }} />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </Secao>
-      ) : null}
-    </>
+      <div className="grid items-start gap-5 lg:grid-cols-[1fr_20rem]">
+        <div className="min-w-0 space-y-5">
+          <section className="rounded-2xl border border-neutral-200 bg-white p-5">
+            <h2 className="text-lg font-semibold text-neutral-900">{verSaidas ? "Entrou e saiu, mês a mês" : "Entrou mês a mês"}</h2>
+            <p className="mb-3 text-base text-neutral-600">Pelo dia em que o dinheiro entrou. Os últimos 9 meses, até {nome}.</p>
+            <EntradasLinha points={points} saidas={verSaidas ? saidasPontos : undefined} />
+          </section>
+
+          <section aria-labelledby="quem-pagou" className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+            <h2 id="quem-pagou" className="px-5 pt-4 pb-2 text-lg font-semibold text-neutral-900">Quem pagou em {nome}</h2>
+            {pagaram.length === 0 ? (
+              <p className="px-5 pb-5 text-base text-neutral-600">Nenhum pagamento com dia em {nome}.</p>
+            ) : (
+              <ul className="divide-y divide-neutral-100 border-t border-neutral-100">
+                {pagaram.map((c) => (
+                  <li key={c.id}>
+                    <AbrirCliente clientId={c.id} ariaLabel={`Abrir ${c.name}`} className={ROW}>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-base font-medium text-neutral-900">{c.name}</span>
+                        <span className="block text-sm text-neutral-500">{c.count} {c.count === 1 ? "pagamento" : "pagamentos"} · último em {c.dia.slice(8, 10)}/{c.dia.slice(5, 7)}</span>
+                      </span>
+                      {c.atraso > 0 ? <span className={`${TAG} bg-amber-50 text-amber-800`}>pagou {c.atraso} {c.atraso === 1 ? "dia" : "dias"} depois</span> : <span className={`${TAG} bg-emerald-50 text-emerald-800`}>em dia</span>}
+                      <span className="text-base font-semibold tabular-nums text-neutral-900">{formatBRL(c.cents)}</span>
+                    </AbrirCliente>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section aria-labelledby="ainda-nao" className="overflow-hidden rounded-2xl border border-neutral-200 bg-white">
+            <h2 id="ainda-nao" className="px-5 pt-4 pb-2 text-lg font-semibold text-neutral-900">Ainda não pagaram</h2>
+            {aindaNao.length === 0 ? (
+              <p className="px-5 pb-5 text-base text-neutral-600">Ninguém devendo. Tudo em dia.</p>
+            ) : (
+              <ul className="divide-y divide-neutral-100 border-t border-neutral-100">
+                {aindaNao.map((c) => (
+                  <li key={c.id}>
+                    <AbrirCliente clientId={c.id} ariaLabel={`Abrir ${c.name}`} className={ROW}>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-base font-medium text-neutral-900">{c.name}</span>
+                        <span className="block text-sm text-neutral-500">trabalho de {monthLabel(c.month)}{c.due ? ` · vence ${c.due.slice(8, 10)}/${c.due.slice(5, 7)}` : " · sem dia combinado"}</span>
+                      </span>
+                      <span className={`${TAG} ${c.late ? "bg-red-50 text-red-800" : "bg-amber-50 text-amber-800"}`}>{c.late ? "atrasado" : c.due && c.due >= hojeIso ? "a vencer" : "em aberto"}</span>
+                      <span className="text-base font-semibold tabular-nums text-neutral-900">{formatBRL(c.cents)}</span>
+                    </AbrirCliente>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <aside className="space-y-5">
+          <section className="rounded-2xl border border-neutral-200 bg-white p-5">
+            <h2 className="text-lg font-semibold text-neutral-900">Pedem sua atenção</h2>
+            {today.late.length === 0 && today.upcoming.length === 0 ? (
+              <p className="mt-2 text-base text-neutral-600">Nada atrasado nem vencendo nos próximos 7 dias.</p>
+            ) : (
+              <ul className="mt-2 divide-y divide-neutral-100">
+                {[...today.late.slice(0, 4).map((r) => ({ r, late: true })), ...today.upcoming.slice(0, 4).map((r) => ({ r, late: false }))].map(({ r, late }) => (
+                  <li key={`${r.clientId}${r.month}${late}`} className="flex items-start justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <AbrirCliente clientId={r.clientId} className={`block max-w-full truncate rounded text-left text-base font-medium text-neutral-900 hover:underline ${FOCO}`}>{r.name}</AbrirCliente>
+                      <p className={`text-sm ${late ? "text-red-700" : "text-neutral-500"}`}>{late ? "atrasado" : "vence"} {r.date ? quando(r.date) : ""}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-base font-semibold tabular-nums text-neutral-900">{formatBRL(r.cents)}</p>
+                      {late ? <CobrarLink cliente={r} mesNome={monthLabel(r.month)} cents={r.cents} rotulo="Cobrar" ariaLabel={`Cobrar ${r.name} no WhatsApp`} className={`mt-1 inline-flex min-h-11 items-center rounded-lg bg-neutral-900 px-4 text-base font-medium text-white hover:bg-neutral-800 ${FOCO}`} /> : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link href={href("hoje")} className={`mt-1 inline-flex min-h-11 items-center rounded-lg text-base text-neutral-700 underline hover:text-neutral-900 ${FOCO}`}>
+              Ver todas as cobranças ({formatBRL(sum(today.late) + sum(today.upcoming))})
+            </Link>
+          </section>
+
+          <section className="rounded-2xl border border-neutral-200 bg-white p-5">
+            <h2 className="text-lg font-semibold text-neutral-900">Como ler esta tela</h2>
+            <p className="mt-1 text-base text-neutral-600">O dinheiro conta no dia em que entrou. Toque num cliente: tudo dele abre ao lado, e dá para marcar que recebeu, mudar a data ou desfazer sem sair daqui.</p>
+          </section>
+        </aside>
+      </div>
+    </ClienteGavetaProvider>
   );
 }
 
