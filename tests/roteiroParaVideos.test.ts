@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { limparAlvo, roteiroParaVideos } from "@/lib/roteiroTypes";
+import { extrairPreview, limparAlvo, roteiroParaVideos } from "@/lib/roteiroTypes";
 
 describe("roteiroParaVideos", () => {
   it("AIDA: hooks na primeira cena, CTAs na última, notas no vídeo", () => {
@@ -49,6 +49,15 @@ describe("roteiroParaVideos", () => {
     const videos = roteiroParaVideos("@startupdareal", "T", json as never);
     expect(videos).toHaveLength(1);
     expect(videos[0].cenas.map((c) => c.script)).toEqual(etapas);
+  });
+});
+
+describe("Personalizado", () => {
+  it("vira um vídeo com uma cena por etapa", () => {
+    const json = { etapas: [{ nome: "A", texto: "a" }, { nome: "B", texto: "b" }, { nome: "C", texto: "c" }] };
+    const [video] = roteiroParaVideos("Personalizado", "T", json);
+    expect(video.cenas.map((c) => c.script)).toEqual(["a", "b", "c"]);
+    expect(extrairPreview("Personalizado", json)).toBe("a");
   });
 });
 

@@ -5,6 +5,7 @@ import type {
   Framework,
   Roteiro6Chapeus,
   RoteiroAIDA,
+  RoteiroPersonalizado,
   RoteiroStartupDaReal,
   RoteiroJson,
   RoteiroMidtrack,
@@ -208,6 +209,27 @@ export default function ResultadoRoteiro({
             </div>
           );
         })}
+      </div>
+    );
+  }
+
+  if (framework === "Personalizado") {
+    const roteiro = json as RoteiroPersonalizado;
+    const segmentos: Segmento[] = (roteiro.etapas ?? []).map((e) => ({ rotulo: e.nome, texto: e.texto }));
+    const textoCompleto = segmentos.map((s) => s.texto).join("\n\n");
+    return (
+      <div className="rounded-lg border border-neutral-200 bg-white p-6">
+        <Cabecalho titulo="Roteiro — Personalizado" textoCompleto={textoCompleto} />
+        <RegaTimecode segmentos={segmentos} duracaoTotal={duracaoSegundos} />
+        {segmentos.map((s, i) => (
+          <Bloco key={i} titulo={s.rotulo} texto={s.texto} />
+        ))}
+        {roteiro.descricao && (
+          <details className="mt-4 rounded-md bg-neutral-50 p-3 text-xs text-neutral-500">
+            <summary className="cursor-pointer text-neutral-700">Framework usado</summary>
+            <p className="mt-2 whitespace-pre-wrap">{roteiro.descricao}</p>
+          </details>
+        )}
       </div>
     );
   }
