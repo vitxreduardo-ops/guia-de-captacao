@@ -2,15 +2,17 @@
 
 import { confirmar } from "@/components/ConfirmHost";
 import { useEffect, useState } from "react";
-import { gerarRoteiroAction } from "@/app/admin/roteiros/actions";
+import { gerarRoteiroAction, gerarVariosAction } from "@/app/admin/roteiros/actions";
 import CamposComuns from "@/components/admin/roteiros/CamposComuns";
 import CamposEspecificos, {
   Extra6Chapeus,
   ExtraAIDA,
   ExtraMidtrack,
   ExtraPAS,
+  ExtraPersonalizado,
   ExtraStartupDaReal,
 } from "@/components/admin/roteiros/CamposEspecificos";
+import VariosRoteiros from "@/components/admin/roteiros/VariosRoteiros";
 import ResultadoRoteiro from "@/components/admin/roteiros/ResultadoRoteiro";
 import TagEditor from "@/components/admin/roteiros/TagEditor";
 import ControlesSalvos from "@/components/admin/roteiros/ControlesSalvos";
@@ -20,6 +22,7 @@ import {
   Framework,
   nichoFinal,
   resumoFormulario,
+  type PedidoVarios,
   type PreenchimentoInicial,
   type RoteiroJson,
 } from "@/lib/roteiroTypes";
@@ -66,17 +69,32 @@ export default function GeradorRoteiro({
   });
   const [extra6Chapeus, setExtra6Chapeus] = useState<Extra6Chapeus>({ angulos: [] });
   const [extraStartup, setExtraStartup] = useState<ExtraStartupDaReal>({ angulos: {} });
+  const [extraPersonalizado, setExtraPersonalizado] = useState<ExtraPersonalizado>({ descricao: "" });
+  // Quantos roteiros de cada ângulo num pedido só; vazio = um roteiro. Vale pra qualquer framework.
+  const [pedidoVarios, setPedidoVarios] = useState<PedidoVarios>({});
   const [tags, setTags] = useState<string[]>(inicial?.tags ?? []);
 
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [resultado, setResultado] = useState<RoteiroJson | null>(null);
   const [resultadoId, setResultadoId] = useState<string | null>(null);
+  // Pedido com vários ângulos: um resultado (ou erro) por ângulo.
+  const [varios, setVarios] = useState<
+    {
+      angulo: string;
+      indice: number;
+      total: number;
+      roteiro: RoteiroJson | null;
+      id: string | null;
+      erro: string | null;
+    }[]
+  >([]);
+  const qtdVarios = Object.values(pedidoVarios).reduce((s: number, n) => s + (n ?? 0), 0);
 
   // Nada disso vai pro banco antes de gerar, e o roteiro gerado só fica no
   // histórico: sair da página apaga o formulário. Pergunta antes.
   const temAlgo = Boolean(
-    comum.tema.trim() || comum.objetivo.trim() || comum.contexto.trim() || resultado
+    comum.tema.trim() || comum.objetivo.trim() || comum.contexto.trim() || resultado || varios.length
   );
 
   useEffect(() => {
@@ -137,6 +155,8 @@ export default function GeradorRoteiro({
         return extra6Chapeus;
       case "@startupdareal":
         return extraStartup;
+      case "Personalizado":
+        return extraPersonalizado;
       default:
         return {};
     }
@@ -151,8 +171,31 @@ export default function GeradorRoteiro({
     setCarregando(true);
     setResultado(null);
     setResultadoId(null);
+    setVarios([]);
     try {
       const comumResolvido = { ...comum, nicho: nichoFinal(comum) };
+      if (qtdVarios > 0) {
+        const res = await gerarVariosAction({
+          framework,
+          comum: comumResolvido,
+          extra: extraAtual(),
+          tags,
+          cliente,
+          pedidos: pedidoVarios,
+        });
+        if (!res.ok) {
+          setErro(res.error);
+          return;
+        }
+        setVarios(
+          res.data.map(({ angulo, indice, total, resultado: r }) =>
+            r.ok
+              ? { angulo, indice, total, roteiro: r.data.roteiro, id: r.data.id, erro: null }
+              : { angulo, indice, total, roteiro: null, id: null, erro: r.error }
+          )
+        );
+        return;
+      }
       const res = await gerarRoteiroAction({
         framework,
         comum: comumResolvido,
@@ -198,8 +241,12 @@ export default function GeradorRoteiro({
             setExtra6Chapeus={setExtra6Chapeus}
             extraStartup={extraStartup}
             setExtraStartup={setExtraStartup}
+            extraPersonalizado={extraPersonalizado}
+            setExtraPersonalizado={setExtraPersonalizado}
           />
         )}
+
+        {framework && <VariosRoteiros varios={pedidoVarios} setVarios={setPedidoVarios} />}
 
         {framework && (
           <div className="rounded-lg border border-neutral-200 bg-white p-4">
@@ -217,7 +264,13 @@ export default function GeradorRoteiro({
             disabled={carregando}
             className="w-full rounded-md bg-neutral-900 px-4 py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {carregando ? "Gerando roteiro..." : "Gerar roteiro"}
+            {qtdVarios > 1
+              ? carregando
+                ? `Gerando ${qtdVarios} roteiros...`
+                : `Gerar ${qtdVarios} roteiros`
+              : carregando
+                ? "Gerando roteiro..."
+                : "Gerar roteiro"}
           </button>
         )}
 
@@ -225,6 +278,33 @@ export default function GeradorRoteiro({
           <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {erro}
           </p>
+        )}
+
+        {varios.length > 0 && framework && (
+          <div className="space-y-6">
+            {varios.map((v) => (
+              <div key={`${v.angulo}-${v.indice}`}>
+                <h3 className="mb-2 font-mono text-xs uppercase tracking-wide text-neutral-500">
+                  Ângulo — {v.angulo}
+                  {v.total > 1 ? ` (${v.indice} de ${v.total})` : ""}
+                </h3>
+                {v.roteiro ? (
+                  <>
+                    <ControlesSalvos id={v.id} />
+                    <ResultadoRoteiro
+                      framework={framework}
+                      roteiro={v.roteiro}
+                      duracaoSegundos={comum.duracaoSegundos}
+                    />
+                  </>
+                ) : (
+                  <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    {v.erro}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
         )}
 
         {resultado && framework && (

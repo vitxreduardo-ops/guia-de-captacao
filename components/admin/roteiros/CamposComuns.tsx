@@ -64,6 +64,13 @@ const FRAMEWORKS: { valor: Framework; rotulo: string; descricao: string; comoFun
     comoFunciona:
       "Motivação, contexto, questão central, exemplos, objeções, amarração e fechamento: cada etapa tem uma função no argumento. Os ângulos dos 6 Chapéus viram termômetro: você escolhe quanto de cada um e o resultado mostra quanto o texto ficou. Bom para explicar uma ideia, opinião ou notícia.",
   },
+  {
+    valor: "Personalizado",
+    rotulo: "Personalizado",
+    descricao: "você escreve o framework",
+    comoFunciona:
+      "Você escreve o framework com as suas palavras: as etapas, na ordem, e o que cada uma faz. A IA segue exatamente essa estrutura, sem acrescentar nem tirar etapa. Bom para um método seu ou de um cliente.",
+  },
 ];
 
 // Celular: os campos aparecem um por vez, na ordem abaixo, e os anteriores

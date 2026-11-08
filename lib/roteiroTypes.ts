@@ -1,4 +1,8 @@
-export type Framework = "AIDA" | "PAS" | "Midtrack" | "6Chapeus" | "@startupdareal";
+export type Framework = "AIDA" | "PAS" | "Midtrack" | "6Chapeus" | "@startupdareal" | "Personalizado";
+
+/** Tamanho do framework que a pessoa escreve à mão (campo do formulário e teto no servidor). */
+export const DESCRICAO_FRAMEWORK_MIN = 20;
+export const DESCRICAO_FRAMEWORK_MAX = 3000;
 
 /** As sete etapas do @startupdareal, na ordem do vídeo: chave do JSON e rótulo da tela. */
 export const ETAPAS_STARTUPDAREAL = [
@@ -108,6 +112,21 @@ export function limparAlvo(v: unknown): AlvoAngulos {
   return alvo;
 }
 
+/** Quantos roteiros de cada ângulo num pedido só do @startupdareal, e o teto do pedido (cada um é uma chamada de IA). */
+export const MAX_ROTEIROS_POR_PEDIDO = 10;
+export type PedidoVarios = Partial<Record<Angulo6Chapeus, number>>;
+
+/** Só ângulos conhecidos e quantidades inteiras de 1 a 10: o pedido vem do navegador. */
+export function limparPedidos(v: unknown): PedidoVarios {
+  const pedido: PedidoVarios = {};
+  if (!v || typeof v !== "object") return pedido;
+  for (const a of ANGULOS_6CHAPEUS) {
+    const n = Math.floor(Number((v as Record<string, unknown>)[a]));
+    if (n >= 1) pedido[a] = Math.min(n, MAX_ROTEIROS_POR_PEDIDO);
+  }
+  return pedido;
+}
+
 export const EMOCOES_MIDTRACK = ["Surpresa", "Indignação", "Ternura", "Curiosidade"];
 
 export const INTENSIDADES_PAS = ["Leve", "Moderado", "Forte"];
@@ -128,6 +147,8 @@ export function extrairPreview(framework: string, json: unknown): string {
         return roteiro?.roteiros?.[0]?.hook ?? "";
       case "@startupdareal":
         return (json as Partial<RoteiroStartupDaReal> | null)?.motivacao?.texto ?? "";
+      case "Personalizado":
+        return (json as Partial<RoteiroPersonalizado> | null)?.etapas?.[0]?.texto ?? "";
       default:
         return "";
     }
@@ -190,12 +211,19 @@ export type RoteiroStartupDaReal = Record<(typeof ETAPAS_STARTUPDAREAL)[number][
   /** O que foi pedido no formulário; o servidor junta depois de gerar. */
   alvo?: AlvoAngulos;
 };
+/** Framework escrito pela pessoa: as etapas (nome e texto) saem da descrição dela. */
+export type RoteiroPersonalizado = {
+  etapas: { nome: string; texto: string }[];
+  /** O framework como a pessoa escreveu; o servidor junta depois de gerar. */
+  descricao?: string;
+};
 export type RoteiroJson =
   | RoteiroAIDA
   | RoteiroPAS
   | RoteiroMidtrack
   | Roteiro6Chapeus
-  | RoteiroStartupDaReal;
+  | RoteiroStartupDaReal
+  | RoteiroPersonalizado;
 
 export type PreenchimentoInicial = {
   comum: ComumParams;
@@ -306,6 +334,10 @@ export function roteiroParaVideos(
           notas_producao: "",
         },
       ];
+    }
+    case "Personalizado": {
+      const r = json as RoteiroPersonalizado;
+      return [{ titulo: tema, cenas: r.etapas.map((e) => cena(e.texto)), notas_producao: "" }];
     }
   }
 }

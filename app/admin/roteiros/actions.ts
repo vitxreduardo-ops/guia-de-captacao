@@ -15,6 +15,9 @@ import {
   promptMidtrack,
   promptPAS,
   promptStartupDaReal,
+  promptPersonalizado,
+  blocoAngulo,
+  blocoVariacao,
   promptChat,
   blocoDoCliente,
   PROMPT_ORGANIZAR,
@@ -39,7 +42,13 @@ import {
   DURACAO_MAX,
   DURACAO_MIN,
   STATUS_ROTEIRO,
+  DESCRICAO_FRAMEWORK_MAX,
+  DESCRICAO_FRAMEWORK_MIN,
   limparAlvo,
+  limparPedidos,
+  MAX_ROTEIROS_POR_PEDIDO,
+  type Angulo6Chapeus,
+  type PedidoVarios,
   type Framework,
   type RoteiroJson,
   type RoteiroOrganizado,
@@ -96,7 +105,7 @@ export async function sugerirFrameworkAction(
   }
 }
 
-export async function gerarRoteiroAction(input: {
+type GerarInput = {
   framework: Framework;
   comum: Comum;
   // Cada framework tem os próprios campos extras (CamposEspecificos).
@@ -105,10 +114,77 @@ export async function gerarRoteiroAction(input: {
   tags: string[];
   /** Cliente do seletor do formulário; vazio = roteiro sem cliente. */
   cliente?: string;
-}): Promise<Resultado<{ roteiro: RoteiroJson; id: string | null }>> {
+};
+
+export async function gerarRoteiroAction(
+  input: GerarInput
+): Promise<Resultado<{ roteiro: RoteiroJson; id: string | null }>> {
   await requireTeam("roteiros");
   if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
+  return gerarUm(input);
+}
+
+/**
+ * Vários roteiros num pedido só, de qualquer framework: a quantidade pedida de
+ * cada ângulo dos 6 Chapéus, cada roteiro salvo à parte no histórico com o
+ * ângulo como tag. No @startupdareal o ângulo entra em "forte" no termômetro
+ * (por cima do que a pessoa marcou); no 6 Chapéus vira o único ângulo do
+ * pedido; nos demais vira um bloco de ângulo no prompt. Roda em paralelo aqui
+ * dentro porque o navegador enfileira as actions, uma por vez.
+ */
+export async function gerarVariosAction(
+  input: GerarInput & { pedidos: PedidoVarios }
+): Promise<
+  Resultado<
+    {
+      angulo: string;
+      indice: number;
+      total: number;
+      resultado: Resultado<{ roteiro: RoteiroJson; id: string | null }>;
+    }[]
+  >
+> {
+  await requireTeam("roteiros");
+  if (!(await getCurrentSession())) return { ok: false, error: "Sessão expirada." };
+  const pedidos = Object.entries(limparPedidos(input.pedidos)) as [Angulo6Chapeus, number][];
+  const quantidade = pedidos.reduce((soma, [, n]) => soma + n, 0);
+  if (quantidade === 0) return { ok: false, error: "Escolha pelo menos um ângulo." };
+  if (quantidade > MAX_ROTEIROS_POR_PEDIDO) {
+    return { ok: false, error: `No máximo ${MAX_ROTEIROS_POR_PEDIDO} roteiros por pedido.` };
+  }
+
+  const itens = await Promise.all(
+    pedidos.flatMap(([angulo, total]) =>
+      Array.from({ length: total }, async (_, i) => ({
+        angulo,
+        indice: i + 1,
+        total,
+        resultado: await gerarUm({
+          ...input,
+          extra: {
+            ...input.extra,
+            ...(input.framework === "@startupdareal"
+              ? { angulos: { ...limparAlvo(input.extra?.angulos), [angulo]: "forte" } }
+              : input.framework === "6Chapeus"
+                ? { angulos: [angulo] }
+                : { angulo }),
+            variacao: { indice: i + 1, total },
+          },
+          tags: [...limparTags(input.tags), angulo],
+        }),
+      }))
+    )
+  );
+  return { ok: true, data: itens };
+}
+
+async function gerarUm(
+  input: GerarInput
+): Promise<Resultado<{ roteiro: RoteiroJson; id: string | null }>> {
   const { framework, extra } = input;
+  // Só o Personalizado usa; vem do navegador, então limita o tamanho.
+  const descricao =
+    typeof extra?.descricao === "string" ? extra.descricao.trim().slice(0, DESCRICAO_FRAMEWORK_MAX) : "";
   const comum = {
     ...input.comum,
     duracaoSegundos: Math.min(
@@ -132,10 +208,25 @@ export async function gerarRoteiroAction(input: {
       system = prompt6Chapeus(comum, extra);
       break;
     case "@startupdareal":
-      system = promptStartupDaReal(comum, { angulos: limparAlvo(extra?.angulos) });
+      system = promptStartupDaReal(comum, {
+        angulos: limparAlvo(extra?.angulos),
+        variacao: limparVariacao(extra?.variacao),
+      });
+      break;
+    case "Personalizado":
+      if (descricao.length < DESCRICAO_FRAMEWORK_MIN) {
+        return { ok: false, error: "Escreva o framework: etapas e o que cada uma faz." };
+      }
+      system = promptPersonalizado(comum, { descricao });
       break;
     default:
       return { ok: false, error: `Framework desconhecido: ${framework}` };
+  }
+  // Pedido de vários roteiros: nos frameworks sem termômetro, ângulo e variação entram no fim do prompt.
+  if (framework !== "@startupdareal") {
+    if (framework !== "6Chapeus") system += blocoAngulo(extra?.angulo);
+    const variacao = blocoVariacao(limparVariacao(extra?.variacao));
+    if (variacao) system += `\n\n${variacao}`;
   }
 
   // Mesmo contexto que o chat recebe: perfil do cadastro e roteiros dos guias.
@@ -169,6 +260,8 @@ export async function gerarRoteiroAction(input: {
   if (framework === "@startupdareal") {
     roteiro = { ...roteiro, alvo: limparAlvo(extra?.angulos) } as RoteiroJson;
   }
+  // O framework escrito fica junto do roteiro: o histórico mostra de onde saiu.
+  if (framework === "Personalizado") roteiro = { ...roteiro, descricao } as RoteiroJson;
 
   // Falha ao salvar não derruba a geração: o roteiro já custou a chamada e
   // continua na tela, só sem entrar no histórico dessa vez.
@@ -191,6 +284,14 @@ export async function gerarRoteiroAction(input: {
   }
 
   return { ok: true, data: { roteiro, id } };
+}
+
+// Vem de gerarVariosAction, mas gerarRoteiroAction também aceita `extra` do navegador.
+function limparVariacao(v: unknown) {
+  const { indice, total } = (v ?? {}) as { indice?: unknown; total?: unknown };
+  return Number.isInteger(indice) && Number.isInteger(total) && Number(total) >= 2 && Number(total) <= MAX_ROTEIROS_POR_PEDIDO && Number(indice) >= 1 && Number(indice) <= Number(total)
+    ? { indice: Number(indice), total: Number(total) }
+    : undefined;
 }
 
 function limparTags(tags: unknown): string[] {

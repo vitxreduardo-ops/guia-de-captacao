@@ -6,6 +6,8 @@ import {
   EMOCOES_MIDTRACK,
   Framework,
   INTENSIDADES_ANGULO,
+  DESCRICAO_FRAMEWORK_MAX,
+  DESCRICAO_FRAMEWORK_MIN,
   INTENSIDADES_PAS,
   ROTULO_INTENSIDADE,
   type AlvoAngulos,
@@ -20,6 +22,7 @@ export type ExtraMidtrack = {
 };
 export type Extra6Chapeus = { angulos: string[] };
 export type ExtraStartupDaReal = { angulos: AlvoAngulos };
+export type ExtraPersonalizado = { descricao: string };
 
 type Props = {
   framework: Framework;
@@ -33,6 +36,8 @@ type Props = {
   setExtra6Chapeus: (v: Extra6Chapeus) => void;
   extraStartup: ExtraStartupDaReal;
   setExtraStartup: (v: ExtraStartupDaReal) => void;
+  extraPersonalizado: ExtraPersonalizado;
+  setExtraPersonalizado: (v: ExtraPersonalizado) => void;
 };
 
 function Rotulo({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
@@ -294,6 +299,25 @@ export default function CamposEspecificos(props: Props) {
           </div>
         </div>
       )}
+
+      {framework === "Personalizado" && (
+        <div>
+          <Rotulo htmlFor="roteiro-framework-escrito">Seu framework</Rotulo>
+          <textarea
+            id="roteiro-framework-escrito"
+            value={props.extraPersonalizado.descricao}
+            onChange={(e) => props.setExtraPersonalizado({ descricao: e.target.value })}
+            rows={7}
+            minLength={DESCRICAO_FRAMEWORK_MIN}
+            maxLength={DESCRICAO_FRAMEWORK_MAX}
+            placeholder={`Escreva as etapas, na ordem, e o que cada uma faz. Ex.:\n1. Gancho: abre com uma pergunta que a pessoa se faz sozinha\n2. Erro comum: mostra o que quase todo mundo faz errado\n3. Virada: apresenta a forma certa com um exemplo\n4. Fechamento: uma frase para lembrar`}
+            className={inputClasses()}
+          />
+          <p className="mt-1 text-xs text-neutral-500">
+            A IA segue as etapas que você escrever, na ordem, sem acrescentar nem tirar nenhuma.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -310,5 +334,7 @@ function rotuloFramework(f: Framework) {
       return "6 Chapéus";
     case "@startupdareal":
       return "@startupdareal";
+    case "Personalizado":
+      return "Personalizado";
   }
 }

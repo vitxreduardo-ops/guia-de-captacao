@@ -216,6 +216,27 @@ export const schemaStartupDaReal = {
   },
 };
 
+export const schemaPersonalizado = {
+  name: "roteiro_personalizado",
+  strict: true,
+  schema: {
+    type: "object",
+    properties: {
+      etapas: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { nome: { type: "string" }, texto: { type: "string" } },
+          required: ["nome", "texto"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["etapas"],
+    additionalProperties: false,
+  },
+};
+
 export const schemaTriagem = {
   name: "triagem_framework",
   strict: true,
@@ -305,6 +326,8 @@ export function getSchemaPorFramework(framework: string) {
       return schema6Chapeus;
     case "@startupdareal":
       return schemaStartupDaReal;
+    case "Personalizado":
+      return schemaPersonalizado;
     default:
       throw new Error(`Framework desconhecido: ${framework}`);
   }
