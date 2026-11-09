@@ -93,6 +93,7 @@ export function CoverSection({
 
   return (
     <section
+      data-slide="capa"
       // A altura vem de --budget-vh para a capa caber no espaço que tem: na
       // página é a janela, e dentro do preview do editor é a altura do painel.
       className={`relative flex min-h-[var(--budget-vh,100svh)] flex-col overflow-hidden px-4 py-8 sm:px-8 sm:py-10 ${tone.bg} ${tone.text}`}
@@ -140,7 +141,7 @@ export function CoverSection({
         ) : null}
       </div>
 
-      <ScrollHint className={tone.text} />
+      <ScrollHint className={`${tone.text} pdf:hidden`} />
     </section>
   );
 }

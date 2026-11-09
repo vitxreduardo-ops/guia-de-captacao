@@ -5,6 +5,8 @@
   ---break---
 */
 @custom-variant dark (&:is(.dark *));
+/* Só no PDF da proposta (/orcamento/[slug]?pdf=1): papel pede mais densidade que a tela. */
+@custom-variant pdf (&:where(.proposta-pdf *));
 
 @font-face {
   font-family: "Bootzy";
@@ -887,4 +889,83 @@ html:has(.site) {
     padding-left: var(--gutter-l);
     padding-right: var(--gutter-r);
   }
+}
+
+/*
+  Impressão: mantém as cores dos blocos, que o navegador apaga por padrão, e
+  mostra o que ainda esperava a animação de entrada (fora da tela ela nunca
+  dispara). Vale para qualquer Cmd+P; o PDF da proposta vai além, abaixo.
+*/
+@media print {
+  html {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    break-inside: avoid;
+  }
+}
+
+/*
+  O PDF da proposta (/orcamento/[slug]?pdf=1) é uma apresentação, não a página
+  fatiada: cada seção vira um slide 16:9 de 1280x720, com o conteúdo centrado
+  na altura, a cor do bloco até a borda e a assinatura no rodapé. A tela usa as
+  mesmas regras, então o que aparece atrás da janela de impressão é o PDF, e o
+  AutoPrint mede ali o que precisa encolher para caber num slide.
+*/
+.proposta-pdf {
+  --pdf-w: 1280px;
+  --pdf-h: 720px;
+  width: var(--pdf-w);
+  margin: 0 auto;
+}
+.proposta-pdf [data-reveal] {
+  opacity: 1 !important;
+  transform: none !important;
+  /* Bloco grande pode quebrar; card e item de lista, não. */
+  break-inside: auto;
+}
+.proposta-pdf [data-reveal] [data-reveal] {
+  break-inside: avoid;
+}
+.proposta-pdf [data-slide] {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: var(--pdf-h);
+  padding-top: 64px;
+  padding-bottom: 64px;
+  /* Seção que não cabe continua na página seguinte com o mesmo respiro. */
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  break-before: page;
+}
+.proposta-pdf [data-slide="capa"] {
+  padding-top: 40px;
+  padding-bottom: 40px;
+  height: var(--pdf-h);
+  min-height: var(--pdf-h);
+}
+/* Assinatura de cada slide de miolo: estúdio à esquerda, cliente à direita.
+   Capa e fecho já têm a própria. */
+.proposta-pdf [data-slide="miolo"]::before,
+.proposta-pdf [data-slide="miolo"]::after {
+  position: absolute;
+  bottom: 26px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+.proposta-pdf [data-slide="miolo"]::before {
+  content: "Tatú Estúdio Criativo";
+  left: 128px;
+}
+.proposta-pdf [data-slide="miolo"]::after {
+  content: var(--pdf-cliente, "");
+  right: 128px;
 }

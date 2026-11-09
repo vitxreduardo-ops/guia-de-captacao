@@ -36,7 +36,7 @@ export function PackageCard({
 
   return (
     <RevealItem
-      className={`relative flex flex-col bg-[var(--tatu-cream)] p-7 text-[var(--tatu-ink)] ${
+      className={`relative flex flex-col bg-[var(--tatu-cream)] p-7 pdf:p-5 text-[var(--tatu-ink)] ${
         highlighted
           ? "border-[1.5px] border-[var(--tatu-olive)]"
           : "border border-[var(--tatu-taupe)]"
@@ -60,7 +60,7 @@ export function PackageCard({
 
       <p
         style={{ fontFamily: "Bootzy, sans-serif" }}
-        className="mt-6 text-4xl leading-none tracking-wide"
+        className="mt-6 pdf:mt-4 text-4xl leading-none tracking-wide"
       >
         {priceText}
         {pkg.price > 0 && pkg.unit ? (
@@ -74,12 +74,12 @@ export function PackageCard({
       ) : null}
 
       {pkg.items.length > 0 ? (
-        <ul className="mb-7 mt-6 flex-1">
+        <ul className="mb-7 mt-6 flex-1 pdf:my-4">
           {pkg.items.map((item, i) => {
             const itemOpen = openItem === i;
             const itemPanelId = `${baseId}-item-${i}`;
             const expandable = item.description !== "";
-            const rowClass = "flex w-full items-start gap-3 py-3 text-left";
+            const rowClass = "flex w-full items-start gap-3 py-3 pdf:py-2 text-left";
             const content = (
               <>
                 <span className="pt-0.5 text-[11px] tabular-nums text-[var(--tatu-ink)]/50">
@@ -98,7 +98,7 @@ export function PackageCard({
                 {expandable ? (
                   <span
                     aria-hidden
-                    className="flex h-7 w-7 shrink-0 items-center justify-center border border-[var(--tatu-ink)]/30 text-sm leading-none"
+                    className="flex h-7 w-7 pdf:hidden shrink-0 items-center justify-center border border-[var(--tatu-ink)]/30 text-sm leading-none"
                   >
                     {itemOpen ? "−" : "+"}
                   </span>

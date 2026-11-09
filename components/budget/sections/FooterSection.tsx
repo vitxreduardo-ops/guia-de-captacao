@@ -33,8 +33,11 @@ export function FooterSection({
   const links = contacts(data);
 
   return (
-    <footer className={`px-4 py-20 sm:px-8 sm:py-24 ${tone.bg} ${tone.text}`}>
-      <div className="mx-auto w-full max-w-5xl">
+    <footer
+      data-slide="fim"
+      className={`px-4 py-20 sm:px-8 sm:py-24 ${tone.bg} ${tone.text}`}
+    >
+      <div data-slide-content className="mx-auto w-full max-w-5xl">
         <div
           className={`flex flex-wrap items-center justify-between gap-2 border-b pb-6 text-xs font-medium uppercase tracking-[0.2em] ${tone.divider} ${tone.textMuted}`}
         >

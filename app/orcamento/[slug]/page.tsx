@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import type { CSSProperties } from "react";
 import { notFound } from "next/navigation";
 import { getBudgetBySlugWithSections } from "@/lib/budgets";
 import { BudgetSections } from "@/components/budget/BudgetSections";
+import { AutoPrint } from "@/components/budget/AutoPrint";
+import { getCurrentSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -42,15 +45,22 @@ export async function generateMetadata({
 
 export default async function PublicBudgetPage({
   params,
+  searchParams,
 }: {
   params: Params;
+  searchParams: Promise<{ pdf?: string }>;
 }) {
   const { slug } = await params;
+  const pdf = (await searchParams).pdf === "1";
   const budget = await getBudgetBySlugWithSections(slug);
 
   if (!budget) notFound();
 
-  if (budget.status !== "published") {
+  // Rascunho só sai em PDF para a equipe logada; o cliente continua sem ver.
+  const session = pdf && budget.status !== "published" ? await getCurrentSession() : null;
+  const equipe = session !== null && session.role !== "client";
+
+  if (budget.status !== "published" && !equipe) {
     return (
       <div className="flex min-h-svh items-center justify-center bg-[var(--tatu-beige)] px-4 text-center">
         <p className="text-sm text-[var(--tatu-ink)]/70">
@@ -61,7 +71,19 @@ export default async function PublicBudgetPage({
   }
 
   return (
-    <div className="min-h-svh">
+    <div
+      className={pdf ? "proposta-pdf" : "min-h-svh"}
+      // O nome do cliente assina o canto de cada página do PDF (ver globals.css).
+      style={pdf ? ({ "--pdf-cliente": JSON.stringify(budget.client_name || budget.title) } as CSSProperties) : undefined}
+    >
+      {pdf ? (
+        <>
+          {/* Slide 16:9 em vez de folha A4: proposta se apresenta na tela, e
+              1280 de largura mantém o layout de desktop do site. */}
+          <style>{"@page { size: 1280px 720px; margin: 0; }"}</style>
+          <AutoPrint />
+        </>
+      ) : null}
       <BudgetSections
         sections={budget.sections}
         clientName={budget.client_name}

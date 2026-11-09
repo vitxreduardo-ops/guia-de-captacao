@@ -45,7 +45,9 @@ export function BudgetPublishBox({ budget }: { budget: BudgetWithSections }) {
             Ver proposta
           </a>
           <a
-            href={`/api/orcamentos/${budget.slug}/pdf`}
+            href={`${publicPath}?pdf=1`}
+            target="_blank"
+            rel="noreferrer"
             className="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
           >
             Baixar PDF
