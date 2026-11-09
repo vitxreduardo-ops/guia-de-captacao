@@ -27,7 +27,7 @@ export function SectionHeading({
   if (!eyebrow && !title && !subtitle) return null;
 
   return (
-    <Reveal className={className}>
+    <Reveal className={`${className} pdf:mb-8 pdf:break-after-avoid`}>
       {eyebrow ? (
         <div className="mb-6 flex items-center gap-4">
           <span className="text-xs font-bold tabular-nums">{number}</span>
@@ -65,9 +65,12 @@ export function SectionBlock({
   return (
     <section
       id={id}
+      data-slide="miolo"
       className={`px-4 py-20 sm:px-8 sm:py-24 ${tone.bg} ${tone.text}`}
     >
-      <div className="mx-auto w-full max-w-5xl">{children}</div>
+      <div data-slide-content className="mx-auto w-full max-w-5xl">
+        {children}
+      </div>
     </section>
   );
 }

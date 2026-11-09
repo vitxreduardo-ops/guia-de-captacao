@@ -73,6 +73,13 @@ export function AvulsosSection({
   );
 }
 
+/** Colunas pela quantidade: 2 pacotes não deixam um terço vazio, 4 cabem numa linha. */
+const COLUNAS: Record<number, string> = {
+  1: "max-w-md",
+  2: "sm:grid-cols-2",
+  4: "sm:grid-cols-2 lg:grid-cols-4",
+};
+
 function PackagesGrid({
   data,
   variant,
@@ -81,11 +88,7 @@ function PackagesGrid({
   variant: "pricing" | "avulsos";
 }) {
   return (
-    <RevealStagger
-      className={`grid gap-5 ${
-        data.packages.length === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"
-      }`}
-    >
+    <RevealStagger className={`grid gap-5 ${COLUNAS[data.packages.length] ?? "sm:grid-cols-3"}`}>
       {data.packages.map((pkg, index) => (
         <PackageCard
           // Só o índice: com o nome na chave, cada letra digitada recriava o card.
