@@ -23,6 +23,7 @@ export function Reveal({
   return (
     <MotionConfig reducedMotion="user">
       <motion.div
+        data-reveal
         className={className}
         initial={{ opacity: 0, y }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -61,6 +62,7 @@ export function RevealStagger({
   return (
     <MotionConfig reducedMotion="user">
       <motion.div
+        data-reveal
         className={className}
         initial="hidden"
         animate={visto ? "show" : "hidden"}
@@ -90,7 +92,7 @@ export function RevealItem({
 
   return (
     <MotionConfig reducedMotion="user">
-      <motion.div className={className} variants={item}>
+      <motion.div data-reveal className={className} variants={item}>
         {children}
       </motion.div>
     </MotionConfig>
