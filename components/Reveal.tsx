@@ -1,7 +1,7 @@
 "use client";
 
 import { MotionConfig, motion, type Variants } from "motion/react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 const DISTANCE = 28;
 
@@ -49,17 +49,22 @@ export function RevealStagger({
   className?: string;
   staggerDelay?: number;
 }) {
+  const [visto, setVisto] = useState(false);
   const container: Variants = {
     hidden: {},
     show: { transition: { staggerChildren: staggerDelay } },
   };
 
+  // `animate` controlado em vez de `whileInView`: filho que entra depois da
+  // revelação (um pacote novo no editor) não herda o whileInView e ficava
+  // preso em opacidade 0. Com `animate`, ele já nasce indo para "show".
   return (
     <MotionConfig reducedMotion="user">
       <motion.div
         className={className}
         initial="hidden"
-        whileInView="show"
+        animate={visto ? "show" : "hidden"}
+        onViewportEnter={() => setVisto(true)}
         viewport={{ once: true, amount: 0.2, margin: "-10% 0px -10% 0px" }}
         variants={container}
       >
