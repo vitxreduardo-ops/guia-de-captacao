@@ -22,7 +22,7 @@ export function PackagesFields({
   featuredAllowed: boolean;
 }) {
   return (
-    <Field label="Pacotes">
+    <Field label="Pacotes" grupo>
       <RepeatableList
         items={packages}
         onChange={onChange}
@@ -90,7 +90,7 @@ export function PackagesFields({
               className={FIELD_CLASS}
               placeholder="Descrição curta, abaixo do preço"
             />
-            <Field label="Itens">
+            <Field label="Itens" grupo>
               <RepeatableList
                 items={pacote.items}
                 onChange={(items) => trocar({ ...pacote, items })}

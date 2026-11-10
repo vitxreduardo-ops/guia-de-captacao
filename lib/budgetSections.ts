@@ -240,7 +240,9 @@ function packagesFrom(raw: unknown, unitFallback: string): PricingPackage[] {
           description: str(l.description).trim(),
         };
       })
-      .filter((line) => line.title !== "");
+      // Linha com qualquer campo preenchido fica: descartar pela falta do
+      // título apagava a quantidade e a descrição já escritas.
+      .filter((line) => line.title !== "" || line.detail !== "" || line.description !== "");
     const legacy = textList(p.features).map((title) => ({
       title,
       detail: "",
@@ -379,7 +381,7 @@ function parseData<K extends SectionKind>(
             const f = obj(item);
             return { question: str(f.question), answer: str(f.answer) };
           })
-          .filter((f) => f.question.trim() !== ""),
+          .filter((f) => f.question.trim() !== "" || f.answer.trim() !== ""),
       } as SectionData[K];
 
     case "footer":

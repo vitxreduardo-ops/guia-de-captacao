@@ -28,9 +28,13 @@ export function useAutosave<T>({
   servidor,
   salvar,
   atraso = 900,
+  normalizar = (valor) => valor,
 }: {
   chave: string;
   servidor: T;
+  /** Como o servidor grava: a cópia local só conta como "não gravada" se
+   *  diferir depois disso (espaço no fim e item vazio o banco descarta). */
+  normalizar?: (valor: T) => unknown;
   salvar: (valor: T) => Promise<SalvarResultado>;
   atraso?: number;
 }) {
@@ -113,7 +117,7 @@ export function useAutosave<T>({
       const bruto = localStorage.getItem(chave);
       if (!bruto) return;
       const copia = JSON.parse(bruto) as Rascunho<T>;
-      if (JSON.stringify(copia.valor) === JSON.stringify(servidor)) {
+      if (JSON.stringify(normalizar(copia.valor)) === JSON.stringify(servidor)) {
         localStorage.removeItem(chave);
       } else {
         // eslint-disable-next-line react-hooks/set-state-in-effect
