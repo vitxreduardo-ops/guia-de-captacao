@@ -969,3 +969,51 @@ html:has(.site) {
   content: var(--pdf-cliente, "");
   right: 128px;
 }
+
+/*
+  Escolha das páginas do PDF (PdfPaginas). Na tela a proposta vira uma prévia:
+  fundo neutro, slides separados como folhas e a desmarcada apagada. Na
+  impressão nada disso existe, e a desmarcada simplesmente não sai.
+*/
+@media screen {
+  body:has(.proposta-pdf) {
+    background: #e5e5e5;
+  }
+  .proposta-pdf {
+    padding: 88px 0 48px;
+  }
+  /* Depois de paginar, os slides viram miniaturas numa grade. É zoom de tela:
+     o layout de dentro é o mesmo de 1280, só desenhado menor. */
+  .proposta-pdf[data-miniaturas] {
+    --mini: 0.28;
+    width: auto;
+    max-width: 1280px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    padding: 96px 24px 48px;
+  }
+  .proposta-pdf[data-miniaturas] [data-slide] {
+    flex: none;
+    width: var(--pdf-w);
+    zoom: var(--mini);
+    outline: calc(3px / var(--mini)) solid #171717;
+    outline-offset: calc(3px / var(--mini));
+    box-shadow: 0 calc(6px / var(--mini)) calc(18px / var(--mini)) rgb(0 0 0 / 0.12);
+    transition: opacity 150ms ease, filter 150ms ease, outline-color 150ms ease;
+  }
+  .proposta-pdf[data-miniaturas] [data-pdf-selo] {
+    zoom: calc(1 / var(--mini));
+  }
+  .proposta-pdf [data-slide][data-pdf-fora] {
+    opacity: 0.35;
+    filter: grayscale(1);
+    outline-color: transparent;
+  }
+}
+@media print {
+  .proposta-pdf [data-pdf-fora] {
+    display: none !important;
+  }
+}
