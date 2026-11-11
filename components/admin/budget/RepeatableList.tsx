@@ -9,19 +9,39 @@ const FOCUS_RING =
 export const FIELD_CLASS =
   "w-full rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs text-neutral-900 placeholder:text-neutral-400 focus:border-neutral-500 focus:outline-none";
 
-/** O rótulo miúdo em caixa alta que nomeia cada campo do painel. */
+/**
+ * O rótulo miúdo em caixa alta que nomeia cada campo do painel.
+ *
+ * `grupo` é para o que tem vários controles dentro (listas, biblioteca de
+ * logos): vira um grupo, não um <label>. Um <label> repassa o clique no espaço
+ * vazio para o primeiro controle de dentro — numa lista, a lixeira do item 1,
+ * e clicar "fora" de um campo apagava o pacote.
+ */
 export function Field({
   label,
   children,
+  grupo = false,
 }: {
   label: string;
   children: ReactNode;
+  grupo?: boolean;
 }) {
+  const rotulo = (
+    <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-500">
+      {label}
+    </span>
+  );
+  if (grupo) {
+    return (
+      <div role="group" aria-label={label}>
+        {rotulo}
+        {children}
+      </div>
+    );
+  }
   return (
     <label className="block">
-      <span className="mb-1 block text-[10px] font-medium uppercase tracking-[0.14em] text-neutral-500">
-        {label}
-      </span>
+      {rotulo}
       {children}
     </label>
   );

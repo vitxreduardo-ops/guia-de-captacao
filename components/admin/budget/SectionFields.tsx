@@ -148,7 +148,7 @@ export function SectionFields({
               className={FIELD_CLASS}
             />
           </Field>
-          <Field label="Serviços / diferenciais">
+          <Field label="Serviços / diferenciais" grupo>
             <TextList
               items={data.items}
               onChange={(items) => set({ items })}
@@ -208,7 +208,7 @@ export function SectionFields({
               className={FIELD_CLASS}
             />
           </Field>
-          <Field label="Projetos">
+          <Field label="Projetos" grupo>
             <RepeatableList
               items={data.projects}
               onChange={(projects) => set({ projects })}
@@ -312,7 +312,7 @@ export function SectionFields({
               placeholder="Marcas que já colocamos em movimento"
             />
           </Field>
-          <Field label={`Logos — ${data.logos.length} escolhido${data.logos.length === 1 ? "" : "s"}`}>
+          <Field grupo label={`Logos — ${data.logos.length} escolhido${data.logos.length === 1 ? "" : "s"}`}>
             <LogoLibrary
               budgetId={budgetId}
               escolhidos={data.logos}
@@ -429,7 +429,7 @@ export function SectionFields({
             onChange={(packages) => set({ packages })}
             featuredAllowed={false}
           />
-          <Field label="Rodapé (uma linha por item)">
+          <Field label="Rodapé (uma linha por item)" grupo>
             <TextList
               items={data.notes}
               onChange={(notes) => set({ notes })}
@@ -496,7 +496,7 @@ export function SectionFields({
               className={FIELD_CLASS}
             />
           </Field>
-          <Field label="Blocos">
+          <Field label="Blocos" grupo>
             <RepeatableList
               items={data.blocks}
               onChange={(blocks) => set({ blocks })}
@@ -549,7 +549,7 @@ export function SectionFields({
               placeholder="O que costumam perguntar"
             />
           </Field>
-          <Field label="Perguntas">
+          <Field label="Perguntas" grupo>
             <RepeatableList
               items={data.items}
               onChange={(items) => set({ items })}
@@ -667,7 +667,7 @@ export function SectionFields({
               className={FIELD_CLASS}
             />
           </Field>
-          <Field label="Itens">
+          <Field label="Itens" grupo>
             <TextList
               items={data.items}
               onChange={(items) => set({ items })}
