@@ -134,9 +134,8 @@ export function BudgetEditor({
       h.ultimo = immediate ? 0 : agora;
       h.futuro = [];
       contar();
-      // Ligar uma seção, adicionar ou remover um item não é digitação: são
-      // cliques isolados, e esperar quase um segundo por eles só faz o "Salvo"
-      // chegar atrasado.
+      // Quando grava (sair do campo, ou na hora se não for digitação) é
+      // decisão do useAutosave.
       aplicar(next, immediate);
     },
     [aplicar, contar]
