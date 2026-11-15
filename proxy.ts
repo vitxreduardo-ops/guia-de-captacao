@@ -10,7 +10,7 @@ const SUBDOMINIOS: Record<string, string> = { sistema: "/admin", cliente: "/clie
 // gera a partir do host atual, a API e os ícones.
 const RAIZ = new Set([
   "api", "briefing", "contrato", "convite", "galeria", "guia", "mapa", "orcamento",
-  "signup", "splash", "apple-icon", "_next",
+  "planejamento", "signup", "splash", "apple-icon", "_next",
 ]);
 
 const dentro = (path: string, prefixo: string) =>
