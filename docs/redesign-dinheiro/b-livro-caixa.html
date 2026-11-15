@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B · Livro-caixa</title>
+<style>
+:root{
+  --bg:#f7f6f3; --card:#fff; --ink:#1c1b18; --ink2:#5d5a52; --ink3:#8c887d; --line:#e7e4dc; --line2:#f0eee8;
+  --ok:#047857; --okbg:#ecfdf3; --warn:#b45309; --warnbg:#fff6e5; --bad:#b91c1c; --badbg:#fef0ef;
+  font-family: ui-sans-serif,"Geist",-apple-system,"Segoe UI",sans-serif;color:var(--ink);
+}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);font-size:15px;line-height:1.45}
+.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+button{font:inherit;cursor:pointer;color:inherit}
+.wrap{max-width:1280px;margin:0 auto;padding:20px 28px 60px}
+.crumb{font-size:13px;color:var(--ink3);margin-bottom:12px}
+nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:22px}
+nav.tabs a{padding:10px 14px;color:var(--ink2);border-bottom:2px solid transparent;margin-bottom:-1px}
+nav.tabs a.on{color:var(--ink);border-color:var(--ink);font-weight:600}
+.sub{display:flex;gap:6px;margin:-8px 0 20px}
+.sub a{padding:6px 12px;border-radius:99px;color:var(--ink2);font-size:14px}
+.sub a.on{background:var(--ink);color:#fff}
+.bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.bar h1{font-size:22px;margin:0;font-weight:650}
+.mes{display:flex;align-items:center;gap:6px}
+.mes button{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:#fff}
+.strip{display:flex;gap:0;background:#fff;border:1px solid var(--line);border-radius:12px;margin-bottom:16px;overflow:hidden}
+.strip div{flex:1;padding:12px 18px;border-right:1px solid var(--line2)} .strip div:last-child{border:0}
+.strip small{display:block;color:var(--ink2);font-size:12.5px}
+.strip b{font-size:19px;font-variant-numeric:tabular-nums}
+.strip .main{background:var(--ink);color:#fff} .strip .main small{color:#cfcbbf} .strip .main b{font-size:22px}
+.layout{display:grid;grid-template-columns:1fr 310px;gap:18px;align-items:start}
+.filters{display:flex;gap:8px;margin-bottom:10px;align-items:center}
+.chip{border:1px solid var(--line);background:#fff;border-radius:99px;padding:5px 12px;font-size:13.5px}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.filters input{margin-left:auto;border:1px solid var(--line);border-radius:9px;padding:7px 12px;font:inherit;width:220px;background:#fff}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+thead th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);font-weight:600;text-align:left;padding:10px 12px;background:#faf9f6;border-bottom:1px solid var(--line);position:sticky;top:0}
+th.r{text-align:right}
+tbody tr.m{border-bottom:1px solid var(--line2);cursor:pointer}
+tbody tr.m:hover{background:#faf9f6}
+td{padding:11px 12px;vertical-align:middle}
+td.d{width:84px;color:var(--ink2)} td.d b{color:var(--ink);font-size:15px}
+td .s{display:block;font-size:12.5px;color:var(--ink3)}
+.in{color:var(--ok);font-weight:600} .out{color:var(--ink);font-weight:600}
+.neg{color:var(--bad)}
+.late{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--warnbg);color:var(--warn);margin-left:6px}
+tr.ed td{background:#faf9f6}
+tr.editrow{display:none} tr.editrow.show{display:table-row}
+.editrow td{padding:16px 20px 18px;border-bottom:1px solid var(--line);background:#faf9f6}
+.ef{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;max-width:900px}
+.ef label{font-size:12.5px;color:var(--ink2)}
+.ef input,.ef select{width:100%;margin-top:4px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+.acts{display:flex;gap:8px;margin-top:14px;align-items:center}
+.btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 14px;font-weight:600}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:#fff}
+.danger{color:var(--bad);background:none;border:0;font-weight:600;margin-left:auto}
+.hint{font-size:12.5px;color:var(--ink3)}
+.side .card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px}
+.side h2{font-size:15px;margin:0 0 8px}
+.pi{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line2)} .pi:first-of-type{border-top:0}
+.pi small{color:var(--ink3);display:block;font-size:12.5px}
+.tag{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:99px}
+.tag.bad{background:var(--badbg);color:var(--bad)} .tag.warn{background:var(--warnbg);color:var(--warn)}
+.mock{position:fixed;left:14px;bottom:12px;background:var(--ink);color:#fff;font-size:12px;padding:6px 10px;border-radius:8px;opacity:.85}
+@media(max-width:1000px){.layout{grid-template-columns:1fr}.ef{grid-template-columns:1fr 1fr}.strip{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb">Admin › Clientes › Dinheiro</div>
+  <nav class="tabs"><a>Entregas</a><a>Calendário</a><a class="on">Dinheiro</a><a>Clientes</a></nav>
+  <div class="sub"><a>Visão do mês</a><a>Cobrar</a><a class="on">Movimentos</a><a>Resultado do ano</a></div>
+
+  <div class="bar"><h1>Movimentos</h1>
+    <div class="mes"><button aria-label="Mês anterior">←</button><b style="min-width:130px;text-align:center">novembro 2026</b><button aria-label="Próximo mês">→</button></div>
+  </div>
+
+  <div class="strip">
+    <div class="main"><small>Sobrou</small><b>R$ 639,40</b></div>
+    <div><small>Entrou</small><b style="color:var(--ok)">R$ 1.100,00</b></div>
+    <div><small>Saiu</small><b>R$ 460,60</b></div>
+    <div><small>Falta receber</small><b style="color:var(--warn)">R$ 600,00</b></div>
+    <div><small>Atrasado</small><b style="color:var(--bad)">R$ 500,00</b></div>
+  </div>
+
+  <div class="layout">
+    <section>
+      <div class="filters">
+        <button class="chip on">Tudo</button><button class="chip">Entradas</button><button class="chip">Saídas</button>
+        <input placeholder="Buscar cliente ou descrição" aria-label="Buscar">
+      </div>
+      <table>
+        <thead><tr><th>Dia</th><th>Quem · o quê</th><th>Forma</th><th class="r">Entrada</th><th class="r">Saída</th><th class="r">Saldo</th></tr></thead>
+        <tbody id="tb"></tbody>
+      </table>
+      <p class="hint" style="margin-top:10px">Clique numa linha para editar o dia em que o dinheiro entrou, a forma, a quantidade, o valor ou desfazer. Linhas de saída são dados de exemplo.</p>
+    </section>
+
+    <aside class="side">
+      <div class="card"><h2>Ainda vai entrar</h2>
+        <div class="pi"><div><b>DJG Group</b><small>outubro · venceu há 21 dias</small></div><div style="text-align:right"><b class="num">R$ 500,00</b><br><span class="tag bad">atrasado</span></div></div>
+        <div class="pi"><div><b>14Bis</b><small>novembro · vence 10 de dez</small></div><div style="text-align:right"><b class="num">R$ 600,00</b><br><span class="tag warn">a vencer</span></div></div>
+        <div style="margin-top:8px"><button class="btn pri" style="width:100%">Cobrar quem está atrasado</button></div>
+      </div>
+      <div class="card"><h2>Fora do mês, mas pede olho</h2>
+        <div class="pi"><div><b>Pago sem dia</b><small>nenhum no momento</small></div></div>
+        <div class="pi"><div><b>Pagamento parcial</b><small>nenhum no momento</small></div></div>
+      </div>
+    </aside>
+  </div>
+</div>
+<div class="mock">Protótipo · dados de exemplo baseados em nov/2026</div>
+
+<script>
+const brl=n=>n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const rows=[
+ {d:'01',t:'out',n:'Assinatura de software',s:'Saída · Software',f:'Cartão',v:129.90},
+ {d:'03',t:'out',n:'Equipamento',s:'Saída · Equipamento',f:'Cartão',v:330.70},
+ {d:'05',t:'in',n:'ALM · Ariane Laiola',s:'Cobertura – GWM & CS · trabalho de out.',f:'Pix',v:400,late:26},
+ {d:'05',t:'in',n:'ALM · Ariane Laiola',s:'Depoimento – Capital Imóveis · trabalho de out.',f:'Pix',v:400,late:26},
+ {d:'05',t:'in',n:'ALM · Ariane Laiola',s:'Cobertura – Divinazzi 10 anos · trabalho de out.',f:'Pix',v:300,late:26},
+];
+let saldo=0;const tb=document.getElementById('tb');
+rows.forEach((r,i)=>{
+  saldo+=r.t==='in'?r.v:-r.v;
+  tb.insertAdjacentHTML('beforeend',`<tr class="m" data-i="${i}"><td class="d"><b>${r.d}</b> nov</td>
+   <td><b>${r.n}</b>${r.late?`<span class="late">pagou ${r.late} dias depois</span>`:''}<span class="s">${r.s}</span></td><td>${r.f}</td>
+   <td class="num in">${r.t==='in'?brl(r.v):''}</td><td class="num out">${r.t==='out'?brl(r.v):''}</td><td class="num ${saldo<0?'neg':''}">${brl(saldo)}</td></tr>
+  <tr class="editrow" id="e${i}"><td colspan="6">${r.t==='in'?`<div class="ef">
+    <label>Dia em que entrou<input type="date" value="2026-11-${r.d}"></label>
+    <label>Como pagou<select><option>${r.f}</option><option>Transferência</option><option>Boleto</option><option>Dinheiro</option></select></label>
+    <label>Quantidade<input value="1"></label><label>Valor de cada<input value="${brl(r.v)}"></label></div>
+    <div class="acts"><button class="btn pri">Salvar</button><button class="btn" data-x>Cancelar</button><span class="hint">Mexe só neste pagamento. O vencimento combinado fica no cadastro do cliente.</span><button class="danger">Desfazer pagamento</button></div>`
+   :`<div class="ef"><label>Dia<input type="date" value="2026-11-${r.d}"></label><label>Descrição<input value="${r.n}"></label><label>Valor<input value="${brl(r.v)}"></label><label>Forma<select><option>${r.f}</option></select></label></div><div class="acts"><button class="btn pri">Salvar</button><button class="btn" data-x>Cancelar</button><button class="danger">Excluir saída</button></div>`}</td></tr>`);
+});
+tb.addEventListener('click',e=>{
+  const x=e.target.closest('[data-x]'); if(x){x.closest('tr').classList.remove('show');document.querySelector('tr.ed')?.classList.remove('ed');return}
+  const tr=e.target.closest('tr.m'); if(!tr) return;
+  const ed=document.getElementById('e'+tr.dataset.i), open=ed.classList.contains('show');
+  document.querySelectorAll('.editrow.show').forEach(r=>r.classList.remove('show'));
+  document.querySelectorAll('tr.ed').forEach(r=>r.classList.remove('ed'));
+  if(!open){ed.classList.add('show');tr.classList.add('ed')}
+});
+</script>
+</body>
+</html>

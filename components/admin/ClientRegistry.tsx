@@ -314,7 +314,12 @@ function ClientRow({
     // reduzido a uma letra. No desktop os dois voltam para a mesma linha.
     <li className="group flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-4 text-base">
       <span className="w-full text-lg font-semibold text-neutral-900">
-        {client.name}
+        <Link
+          href={`/admin/clientes/${client.id}`}
+          className="hover:underline focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none"
+        >
+          {client.name}
+        </Link>
         {client.contact_name ? (
           <span className="ml-2 text-xs font-normal text-neutral-500">
             {client.contact_name}
@@ -327,7 +332,7 @@ function ClientRow({
       </span>
 
       <Link
-        href="/admin/clientes/dinheiro?aba=contas"
+        href={`/admin/clientes/${client.id}#financeiro`}
         className={`rounded-lg px-3 text-base font-medium hover:underline pointer-coarse:min-h-11 inline-flex items-center ${
           summary.openCents === 0
             ? "text-emerald-700"

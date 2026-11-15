@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C · Clientes como eixo</title>
+<style>
+:root{
+  --bg:#f7f6f3; --card:#fff; --ink:#1c1b18; --ink2:#5d5a52; --ink3:#8c887d; --line:#e7e4dc; --line2:#f0eee8;
+  --ok:#047857; --okbg:#ecfdf3; --warn:#b45309; --warnbg:#fff6e5; --bad:#b91c1c; --badbg:#fef0ef;
+  font-family: ui-sans-serif,"Geist",-apple-system,"Segoe UI",sans-serif;color:var(--ink);
+}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);font-size:15px;line-height:1.45}
+button{font:inherit;cursor:pointer;color:inherit}
+.num{font-variant-numeric:tabular-nums}
+.wrap{max-width:1280px;margin:0 auto;padding:20px 28px 60px}
+.crumb{font-size:13px;color:var(--ink3);margin-bottom:12px}
+nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:20px}
+nav.tabs a{padding:10px 14px;color:var(--ink2);border-bottom:2px solid transparent;margin-bottom:-1px}
+nav.tabs a.on{color:var(--ink);border-color:var(--ink);font-weight:600}
+.split{display:grid;grid-template-columns:360px 1fr;gap:0;background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;min-height:640px}
+.left{border-right:1px solid var(--line);display:flex;flex-direction:column;background:#fcfbf9}
+.month{padding:16px 18px;border-bottom:1px solid var(--line)}
+.month .mm{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.month .mm button{width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:8px}
+.month b.t{font-size:13px;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em}
+.mk{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mk small{display:block;color:var(--ink2);font-size:12px}
+.mk b{font-size:17px}
+.mk .w{grid-column:1/-1}.mk .w b{font-size:26px;letter-spacing:-.01em}
+.q{padding:10px 14px;border-bottom:1px solid var(--line)}
+.q input{width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 12px;font:inherit;background:#fff}
+.fl{display:flex;gap:6px;padding:10px 14px 4px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:99px;padding:4px 11px;font-size:13px}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.list{overflow:auto;flex:1}
+.ci{display:flex;gap:12px;align-items:center;width:100%;border:0;border-left:3px solid transparent;background:none;text-align:left;padding:13px 16px;border-bottom:1px solid var(--line2)}
+.ci:hover{background:#f6f4ef}
+.ci.on{background:#fff;border-left-color:var(--ink)}
+.av{width:36px;height:36px;border-radius:10px;background:#ebe7dc;display:grid;place-items:center;font-weight:700;font-size:13px;color:var(--ink2);flex:none}
+.ci .nm{flex:1;min-width:0}.ci .nm b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ci .nm small{color:var(--ink3);font-size:12.5px}
+.tag{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.tag.ok{background:var(--okbg);color:var(--ok)}.tag.warn{background:var(--warnbg);color:var(--warn)}.tag.bad{background:var(--badbg);color:var(--bad)}
+.right{min-width:0}
+.rh{padding:22px 28px 0;border-bottom:1px solid var(--line)}
+.rh .top{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+.rh h1{margin:0;font-size:24px;letter-spacing:-.01em} .rh p{margin:2px 0 0;color:var(--ink2)}
+.btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 14px;font-weight:600}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:#fff}.btn.sm{padding:6px 11px;font-size:13px}
+.rt{display:flex;gap:4px;margin-top:16px}
+.rt button{border:0;background:none;padding:10px 14px;color:var(--ink2);border-bottom:2px solid transparent;margin-bottom:-1px}
+.rt button.on{color:var(--ink);border-color:var(--ink);font-weight:600}
+.rb{padding:22px 28px 40px}
+.kp{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
+.kp div{background:var(--bg);border-radius:11px;padding:13px 15px}.kp small{color:var(--ink2);font-size:12.5px}.kp b{display:block;font-size:21px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3);margin:22px 0 10px;font-weight:600}
+.ml{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.mr{display:flex;align-items:center;gap:14px;padding:12px 16px;border-top:1px solid var(--line2)}.mr:first-child{border-top:0}
+.mr .x{flex:1}.mr small{color:var(--ink3);display:block;font-size:12.5px}
+.tl{position:relative;margin-left:8px;border-left:2px solid var(--line);padding-left:22px}
+.ev{position:relative;padding:0 0 18px}
+.ev::before{content:"";position:absolute;left:-29px;top:5px;width:12px;height:12px;border-radius:50%;background:var(--ok);border:3px solid #fff;box-shadow:0 0 0 1px var(--line)}
+.ev.open::before{background:#fff;box-shadow:0 0 0 2px var(--warn)}
+.ev .h{display:flex;justify-content:space-between;gap:12px;align-items:baseline;cursor:pointer}
+.ev small{color:var(--ink3);font-size:12.5px;display:block}
+.ev .ed{display:none;margin-top:10px;background:#faf9f6;border:1px solid var(--line);border-radius:11px;padding:14px}
+.ev.show .ed{display:block}
+.ef{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ef label{font-size:12.5px;color:var(--ink2)}
+.ef input,.ef select{width:100%;margin-top:4px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff}
+.acts{display:flex;gap:8px;margin-top:12px;align-items:center}
+.danger{color:var(--bad);background:none;border:0;font-weight:600;margin-left:auto}
+.hint{font-size:12.5px;color:var(--ink3)}
+dl{display:grid;grid-template-columns:1fr 1fr;gap:16px 28px;margin:0}
+dt{font-size:12.5px;color:var(--ink3)}dd{margin:0;font-size:15px}
+.doc{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);border-radius:11px;padding:12px 16px;margin-bottom:8px}
+.sep{font-size:12.5px;background:var(--warnbg);color:var(--warn);padding:8px 12px;border-radius:9px;margin-bottom:14px}
+.mock{position:fixed;left:14px;bottom:12px;background:var(--ink);color:#fff;font-size:12px;padding:6px 10px;border-radius:8px;opacity:.85}
+@media(max-width:1000px){.split{grid-template-columns:1fr}.left{max-height:420px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumb">Admin › Clientes</div>
+  <nav class="tabs"><a>Entregas</a><a>Calendário</a><a>Dinheiro</a><a class="on">Clientes</a></nav>
+
+  <div class="split">
+    <aside class="left">
+      <div class="month">
+        <div class="mm"><button aria-label="Mês anterior">←</button><b class="t">novembro 2026</b><button aria-label="Próximo mês">→</button></div>
+        <div class="mk">
+          <div class="w"><small>Sobrou</small><b class="num">R$ 639,40</b></div>
+          <div><small>Entrou</small><b class="num" style="color:var(--ok)">R$ 1.100,00</b></div>
+          <div><small>Saiu</small><b class="num">R$ 460,60</b></div>
+          <div><small>Falta receber</small><b class="num" style="color:var(--warn)">R$ 600,00</b></div>
+          <div><small>Atrasado</small><b class="num" style="color:var(--bad)">R$ 500,00</b></div>
+        </div>
+      </div>
+      <div class="q"><input placeholder="Buscar cliente" aria-label="Buscar cliente"></div>
+      <div class="fl"><button class="chip on">Todos</button><button class="chip">Devendo</button><button class="chip">Atrasados</button><button class="chip">Em dia</button></div>
+      <div class="list" id="list"></div>
+    </aside>
+    <section class="right" id="right"></section>
+  </div>
+</div>
+<div class="mock">Protótipo · dados de exemplo baseados em nov/2026</div>
+
+<script>
+const brl=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const C=[
+ {id:'djg',n:'DJG Group',st:'bad',lab:'atrasado',val:500,sub:'venceu há 21 dias',k:[0,500,500],razao:'—',dia:15,tel:'',
+  months:[['Outubro de 2026','1 entrega · R$ 500,00','atrasado R$ 500,00','bad']],pagos:[],abertos:[['Trabalho de outubro','R$ 500,00 · venceu 15 de out','bad']]},
+ {id:'b14',n:'14Bis',st:'warn',lab:'a vencer',val:600,sub:'vence 10 de dez',k:[4200,675,0],razao:'HAMBURGUERIA 14 BIS LTDA',dia:10,tel:'',
+  months:[['Novembro de 2026','2 entregas · R$ 600,00','falta R$ 600,00','warn'],['Outubro de 2026','11 entregas · R$ 2.175,00','falta R$ 75,00','warn'],['Setembro de 2026','7 entregas · R$ 2.100,00','pago R$ 2.100,00','ok']],
+  pagos:[['12 out','Reel – Dia do consumidor','Pix',300,'2026-10-12']],abertos:[['Trabalho de novembro','R$ 600,00 · vence 10 de dez','warn']]},
+ {id:'ariane',n:'ALM · Ariane dos Santos Laiola',st:'ok',lab:'pagou',val:1100,sub:'pagou em 5 de nov',k:[1100,0,0],razao:'—',dia:10,tel:'77 9971-7111',
+  months:[['Outubro de 2026','3 entregas · R$ 1.100,00','pago R$ 1.100,00','ok']],
+  pagos:[['5 nov','Cobertura – GWM & CS','Pix · pagou 26 dias depois',400,'2026-11-05'],['5 nov','Depoimento – Capital Imóveis','Pix · pagou 26 dias depois',400,'2026-11-05'],['5 nov','Cobertura – Divinazzi 10 anos','Pix · pagou 26 dias depois',300,'2026-11-05']],abertos:[],
+  doc:['Contrato ALM – Ariane Loiola','Enviado']},
+ {id:'fy',n:'FY Advogados',st:'ok',lab:'em dia',val:600,sub:'pago em 27 de out',k:[600,0,0],razao:'Franklin e Yohan Advogados',dia:15,tel:'77 99950-7390',
+  months:[['Outubro de 2026','2 entregas · R$ 600,00','pago R$ 600,00','ok']],pagos:[['27 out','Video 04 – Lucas','Pix · pagou 12 dias depois',300,'2026-10-27'],['27 out','Video 03','Pix · pagou 12 dias depois',300,'2026-10-27']],abertos:[]},
+ {id:'loop',n:'LoopFilmes',st:'ok',lab:'em dia',val:1000,sub:'pago em 20 de out',k:[1000,0,0],razao:'—',dia:15,tel:'',months:[['Outubro de 2026','4 entregas · R$ 1.000,00','pago R$ 1.000,00','ok']],pagos:[],abertos:[]},
+ {id:'raiz',n:'A Raiz da Solução',st:'ok',lab:'em dia',val:300,sub:'pago em 20 de out',k:[300,0,0],razao:'—',dia:15,tel:'',months:[['Outubro de 2026','1 entrega · R$ 300,00','pago R$ 300,00','ok']],pagos:[],abertos:[]},
+];
+const ini=n=>n.replace(/[^A-Za-zÀ-ú ]/g,'').split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase();
+const list=document.getElementById('list'),right=document.getElementById('right');
+list.innerHTML=C.map(c=>`<button class="ci" data-id="${c.id}"><span class="av">${ini(c.n)}</span><span class="nm"><b>${c.n}</b><small>${c.sub}</small></span><span style="text-align:right"><b class="num">${brl(c.val)}</b><br><span class="tag ${c.st}">${c.lab}</span></span></button>`).join('');
+let tab='fin',cur=C[2];
+function render(){
+  const c=cur;
+  list.querySelectorAll('.ci').forEach(b=>b.classList.toggle('on',b.dataset.id===c.id));
+  right.innerHTML=`<div class="rh"><div class="top"><div><h1>${c.n}</h1><p>${c.razao!=='—'?c.razao+' · ':''}paga todo dia ${c.dia}</p></div><div style="display:flex;gap:8px">${c.tel?'<button class="btn">WhatsApp</button>':''}${c.k[1]?'<button class="btn pri">Cobrar</button>':''}</div></div>
+   <div class="rt"><button class="${tab==='fin'?'on':''}" data-t="fin">Financeiro</button><button class="${tab==='adm'?'on':''}" data-t="adm">Administrativo</button></div></div>
+   <div class="rb">${tab==='fin'?fin(c):adm(c)}</div>`;
+  right.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
+  right.querySelectorAll('.ev .h').forEach(h=>h.onclick=()=>h.parentElement.classList.toggle('show'));
+  right.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>b.closest('.ev').classList.remove('show'));
+}
+function fin(c){return `<div class="kp"><div><small>Já recebido</small><b class="num" style="color:var(--ok)">${brl(c.k[0])}</b></div><div><small>Falta receber</small><b class="num" style="color:var(--warn)">${brl(c.k[1])}</b></div><div><small>Atrasado</small><b class="num" style="color:var(--bad)">${brl(c.k[2])}</b></div></div>
+ ${c.abertos.length?`<h2>Em aberto</h2><div class="ml">${c.abertos.map(a=>`<div class="mr"><div class="x"><b>${a[0]}</b><small>${a[1]}</small></div><span class="tag ${a[2]}">${a[2]==='bad'?'atrasado':'a vencer'}</span><button class="btn sm pri">Recebi</button></div>`).join('')}</div>`:''}
+ <h2>Mês a mês</h2><div class="ml">${c.months.map(m=>`<div class="mr"><div class="x"><b>${m[0]}</b><small>${m[1]}</small></div><span class="tag ${m[3]}">${m[2]}</span></div>`).join('')}</div>
+ <h2>Pagamentos, do mais recente</h2>${c.pagos.length?`<div class="tl">${c.pagos.map(p=>`<div class="ev"><div class="h"><div><b>${p[1]}</b><small>${p[0]} · ${p[2]}</small></div><b class="num">${brl(p[3])}</b></div>
+  <div class="ed"><div class="ef"><label>Dia em que o dinheiro entrou<input type="date" value="${p[4]}"></label><label>Como pagou<select><option>Pix</option><option>Transferência</option><option>Boleto</option><option>Dinheiro</option></select></label><label>Quantidade<input value="1"></label><label>Valor de cada<input value="${p[3]},00"></label></div>
+  <div class="acts"><button class="btn pri sm">Salvar</button><button class="btn sm" data-x>Cancelar</button><span class="hint">Não muda o vencimento combinado.</span><button class="danger">Desfazer pagamento</button></div></div></div>`).join('')}</div>`:'<p class="hint">Nenhum pagamento ainda.</p>'}`}
+function adm(c){return `<h2>Cadastro</h2><dl><div><dt>Razão social</dt><dd>${c.razao}</dd></div><div><dt>Dia combinado de pagamento (vencimento)</dt><dd>dia ${c.dia}</dd></div><div><dt>WhatsApp</dt><dd>${c.tel||'não informado'}</dd></div><div><dt>E-mail</dt><dd>não informado</dd></div></dl>
+ <div style="margin-top:14px"><button class="btn">Editar cadastro</button></div>
+ <h2>Contratos</h2>${c.doc?`<div class="doc"><div><b>${c.doc[0]}</b><div class="hint">${c.doc[1]}</div></div><button class="btn sm">Abrir</button></div>`:'<div class="sep">Nenhum contrato ligado a este nome. Contrato é ligado pelo nome do cliente.</div>'}
+ <h2>Acessos e material</h2><div class="doc"><div><b>Área do cliente</b><div class="hint">1 login</div></div><button class="btn sm">Abrir</button></div><div class="doc"><div><b>Galeria</b><div class="hint">Publicada · pasta do Drive ligada</div></div><button class="btn sm">Abrir</button></div>`}
+list.onclick=e=>{const b=e.target.closest('.ci');if(b){cur=C.find(c=>c.id===b.dataset.id);render()}};
+render();
+</script>
+</body>
+</html>

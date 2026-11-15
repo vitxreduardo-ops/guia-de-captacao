@@ -65,3 +65,28 @@ export interface MoneyYearMonth {
   paidCents: number;
   openCents: number;
 }
+
+/**
+ * Uma linha do extrato. `pago` tem data no mês aberto; `sem-data` está na coluna
+ * de pago mas sem dia (não cai em mês nenhum); `parcial` recebeu só uma parte.
+ */
+export interface StatementRow {
+  kind: "pago" | "sem-data" | "parcial";
+  cardId: string;
+  clientId: string;
+  clientName: string;
+  title: string;
+  serviceName: string | null;
+  /** Mês do trabalho (AAAA-MM-01). */
+  workMonth: string | null;
+  quantity: number;
+  unitCents: number;
+  totalCents: number;
+  /** Quanto entrou de fato: o total no pago, uma parte no parcial. */
+  receivedCents: number;
+  /** Dia em que o dinheiro entrou, AAAA-MM-DD. Null em sem-data e parcial. */
+  paidAt: string | null;
+  method: string | null;
+  /** Vencimento da entrega, pra mostrar quantos dias passou. */
+  dueOn: string | null;
+}

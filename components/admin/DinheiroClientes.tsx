@@ -8,6 +8,7 @@ import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from "@/lib/backlogTypes";
 import type { PaymentMethod } from "@/lib/backlogTypes";
 import type { MoneyClient, MoneyItem } from "@/lib/dinheiroTypes";
 import { diaPorExtenso, frasePrazo } from "@/lib/dinheiroTexto";
+import { MudarDataPagamento } from "@/components/admin/Extrato";
 import {
   markPaidAction,
   markPartialAction,
@@ -46,6 +47,7 @@ function ItemLinha({ item }: { item: MoneyItem }) {
   const [pending, startTransition] = useTransition();
   const [parcial, setParcial] = useState(false);
   const [editando, setEditando] = useState(false);
+  const [mudandoData, setMudandoData] = useState(false);
   const dados = () => {
     const f = new FormData();
     f.append("card", item.cardId);
@@ -78,8 +80,15 @@ function ItemLinha({ item }: { item: MoneyItem }) {
             <span className="mb-1 block text-sm font-medium text-neutral-700">Valor de cada uma</span>
             <input name="valor" required inputMode="decimal" defaultValue={paraCampo(item.unitCents)} className={CAMPO} />
           </label>
+          {item.paid && item.paidAt ? (
+            <label className="block sm:col-span-3">
+              <span className="mb-1 block text-sm font-medium text-neutral-700">Pago em (dia em que o dinheiro entrou)</span>
+              <input name="pago_em" type="date" required defaultValue={item.paidAt} max={new Date().toLocaleDateString("sv-SE")} className={`${CAMPO} sm:w-56`} />
+              <span className="mt-1 block text-sm text-neutral-600">É a data da transação. Não muda o vencimento combinado.</span>
+            </label>
+          ) : null}
           <label className="block sm:col-span-3">
-            <span className="mb-1 block text-sm font-medium text-neutral-700">Vence em</span>
+            <span className="mb-1 block text-sm font-medium text-neutral-700">Vencimento combinado (quando era para pagar)</span>
             <input name="vencimento" type="date" defaultValue={item.dueCustom ? (item.dueOn ?? "") : ""} className={`${CAMPO} sm:w-56`} />
             <span className="mt-1 block text-sm text-neutral-600">
               Deixe vazio para seguir o dia combinado com o cliente
@@ -117,6 +126,20 @@ function ItemLinha({ item }: { item: MoneyItem }) {
             <p className={`text-sm ${item.dueOn && item.dueOn < new Date().toLocaleDateString("sv-SE") ? "text-red-700" : "text-neutral-600"}`}>
               {frasePrazo(item.dueOn)}
               {item.dueCustom ? " (data escolhida)" : ""}
+            </p>
+          ) : null}
+          {item.paid && item.paidAt ? (
+            <p className="text-sm text-emerald-700">
+              Pago em {diaPorExtenso(item.paidAt)}
+              <button
+                type="button"
+                onClick={() => setMudandoData(!mudandoData)}
+                aria-expanded={mudandoData}
+                aria-label={`Mudar a data de pagamento de ${item.title || "esta entrega"}`}
+                className="ml-2 inline-flex min-h-11 items-center px-1 text-neutral-600 underline hover:text-neutral-900"
+              >
+                Mudar data
+              </button>
             </p>
           ) : null}
           {entrou ? (
@@ -173,6 +196,10 @@ function ItemLinha({ item }: { item: MoneyItem }) {
         )}
       </div>
 
+      {mudandoData && item.paid && item.paidAt ? (
+        <MudarDataPagamento cardId={item.cardId} paidAt={item.paidAt} onDone={() => setMudandoData(false)} />
+      ) : null}
+
       {parcial && !item.paid ? (
         <form
           action={(f) =>
@@ -197,6 +224,14 @@ function ItemLinha({ item }: { item: MoneyItem }) {
             className="min-h-11 w-32 rounded-lg border border-neutral-300 px-3 text-base"
           />
           <SeletorForma id={`forma-parte-${item.cardId}`} />
+          <input
+            name="pago_em"
+            type="date"
+            aria-label="Dia em que o dinheiro entrou"
+            defaultValue={new Date().toLocaleDateString("sv-SE")}
+            max={new Date().toLocaleDateString("sv-SE")}
+            className="min-h-11 rounded-lg border border-neutral-300 bg-white px-3 text-base"
+          />
           <button
             type="submit"
             disabled={pending}
@@ -273,6 +308,15 @@ function ClienteLinha({
                 <input key={i.cardId} type="hidden" name="card" value={i.cardId} />
               ))}
             <SeletorForma id={`forma-${client.id}`} />
+            <input
+              name="pago_em"
+              type="date"
+              aria-label="Dia em que o dinheiro entrou"
+              title="Dia em que o dinheiro entrou"
+              defaultValue={new Date().toLocaleDateString("sv-SE")}
+              max={new Date().toLocaleDateString("sv-SE")}
+              className="min-h-11 rounded-lg border border-neutral-300 bg-white px-3 text-base"
+            />
             <button
               type="submit"
               disabled={pending}
@@ -340,10 +384,10 @@ function ClienteLinha({
             </button>
 
             <Link
-              href={`/admin/clientes/cadastro?abrir=${client.id}`}
+              href={`/admin/clientes/${client.id}`}
               className={`ml-auto inline-flex items-center rounded-lg px-3 text-base text-neutral-600 underline hover:text-neutral-900 ${PRESS}`}
             >
-              Todos os dados
+              Página do cliente
             </Link>
           </div>
 
@@ -389,7 +433,7 @@ function ClienteLinha({
             >
               <input type="hidden" name="client" value={client.id} />
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-neutral-700">Dia em que paga</span>
+                <span className="mb-1 block text-sm font-medium text-neutral-700">Dia combinado de pagamento (vencimento)</span>
                 <input name="dia" type="number" min={1} max={31} defaultValue={client.paymentDay ?? ""} placeholder="10" className={CAMPO} />
               </label>
               <label className="block">

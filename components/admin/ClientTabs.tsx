@@ -7,11 +7,7 @@ import { motion, useReducedMotion } from "motion/react";
 export const CLIENT_TABS = [
   { href: "/admin/clientes/entregas", label: "Entregas" },
   { href: "/admin/clientes/entregas/calendario", label: "Calendário" },
-  { href: "/admin/clientes/dinheiro?aba=painel", label: "Painel" },
-  { href: "/admin/clientes/dinheiro?aba=hoje", label: "Cobranças" },
-  { href: "/admin/clientes/dinheiro?aba=contas", label: "Contas" },
-  { href: "/admin/clientes/dinheiro?aba=resultado", label: "Entradas" },
-  { href: "/admin/clientes/dinheiro?aba=saidas", label: "Saídas" },
+  { href: "/admin/clientes/dinheiro", label: "Dinheiro" },
   { href: "/admin/clientes/cadastro", label: "Clientes" },
 ];
 
