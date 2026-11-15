@@ -2,17 +2,18 @@
 
 import Link from "next/link";
 import { usePathnameInterno } from "@/lib/usePathnameInterno";
-import { BookOpenText, CalendarDays, Clapperboard, House } from "lucide-react";
+import { BookOpenText, CalendarDays, Clapperboard, Compass, House } from "lucide-react";
 
 const TABS = [
   { href: "/cliente", label: "Início", Icon: House },
+  { href: "/cliente/planejamento", label: "Planejamento", Icon: Compass },
   { href: "/cliente/calendario", label: "Calendário", Icon: CalendarDays },
   { href: "/cliente/materiais", label: "Materiais", Icon: Clapperboard },
   { href: "/cliente/roteiros", label: "Roteiros", Icon: BookOpenText },
 ];
 
 /**
- * Três abas, não mais: o cliente decide em um olhar. Fixa embaixo no celular
+ * Cinco abas, não mais (Miller): o cliente decide em um olhar. Fixa embaixo no celular
  * (polegar) e vira abas no topo do conteúdo no desktop. A aba atual leva peso
  * e traço, não só cor.
  */

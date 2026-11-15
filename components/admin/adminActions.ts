@@ -5,6 +5,7 @@ import {
   House,
   Clapperboard,
   ClipboardList,
+  Compass,
   FileSignature,
   Images,
   Kanban,
@@ -97,6 +98,12 @@ const ACTIONS: AdminAction[] = [
     href: "/admin/orcamentos",
     label: "Orçamento",
     icon: Receipt,
+    group: "Clientes",
+  },
+  {
+    href: "/admin/planejamentos",
+    label: "Planejamento",
+    icon: Compass,
     group: "Clientes",
   },
   {
