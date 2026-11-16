@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPlanejamentoBySlug, listMarcacoes } from "@/lib/planejamentos";
+import { semRascunhos } from "@/lib/planejamentoTypes";
 import { PlanejamentoView } from "@/components/planejamento/PlanejamentoView";
 
 export const dynamic = "force-dynamic";
@@ -29,5 +30,5 @@ export default async function PlanejamentoPublicoPage({ params }: { params: Para
   }
 
   const marcadas = (await listMarcacoes([p.id])).get(p.id) ?? [];
-  return <PlanejamentoView slug={p.slug} clientName={p.client_name ?? ""} content={p.content} marcadas={marcadas} />;
+  return <PlanejamentoView slug={p.slug} clientName={p.client_name ?? ""} content={semRascunhos(p.content)} marcadas={marcadas} />;
 }

@@ -4,9 +4,10 @@ import { AdminHeader } from "@/components/admin/AdminHeader";
 import { CopyLinkButton } from "@/components/admin/CopyLinkButton";
 import { DeleteButton } from "@/components/admin/DeleteButton";
 import { ImportarPlanejamento } from "@/components/admin/ImportarPlanejamento";
+import { LacunaPlanejamento } from "@/components/admin/LacunaPlanejamento";
 import { listGalleryClients } from "@/lib/galleries";
 import { listMarcacoes, listPlanejamentos } from "@/lib/planejamentos";
-import { chaveMarcacao, passosDa } from "@/lib/planejamentoTypes";
+import { chaveMarcacao, lacunasDa, passosDa } from "@/lib/planejamentoTypes";
 import { excluirPlanejamentoAction, publicarPlanejamentoAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -55,6 +56,7 @@ export default async function PlanejamentosPage() {
                   e,
                   passos: passosDa(e).map((ps) => ({ ...ps, feito: feitas.has(chaveMarcacao(e.id, ps.id)) })),
                 }));
+                const faltas = p.content.entregas.flatMap((e) => lacunasDa(e).map((l) => ({ e, l })));
                 const prontas = entregas.filter((x) => x.passos.every((ps) => ps.feito)).length;
                 return (
                   <li key={p.id} className="rounded-lg border border-neutral-200 bg-white p-4">
@@ -89,6 +91,33 @@ export default async function PlanejamentosPage() {
                         </form>
                       </div>
                     </div>
+                    {faltas.length ? (
+                      <details className="mt-3 border-t border-neutral-100 pt-3">
+                        <summary className="cursor-pointer text-sm font-medium text-amber-700 hover:text-amber-800">
+                          O que falta: {faltas.length} {faltas.length === 1 ? "texto" : "textos"} pra preencher
+                        </summary>
+                        <p className="mt-2 text-sm text-neutral-500">
+                          O material não trouxe estes textos. Cole o que você tiver ou peça um rascunho à IA, que usa só o que o planejamento já diz.
+                        </p>
+                        <ul className="mt-3 space-y-5">
+                          {faltas.map(({ e, l }) => (
+                            <li key={`${e.id}-${l.campo}`}>
+                              <p className="mb-1 text-xs text-neutral-500">
+                                {String(e.dia).padStart(2, "0")}/{String(p.content.mes).padStart(2, "0")} · {e.titulo}
+                              </p>
+                              <LacunaPlanejamento
+                                planejamentoId={p.id}
+                                entregaId={e.id}
+                                campo={l.campo}
+                                rotulo={l.rotulo}
+                                inicial={e[l.campo]}
+                                rascunho={l.rascunho}
+                              />
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    ) : null}
                     {entregas.length ? (
                       <details className="mt-3 border-t border-neutral-100 pt-3">
                         <summary className="cursor-pointer text-sm text-neutral-600 hover:text-neutral-900">
@@ -100,7 +129,7 @@ export default async function PlanejamentosPage() {
                               <span className="w-12 tabular-nums text-neutral-500">
                                 {String(e.dia).padStart(2, "0")}/{String(p.content.mes).padStart(2, "0")}
                               </span>
-                              <span className="w-16 text-neutral-500">{e.tipo === "feed" ? "Feed" : "Stories"}</span>
+                              <span className="w-16 text-neutral-500">{e.tipo === "feed" ? "Feed" : e.tipo === "reels" ? "Reel" : "Stories"}</span>
                               <span className="min-w-0 flex-1 text-neutral-900">{e.titulo}</span>
                               {passos.map((ps) => (
                                 <span

@@ -3,12 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { requireTeam } from "@/lib/session";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { IaError, preencherPlanejamento } from "@/lib/planejamentoAi";
+import { IaError, preencherPlanejamento, rascunharCampo } from "@/lib/planejamentoAi";
 import {
   createPlanejamento,
   deletePlanejamento,
+  getPlanejamentoById,
+  salvarCampo,
   setPlanejamentoStatus,
 } from "@/lib/planejamentos";
+import type { CampoTexto } from "@/lib/planejamentoTypes";
 
 // O limite do corpo na Vercel é 4,5 MB; o PDF vai em base64 (+33%) dentro do JSON da OpenAI.
 const MAX_PDF = 3_000_000;
@@ -71,4 +74,42 @@ export async function excluirPlanejamentoAction(formData: FormData) {
   if (!id) return;
   await deletePlanejamento(id);
   revalidatePath("/admin/planejamentos");
+}
+
+export type CampoState = { erro?: string; texto?: string; salvo?: boolean };
+
+const CAMPOS = ["fala", "legenda", "card"];
+
+/** A equipe escreve (ou revisa) o campo: grava e tira a marca de rascunho. */
+export async function salvarCampoAction(_prev: CampoState, formData: FormData): Promise<CampoState> {
+  await requireTeam("planejamentos");
+  const id = String(formData.get("id") ?? "");
+  const entregaId = String(formData.get("entrega") ?? "");
+  const campo = String(formData.get("campo") ?? "");
+  const texto = String(formData.get("texto") ?? "").trim();
+  if (!CAMPOS.includes(campo)) return { erro: "Campo inválido." };
+  if (!texto) return { erro: "Escreva o texto antes de salvar." };
+  if (!(await salvarCampo(id, entregaId, campo as CampoTexto, texto, false))) return { erro: "Entrega não encontrada." };
+  revalidatePath("/admin/planejamentos");
+  return { salvo: true, texto };
+}
+
+/** A IA escreve um rascunho a partir do que o planejamento já diz. Fica escondido do cliente até a revisão. */
+export async function rascunharCampoAction(_prev: CampoState, formData: FormData): Promise<CampoState> {
+  await requireTeam("planejamentos");
+  const id = String(formData.get("id") ?? "");
+  const entregaId = String(formData.get("entrega") ?? "");
+  const campo = String(formData.get("campo") ?? "");
+  if (!CAMPOS.includes(campo)) return { erro: "Campo inválido." };
+  const p = await getPlanejamentoById(id);
+  const entrega = p?.content.entregas.find((x) => x.id === entregaId);
+  if (!p || !entrega) return { erro: "Entrega não encontrada." };
+  try {
+    const texto = await rascunharCampo({ cliente: p.client_name ?? "", content: p.content, entrega, campo: campo as CampoTexto });
+    await salvarCampo(id, entregaId, campo as CampoTexto, texto, true);
+    revalidatePath("/admin/planejamentos");
+    return { texto };
+  } catch (error) {
+    return { erro: error instanceof IaError ? error.message : "Não consegui escrever o rascunho." };
+  }
 }
