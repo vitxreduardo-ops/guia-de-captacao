@@ -4,6 +4,9 @@ import { claimUpdate } from "@/lib/telegram/identity";
 import { handleUpdate, type TelegramUpdate } from "@/lib/telegram/handler";
 import { telegramDeps } from "@/lib/telegram/deps";
 
+// O agente roda dentro do after(): consulta + modelo levam uns 10 a 30 s.
+export const maxDuration = 60;
+
 function secretOk(received: string | null): boolean {
   const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
   if (!expected || !received) return false;

@@ -10,6 +10,34 @@ import type { TelegramActor } from "@/lib/telegram/identity";
 export interface TelegramUpdate {
   update_id: number;
   message?: TelegramMessage;
+  callback_query?: TelegramCallback;
+}
+
+export interface TelegramCallback {
+  id: string;
+  from: { id: number; is_bot?: boolean };
+  message?: { message_id: number; chat: { id: number }; message_thread_id?: number };
+  data?: string;
+}
+
+/** Clique num botão Confirmar/Cancelar de uma prévia. */
+export interface ActionClick {
+  callbackId: string;
+  telegramUserId: number;
+  actionId: string;
+  decision: "confirm" | "cancel";
+  chatId: number | null;
+  messageId: number | null;
+}
+
+/** "pa:c:<uuid>" / "pa:x:<uuid>" — cabe nos 64 bytes do callback_data. */
+export function actionButtonData(actionId: string, decision: "confirm" | "cancel") {
+  return `pa:${decision === "confirm" ? "c" : "x"}:${actionId}`;
+}
+
+export function parseActionData(data: string | undefined): Pick<ActionClick, "actionId" | "decision"> | null {
+  const m = data?.match(/^pa:([cx]):([0-9a-f-]{36})$/);
+  return m ? { actionId: m[2], decision: m[1] === "c" ? "confirm" : "cancel" } : null;
 }
 
 export interface TelegramMessage {
@@ -37,6 +65,8 @@ export interface IncomingMessage {
   threadId: number | null;
   topic: HubTopic | null;
   messageId: number;
+  /** Id numérico de quem mandou: é quem pode confirmar a prévia. */
+  telegramUserId: number;
   actor: TelegramActor;
   text: string;
   target: ReplyTarget;
@@ -52,6 +82,9 @@ export interface TelegramDeps {
   rateLimit(key: string, max: number, windowSeconds: number): Promise<boolean>;
   reply(target: ReplyTarget, text: string): Promise<void>;
   onMessage(message: IncomingMessage): Promise<void>;
+  onActionClick(click: ActionClick): Promise<void>;
+  /** Fecha o "carregando" do botão quando o clique não vale nada. */
+  answerCallback(callbackId: string, text?: string): Promise<void>;
 }
 
 const COMO_VINCULAR =
@@ -64,6 +97,25 @@ export function parseCommand(text: string): { command: string; arg: string } | n
 }
 
 export async function handleUpdate(update: TelegramUpdate, deps: TelegramDeps): Promise<void> {
+  const cb = update.callback_query;
+  if (cb) {
+    if (cb.from.is_bot || !(await deps.rateLimit(`tg:${cb.from.id}`, 30, 60))) return;
+    const parsed = parseActionData(cb.data);
+    if (!parsed) {
+      await deps.answerCallback(cb.id);
+      return;
+    }
+    // Quem pode decidir é conferido no banco (id de quem pediu), não aqui.
+    await deps.onActionClick({
+      callbackId: cb.id,
+      telegramUserId: cb.from.id,
+      ...parsed,
+      chatId: cb.message?.chat.id ?? null,
+      messageId: cb.message?.message_id ?? null,
+    });
+    return;
+  }
+
   const msg = update.message;
   const from = msg?.from;
   if (!msg || !from || from.is_bot) return;
@@ -108,6 +160,7 @@ export async function handleUpdate(update: TelegramUpdate, deps: TelegramDeps): 
       threadId: null,
       topic: null,
       messageId: msg.message_id,
+      telegramUserId: from.id,
       actor,
       text,
       target,
@@ -156,6 +209,7 @@ export async function handleUpdate(update: TelegramUpdate, deps: TelegramDeps): 
     threadId,
     topic: threadId === null ? null : await deps.topicOf(msg.chat.id, threadId),
     messageId: msg.message_id,
+    telegramUserId: from.id,
     actor,
     text,
     target,
