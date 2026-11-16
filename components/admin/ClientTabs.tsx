@@ -13,6 +13,7 @@ export const CLIENT_TABS = [
   { href: "/admin/clientes/dinheiro?aba=resultado", label: "Entradas" },
   { href: "/admin/clientes/dinheiro?aba=saidas", label: "Saídas" },
   { href: "/admin/clientes/cadastro", label: "Clientes" },
+  { href: "/admin/clientes/protocolo", label: "Buscar OS" },
 ];
 
 /**

@@ -60,6 +60,9 @@ export interface BacklogCard {
   id: string;
   column_id: string;
   client_id: string | null;
+  /** Protocolo CCCCTTTT, gerado pelo banco. Nunca muda. */
+  protocol_code: string;
+  task_number: number;
   guide_id: string | null;
   /** Responsáveis vêm da tabela de junção; um card aceita mais de um. */
   assignee_ids: string[];
@@ -371,6 +374,8 @@ function matchesStatus(
 function matchesKeyword(card: BacklogCard, keyword: string): boolean {
   const needle = keyword.trim().toLowerCase();
   if (!needle) return true;
+  const compacto = needle.replace(/^os\.?\s*/, "").replace(/[\s-]/g, "");
+  if (/^\d{4,8}$/.test(compacto) && card.protocol_code.startsWith(compacto)) return true;
   return [card.title, card.caption, card.description, card.tags.join(" ")]
     .join(" ")
     .toLowerCase()

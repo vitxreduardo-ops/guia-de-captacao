@@ -1,6 +1,7 @@
 "use client";
 
 import { confirmar } from "@/components/ConfirmHost";
+import { formatProtocol } from "@/lib/protocol";
 import {
   createContext,
   useCallback,
@@ -305,6 +306,9 @@ function CardBody({
                 {clientName}
               </span>
             ) : null}
+            <span className="mr-1.5 font-mono text-[11px] text-neutral-400 tabular-nums">
+              {formatProtocol(card.protocol_code)}
+            </span>
             <span className="font-medium">{card.title}</span>
           </button>
         </div>

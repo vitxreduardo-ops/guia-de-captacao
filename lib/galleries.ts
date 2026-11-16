@@ -9,6 +9,8 @@ export type GalleryClientStatus = "draft" | "published";
 export interface GalleryClient {
   id: string;
   slug: string;
+  /** Código permanente de 4 dígitos, gerado pelo banco; prefixo do protocolo. */
+  client_code: string;
   /** Nome curto, o que aparece nos cards e na galeria. */
   name: string;
   status: GalleryClientStatus;

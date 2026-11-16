@@ -315,6 +315,9 @@ function ClientRow({
     <li className="group flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-4 text-base">
       <span className="w-full text-lg font-semibold text-neutral-900">
         {client.name}
+        <span className="ml-2 font-mono text-xs font-normal text-neutral-400">
+          cód. {client.client_code}
+        </span>
         {client.contact_name ? (
           <span className="ml-2 text-xs font-normal text-neutral-500">
             {client.contact_name}

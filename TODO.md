@@ -3,6 +3,27 @@
 Coisas conhecidas que ficaram para depois, com contexto suficiente para
 retomar sem reconstruir a investigação. Última revisão: 06/09/2026.
 
+## Tatu Agent (Telegram)
+
+Fase 1 (protocolos de OS) feita na branch `tatu-agent-protocolos`, testada
+só no banco local (`scripts/teste-local.sh`) em 16/11/2026.
+
+- [x] **`0112_protocolos.sql` aplicada na produção em 16/11/2026.** 18
+      clientes (0001 a 0018) e 80 cards numerados, sem duplicata. Backup das
+      duas tabelas antes: `~/Backups/guia-de-captacao/antes-0112-*.sql`.
+- [ ] **Cliente "Tatu Estudio Criativo" virou 0017.** O código 0000 é o das
+      tarefas internas (card sem cliente). Decidir se os cards do 0017
+      deveriam ser internos — protocolo não muda, então só vale pros novos.
+- [ ] **Protocolo nos PDFs.** A nota mensal (`/admin/clientes/faturamento/pdf`)
+      ainda não mostra o protocolo de cada item. Os itens da nota são cópias
+      (`monthly_invoice_items`), e só têm `card_id` — dá pra buscar o
+      protocolo pelo card, se ele ainda existir.
+- [ ] **Busca no topo do painel.** Hoje a busca por OS é uma aba de Clientes
+      e o filtro do quadro também acha por protocolo. Uma caixa global no
+      cabeçalho fica para quando o agente estiver de pé.
+- [ ] **Fases 2 a 6** (webhook, identidades, Agent Core, ferramentas,
+      agenda e relatórios): plano no relatório da Fase 0.
+
 ## Minha Agenda
 
 - [ ] **Testar o desfazer com dados reais.** Arrastar um compromisso grava
