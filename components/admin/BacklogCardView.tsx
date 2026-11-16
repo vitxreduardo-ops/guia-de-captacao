@@ -23,6 +23,7 @@ import {
   PAYMENT_METHOD_LABELS,
   formatBacklogDateShort,
 } from "@/lib/backlogTypes";
+import { formatProtocol } from "@/lib/protocol";
 import { createBacklogNoteAction } from "@/app/admin/kanbanActions";
 
 function formatDate(iso: string): string {
@@ -134,6 +135,8 @@ export function BacklogCardView({
         <DialogHeader>
           <DialogTitle className="text-base">{card.title}</DialogTitle>
           <DialogDescription className="flex flex-wrap items-center gap-1.5">
+            <span className="font-mono tabular-nums">OS {formatProtocol(card.protocol_code)}</span>
+            <span aria-hidden>·</span>
             <span className="flex items-center gap-1.5">
               <span
                 aria-hidden

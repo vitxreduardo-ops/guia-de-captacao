@@ -1166,3 +1166,61 @@ export async function setMaterialMedia(
     .eq("client_id", clientId);
   if (error) throw error;
 }
+
+// -------------------------------------------------------------- protocolo
+
+export interface ProtocolLookup {
+  card: BacklogCard;
+  board: BacklogBoardKind;
+  columnName: string;
+  clientName: string | null;
+  /** Cliente de onde o protocolo nasceu, quando o card já trocou de cliente. */
+  originClientCode: string;
+  assigneeNames: string[];
+}
+
+/**
+ * Acha a OS pelo protocolo de 8 dígitos. `clientScope` é o acesso de quem
+ * pergunta: card de cliente fora dele some, igual a "não existe".
+ */
+export async function findCardByProtocol(
+  protocol: string,
+  clientScope: string[] | null
+): Promise<ProtocolLookup | null> {
+  const supabase = getSupabaseServerClient();
+  const { data: row, error } = await supabase
+    .from("backlog_cards")
+    .select("*")
+    .eq("protocol_code", protocol)
+    .maybeSingle();
+  if (error) throw error;
+  if (!row) return null;
+  if (clientScope !== null && (!row.client_id || !clientScope.includes(row.client_id))) {
+    return null;
+  }
+
+  const [column, client, assignees] = await Promise.all([
+    supabase.from("backlog_columns").select("name, board").eq("id", row.column_id).single(),
+    row.client_id
+      ? supabase.from("gallery_clients").select("name").eq("id", row.client_id).single()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("backlog_card_assignees")
+      .select("users(username)")
+      .eq("card_id", row.id),
+  ]);
+
+  const names = (assignees.data ?? []).flatMap((a) => {
+    const u = a.users as unknown as { username: string } | { username: string }[] | null;
+    return Array.isArray(u) ? u.map((x) => x.username) : u ? [u.username] : [];
+  });
+
+  return {
+    card: { ...row, assignee_ids: [] } as unknown as BacklogCard,
+    board: normalizeBacklogBoard(column.data?.board),
+    columnName: (column.data?.name as string) ?? "",
+    clientName: (client.data?.name as string) ?? null,
+    originClientCode: protocol.slice(0, 4),
+    assigneeNames: names,
+  };
+}
