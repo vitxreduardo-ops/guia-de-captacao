@@ -9,6 +9,7 @@ import {
   markNotificationReadAction,
 } from "@/app/admin/notificacoes/actions";
 import { PushToggle } from "@/components/admin/PushToggle";
+import { TelegramLink } from "@/components/admin/TelegramLink";
 import type { Notification } from "@/lib/notificationTypes";
 
 const FOCUS_RING =
@@ -200,6 +201,7 @@ export function NotificationBell({
             </ul>
           )}
           <PushToggle />
+          <TelegramLink />
         </div>
       ) : null}
     </div>

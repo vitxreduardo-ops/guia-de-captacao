@@ -21,8 +21,21 @@ só no banco local (`scripts/teste-local.sh`) em 16/11/2026.
 - [ ] **Busca no topo do painel.** Hoje a busca por OS é uma aba de Clientes
       e o filtro do quadro também acha por protocolo. Uma caixa global no
       cabeçalho fica para quando o agente estiver de pé.
-- [ ] **Fases 2 a 6** (webhook, identidades, Agent Core, ferramentas,
-      agenda e relatórios): plano no relatório da Fase 0.
+- [ ] **Fase 2 no ar (branch `tatu-agent-telegram`).** Testada só com
+      updates simulados no banco local. Falta, nesta ordem: criar o bot no
+      @BotFather; pôr as 4 variáveis `TELEGRAM_*` na Vercel; rodar a
+      `0113_telegram.sql` na produção; deploy; registrar o webhook
+      (`scripts/telegram-webhook.mjs`); no grupo TATU | HUB, ativar Tópicos,
+      pôr o bot como admin com "Gerenciar tópicos", mandar `/configurar`.
+- [ ] **Bot no grupo precisa ler tudo.** Por padrão o Telegram só entrega ao
+      bot comandos e respostas a ele (modo privacidade). Desligar em
+      @BotFather → Bot Settings → Group Privacy, ou manter o bot como admin.
+- [ ] **Limpar `telegram_processed_updates`.** A tabela cresce uma linha por
+      mensagem. O Telegram só reenvia por 24 h, então dá pra apagar o que tem
+      mais de 2 dias no cron diário.
+- [ ] **Fases 3 a 6** (Agent Core, ferramentas, agenda e relatórios): plano no
+      relatório da Fase 0. A fase 3 troca o `onMessage` de
+      `lib/telegram/deps.ts` pelo agente.
 
 ## Minha Agenda
 

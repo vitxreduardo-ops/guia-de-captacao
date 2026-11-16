@@ -10,7 +10,8 @@ import {
   savePushSubscription,
   type PushSubscriptionJSON,
 } from "@/lib/push";
-import { getCurrentSession } from "@/lib/session";
+import { getCurrentSession, requireTeam } from "@/lib/session";
+import { createLinkToken, getLinkedTelegram, unlinkTelegram } from "@/lib/telegram/identity";
 
 // O `userId` vem sempre da sessão, nunca do cliente: é o que impede alguém de
 // marcar como lida a notificação de outra pessoa mandando outro id.
@@ -49,4 +50,29 @@ export async function unsubscribePushAction(endpoint: string) {
   const session = await getCurrentSession();
   if (!session) return;
   await deletePushSubscription(session.userId, endpoint);
+}
+
+// --------------------------------------------------------------- Telegram
+
+/** @ do Telegram ligado a quem está logado; null = não conectado. */
+export async function getTelegramStatusAction(): Promise<{ linked: string | null; enabled: boolean }> {
+  const session = await requireTeam();
+  return {
+    linked: await getLinkedTelegram(session.userId),
+    enabled: Boolean(process.env.TELEGRAM_BOT_USERNAME && process.env.TELEGRAM_BOT_TOKEN),
+  };
+}
+
+/** Link `t.me` com o código de uso único; abrir e tocar em Iniciar já vincula. */
+export async function connectTelegramAction(): Promise<string> {
+  const session = await requireTeam();
+  const bot = process.env.TELEGRAM_BOT_USERNAME;
+  if (!bot) throw new Error("Bot do Telegram não configurado.");
+  const token = await createLinkToken(session.userId);
+  return `https://t.me/${bot.replace(/^@/, "")}?start=${token}`;
+}
+
+export async function disconnectTelegramAction() {
+  const session = await requireTeam();
+  await unlinkTelegram(session.userId);
 }
