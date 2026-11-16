@@ -1,6 +1,6 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { parseContent, type PlanejamentoContent } from "@/lib/planejamentoTypes";
+import { parseContent, type CampoTexto, type PlanejamentoContent } from "@/lib/planejamentoTypes";
 
 export interface Planejamento {
   id: string;
@@ -45,6 +45,12 @@ export async function listPlanejamentos(clientId?: string): Promise<Planejamento
   return (data as unknown as Row[]).map(norm);
 }
 
+export async function getPlanejamentoById(id: string): Promise<Planejamento | null> {
+  const { data, error } = await getSupabaseServerClient().from("planejamentos").select(COLS).eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data ? norm(data as unknown as Row) : null;
+}
+
 export async function getPlanejamentoBySlug(slug: string): Promise<Planejamento | null> {
   const { data, error } = await getSupabaseServerClient()
     .from("planejamentos")
@@ -86,6 +92,27 @@ export async function updatePlanejamentoContent(id: string, content: Planejament
     .update({ content, updated_at: new Date().toISOString() })
     .eq("id", id);
   if (error) throw error;
+}
+
+/**
+ * Grava o texto de um campo de uma entrega. `rascunho` true marca como escrito
+ * pela IA (o cliente não vê até a equipe revisar); false limpa a marca.
+ */
+export async function salvarCampo(
+  id: string,
+  entregaId: string,
+  campo: CampoTexto,
+  texto: string,
+  rascunho: boolean,
+): Promise<boolean> {
+  const p = await getPlanejamentoById(id);
+  const e = p?.content.entregas.find((x) => x.id === entregaId);
+  if (!p || !e) return false;
+  e[campo] = texto.trim();
+  e.rascunhos = e.rascunhos.filter((c) => c !== campo);
+  if (rascunho) e.rascunhos.push(campo);
+  await updatePlanejamentoContent(id, p.content);
+  return true;
 }
 
 /** Marcações por planejamento, como chaves "e3:g" (ver chaveMarcacao). */

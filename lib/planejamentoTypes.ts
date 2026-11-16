@@ -4,7 +4,7 @@
  * O jsonb vem da IA ou do banco e passa sempre por parseContent.
  */
 
-export type TipoEntrega = "feed" | "stories";
+export type TipoEntrega = "feed" | "stories" | "reels";
 
 export interface Referencia {
   titulo: string;
@@ -21,6 +21,8 @@ export interface Entrega {
   /** Nome curto, pros botões de anterior/próxima. */
   curto: string;
   linha: string;
+  /** Por que esta entrega existe. Quando vazio, a tela usa o objetivo da semana. */
+  porque: string;
   formato: string;
   /** Data comemorativa ou aviso do dia (ex.: "Dia Mundial da DPOC"). */
   marco: string;
@@ -31,6 +33,10 @@ export interface Entrega {
   legenda: string;
   observacao: string;
   referencias: Referencia[];
+  /** Campos extras do material (gancho, cenário, palavra-chave…), rotulados. */
+  detalhes: { rotulo: string; texto: string }[];
+  /** Campos escritos pela IA e ainda não revisados pela equipe. O cliente não os vê. */
+  rascunhos: CampoTexto[];
 }
 
 export interface Semana {
@@ -40,6 +46,10 @@ export interface Semana {
   tema: string;
   objetivo: string;
 }
+
+/** Campos de texto que a equipe pode preencher quando o material não trouxe. */
+export type CampoTexto = "fala" | "legenda" | "card";
+const CAMPOS: CampoTexto[] = ["fala", "legenda", "card"];
 
 export type TipoRotina = "livre" | "stories" | "feed" | "plantao";
 
@@ -117,10 +127,11 @@ export function parseContent(raw: unknown, fallback: Date): PlanejamentoContent 
         id: "",
         dia,
         semana: semanaDoDia(dia),
-        tipo: (s(e.tipo).toLowerCase() === "feed" ? "feed" : "stories") as TipoEntrega,
+        tipo: (["feed", "reels"].includes(s(e.tipo).toLowerCase()) ? s(e.tipo).toLowerCase() : "stories") as TipoEntrega,
         titulo,
         curto: s(e.curto) || titulo,
         linha: s(e.linha),
+        porque: s(e.porque),
         formato: s(e.formato),
         marco: s(e.marco),
         card: s(e.card),
@@ -132,6 +143,10 @@ export function parseContent(raw: unknown, fallback: Date): PlanejamentoContent 
         referencias: objs(e.referencias)
           .map((r) => ({ titulo: s(r.titulo), url: s(r.url) }))
           .filter((r) => http(r.url)),
+        rascunhos: strs(e.rascunhos).filter((c): c is CampoTexto => CAMPOS.includes(c as CampoTexto)),
+        detalhes: objs(e.detalhes)
+          .map((d) => ({ rotulo: s(d.rotulo), texto: s(d.texto) }))
+          .filter((d) => d.rotulo && d.texto),
       };
     })
     .filter((e) => e.titulo && e.dia >= 1 && e.dia <= ultimo)
@@ -164,6 +179,7 @@ export function parseContent(raw: unknown, fallback: Date): PlanejamentoContent 
 
 /** O que o cliente marca em cada entrega. Regra fixa, não vem da IA. */
 export function passosDa(e: Entrega): Passo[] {
+  if (e.tipo === "reels") return [{ id: "g", label: "Gravei" }, { id: "p", label: "Postei" }];
   if (e.tipo === "stories") {
     return [{ id: "g", label: e.fala || e.telas.length ? "Gravei" : "Fotografei" }, { id: "p", label: "Postei" }];
   }
@@ -172,3 +188,38 @@ export function passosDa(e: Entrega): Passo[] {
 }
 
 export const chaveMarcacao = (entregaId: string, passo: PassoId) => `${entregaId}:${passo}`;
+
+export interface Lacuna {
+  campo: CampoTexto;
+  /** Como a equipe lê o campo ("Roteiro / fala pra câmera"). */
+  rotulo: string;
+  /** Já tem texto, mas foi escrito pela IA e espera revisão. */
+  rascunho: boolean;
+}
+
+/**
+ * O que esta entrega ainda precisa de texto. Regra fixa, sem IA: reel pede
+ * fala e legenda; feed pede legenda (e o texto do card, se não for carrossel);
+ * stories pedem alguma coisa pra dizer ou fazer.
+ */
+export function lacunasDa(e: Entrega): Lacuna[] {
+  const pedidos: { campo: CampoTexto; rotulo: string }[] = [];
+  if (e.tipo === "reels" && !e.fala && !e.telas.length) pedidos.push({ campo: "fala", rotulo: "Roteiro / fala pra câmera" });
+  if (e.tipo !== "stories" && !e.legenda) pedidos.push({ campo: "legenda", rotulo: "Legenda" });
+  if (e.tipo === "feed" && !e.card && !e.telas.length && !/carrossel/i.test(e.formato)) pedidos.push({ campo: "card", rotulo: "Texto do card" });
+  if (e.tipo === "stories" && !e.fala && !e.telas.length && !e.comoFazer.length && !e.detalhes.length) pedidos.push({ campo: "fala", rotulo: "O que dizer ou mostrar" });
+  const rascunhos: Lacuna[] = e.rascunhos
+    .filter((c) => !pedidos.some((p) => p.campo === c))
+    .map((campo) => ({ campo, rotulo: ROTULO[campo], rascunho: true }));
+  return [...pedidos.map((p) => ({ ...p, rascunho: false })), ...rascunhos];
+}
+
+const ROTULO: Record<CampoTexto, string> = { fala: "Roteiro / fala pra câmera", legenda: "Legenda", card: "Texto do card" };
+
+/** O que o cliente vê: campos em rascunho ficam vazios até a equipe revisar. */
+export function semRascunhos(c: PlanejamentoContent): PlanejamentoContent {
+  return {
+    ...c,
+    entregas: c.entregas.map((e) => (e.rascunhos.length ? { ...e, ...Object.fromEntries(e.rascunhos.map((k) => [k, ""])) } : e)),
+  };
+}

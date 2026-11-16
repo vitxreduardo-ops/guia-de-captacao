@@ -24,7 +24,7 @@ import st from "./planejamento.module.css";
 const WD = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const WDL = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 const MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-const TIPO = { feed: "Feed", stories: "Stories" } as const;
+const TIPO = { feed: "Feed", stories: "Stories", reels: "Reel" } as const;
 const ouvirHash = (avisar: () => void) => {
   window.addEventListener("hashchange", avisar);
   return () => window.removeEventListener("hashchange", avisar);
@@ -164,7 +164,7 @@ export function PlanejamentoView({
   function pills(e: Entrega) {
     return (
       <span className={st.chips}>
-        <span className={`${st.pill} ${e.tipo === "feed" ? st.pillFeed : ""}`}>{TIPO[e.tipo]}</span>
+        <span className={`${st.pill} ${e.tipo !== "stories" ? st.pillFeed : ""}`}>{TIPO[e.tipo]}</span>
         {completo(e) ? <span className={`${st.pill} ${st.pillOk}`}>Pronto</span> : atrasado(e) ? <span className={`${st.pill} ${st.pillLate}`}>Atrasado</span> : null}
         {e.marco ? <span className={`${st.pill} ${st.pillTag}`}>{e.marco}</span> : null}
       </span>
@@ -259,7 +259,7 @@ export function PlanejamentoView({
                 <b>{d}</b>
                 <span className={st.pips}>
                   {ps.map((e) => (
-                    <i key={e.id} className={`${st.pip} ${completo(e) ? st.pipOk : e.tipo === "feed" ? st.pipFeed : ""}`} />
+                    <i key={e.id} className={`${st.pip} ${completo(e) ? st.pipOk : e.tipo !== "stories" ? st.pipFeed : ""}`} />
                   ))}
                 </span>
               </>
@@ -325,7 +325,11 @@ export function PlanejamentoView({
     const dia = WDL[data(e.dia).getDay()];
     // Sem repetir quando o objetivo da semana já começa pela linha de conteúdo.
     const objetivo = w?.objetivo ?? "";
-    const porque = e.linha && !sem(objetivo).startsWith(sem(e.linha)) ? `${e.linha}. ${objetivo}`.trim() : objetivo || e.linha;
+    const porque = e.porque
+      ? e.porque
+      : e.linha && !sem(objetivo).startsWith(sem(e.linha))
+        ? `${e.linha}. ${objetivo}`.trim()
+        : objetivo || e.linha;
     return (
       <div className={st.detail}>
         <button type="button" className={st.back} onClick={() => ir(`semana-${e.semana}`)}>
@@ -348,6 +352,19 @@ export function PlanejamentoView({
         <div className={st.dsteps}>
           {checks(e, "d")}
         </div>
+        {e.detalhes.length ? (
+          <section className={st.block}>
+            <h2>Combinado pra esta entrega</h2>
+            <dl className={st.dl}>
+              {e.detalhes.map((d) => (
+                <div key={d.rotulo}>
+                  <dt>{d.rotulo}</dt>
+                  <dd>{d.texto}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ) : null}
         {e.card ? (
           <section className={st.block}>
             <h2>Texto do card</h2>
