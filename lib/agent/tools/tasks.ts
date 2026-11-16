@@ -4,6 +4,8 @@ import {
   createBacklogActivity,
   createBacklogCard,
   findCardByProtocol,
+  setBacklogCardAssignees,
+  setBacklogCardColumn,
 } from "@/lib/backlog";
 import { notifyUser } from "@/lib/notifications";
 import { syncBacklogCardToCalendar } from "@/lib/googleCalendar";
@@ -366,5 +368,260 @@ export const createTask: WriteTool<CreateTaskParams> = {
       console.error("[agent] agenda", error instanceof Error ? error.message : error);
     }
     return `OS ${formatProtocol(card.protocol_code)} criada: ${card.title}${params.client_name ? ` (${params.client_name})` : ""}.`;
+  },
+};
+
+// ------------------------------------------------------------ atualizar OS
+
+type UpdateTaskParams = {
+  card_id: string;
+  protocol: string;
+  board: BacklogBoardKind;
+  title: string | null;
+  description: string | null;
+  post_date: string | null | undefined;
+  column_id: string | null;
+  from_column: string;
+  to_column: string | null;
+  add_assignee_ids: string[];
+  set_assignee_ids: string[] | null;
+};
+
+/** Nome de quem é responsável hoje, por card. */
+async function assigneeNames(cardId: string): Promise<{ ids: string[]; names: string[] }> {
+  const { data, error } = await getSupabaseServerClient()
+    .from("backlog_card_assignees")
+    .select("user_id, users(username)")
+    .eq("card_id", cardId);
+  if (error) throw error;
+  const rows = (data ?? []).map((r) => {
+    const u = r.users as unknown as { username: string } | { username: string }[] | null;
+    return { id: r.user_id as string, name: Array.isArray(u) ? u[0]?.username : u?.username };
+  });
+  return { ids: rows.map((r) => r.id), names: rows.map((r) => r.name ?? "?") };
+}
+
+export const updateTask: WriteTool<UpdateTaskParams> = {
+  kind: "write",
+  name: "update_task",
+  topic: "ordens",
+  description:
+    "Atualiza uma OS existente pelo protocolo: mudar a etapa (status), responsável, prazo, título ou descrição. " +
+    "Pede confirmação. Só os campos que a pessoa pediu; o resto fica null. " +
+    "Não move para etapa visível ao cliente nem de pagamento recebido: isso é feito no painel.",
+  parameters: {
+    type: "object",
+    properties: {
+      protocol: { type: "string", description: "Protocolo de 8 dígitos da OS." },
+      status: { type: ["string", "null"], description: "Nome da etapa de destino, ex.: 'Em edição'." },
+      assignee: { type: ["string", "null"], description: "Pessoa a acrescentar como responsável." },
+      replace_assignees: { type: ["boolean", "null"], description: "true = 'assignee' passa a ser o único responsável." },
+      deadline: { type: ["string", "null"], description: "Novo prazo AAAA-MM-DD." },
+      clear_deadline: { type: ["boolean", "null"], description: "true = tirar o prazo." },
+      title: { type: ["string", "null"] },
+      description: { type: ["string", "null"] },
+    },
+    required: ["protocol", "status", "assignee", "replace_assignees", "deadline", "clear_deadline", "title", "description"],
+    additionalProperties: false,
+  },
+
+  async prepare(actor, args) {
+    const protocol = parseProtocol(reqString(args, "protocol", 20));
+    if (!protocol) throw new ToolInputError("Protocolo tem 8 dígitos, como 0042 0017.");
+    const found = await findCardByProtocol(protocol, actor.role === "admin" ? null : actor.allowedClientIds);
+    if (!found) throw new ToolInputError(`Não achei a OS ${formatProtocol(protocol)}.`);
+    assertBoard(actor, found.board);
+    if (found.board === "entregas") assertClient(actor, found.card.client_id);
+
+    const statusQuery = optString(args, "status", 60);
+    const assigneeQuery = optString(args, "assignee", 100);
+    const replace = optBool(args, "replace_assignees");
+    const clearDeadline = optBool(args, "clear_deadline");
+    const deadline = optDate(args, "deadline");
+    const title = optString(args, "title", 200);
+    const description = optString(args, "description", 2000);
+    if (!statusQuery && !assigneeQuery && !deadline && !clearDeadline && !title && description === null) {
+      throw new ToolInputError("Nada para mudar. Pergunte o que alterar nessa OS.");
+    }
+    if (deadline && clearDeadline) throw new ToolInputError("Prazo novo e 'tirar prazo' ao mesmo tempo.");
+
+    const ctx = await loadContext(actor);
+    const sameBoard = ctx.columns.filter((c) => c.board === found.board);
+
+    let target: (ColumnRow & { client_visible?: boolean; paid?: boolean }) | null = null;
+    if (statusQuery) {
+      const { data: cols, error } = await getSupabaseServerClient()
+        .from("backlog_columns")
+        .select("id, name, board, position, billable, paid, client_visible")
+        .eq("board", found.board);
+      if (error) throw error;
+      const m = matchByName((cols ?? []) as (ColumnRow & { client_visible: boolean; paid: boolean })[], statusQuery, (c) => [c.name]);
+      if (m.kind === "none") {
+        throw new ToolInputError(`Não existe a etapa "${statusQuery}". Etapas: ${sameBoard.map((c) => c.name).join(", ")}.`);
+      }
+      if (m.kind === "many") {
+        throw new ToolInputError(`"${statusQuery}" bate com: ${m.items.map((c) => c.name).join(", ")}. Pergunte qual.`);
+      }
+      target = m.item;
+      if (target.client_visible) {
+        throw new PermissionError(
+          `"${target.name}" é uma etapa que o cliente enxerga (ele recebe aviso no celular). Mova essa pelo painel.`
+        );
+      }
+      if (target.paid) {
+        throw new PermissionError(`"${target.name}" marca pagamento recebido e pede data e forma de pagamento. Faça isso pelo painel.`);
+      }
+      if (target.id === found.card.column_id) throw new ToolInputError(`A OS já está em "${target.name}".`);
+    }
+
+    let person: { id: string; username: string } | null = null;
+    if (assigneeQuery) {
+      const m = matchByName(ctx.users, assigneeQuery, (u) => [u.username, u.full_name].filter(Boolean));
+      if (m.kind === "none") throw new ToolInputError(`Não achei ninguém da equipe chamado "${assigneeQuery}".`);
+      if (m.kind === "many") throw new ToolInputError(`"${assigneeQuery}" bate com: ${m.items.map((u) => u.username).join(", ")}. Pergunte qual.`);
+      person = m.item;
+    }
+
+    const current = await assigneeNames(found.card.id);
+    const lines = [`Atualizar OS ${formatProtocol(protocol)} — ${found.card.title}`, `Cliente: ${found.clientName ?? "Tatu (interna)"}`];
+    if (target) lines.push(`Status: ${found.columnName} → ${target.name}`);
+    if (person) {
+      lines.push(
+        replace
+          ? `Responsável: ${current.names.join(", ") || "ninguém"} → ${person.username}`
+          : current.ids.includes(person.id)
+            ? `Responsável: ${person.username} já é responsável (sem mudança)`
+            : `Responsável: ${[...current.names, person.username].join(", ")} (acrescenta ${person.username})`
+      );
+    }
+    if (deadline) lines.push(`Prazo: ${brDate(found.card.post_date) ?? "sem prazo"} → ${brDate(deadline)}`);
+    if (clearDeadline) lines.push(`Prazo: ${brDate(found.card.post_date) ?? "sem prazo"} → sem prazo`);
+    if (title) lines.push(`Título: ${found.card.title} → ${title}`);
+    if (description !== null) lines.push(`Descrição: ${description.slice(0, 300)}`);
+
+    return {
+      summary: lines.join("\n"),
+      params: {
+        card_id: found.card.id,
+        protocol,
+        board: found.board,
+        title,
+        description,
+        post_date: deadline ? deadline : clearDeadline ? null : undefined,
+        column_id: target?.id ?? null,
+        from_column: found.columnName,
+        to_column: target?.name ?? null,
+        add_assignee_ids: person && !replace && !current.ids.includes(person.id) ? [person.id] : [],
+        set_assignee_ids: person && replace ? [person.id] : null,
+      },
+    };
+  },
+
+  async execute(actor, p) {
+    assertBoard(actor, p.board);
+    const supabase = getSupabaseServerClient();
+    const { data: card, error } = await supabase
+      .from("backlog_cards")
+      .select("id, client_id, column_id, title")
+      .eq("id", p.card_id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!card) throw new ToolInputError("Essa OS não existe mais.");
+    if (p.board === "entregas") assertClient(actor, card.client_id as string | null);
+
+    // Etapa relida: pode ter virado visível ao cliente ou de pagamento desde a prévia.
+    if (p.column_id) {
+      const { data: col } = await supabase
+        .from("backlog_columns")
+        .select("board, paid, client_visible, name")
+        .eq("id", p.column_id)
+        .maybeSingle();
+      if (!col || col.board !== p.board) throw new PermissionError("A etapa escolhida não existe mais.");
+      if (col.client_visible || col.paid) throw new PermissionError(`"${col.name}" mudou e agora só se move pelo painel.`);
+    }
+
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (p.title) patch.title = p.title;
+    if (p.description !== null) patch.description = p.description;
+    if (p.post_date !== undefined) patch.post_date = p.post_date;
+    if (Object.keys(patch).length > 1) {
+      const { error: upErr } = await supabase.from("backlog_cards").update(patch).eq("id", p.card_id);
+      if (upErr) throw upErr;
+    }
+
+    const link = p.board === "entregas" ? "/admin/clientes/entregas" : "/admin/backlog";
+    const done: string[] = [];
+
+    if (p.column_id) {
+      await setBacklogCardColumn({ cardId: p.card_id, columnId: p.column_id });
+      await createBacklogActivity({
+        cardId: p.card_id,
+        authorId: actor.userId,
+        kind: "move",
+        message: `Moveu de "${p.from_column}" para "${p.to_column}" (Tatu Agent)`,
+      });
+      done.push(`etapa ${p.to_column}`);
+    }
+
+    let notify: string[] = [];
+    if (p.set_assignee_ids) {
+      await setBacklogCardAssignees(p.card_id, p.set_assignee_ids);
+      notify = p.set_assignee_ids;
+      done.push("responsável");
+    } else if (p.add_assignee_ids.length) {
+      const { ids } = await assigneeNames(p.card_id);
+      await setBacklogCardAssignees(p.card_id, [...new Set([...ids, ...p.add_assignee_ids])]);
+      notify = p.add_assignee_ids;
+      done.push("responsável");
+    }
+    await Promise.all(
+      notify
+        .filter((id) => id !== actor.userId)
+        .map((userId) =>
+          notifyUser({
+            userId,
+            actorId: actor.userId,
+            kind: "card_assigned",
+            title: "Material atribuído a você",
+            body: card.title as string,
+            link,
+            entityId: p.card_id,
+          })
+        )
+    );
+
+    if (p.title) done.push("título");
+    if (p.description !== null) done.push("descrição");
+    if (p.post_date !== undefined) done.push("prazo");
+
+    if (p.post_date !== undefined) {
+      try {
+        await syncBacklogCardToCalendar(p.card_id);
+      } catch (e) {
+        console.error("[agent] agenda", e instanceof Error ? e.message : e);
+      }
+    }
+    if (p.column_id || notify.length) {
+      // Quem já é responsável também quer saber que a etapa mudou.
+      const brief = await assigneeNames(p.card_id);
+      if (p.column_id) {
+        await Promise.all(
+          brief.ids
+            .filter((id) => id !== actor.userId && !notify.includes(id))
+            .map((userId) =>
+              notifyUser({
+                userId,
+                actorId: actor.userId,
+                kind: "card_moved",
+                title: `Material movido para "${p.to_column}"`,
+                body: card.title as string,
+                link,
+                entityId: p.card_id,
+              })
+            )
+        );
+      }
+    }
+    return `OS ${formatProtocol(p.protocol)} atualizada (${done.join(", ")}).`;
   },
 };

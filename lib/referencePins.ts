@@ -14,12 +14,16 @@ export interface ReferencePin {
   note: string;
   /** Cliente a quem a referência serve. Vazio = referência geral. */
   client: string;
+  /** Vínculo por id (0115); nulo em referência geral ou de antes do vínculo. */
+  client_id: string | null;
   /** Nicho e qualquer outra etiqueta livre — ver `lib/tags.ts`. */
   tags: string[];
   created_at: string;
 }
 
-export type ReferencePinFields = Omit<ReferencePin, "id" | "created_at">;
+export type ReferencePinFields = Omit<ReferencePin, "id" | "created_at" | "client_id"> & {
+  client_id?: string | null;
+};
 
 function toReferencePin(row: Record<string, unknown>): ReferencePin {
   const kind = row.kind;
@@ -33,6 +37,7 @@ function toReferencePin(row: Record<string, unknown>): ReferencePin {
       typeof row.drive_file_id === "string" ? row.drive_file_id : "",
     note: typeof row.note === "string" ? row.note : "",
     client: typeof row.client === "string" ? row.client : "",
+    client_id: typeof row.client_id === "string" ? row.client_id : null,
     tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
     created_at: String(row.created_at ?? ""),
   };
