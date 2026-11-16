@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  actionButtonData,
   handleUpdate,
+  type ActionClick,
   parseCommand,
   type IncomingMessage,
   type TelegramDeps,
@@ -21,6 +23,7 @@ const membro: TelegramActor = { ...vitor, userId: "u-ana", username: "ana", role
 function setup(overrides: Partial<TelegramDeps> = {}) {
   const replies: { target: unknown; text: string }[] = [];
   const received: IncomingMessage[] = [];
+  const clicks: ActionClick[] = [];
   const actors = new Map<number, TelegramActor>([
     [1, vitor],
     [2, membro],
@@ -42,9 +45,13 @@ function setup(overrides: Partial<TelegramDeps> = {}) {
     onMessage: async (m) => {
       received.push(m);
     },
+    onActionClick: async (c) => {
+      clicks.push(c);
+    },
+    answerCallback: async () => {},
     ...overrides,
   };
-  return { deps, replies, received };
+  return { deps, replies, received, clicks };
 }
 
 const privado = (fromId: number, text: string): TelegramMessage => ({
@@ -157,5 +164,36 @@ describe("grupo TATU | HUB", () => {
     expect(replies[0].text).toMatch(/Só admin/);
     await handleUpdate({ update_id: 2, message: noHub(1, "/configurar@TatuBot") }, deps);
     expect(replies[1].text).toMatch(/Criei os tópicos/);
+  });
+});
+
+describe("botões de confirmação", () => {
+  const id = "3f2a1c4e-0b1d-4c55-9e7a-1234567890ab";
+
+  it("cabe nos 64 bytes do Telegram", () => {
+    expect(actionButtonData(id, "confirm").length).toBeLessThanOrEqual(64);
+  });
+
+  it("entrega o clique com o id de quem clicou", async () => {
+    const { deps, clicks } = setup();
+    await handleUpdate(
+      {
+        update_id: 9,
+        callback_query: {
+          id: "cb1",
+          from: { id: 2 },
+          data: actionButtonData(id, "cancel"),
+          message: { message_id: 30, chat: { id: HUB } },
+        },
+      },
+      deps
+    );
+    expect(clicks[0]).toMatchObject({ telegramUserId: 2, actionId: id, decision: "cancel", chatId: HUB, messageId: 30 });
+  });
+
+  it("ignora botão com dado desconhecido", async () => {
+    const { deps, clicks } = setup();
+    await handleUpdate({ update_id: 9, callback_query: { id: "cb1", from: { id: 2 }, data: "pa:c:nao-e-uuid" } }, deps);
+    expect(clicks).toHaveLength(0);
   });
 });

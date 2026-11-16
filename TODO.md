@@ -21,21 +21,23 @@ só no banco local (`scripts/teste-local.sh`) em 16/11/2026.
 - [ ] **Busca no topo do painel.** Hoje a busca por OS é uma aba de Clientes
       e o filtro do quadro também acha por protocolo. Uma caixa global no
       cabeçalho fica para quando o agente estiver de pé.
-- [ ] **Fase 2 no ar (branch `tatu-agent-telegram`).** Testada só com
-      updates simulados no banco local. Falta, nesta ordem: criar o bot no
-      @BotFather; pôr as 4 variáveis `TELEGRAM_*` na Vercel; rodar a
-      `0113_telegram.sql` na produção; deploy; registrar o webhook
-      (`scripts/telegram-webhook.mjs`); no grupo TATU | HUB, ativar Tópicos,
-      pôr o bot como admin com "Gerenciar tópicos", mandar `/configurar`.
-- [ ] **Bot no grupo precisa ler tudo.** Por padrão o Telegram só entrega ao
-      bot comandos e respostas a ele (modo privacidade). Desligar em
-      @BotFather → Bot Settings → Group Privacy, ou manter o bot como admin.
-- [ ] **Limpar `telegram_processed_updates`.** A tabela cresce uma linha por
-      mensagem. O Telegram só reenvia por 24 h, então dá pra apagar o que tem
-      mais de 2 dias no cron diário.
-- [ ] **Fases 3 a 6** (Agent Core, ferramentas, agenda e relatórios): plano no
-      relatório da Fase 0. A fase 3 troca o `onMessage` de
-      `lib/telegram/deps.ts` pelo agente.
+- [x] **Fase 2 no ar em 16/11/2026.** Bot `@tatuestudio_bot`, grupo Tatu |
+      HUB com os 7 tópicos, webhook em sistema.tatuestudio.com.br.
+- [ ] **Limpar tabelas que só crescem.** `telegram_processed_updates` (o
+      Telegram só reenvia por 24 h) e `agent_conversations` (a memória só lê
+      as últimas 2 h): apagar o que tem mais de 2 dias no cron diário.
+- [ ] **Fase 3 (Agent Core), branch `tatu-agent-core`.** Ferramentas desta
+      fase: `get_task`, `find_tasks`, `find_clients` e `create_task` (com
+      prévia e botões). Testado local com a OpenAI de verdade e confirmação
+      pelo webhook simulado. Falta: rodar a `0114_agent_core.sql` na
+      produção, deploy e testar no Telegram de verdade.
+- [ ] **Execução não é transacional.** `create_task` grava o card, os
+      responsáveis, a atividade e a agenda em chamadas separadas (as mesmas
+      do painel). Se uma falhar no meio, a ação fica `failed` e a mensagem
+      manda conferir no painel. Ficar atômico pede uma função no Postgres.
+- [ ] **Fases 4 a 6**: referências, biblioteca, atualizar/mover tarefa,
+      agenda, relatórios, notificações. Cada uma é uma ferramenta nova em
+      `lib/agent/tools/`.
 
 ## Minha Agenda
 
