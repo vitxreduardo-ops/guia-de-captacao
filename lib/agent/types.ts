@@ -1,4 +1,5 @@
 import type { TelegramActor } from "@/lib/telegram/identity";
+import type { HubTopic } from "@/lib/telegram/topics";
 
 /** Esquema no formato do function calling da OpenAI (modo strict). */
 export interface ToolSchema {
@@ -12,6 +13,8 @@ interface ToolBase {
   name: string;
   description: string;
   parameters: ToolSchema;
+  /** Tópico do Tatu | HUB onde a resposta dessa ferramenta mora. */
+  topic?: HubTopic;
 }
 
 /** Consulta: roda direto e o resultado volta pro modelo. */

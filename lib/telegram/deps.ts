@@ -2,15 +2,15 @@ import "server-only";
 import { rateLimit } from "@/lib/rateLimit";
 import { telegram } from "@/lib/telegram/client";
 import { consumeLinkToken, findActor } from "@/lib/telegram/identity";
-import { setupHubTopics, topicOf } from "@/lib/telegram/topicRoutes";
-import { HUB_TOPICS } from "@/lib/telegram/topics";
+import { setupHubTopics, threadOfTopic, topicOf } from "@/lib/telegram/topicRoutes";
+import { HUB_TOPICS, type HubTopic } from "@/lib/telegram/topics";
 import {
   actionButtonData,
   type IncomingMessage,
   type ReplyTarget,
   type TelegramDeps,
 } from "@/lib/telegram/handler";
-import { runAgent } from "@/lib/agent/core";
+import { replyTopic, runAgent } from "@/lib/agent/core";
 import { callResponses } from "@/lib/agent/openai";
 import { AGENT_TOOLS } from "@/lib/agent/tools";
 import { todayKey } from "@/lib/agent/tools/tasks";
@@ -20,7 +20,7 @@ import { createPendingAction, resolvePendingAction } from "@/lib/agent/confirmat
 type Keyboard = { text: string; callback_data: string }[][];
 
 export async function sendTelegram(target: ReplyTarget, text: string, keyboard?: Keyboard) {
-  await telegram("sendMessage", {
+  return telegram<{ message_id: number }>("sendMessage", {
     chat_id: target.chatId,
     // Teto do Telegram é 4096; a resposta do modelo não deveria chegar perto.
     text: text.slice(0, 4000),
@@ -35,6 +35,35 @@ export async function sendTelegram(target: ReplyTarget, text: string, keyboard?:
 function hubChatId(): number | null {
   const raw = process.env.TELEGRAM_HUB_CHAT_ID;
   return raw && /^-?\d+$/.test(raw) ? Number(raw) : null;
+}
+
+/** Link de uma mensagem dentro de um tópico de supergrupo privado. */
+export function topicMessageLink(chatId: number, threadId: number, messageId: number): string {
+  return `https://t.me/c/${String(chatId).replace(/^-100/, "")}/${threadId}/${messageId}`;
+}
+
+/**
+ * No Tatu | HUB a resposta vai pro tópico do assunto (relatório em
+ * Relatórios, OS em Ordens de Serviço). Onde a pessoa perguntou fica só um
+ * aviso com o link, pra ela não perder a resposta.
+ */
+async function deliver(message: IncomingMessage, topic: HubTopic | null, text: string, keyboard?: Keyboard) {
+  if (message.source !== "hub" || !topic || topic === message.topic) {
+    return sendTelegram(message.target, text, keyboard);
+  }
+  const threadId = await threadOfTopic(message.chatId, topic);
+  if (threadId === null) return sendTelegram(message.target, text, keyboard);
+
+  // Fora do contexto da pergunta, a resposta leva a pergunta junto.
+  const asked = message.text.length > 200 ? `${message.text.slice(0, 200)}…` : message.text;
+  const sent = await sendTelegram(
+    { chatId: message.chatId, threadId, replyTo: null },
+    `${message.actor.username}: "${asked}"\n\n${text}`,
+    keyboard
+  );
+  const name = HUB_TOPICS.find((t) => t.key === topic)?.name ?? topic;
+  await sendTelegram(message.target, `Respondi em ${name}: ${topicMessageLink(message.chatId, threadId, sent.message_id)}`);
+  return sent;
 }
 
 async function answerWithAgent(message: IncomingMessage) {
@@ -68,8 +97,10 @@ async function answerWithAgent(message: IncomingMessage) {
     callModel: callResponses,
   });
 
+  const topicKey = replyTopic(result);
+
   if (result.kind === "reply") {
-    await sendTelegram(target, result.text);
+    await deliver(message, topicKey, result.text);
     await saveTurn(key, message.text, result.text);
     return;
   }
@@ -84,7 +115,7 @@ async function answerWithAgent(message: IncomingMessage) {
     summary: result.summary,
     idempotencyKey: `${message.chatId}:${message.messageId}:${result.tool.name}`,
   });
-  await sendTelegram(target, `${result.summary}\n\nConfirma?`, [
+  await deliver(message, topicKey, `${result.summary}\n\nConfirma?`, [
     [
       { text: "CONFIRMAR", callback_data: actionButtonData(actionId, "confirm") },
       { text: "CANCELAR", callback_data: actionButtonData(actionId, "cancel") },
@@ -102,7 +133,9 @@ export function telegramDeps(): TelegramDeps {
     topicOf,
     setupHubTopics,
     rateLimit,
-    reply: (target, text) => sendTelegram(target, text),
+    reply: async (target, text) => {
+      await sendTelegram(target, text);
+    },
     onMessage: answerWithAgent,
     async answerCallback(callbackId, text) {
       await telegram("answerCallbackQuery", { callback_query_id: callbackId, ...(text ? { text } : {}) });

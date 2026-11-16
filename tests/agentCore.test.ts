@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runAgent, type CallModel, type ResponseItem } from "@/lib/agent/core";
+import { replyTopic, runAgent, type CallModel, type ResponseItem } from "@/lib/agent/core";
 import { matchByName } from "@/lib/agent/match";
 import { ToolInputError, optDate, reqString } from "@/lib/agent/validate";
 import { canSeeClient, canUseBoard } from "@/lib/agent/permissions";
@@ -36,6 +36,7 @@ const tools: AgentTool[] = [
   {
     kind: "read",
     name: "get_task",
+    topic: "ordens",
     description: "",
     parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
     run: async (_a, args) => {
@@ -46,6 +47,7 @@ const tools: AgentTool[] = [
   {
     kind: "write",
     name: "create_task",
+    topic: "ordens",
     description: "",
     parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
     prepare: async (_a, args) => {
@@ -61,13 +63,13 @@ const base = { actor, history: [], where: "privado", today: "2026-11-16", tools 
 describe("runAgent", () => {
   it("devolve o texto quando o modelo responde direto", async () => {
     const { model } = scripted([[say("Oi!")]]);
-    expect(await runAgent({ ...base, text: "oi", callModel: model })).toEqual({ kind: "reply", text: "Oi!" });
+    expect(await runAgent({ ...base, text: "oi", callModel: model })).toMatchObject({ kind: "reply", text: "Oi!" });
   });
 
   it("roda a consulta e devolve o resultado pro modelo", async () => {
     const { model, seen } = scripted([[call("get_task", { protocol: "00420017" })], [say("OS 0042 0017")]]);
     const result = await runAgent({ ...base, text: "OS 00420017", callModel: model });
-    expect(result).toEqual({ kind: "reply", text: "OS 0042 0017" });
+    expect(result).toMatchObject({ kind: "reply", text: "OS 0042 0017" });
     const output = seen[1].find((i) => i.type === "function_call_output");
     expect(JSON.parse(String(output?.output))).toMatchObject({ tarefa: "Editar vídeo" });
   });
@@ -87,7 +89,7 @@ describe("runAgent", () => {
 
   it("prévia inválida vira pergunta do modelo", async () => {
     const { model } = scripted([[call("create_task", {})], [say("Qual a tarefa?")]]);
-    expect(await runAgent({ ...base, text: "cria uma tarefa", callModel: model })).toEqual({
+    expect(await runAgent({ ...base, text: "cria uma tarefa", callModel: model })).toMatchObject({
       kind: "reply",
       text: "Qual a tarefa?",
     });
@@ -144,5 +146,27 @@ describe("validação e permissões", () => {
     expect(canSeeClient(actor, "c2")).toBe(false);
     expect(canSeeClient(actor, null)).toBe(false);
     expect(canUseBoard({ ...actor, role: "admin" }, "instagram")).toBe(true);
+  });
+});
+
+describe("tópico da resposta", () => {
+  it("conversa sem ferramenta fica onde a pessoa escreveu", async () => {
+    const { model } = scripted([[say("Oi!")]]);
+    expect(replyTopic(await runAgent({ ...base, text: "oi", callModel: model }))).toBeNull();
+  });
+
+  it("consulta leva a resposta pro tópico da ferramenta", async () => {
+    const { model } = scripted([[call("get_task", { protocol: "00420017" })], [say("OS")]]);
+    expect(replyTopic(await runAgent({ ...base, text: "OS", callModel: model }))).toBe("ordens");
+  });
+
+  it("vale o tópico da última consulta", () => {
+    const relatorio = { ...tools[0], topic: "relatorios" as const };
+    expect(replyTopic({ kind: "reply", text: "", used: [tools[0], relatorio] })).toBe("relatorios");
+  });
+
+  it("prévia vai pro tópico da alteração", async () => {
+    const { model } = scripted([[call("create_task", { title: "x" })]]);
+    expect(replyTopic(await runAgent({ ...base, text: "cria", callModel: model }))).toBe("ordens");
   });
 });

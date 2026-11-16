@@ -6,6 +6,7 @@
 // argumento é validado de novo em `prepare`/`run`.
 
 import type { AgentTool, WriteTool } from "@/lib/agent/types";
+import type { HubTopic } from "@/lib/telegram/topics";
 import type { TelegramActor } from "@/lib/telegram/identity";
 import { ToolInputError } from "@/lib/agent/validate";
 import { PermissionError } from "@/lib/agent/permissions";
@@ -24,9 +25,26 @@ export interface AgentContext {
   callModel: CallModel;
 }
 
-export type AgentResult =
+export type AgentResult = (
   | { kind: "reply"; text: string }
-  | { kind: "confirm"; tool: WriteTool; summary: string; params: Record<string, unknown> };
+  | { kind: "confirm"; tool: WriteTool; summary: string; params: Record<string, unknown> }
+) & {
+  /** Ferramentas que rodaram, na ordem: decidem o tópico da resposta. */
+  used: AgentTool[];
+};
+
+/**
+ * Tópico do assunto: o da alteração, se houver; senão o da última consulta.
+ * null = conversa sem ferramenta (pergunta de volta, cumprimento): a resposta
+ * fica onde a pessoa escreveu.
+ */
+export function replyTopic(result: AgentResult): HubTopic | null {
+  if (result.kind === "confirm") return result.tool.topic ?? null;
+  for (let i = result.used.length - 1; i >= 0; i--) {
+    if (result.used[i].topic) return result.used[i].topic!;
+  }
+  return null;
+}
 
 const MAX_STEPS = 6;
 
@@ -74,12 +92,13 @@ export async function runAgent(ctx: AgentContext): Promise<AgentResult> {
     { role: "user", content: ctx.text.slice(0, 4000) },
   ];
   const tools = ctx.tools.map(toolSpec);
+  const used: AgentTool[] = [];
 
   for (let step = 0; step < MAX_STEPS; step++) {
     const output = await ctx.callModel({ instructions: instructions(ctx), input, tools });
     const calls = output.filter((i) => i.type === "function_call");
     if (!calls.length) {
-      return { kind: "reply", text: outputText(output) || "Não consegui responder agora. Pode repetir?" };
+      return { kind: "reply", text: outputText(output) || "Não consegui responder agora. Pode repetir?", used };
     }
     // Com store:false o item de raciocínio não pode voltar sem o conteúdo
     // cifrado; as chamadas bastam pro modelo seguir de onde parou.
@@ -99,12 +118,13 @@ export async function runAgent(ctx: AgentContext): Promise<AgentResult> {
       } else if (tool.kind === "write") {
         try {
           const prepared = await tool.prepare(ctx.actor, args);
-          return { kind: "confirm", tool, summary: prepared.summary, params: prepared.params as Record<string, unknown> };
+          return { kind: "confirm", tool, summary: prepared.summary, params: prepared.params as Record<string, unknown>, used };
         } catch (error) {
           result = errorOutput(error);
         }
       } else {
         try {
+          used.push(tool);
           result = await tool.run(ctx.actor, args);
         } catch (error) {
           result = errorOutput(error);
@@ -113,5 +133,5 @@ export async function runAgent(ctx: AgentContext): Promise<AgentResult> {
       input.push({ type: "function_call_output", call_id: call.call_id, output: JSON.stringify(result) });
     }
   }
-  return { kind: "reply", text: "Esse pedido precisou de passos demais. Pode dividir em partes menores?" };
+  return { kind: "reply", text: "Esse pedido precisou de passos demais. Pode dividir em partes menores?", used };
 }
