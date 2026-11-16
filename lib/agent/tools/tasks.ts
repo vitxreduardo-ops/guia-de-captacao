@@ -105,6 +105,7 @@ export async function resolveClient(actor: TelegramActor, query: string) {
 export const getTask: ReadTool = {
   kind: "read",
   name: "get_task",
+  topic: "ordens",
   description: "Detalhes de uma ordem de serviço (OS) pelo protocolo de 8 dígitos, ex.: 00420017.",
   parameters: {
     type: "object",
@@ -135,6 +136,7 @@ export const getTask: ReadTool = {
 export const findTasks: ReadTool = {
   kind: "read",
   name: "find_tasks",
+  topic: "relatorios",
   description:
     "Lista ordens de serviço com filtros. Use para: tarefas de um cliente, atrasadas, sem responsável, " +
     "em uma etapa (status), ou com prazo num intervalo. Prazo = data da entrega do card.",
@@ -241,6 +243,7 @@ type CreateTaskParams = {
 export const createTask: WriteTool<CreateTaskParams> = {
   kind: "write",
   name: "create_task",
+  topic: "ordens",
   description:
     "Cria uma ordem de serviço (card). Pede confirmação antes de gravar. " +
     "board 'entregas' = trabalho para cliente (exige client). " +

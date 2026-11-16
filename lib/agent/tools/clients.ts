@@ -8,6 +8,7 @@ import type { ReadTool } from "@/lib/agent/types";
 export const findClients: ReadTool = {
   kind: "read",
   name: "find_clients",
+  topic: "clientes",
   description:
     "Procura clientes por nome, apelido parcial ou código de 4 dígitos. Use antes de afirmar qual cliente " +
     "a pessoa quis dizer; se vier mais de um, pergunte.",
