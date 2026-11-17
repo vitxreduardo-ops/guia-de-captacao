@@ -25,7 +25,7 @@
 }
 .root * { box-sizing: border-box; }
 /* :where() zera a especificidade: o padrão não vence as classes dos botões. */
-:where(.root) :where(h1, h2, h3) { font-family: var(--display); margin: 0; letter-spacing: 0.03em; text-wrap: balance; line-height: 1.2; font-weight: 400; color: inherit; }
+:where(.root) :where(h1, h2, h3) { font-family: var(--body); margin: 0; letter-spacing: -0.01em; text-wrap: balance; line-height: 1.2; font-weight: 700; color: inherit; }
 :where(.root) p { margin: 0; }
 :where(.root) :focus-visible { outline: 3px solid var(--olive); outline-offset: 2px; border-radius: 8px; }
 :where(.root) button { font: inherit; color: inherit; }
@@ -40,7 +40,7 @@
 .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
 
 .top { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
-.top h1 { font-size: 32px; }
+.top h1 { font-size: 28px; }
 .progress { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
 .bar { flex: 1; height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--done); border-radius: 99px; transition: width 0.4s; }
@@ -83,7 +83,7 @@
 .detail { display: flex; flex-direction: column; gap: 18px; }
 .back { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-height: 48px; font-weight: 600; color: var(--muted); margin-left: -4px; }
 .dhead { display: flex; flex-direction: column; gap: 10px; }
-.dhead h1 { font-size: 32px; }
+.dhead h1 { font-size: 28px; }
 .dmeta { font-size: 15px; color: var(--muted); }
 .why { background: var(--sand); border-radius: 16px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px; }
 .why p { font-size: 16px; }
@@ -95,11 +95,11 @@
 .screens { list-style: none; padding: 0 !important; counter-reset: s; }
 .screens li { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 10px; }
 .screens li::before {
-  counter-increment: s; content: counter(s); font-family: var(--display); font-size: 16px; width: 32px; height: 32px;
+  counter-increment: s; content: counter(s); font-weight: 700; font-size: 15px; width: 32px; height: 32px;
   border-radius: 10px; background: var(--sand); display: grid; place-content: center;
 }
 .speech { white-space: pre-wrap; background: var(--bg); border-radius: 14px; padding: 16px; font-size: 17px; line-height: 1.6; overflow-wrap: anywhere; }
-.cardtext { font-family: var(--display); font-size: 24px; background: var(--sand); border-radius: 14px; padding: 16px; line-height: 1.2; }
+.cardtext { font-weight: 700; font-size: 22px; background: var(--sand); border-radius: 14px; padding: 16px; line-height: 1.2; }
 .dl { margin: 0; display: flex; flex-direction: column; gap: 12px; }
 .dl dt { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 .dl dd { margin: 2px 0 0; overflow-wrap: anywhere; }
@@ -168,9 +168,8 @@
   all: unset; box-sizing: border-box; min-height: 58px; border-radius: 14px; padding-top: 9px; display: flex; flex-direction: column;
   align-items: center; gap: 6px; color: var(--muted);
 }
-.cd b { font-size: 17px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.cd b { font-family: var(--display); font-size: 19px; font-weight: 400; font-variant-numeric: tabular-nums; }
 .cdOn { cursor: pointer; background: var(--surface); border: 1.5px solid var(--line); color: var(--ink); }
-.cdOn b { font-weight: 700; }
 .cdOn:active { background: var(--sand); }
 .cdHoje { box-shadow: inset 0 0 0 2px var(--olive-strong); }
 .pips { display: flex; gap: 3px; height: 8px; }
@@ -181,5 +180,55 @@
 .legenda { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 14px !important; font-size: 13px; color: var(--muted); }
 .legenda span { display: inline-flex; align-items: center; gap: 6px; }
 .entrega { display: flex; flex-direction: column; gap: 18px; border-top: 1px solid var(--line); padding-top: 24px; }
-.dhead h2 { font-size: 26px; }
+.dhead h2 { font-size: 22px; }
 .chev { width: 20px; height: 20px; color: var(--muted); flex: none; }
+/* Bootzy só nas datas. */
+.dataDia { font-family: var(--display); font-size: 30px; font-weight: 400; letter-spacing: 0.03em; line-height: 1.2; margin: 0; }
+.cdSel { background: var(--ink) !important; border-color: var(--ink) !important; color: var(--bg) !important; }
+.previa { margin-top: 16px; scroll-margin-bottom: 88px; }
+.previaItem { display: flex; flex-direction: column; gap: 12px; }
+.previaItem + .previaItem { border-top: 1px solid var(--line); padding-top: 16px; }
+.abrir { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; justify-content: center; min-height: 52px; border-radius: 14px; background: var(--ink); color: var(--bg); font-weight: 600; font-size: 16px; }
+
+/* ——— Apple design: resposta, material, tipografia ——— */
+.root { -webkit-tap-highlight-color: transparent; }
+
+/* Resposta: o toque reage na hora (pointer-down), sem esperar soltar. */
+.cd, .check, .next, .abrir, .copy, .pager button, .back, .ref, .tabs button, .fold > summary {
+  transition: transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+.cdOn:active, .check:active, .next:active, .abrir:active, .copy:active, .pager button:active, .ref:active { transform: scale(0.97); }
+.tabs button:active, .back:active { opacity: 0.6; }
+
+/* Material: barra de abas translúcida, o conteúdo rola por baixo. */
+.tabs {
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+
+/* Cartão do dia: nasce de baixo do calendário, como parte dele. */
+@keyframes nasce { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: none; } }
+.previa { transform-origin: top center; animation: nasce 280ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* Tipografia: títulos grandes mais fechados, texto corrido neutro, entrelinha menor onde a letra é grande. */
+.top h1, .dhead h1 { letter-spacing: -0.022em; line-height: 1.1; }
+.block h2, .next h2, .dhead h2 { letter-spacing: -0.012em; }
+.dataDia { letter-spacing: 0.02em; }
+.eyebrow { letter-spacing: 0.1em; }
+.speech { letter-spacing: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .previa { animation: nasceSuave 200ms ease; }
+  .cdOn:active, .check:active, .next:active, .abrir:active, .copy:active, .pager button:active, .ref:active { transform: none; }
+}
+@keyframes nasceSuave { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-transparency: reduce) {
+  .tabs { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-contrast: more) {
+  .root { --line: #b9ae8f; --muted: #4a4a3c; }
+  .tabs { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
