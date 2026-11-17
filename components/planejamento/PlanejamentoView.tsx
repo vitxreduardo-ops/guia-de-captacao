@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { marcarPassoAction } from "@/app/planejamento/[slug]/actions";
 import {
   chaveMarcacao,
@@ -31,6 +31,13 @@ const ouvirHash = (avisar: () => void) => {
   return () => window.removeEventListener("hashchange", avisar);
 };
 const nada = () => () => {};
+// Em tela larga (desktop, iPad deitado) o dia completo abre em modal; no resto, em página.
+const LARGO = "(min-width: 1000px)";
+const ouvirLargura = (avisar: () => void) => {
+  const m = matchMedia(LARGO);
+  m.addEventListener("change", avisar);
+  return () => m.removeEventListener("change", avisar);
+};
 const sem = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 function Chev() {
@@ -90,19 +97,23 @@ export function PlanejamentoView({
   const diaHoje = useSyncExternalStore(nada, () => new Date().toDateString(), () => "");
   const hoje = diaHoje ? new Date(diaHoje) : null;
   // Posição de rolagem de cada tela da agenda: voltar da entrega cai onde a pessoa estava.
+  const largo = useSyncExternalStore(ouvirLargura, () => matchMedia(LARGO).matches, () => false);
   const posicoes = useRef(new Map<string, number>());
-  const rotaDaRolagem = useRef(rota);
+  // Em tela larga o dia é um modal por cima da agenda: para a rolagem, continua sendo a "agenda".
+  const chave = largo && /^(e|dia-)\d+$/.test(rota) ? "agenda" : rota;
+  const rotaDaRolagem = useRef(chave);
   useLayoutEffect(() => {
-    rotaDaRolagem.current = rota;
-    window.scrollTo(0, /^(e|dia-)\d+$/.test(rota) ? 0 : (posicoes.current.get(rota) ?? 0));
+    rotaDaRolagem.current = chave;
+    window.scrollTo(0, /^(e|dia-)\d+$/.test(chave) ? 0 : (posicoes.current.get(chave) ?? 0));
     const guardar = () => posicoes.current.set(rotaDaRolagem.current, window.scrollY);
     window.addEventListener("scroll", guardar, { passive: true });
     return () => window.removeEventListener("scroll", guardar);
-  }, [rota]);
+  }, [chave]);
   // Dia tocado no calendário: o roteiro aparece embaixo dele, sem sair da tela.
   // undefined = ninguém tocou ainda (já abre a próxima entrega); null = fechado de propósito.
   const [diaSel, setDiaSel] = useState<number | null | undefined>(undefined);
   const previaRef = useRef<HTMLElement>(null);
+  const modalRef = useRef<HTMLDialogElement>(null);
   const [erro, setErro] = useState("");
   const [, startTransition] = useTransition();
 
@@ -126,6 +137,15 @@ export function PlanejamentoView({
   // Dia que não existe no mês cai na agenda em vez de uma tela vazia.
   const diaAberto = diaDoLink !== undefined && diaDoLink >= 1 && diaDoLink <= diasNoMes(c.ano, c.mes) ? diaDoLink : undefined;
   const aba = rota === "estrategia" ? "estrategia" : "agenda";
+
+  // O <dialog> nativo cuida de foco, Esc e do fundo inerte; só espelhamos o endereço nele.
+  useEffect(() => {
+    const d = modalRef.current;
+    if (!d) return;
+    if (largo && diaAberto !== undefined) {
+      if (!d.open) d.showModal();
+    } else if (d.open) d.close();
+  }, [largo, diaAberto]);
 
   function ir(h: string) {
     if (window.location.hash.slice(1) !== h) {
@@ -285,7 +305,9 @@ export function PlanejamentoView({
                     <h2>{e.titulo}</h2>
                     {e.formato ? <p className={st.dmeta}>{e.formato}</p> : null}
                     {e.fala ? (
-                      <p className={`${st.speech} ${doDia.length > 1 ? st.clamp2 : st.clamp}`}>{e.fala}</p>
+                      <p className={st.speech}>
+                        <span className={doDia.length > 1 ? st.clamp2 : st.clamp}>{e.fala}</span>
+                      </p>
                     ) : e.telas.length ? (
                       <>
                         <ol className={st.screens}>
@@ -298,7 +320,9 @@ export function PlanejamentoView({
                         {e.telas.length > (doDia.length > 1 ? 1 : 3) ? <p className={st.note}>+ {e.telas.length - (doDia.length > 1 ? 1 : 3)} no dia completo</p> : null}
                       </>
                     ) : e.card ? (
-                      <p className={st.cardtext}>{e.card}</p>
+                      <p className={st.cardtext}>
+                        <span className={st.clamp3}>{e.card}</span>
+                      </p>
                     ) : (
                       <p className={st.note}>Roteiro completo na página do dia.</p>
                     )}
@@ -434,8 +458,9 @@ export function PlanejamentoView({
     );
   }
 
-  // Tela do dia: tudo o que há pra fazer naquela data, uma entrega embaixo da outra.
-  function detalhe(dia: number) {
+  // Tudo o que há pra fazer naquela data, uma entrega embaixo da outra.
+  // Serve à página (celular/iPad) e ao modal (desktop).
+  function conteudoDia(dia: number) {
     const es = E.filter((e) => e.dia === dia);
     const diasComPost = [...new Set(E.map((e) => e.dia))];
     const k = diasComPost.indexOf(dia);
@@ -444,10 +469,7 @@ export function PlanejamentoView({
     const nome = WDL[data(dia).getDay()];
     const rotuloDia = (d: number) => `${WD[data(d).getDay()]}, ${d}`;
     return (
-      <div className={st.detail}>
-        <button type="button" className={st.back} onClick={() => ir("agenda")}>
-          ← Calendário
-        </button>
+      <>
         {es.length === 0 ? (
           <div className={st.dhead}>
             <h1 className={st.dataDia}>{nome[0].toUpperCase() + nome.slice(1)}, {dia} de {MESES[c.mes - 1]}</h1>
@@ -488,6 +510,17 @@ export function PlanejamentoView({
             Próxima<b>{prox !== undefined ? rotuloDia(prox) : ""}</b>
           </button>
         </div>
+      </>
+    );
+  }
+
+  function detalhe(dia: number) {
+    return (
+      <div className={st.detail}>
+        <button type="button" className={st.back} onClick={() => ir("agenda")}>
+          ← Calendário
+        </button>
+        {conteudoDia(dia)}
       </div>
     );
   }
@@ -569,7 +602,7 @@ export function PlanejamentoView({
       <main className={st.app}>
         {E.length === 0 ? (
           <p className={st.empty}>Este planejamento ainda está sendo preparado.</p>
-        ) : diaAberto ? (
+        ) : diaAberto && !largo ? (
           detalhe(diaAberto)
         ) : aba === "estrategia" ? (
           estrategia()
@@ -577,6 +610,31 @@ export function PlanejamentoView({
           agenda()
         )}
       </main>
+      {largo && E.length > 0 ? (
+        <dialog
+          ref={modalRef}
+          className={st.modal}
+          aria-label={diaAberto ? `Dia ${diaAberto} de ${MESES[c.mes - 1]}` : "Dia"}
+          onClose={() => {
+            // Esc e o botão fechar voltam pra agenda; o botão "voltar" do navegador também.
+            if (/^(e|dia-)\d+$/.test(window.location.hash.slice(1).toLowerCase())) ir("agenda");
+          }}
+          onClick={(ev) => {
+            if (ev.target === ev.currentTarget) ev.currentTarget.close();
+          }}
+        >
+          {diaAberto ? (
+            <div className={st.modalCorpo}>
+              <button type="button" className={st.fechar} aria-label="Fechar" onClick={() => modalRef.current?.close()}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+              <div className={st.detail}>{conteudoDia(diaAberto)}</div>
+            </div>
+          ) : null}
+        </dialog>
+      ) : null}
       {erro ? (
         <p role="alert" className={st.erro}>
           {erro}
@@ -584,7 +642,7 @@ export function PlanejamentoView({
       ) : null}
       <nav className={st.tabs} aria-label="Seções">
         <div>
-          <button type="button" aria-current={aba === "agenda" && !diaAberto ? "page" : undefined} onClick={() => ir("agenda")}>
+          <button type="button" aria-current={aba === "agenda" && (!diaAberto || largo) ? "page" : undefined} onClick={() => ir("agenda")}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <rect x="3" y="4" width="18" height="18" rx="3" />
               <path d="M16 2v4M8 2v4M3 10h18" />

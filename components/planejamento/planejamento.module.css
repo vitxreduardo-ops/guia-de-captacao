@@ -180,8 +180,9 @@
 .dataDia { font-family: var(--display); font-size: 30px; font-weight: 400; letter-spacing: 0.03em; line-height: 1.2; margin: 0; }
 .cdSel { background: var(--ink) !important; border-color: var(--ink) !important; color: var(--bg) !important; }
 /* Moldura fixa do cartão do dia */
-.slot { display: grid; margin-top: 16px; scroll-margin-bottom: 88px; }
-.slot > * { grid-area: 1 / 1; visibility: hidden; }
+/* minmax(0, 1fr): a coluna nunca cresce com o conteúdo; um texto comprido não alarga o cartão. */
+.slot { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: 16px; scroll-margin-bottom: 88px; }
+.slot > * { grid-area: 1 / 1; min-width: 0; overflow-wrap: anywhere; visibility: hidden; }
 .slot > .on { visibility: visible; animation: nasce 280ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 .previa { gap: 12px; }
 .previa .abrir { margin-top: auto; }
@@ -310,4 +311,40 @@
 .multi .previaItem { gap: 8px; }
 .multi .dmeta { display: none; }
 .multi .speech { padding: 10px 14px; }
-.multi .cardtext { font-size: 16px; padding: 10px 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Texto do card: respeita as quebras de linha e corta em 3 linhas (1 quando o dia tem mais de uma entrega). */
+/* O corte de linhas fica num elemento interno, sem padding: com padding, um pedaço da linha seguinte aparece. */
+.clamp3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-line; }
+.multi .cardtext { font-size: 16px; padding: 10px 14px; }
+.multi .clamp3 { -webkit-line-clamp: 1; }
+
+/* ——— Modal do dia (desktop) ——— */
+.modal {
+  border: 0; padding: 0; margin: auto; overflow: hidden; background: var(--bg); color: var(--ink); font: inherit;
+  width: min(760px, calc(100vw - 48px)); height: min(86vh, 820px); border-radius: 24px;
+  box-shadow: 0 24px 80px rgba(40, 38, 28, 0.28), 0 2px 8px rgba(40, 38, 28, 0.12);
+}
+.modal[open] { animation: modalEntra 220ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.modal::backdrop { background: rgba(47, 45, 36, 0.38); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.modal[open]::backdrop { animation: fundoEntra 220ms ease; }
+/* Altura fixa: trocar de dia (Anterior/Próxima) não muda o tamanho do modal; o conteúdo rola por dentro. */
+.modalCorpo { position: relative; height: 100%; overflow-y: auto; overscroll-behavior: contain; padding: 32px 36px 36px; }
+.modalCorpo .detail { max-width: none; margin: 0; }
+.fechar {
+  all: unset; box-sizing: border-box; cursor: pointer; position: sticky; top: 0; float: right; z-index: 2; margin: -12px -16px 0 0;
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-content: center;
+  background: color-mix(in srgb, var(--surface) 80%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  border: 1px solid var(--line); color: var(--ink);
+}
+.fechar svg { width: 18px; height: 18px; }
+@media (hover: hover) and (pointer: fine) { .fechar:hover { background: var(--sand); } }
+.fechar:active { transform: scale(0.94); }
+:global(html):has(.modal[open]) { overflow: hidden; scrollbar-gutter: stable; }
+@keyframes modalEntra { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes fundoEntra { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .modal[open] { animation: fundoEntra 160ms ease; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .modal::backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(47, 45, 36, 0.5); }
+  .fechar { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
