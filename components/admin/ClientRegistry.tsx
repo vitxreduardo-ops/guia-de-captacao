@@ -3,12 +3,14 @@
 import { confirmar } from "@/components/ConfirmHost";
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { CopyLinkButton } from "@/components/admin/CopyLinkButton";
 import { formatBRL } from "@/lib/billingTypes";
 import type { GalleryClient } from "@/lib/galleries";
 import {
   createClientAction,
   deleteClientAction,
   disconnectInstagramAction,
+  instagramInviteTokenAction,
   setClientArchivedAction,
   updateClientAction,
 } from "@/app/admin/clientes/cadastro/actions";
@@ -172,9 +174,10 @@ function ClientRow({
               ) : null}
             </div>
             <span className="mt-1 block text-[11px] text-neutral-400">
-              O Instagram usa a conta aberta neste navegador. Antes de
-              conectar, entre na conta certa do cliente (ou use uma janela anônima).
+              "Conectar" usa a conta aberta neste navegador. Pra o cliente
+              conectar no aparelho dele, gere o link e mande pra ele.
             </span>
+            <ConviteInstagram clientId={client.id} />
           </div>
 
           <details className="rounded-lg border border-neutral-200 sm:col-span-2">
@@ -466,5 +469,34 @@ export function ClientRegistry({
         </div>
       ) : null}
     </section>
+  );
+}
+
+/** Gera o link público de conexão e mostra o botão de copiar. */
+function ConviteInstagram({ clientId }: { clientId: string }) {
+  const [link, setLink] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  if (link) {
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <CopyLinkButton text={link} />
+        <span className="break-all text-[11px] text-neutral-500">{link}</span>
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      disabled={pending}
+      onClick={() =>
+        startTransition(async () => {
+          const token = await instagramInviteTokenAction(clientId);
+          setLink(`${window.location.origin}/conectar-instagram/${encodeURIComponent(token)}`);
+        })
+      }
+      className={`mt-2 rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 ${PRESS}`}
+    >
+      Gerar link pro cliente
+    </button>
   );
 }
