@@ -10,7 +10,7 @@ import {
   updateGalleryClientDetails,
 } from "@/lib/galleries";
 import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
-import { disconnectInstagramAccount } from "@/lib/instagram";
+import { createInstagramInviteToken, disconnectInstagramAccount } from "@/lib/instagram";
 import { requireTeam } from "@/lib/session";
 
 /**
@@ -52,6 +52,13 @@ export async function disconnectInstagramAction(formData: FormData) {
 
   await disconnectInstagramAccount(id);
   revalidateClients();
+}
+
+/** Token do link que o cliente abre no celular dele pra conectar o Instagram. */
+export async function instagramInviteTokenAction(clientId: string) {
+  await requireTeam("clientes");
+  assertClientAllowed(await getCurrentClientScope(), clientId);
+  return createInstagramInviteToken(clientId);
 }
 
 export async function setClientArchivedAction(formData: FormData) {

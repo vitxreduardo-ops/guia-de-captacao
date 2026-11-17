@@ -1,4 +1,5 @@
 import "server-only";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 // Instagram Login (graph.instagram.com): não exige Página do Facebook.
@@ -24,17 +25,53 @@ export const INSTAGRAM_STATE_PREFIX = "ig:";
 /** Sufixo do `state` que manda o callback de volta pro cadastro do cliente. */
 export const INSTAGRAM_STATE_CADASTRO = ":cadastro";
 
-export function buildInstagramAuthUrl(clientId: string, voltarAoCadastro = false): string {
+function authUrl(state: string): string {
   const { appId, redirectUri } = appConfig();
   const params = new URLSearchParams({
     client_id: appId,
     redirect_uri: redirectUri,
     response_type: "code",
     scope: SCOPES,
-    state:
-      INSTAGRAM_STATE_PREFIX + clientId + (voltarAoCadastro ? INSTAGRAM_STATE_CADASTRO : ""),
+    state,
   });
   return `https://www.instagram.com/oauth/authorize?${params}`;
+}
+
+export function buildInstagramAuthUrl(clientId: string, voltarAoCadastro = false): string {
+  return authUrl(
+    INSTAGRAM_STATE_PREFIX + clientId + (voltarAoCadastro ? INSTAGRAM_STATE_CADASTRO : "")
+  );
+}
+
+/**
+ * Convite pro CLIENTE conectar o próprio Instagram, sem login no painel.
+ * O token é `<clientId>.<assinatura>`: HMAC do id com o segredo do app, então
+ * não precisa de tabela e ninguém forja link de outro cliente.
+ */
+export const INSTAGRAM_STATE_CONVITE = "igc:";
+
+function assinar(clientId: string): string {
+  return createHmac("sha256", appConfig().appSecret).update(`ig-convite:${clientId}`).digest("hex").slice(0, 32);
+}
+
+export function createInstagramInviteToken(clientId: string): string {
+  return `${clientId}.${assinar(clientId)}`;
+}
+
+/** Devolve o id do cliente se a assinatura bate; senão null. */
+export function readInstagramInviteToken(token: string): string | null {
+  const i = token.lastIndexOf(".");
+  if (i < 1) return null;
+  const clientId = token.slice(0, i);
+  const esperado = Buffer.from(assinar(clientId));
+  const recebido = Buffer.from(token.slice(i + 1));
+  return recebido.length === esperado.length && timingSafeEqual(recebido, esperado)
+    ? clientId
+    : null;
+}
+
+export function buildInstagramInviteAuthUrl(token: string): string {
+  return authUrl(INSTAGRAM_STATE_CONVITE + token);
 }
 
 async function igJson<T>(res: Response): Promise<T> {
