@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useSyncExternalStore, useTransition } from "react";
+import { useLayoutEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { marcarPassoAction } from "@/app/planejamento/[slug]/actions";
 import {
   chaveMarcacao,
+  diasNoMes,
   passosDa,
   type Entrega,
   type PassoId,
@@ -88,6 +89,16 @@ export function PlanejamentoView({
   // Data só no navegador: o servidor não sabe o fuso de quem abre.
   const diaHoje = useSyncExternalStore(nada, () => new Date().toDateString(), () => "");
   const hoje = diaHoje ? new Date(diaHoje) : null;
+  // Posição de rolagem de cada tela da agenda: voltar da entrega cai onde a pessoa estava.
+  const posicoes = useRef(new Map<string, number>());
+  const rotaDaRolagem = useRef(rota);
+  useLayoutEffect(() => {
+    rotaDaRolagem.current = rota;
+    window.scrollTo(0, /^(e|dia-)\d+$/.test(rota) ? 0 : (posicoes.current.get(rota) ?? 0));
+    const guardar = () => posicoes.current.set(rotaDaRolagem.current, window.scrollY);
+    window.addEventListener("scroll", guardar, { passive: true });
+    return () => window.removeEventListener("scroll", guardar);
+  }, [rota]);
   const [erro, setErro] = useState("");
   const [, startTransition] = useTransition();
 
@@ -97,11 +108,6 @@ export function PlanejamentoView({
   const completo = (e: Entrega) => passosDa(e).every((p) => feito(e, p.id));
   const atrasado = (e: Entrega) => !!hoje && data(e.dia) < hoje && !completo(e);
 
-  // Dias de plantão vêm da rotina ("Qui" → quinta).
-  const plantao = new Set(
-    c.rotina.filter((r) => r.tipo === "plantao").map((r) => WD.findIndex((w) => sem(w) === sem(r.dia).slice(0, 3))),
-  );
-
   const semanas = c.semanas.length
     ? c.semanas
     : [...new Set(E.map((e) => e.semana))].map((n) => {
@@ -109,12 +115,10 @@ export function PlanejamentoView({
         return { numero: n, inicio: Math.min(...dias), fim: Math.max(...dias), tema: "", objetivo: "" };
       });
 
-  const mesDeHoje = hoje && hoje.getFullYear() === c.ano && hoje.getMonth() === c.mes - 1;
-  const semanaDeHoje = mesDeHoje ? semanas.find((w) => hoje!.getDate() >= w.inicio && hoje!.getDate() <= w.fim)?.numero : undefined;
-  const mSem = rota.match(/^semana-(\d+)$/);
+  const mDia = rota.match(/^dia-(\d+)$/);
   const mPost = rota.match(/^(e\d+)$/);
-  const entrega = mPost ? E.find((e) => e.id === mPost[1]) : undefined;
-  const semanaAtual = (mSem ? Number(mSem[1]) : entrega?.semana) ?? semanaDeHoje ?? semanas[0]?.numero ?? 1;
+  // Links antigos (#e5) abrem o dia da entrega.
+  const diaAberto = mDia ? Number(mDia[1]) : mPost ? E.find((e) => e.id === mPost[1])?.dia : undefined;
   const aba = rota === "estrategia" ? "estrategia" : "agenda";
 
   function ir(h: string) {
@@ -122,7 +126,6 @@ export function PlanejamentoView({
       history.pushState(null, "", `#${h}`);
       window.dispatchEvent(new HashChangeEvent("hashchange"));
     }
-    window.scrollTo(0, 0);
   }
 
   function marcar(e: Entrega, p: PassoId, valor: boolean) {
@@ -175,19 +178,12 @@ export function PlanejamentoView({
   const totalPassos = E.reduce((t, e) => t + passosDa(e).length, 0);
   const passosFeitos = E.reduce((t, e) => t + passosDa(e).filter((p) => feito(e, p.id)).length, 0);
 
-  function agenda() {
-    const w = semanas.find((x) => x.numero === semanaAtual) ?? semanas[0];
-    const daSemana = E.filter((e) => e.semana === w?.numero);
-    const proxima = hoje ? E.find((e) => atrasado(e)) ?? E.find((e) => data(e.dia) >= hoje && !completo(e)) : undefined;
+  const SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
-    // Faixa seg→dom cobrindo a semana inteira (pode passar de 7 dias).
-    const dias: (number | null)[] = [];
-    if (w) {
-      const recuo = (data(w.inicio).getDay() + 6) % 7;
-      for (let i = 0; i < recuo; i++) dias.push(null);
-      for (let d = w.inicio; d <= w.fim; d++) dias.push(d);
-      while (dias.length % 7) dias.push(null);
-    }
+  function agenda() {
+    const proxima = hoje ? E.find((e) => atrasado(e)) ?? E.find((e) => data(e.dia) >= hoje && !completo(e)) : undefined;
+    const celulas: (number | null)[] = Array(((data(1).getDay() + 6) % 7)).fill(null);
+    for (let d = 1; d <= diasNoMes(c.ano, c.mes); d++) celulas.push(d);
 
     return (
       <>
@@ -207,7 +203,7 @@ export function PlanejamentoView({
         </header>
 
         {proxima ? (
-          <button type="button" className={st.next} onClick={() => ir(proxima.id)}>
+          <button type="button" className={st.next} onClick={() => ir(`dia-${proxima.dia}`)}>
             <span className={st.eyebrow}>
               {atrasado(proxima) ? "Ficou pra trás" : "Próxima entrega"} · {WDL[data(proxima.dia).getDay()]}, {proxima.dia}/{c.mes}
             </span>
@@ -219,110 +215,65 @@ export function PlanejamentoView({
           </button>
         ) : null}
 
-        <div className={st.weeks} role="group" aria-label="Semanas">
-          {semanas.map((x) => {
-            const tudo = E.filter((e) => e.semana === x.numero).every(completo);
-            return (
-              <button key={x.numero} type="button" className={st.wk} aria-pressed={x.numero === w?.numero} onClick={() => ir(`semana-${x.numero}`)}>
-                <b>
-                  Semana {x.numero}
-                  {tudo ? <i className={st.dot} aria-label="concluída" /> : null}
-                </b>
-                <small>
-                  {x.inicio} a {x.fim}/{c.mes}
-                </small>
-              </button>
-            );
-          })}
-        </div>
-
-        {w?.tema || w?.objetivo ? (
-          <div className={st.whead}>
-            <span className={st.eyebrow}>Tema da semana</span>
-            {w.tema ? <h2>{w.tema}</h2> : null}
-            {w.objetivo ? <p>{w.objetivo}</p> : null}
+        <section className={st.cal} aria-label={`Calendário de ${MESES[c.mes - 1]}`}>
+          <div className={st.calHead} aria-hidden>
+            {SEMANA.map((x) => (
+              <span key={x}>{x}</span>
+            ))}
           </div>
-        ) : (
-          <div className={st.whead} />
-        )}
-
-        <div className={st.days}>
-          {dias.map((d, i) => {
-            if (d === null) return <div key={`b${i}`} className={`${st.day} ${st.dayBlank}`} aria-hidden />;
-            const dt = data(d);
-            const ps = E.filter((e) => e.dia === d);
-            const cls = [st.day, plantao.has(dt.getDay()) ? st.dayShift : "", hoje && +dt === +hoje ? st.dayToday : "", ps.length ? "" : st.dayOff].join(" ");
-            const rotulo = `${WDL[dt.getDay()]} ${d}: ${ps.length ? ps.map((e) => `${TIPO[e.tipo]} ${e.titulo}`).join(", ") : plantao.has(dt.getDay()) ? "plantão" : "sem postagem"}`;
-            const miolo = (
-              <>
-                <small>{WD[dt.getDay()]}</small>
-                <b>{d}</b>
-                <span className={st.pips}>
-                  {ps.map((e) => (
-                    <i key={e.id} className={`${st.pip} ${completo(e) ? st.pipOk : e.tipo !== "stories" ? st.pipFeed : ""}`} />
-                  ))}
+          <div className={st.calGrid}>
+            {celulas.map((d, i) => {
+              if (d === null) return <span key={`b${i}`} />;
+              const ps = E.filter((e) => e.dia === d);
+              const ehHoje = !!hoje && +data(d) === +hoje;
+              const miolo = (
+                <>
+                  <b>{d}</b>
+                  <span className={st.pips}>
+                    {ps.map((e) => (
+                      <i key={e.id} className={`${st.pip} ${completo(e) ? st.pipOk : atrasado(e) ? st.pipLate : e.tipo !== "stories" ? st.pipFeed : ""}`} />
+                    ))}
+                  </span>
+                </>
+              );
+              const cls = `${st.cd} ${ps.length ? st.cdOn : ""} ${ehHoje ? st.cdHoje : ""}`;
+              return ps.length ? (
+                <button key={d} type="button" className={cls} aria-label={`${WDL[data(d).getDay()]} ${d}: ${ps.map((e) => `${TIPO[e.tipo]} ${e.titulo}`).join(", ")}`} onClick={() => ir(`dia-${d}`)}>
+                  {miolo}
+                </button>
+              ) : (
+                <span key={d} className={cls}>
+                  {miolo}
                 </span>
-              </>
-            );
-            return ps.length ? (
-              <button
-                key={d}
-                type="button"
-                className={cls}
-                aria-label={rotulo}
-                onClick={() => document.getElementById(`dia-${d}`)?.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" })}
-              >
-                {miolo}
-              </button>
-            ) : (
-              <div key={d} className={cls} aria-label={rotulo}>
-                {miolo}
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+          <p className={st.legenda}>
+            <span><i className={`${st.pip} ${st.pipFeed}`} /> Feed ou Reel</span>
+            <span><i className={st.pip} /> Stories</span>
+            <span><i className={`${st.pip} ${st.pipOk}`} /> Pronto</span>
+          </p>
+        </section>
 
-        {w?.numero === semanas[0]?.numero && c.avisos.length ? (
-          <div className={st.list} style={{ marginBottom: 12 }}>
+        {c.avisos.length ? (
+          <details className={`${st.block} ${st.fold} ${st.combinados}`}>
+            <summary>
+              <h2>Combinados do mês</h2>
+              <Chev />
+            </summary>
             {c.avisos.map((a) => (
               <p key={a} className={st.note}>
                 {a}
               </p>
             ))}
-          </div>
+          </details>
         ) : null}
-
-        <div className={st.list}>
-          {daSemana.length === 0 ? <p className={st.note}>Nenhuma postagem nesta semana.</p> : null}
-          {daSemana.map((e, i) => (
-            <article key={e.id} id={daSemana.findIndex((x) => x.dia === e.dia) === i ? `dia-${e.dia}` : undefined} className={`${st.card} ${completo(e) ? st.cardDone : ""}`}>
-              <button type="button" className={st.open} onClick={() => ir(e.id)}>
-                <span className={st.when}>
-                  <b>{e.dia}</b>
-                  <small>{WD[data(e.dia).getDay()]}</small>
-                </span>
-                <span className={st.what}>
-                  {pills(e)}
-                  <h3>{e.titulo}</h3>
-                </span>
-                <Chev />
-              </button>
-              <div className={st.steps}>
-                {checks(e, "l")}
-              </div>
-            </article>
-          ))}
-        </div>
       </>
     );
   }
 
-  function detalhe(e: Entrega) {
+  function corpo(e: Entrega, T: "h1" | "h2") {
     const w = semanas.find((x) => x.numero === e.semana);
-    const i = E.indexOf(e);
-    const ant = E[i - 1];
-    const prox = E[i + 1];
-    const dia = WDL[data(e.dia).getDay()];
     // Sem repetir quando o objetivo da semana já começa pela linha de conteúdo.
     const objetivo = w?.objetivo ?? "";
     const porque = e.porque
@@ -331,17 +282,11 @@ export function PlanejamentoView({
         ? `${e.linha}. ${objetivo}`.trim()
         : objetivo || e.linha;
     return (
-      <div className={st.detail}>
-        <button type="button" className={st.back} onClick={() => ir(`semana-${e.semana}`)}>
-          ← Semana {e.semana}
-        </button>
+      <>
         <div className={st.dhead}>
           {pills(e)}
-          <h1>{e.titulo}</h1>
-          <p className={st.dmeta}>
-            {dia[0].toUpperCase() + dia.slice(1)}, {e.dia} de {MESES[c.mes - 1]}
-            {e.formato ? ` · ${e.formato}` : ""}
-          </p>
+          <T>{e.titulo}</T>
+          {e.formato ? <p className={st.dmeta}>{e.formato}</p> : null}
         </div>
         {porque ? (
           <div className={st.why}>
@@ -349,7 +294,7 @@ export function PlanejamentoView({
             <p>{porque}</p>
           </div>
         ) : null}
-        <div className={st.dsteps}>
+        <div className={st.steps} style={{ padding: 0 }}>
           {checks(e, "d")}
         </div>
         {e.detalhes.length ? (
@@ -422,12 +367,57 @@ export function PlanejamentoView({
           </section>
         ) : null}
         {e.observacao ? <p className={st.note}>{e.observacao}</p> : null}
+      </>
+    );
+  }
+
+  // Tela do dia: tudo o que há pra fazer naquela data, uma entrega embaixo da outra.
+  function detalhe(dia: number) {
+    const es = E.filter((e) => e.dia === dia);
+    const diasComPost = [...new Set(E.map((e) => e.dia))];
+    const k = diasComPost.indexOf(dia);
+    const ant = diasComPost[k - 1];
+    const prox = diasComPost[k + 1];
+    const nome = WDL[data(dia).getDay()];
+    const rotuloDia = (d: number) => `${WD[data(d).getDay()]}, ${d}`;
+    return (
+      <div className={st.detail}>
+        <button type="button" className={st.back} onClick={() => ir("agenda")}>
+          ← Calendário
+        </button>
+        {es.length === 0 ? (
+          <div className={st.dhead}>
+            <h1>{nome[0].toUpperCase() + nome.slice(1)}, {dia} de {MESES[c.mes - 1]}</h1>
+            <p className={st.note}>Sem postagem neste dia.</p>
+          </div>
+        ) : es.length === 1 ? (
+          <>
+            <span className={st.eyebrow}>
+              {nome[0].toUpperCase() + nome.slice(1)}, {dia} de {MESES[c.mes - 1]}
+            </span>
+            {corpo(es[0], "h1")}
+          </>
+        ) : (
+          <>
+            <div className={st.dhead}>
+              <span className={st.eyebrow}>{es.length} entregas neste dia</span>
+              <h1>
+                {nome[0].toUpperCase() + nome.slice(1)}, {dia} de {MESES[c.mes - 1]}
+              </h1>
+            </div>
+            {es.map((e) => (
+              <section key={e.id} className={st.entrega}>
+                {corpo(e, "h2")}
+              </section>
+            ))}
+          </>
+        )}
         <div className={st.pager}>
-          <button type="button" disabled={!ant} onClick={() => ant && ir(ant.id)}>
-            Anterior<b>{ant?.curto}</b>
+          <button type="button" disabled={ant === undefined} onClick={() => ant !== undefined && ir(`dia-${ant}`)}>
+            Anterior<b>{ant !== undefined ? rotuloDia(ant) : ""}</b>
           </button>
-          <button type="button" className={st.nx} disabled={!prox} onClick={() => prox && ir(prox.id)}>
-            Próxima<b>{prox?.curto}</b>
+          <button type="button" className={st.nx} disabled={prox === undefined} onClick={() => prox !== undefined && ir(`dia-${prox}`)}>
+            Próxima<b>{prox !== undefined ? rotuloDia(prox) : ""}</b>
           </button>
         </div>
       </div>
@@ -520,8 +510,8 @@ export function PlanejamentoView({
       <main className={st.app}>
         {E.length === 0 ? (
           <p className={st.empty}>Este planejamento ainda está sendo preparado.</p>
-        ) : entrega ? (
-          detalhe(entrega)
+        ) : diaAberto ? (
+          detalhe(diaAberto)
         ) : aba === "estrategia" ? (
           estrategia()
         ) : (
@@ -535,7 +525,7 @@ export function PlanejamentoView({
       ) : null}
       <nav className={st.tabs} aria-label="Seções">
         <div>
-          <button type="button" aria-current={aba === "agenda" && !entrega ? "page" : undefined} onClick={() => ir(`semana-${semanaAtual}`)}>
+          <button type="button" aria-current={aba === "agenda" && !diaAberto ? "page" : undefined} onClick={() => ir("agenda")}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
               <rect x="3" y="4" width="18" height="18" rx="3" />
               <path d="M16 2v4M8 2v4M3 10h18" />

@@ -184,7 +184,7 @@ export function passosDa(e: Entrega): Passo[] {
     return [{ id: "g", label: e.fala || e.telas.length ? "Gravei" : "Fotografei" }, { id: "p", label: "Postei" }];
   }
   if (/carrossel/i.test(e.formato)) return [{ id: "g", label: "Separei as fotos" }, { id: "p", label: "Postei" }];
-  return [{ id: "g", label: "Revisei a legenda" }, { id: "p", label: "Postei" }];
+  return [{ id: "g", label: "Legenda ok" }, { id: "p", label: "Postei" }];
 }
 
 export const chaveMarcacao = (entregaId: string, passo: PassoId) => `${entregaId}:${passo}`;
