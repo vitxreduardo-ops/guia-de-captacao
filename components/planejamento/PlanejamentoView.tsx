@@ -85,7 +85,7 @@ export function PlanejamentoView({
   const [marcadas, setMarcadas] = useState(() => new Set(inicial));
   // A página aberta mora no endereço (#semana-2, #e5, #estrategia): voltar do
   // celular funciona e dá pra mandar o link de uma entrega.
-  const rota = useSyncExternalStore(ouvirHash, () => window.location.hash.slice(1), () => "");
+  const rota = useSyncExternalStore(ouvirHash, () => window.location.hash.slice(1).toLowerCase().replace(/\/$/, ""), () => "");
   // Data só no navegador: o servidor não sabe o fuso de quem abre.
   const diaHoje = useSyncExternalStore(nada, () => new Date().toDateString(), () => "");
   const hoje = diaHoje ? new Date(diaHoje) : null;
@@ -100,7 +100,8 @@ export function PlanejamentoView({
     return () => window.removeEventListener("scroll", guardar);
   }, [rota]);
   // Dia tocado no calendário: o roteiro aparece embaixo dele, sem sair da tela.
-  const [diaSel, setDiaSel] = useState<number | null>(null);
+  // undefined = ninguém tocou ainda (já abre a próxima entrega); null = fechado de propósito.
+  const [diaSel, setDiaSel] = useState<number | null | undefined>(undefined);
   const previaRef = useRef<HTMLElement>(null);
   const [erro, setErro] = useState("");
   const [, startTransition] = useTransition();
@@ -121,7 +122,9 @@ export function PlanejamentoView({
   const mDia = rota.match(/^dia-(\d+)$/);
   const mPost = rota.match(/^(e\d+)$/);
   // Links antigos (#e5) abrem o dia da entrega.
-  const diaAberto = mDia ? Number(mDia[1]) : mPost ? E.find((e) => e.id === mPost[1])?.dia : undefined;
+  const diaDoLink = mDia ? Number(mDia[1]) : mPost ? E.find((e) => e.id === mPost[1])?.dia : undefined;
+  // Dia que não existe no mês cai na agenda em vez de uma tela vazia.
+  const diaAberto = diaDoLink !== undefined && diaDoLink >= 1 && diaDoLink <= diasNoMes(c.ano, c.mes) ? diaDoLink : undefined;
   const aba = rota === "estrategia" ? "estrategia" : "agenda";
 
   function ir(h: string) {
@@ -147,6 +150,7 @@ export function PlanejamentoView({
       if (!r.ok) {
         aplicar(!valor);
         setErro("Não consegui salvar. Confira a internet e toque de novo.");
+        setTimeout(() => setErro(""), 6000);
       }
     });
   }
@@ -181,24 +185,33 @@ export function PlanejamentoView({
   const totalPassos = E.reduce((t, e) => t + passosDa(e).length, 0);
   const passosFeitos = E.reduce((t, e) => t + passosDa(e).filter((p) => feito(e, p.id)).length, 0);
 
-  const SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+  const SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+  const proxima = hoje ? E.find((e) => atrasado(e)) ?? E.find((e) => data(e.dia) >= hoje && !completo(e)) : undefined;
+  const diaPrev = diaSel === undefined ? (proxima?.dia ?? null) : diaSel;
+  // Prazo em palavras: "hoje", "amanhã", "em 3 dias" (um limite concreto pesa mais que uma data).
+  const quando = (d: number) => {
+    if (!hoje) return "";
+    const n = Math.round((+data(d) - +hoje) / 86400000);
+    return n === 0 ? "hoje" : n === 1 ? "amanhã" : n > 1 ? `em ${n} dias` : n === -1 ? "ontem" : `há ${-n} dias`;
+  };
+  const emAndamento = (e: Entrega) => !completo(e) && passosDa(e).some((p) => feito(e, p.id));
 
   function escolherDia(d: number) {
     // Tocar de novo no mesmo dia fecha o cartão.
-    if (d === diaSel) return setDiaSel(null);
+    if (d === diaPrev) return setDiaSel(null);
     setDiaSel(d);
     const reduzir = matchMedia("(prefers-reduced-motion: reduce)").matches;
     requestAnimationFrame(() => previaRef.current?.scrollIntoView({ behavior: reduzir ? "auto" : "smooth", block: "nearest" }));
   }
 
   function agenda() {
-    const doDia = diaSel ? E.filter((e) => e.dia === diaSel) : [];
-    const proxima = hoje ? E.find((e) => atrasado(e)) ?? E.find((e) => data(e.dia) >= hoje && !completo(e)) : undefined;
-    const celulas: (number | null)[] = Array(((data(1).getDay() + 6) % 7)).fill(null);
+    const diasComPost = [...new Set(E.map((e) => e.dia))];
+    const celulas: (number | null)[] = Array(data(1).getDay()).fill(null);
     for (let d = 1; d <= diasNoMes(c.ano, c.mes); d++) celulas.push(d);
 
     return (
-      <>
+      <div className={st.agenda}>
         <header className={st.top}>
           <span className={st.eyebrow}>Planejamento · Tatu Estúdio Criativo</span>
           <h1>
@@ -208,24 +221,9 @@ export function PlanejamentoView({
             <div className={st.bar} role="progressbar" aria-label="Entregas prontas" aria-valuemin={0} aria-valuemax={E.length} aria-valuenow={prontas}>
               <i style={{ width: `${totalPassos ? (passosFeitos / totalPassos) * 100 : 0}%` }} />
             </div>
-            <span>
-              {prontas} de {E.length} prontas
-            </span>
+            <span>{E.length > 0 && prontas === E.length ? "Tudo pronto ✓" : `${prontas} de ${E.length} prontas`}</span>
           </div>
         </header>
-
-        {proxima ? (
-          <button type="button" className={st.next} onClick={() => ir(`dia-${proxima.dia}`)}>
-            <span className={st.eyebrow}>
-              {atrasado(proxima) ? "Ficou pra trás" : "Próxima entrega"} · {WDL[data(proxima.dia).getDay()]}, {proxima.dia}/{c.mes}
-            </span>
-            <h2>{proxima.titulo}</h2>
-            <span className={st.go}>
-              {TIPO[proxima.tipo]}
-              <span>Abrir →</span>
-            </span>
-          </button>
-        ) : null}
 
         <section className={st.cal} aria-label={`Calendário de ${MESES[c.mes - 1]}`}>
           <div className={st.calHead} aria-hidden>
@@ -243,14 +241,14 @@ export function PlanejamentoView({
                   <b>{d}</b>
                   <span className={st.pips}>
                     {ps.map((e) => (
-                      <i key={e.id} className={`${st.pip} ${completo(e) ? st.pipOk : atrasado(e) ? st.pipLate : e.tipo !== "stories" ? st.pipFeed : ""}`} />
+                      <i key={e.id} className={`${st.pip} ${completo(e) ? st.pipOk : atrasado(e) ? st.pipLate : emAndamento(e) ? st.pipParcial : e.tipo !== "stories" ? st.pipFeed : ""}`} />
                     ))}
                   </span>
                 </>
               );
-              const cls = `${st.cd} ${ps.length ? st.cdOn : ""} ${ehHoje ? st.cdHoje : ""} ${d === diaSel ? st.cdSel : ""}`;
+              const cls = `${st.cd} ${ps.length ? st.cdOn : ""} ${ehHoje ? st.cdHoje : ""} ${d === diaPrev ? st.cdSel : ""}`;
               return ps.length ? (
-                <button key={d} type="button" className={cls} aria-pressed={d === diaSel} aria-label={`${WDL[data(d).getDay()]} ${d}: ${ps.map((e) => `${TIPO[e.tipo]} ${e.titulo}`).join(", ")}`} onClick={() => escolherDia(d)}>
+                <button key={d} type="button" className={cls} aria-pressed={d === diaPrev} aria-label={`${WDL[data(d).getDay()]} ${d}: ${ps.map((e) => `${TIPO[e.tipo]} ${e.titulo}`).join(", ")}`} onClick={() => escolherDia(d)}>
                   {miolo}
                 </button>
               ) : (
@@ -263,42 +261,59 @@ export function PlanejamentoView({
           <p className={st.legenda}>
             <span><i className={`${st.pip} ${st.pipFeed}`} /> Feed ou Reel</span>
             <span><i className={st.pip} /> Stories</span>
+            <span><i className={`${st.pip} ${st.pipParcial}`} /> Em andamento</span>
             <span><i className={`${st.pip} ${st.pipOk}`} /> Pronto</span>
           </p>
         </section>
 
-        {diaSel && doDia.length ? (
-          <section key={diaSel} ref={previaRef} className={`${st.block} ${st.previa}`} aria-live="polite">
-            <span className={st.eyebrow}>
-              {WDL[data(diaSel).getDay()][0].toUpperCase() + WDL[data(diaSel).getDay()].slice(1)}, {diaSel} de {MESES[c.mes - 1]}
-            </span>
-            {doDia.map((e) => (
-              <div key={e.id} className={st.previaItem}>
-                {pills(e)}
-                <h2>{e.titulo}</h2>
-                {e.formato ? <p className={st.dmeta}>{e.formato}</p> : null}
-                {e.fala ? (
-                  <p className={st.speech}>{e.fala}</p>
-                ) : e.telas.length ? (
-                  <ol className={st.screens}>
-                    {e.telas.map((t, n) => (
-                      <li key={n}>
-                        <span>{t}</span>
-                      </li>
-                    ))}
-                  </ol>
-                ) : e.card ? (
-                  <p className={st.cardtext}>{e.card}</p>
-                ) : (
-                  <p className={st.note}>Roteiro completo na página do dia.</p>
-                )}
+        {/* Moldura de tamanho fixo: todos os dias ficam empilhados na mesma célula e só um aparece.
+            A altura é a do maior dia, então trocar de data nunca mexe no resto da tela. */}
+        <section ref={previaRef} className={st.slot} aria-live="polite">
+          {diasComPost.map((d) => {
+            const ativo = d === diaPrev;
+            const doDia = E.filter((e) => e.dia === d);
+            const nome = WDL[data(d).getDay()];
+            const ehProxima = !!proxima && proxima.dia === d;
+            const quando_ = quando(d);
+            const rotulo = [ehProxima ? `${atrasado(proxima) ? "Ficou pra trás" : "Próxima entrega"} · ${WD[data(d).getDay()]}, ${d}/${c.mes}` : `${nome[0].toUpperCase() + nome.slice(1)}, ${d} de ${MESES[c.mes - 1]}`, quando_].filter(Boolean).join(" · ");
+            return (
+              <div key={d} className={`${st.block} ${st.previa} ${doDia.length > 1 ? st.multi : ""} ${ativo ? st.on : ""}`} inert={!ativo} aria-hidden={!ativo}>
+                <span className={st.eyebrow}>{rotulo}</span>
+                {doDia.map((e) => (
+                  <div key={e.id} className={st.previaItem}>
+                    {pills(e)}
+                    <h2>{e.titulo}</h2>
+                    {e.formato ? <p className={st.dmeta}>{e.formato}</p> : null}
+                    {e.fala ? (
+                      <p className={`${st.speech} ${doDia.length > 1 ? st.clamp2 : st.clamp}`}>{e.fala}</p>
+                    ) : e.telas.length ? (
+                      <>
+                        <ol className={st.screens}>
+                          {e.telas.slice(0, doDia.length > 1 ? 1 : 3).map((t, n) => (
+                            <li key={n}>
+                              <span>{t}</span>
+                            </li>
+                          ))}
+                        </ol>
+                        {e.telas.length > (doDia.length > 1 ? 1 : 3) ? <p className={st.note}>+ {e.telas.length - (doDia.length > 1 ? 1 : 3)} no dia completo</p> : null}
+                      </>
+                    ) : e.card ? (
+                      <p className={st.cardtext}>{e.card}</p>
+                    ) : (
+                      <p className={st.note}>Roteiro completo na página do dia.</p>
+                    )}
+                  </div>
+                ))}
+                <button type="button" className={st.abrir} onClick={() => ir(`dia-${d}`)}>
+                  Abrir o dia completo →
+                </button>
               </div>
-            ))}
-            <button type="button" className={st.abrir} onClick={() => ir(`dia-${diaSel}`)}>
-              Abrir o dia completo →
-            </button>
-          </section>
-        ) : null}
+            );
+          })}
+          <div className={`${st.vazioCard} ${!diaPrev ? st.on : ""}`} inert={!!diaPrev} aria-hidden={!!diaPrev}>
+            Toque num dia do calendário para ver o roteiro aqui.
+          </div>
+        </section>
 
         {c.avisos.length ? (
           <details className={`${st.block} ${st.fold} ${st.combinados}`}>
@@ -313,7 +328,7 @@ export function PlanejamentoView({
             ))}
           </details>
         ) : null}
-      </>
+      </div>
     );
   }
 
@@ -412,6 +427,9 @@ export function PlanejamentoView({
           </section>
         ) : null}
         {e.observacao ? <p className={st.note}>{e.observacao}</p> : null}
+        <div className={st.steps} style={{ padding: 0 }}>
+          {checks(e, "f")}
+        </div>
       </>
     );
   }
@@ -457,6 +475,11 @@ export function PlanejamentoView({
             ))}
           </>
         )}
+        {es.length > 0 && es.every(completo) ? (
+          <p className={st.feito} role="status">
+            Tudo pronto neste dia ✓
+          </p>
+        ) : null}
         <div className={st.pager}>
           <button type="button" disabled={ant === undefined} onClick={() => ant !== undefined && ir(`dia-${ant}`)}>
             Anterior<b>{ant !== undefined ? rotuloDia(ant) : ""}</b>
@@ -469,7 +492,50 @@ export function PlanejamentoView({
     );
   }
 
+  // Mural em colunas, como o Pinterest: todos os cartões com a mesma largura e o mesmo estilo,
+  // alturas livres, sem buracos. Tudo aberto: toda informação aqui é importante.
   function estrategia() {
+    const lista = (itens: string[]) => (
+      <ul>
+        {itens.map((t) => (
+          <li key={t}>{t}</li>
+        ))}
+      </ul>
+    );
+    const cartoes: { titulo: string; corpo: React.ReactNode }[] = [];
+    if (c.comQuemFalamos) cartoes.push({ titulo: "Com quem a gente fala", corpo: <p>{c.comQuemFalamos}</p> });
+    if (c.rotina.length)
+      cartoes.push({
+        titulo: "Sua semana",
+        corpo: (
+          <div className={st.rotina}>
+            {c.rotina.map((r) => (
+              <div key={r.dia} className={`${st.rd} ${r.tipo === "feed" ? st.rdFeed : r.tipo === "livre" || r.tipo === "plantao" ? st.rdOff : ""}`}>
+                <b>{r.dia}</b>
+                <span>{r.texto}</span>
+              </div>
+            ))}
+          </div>
+        ),
+      });
+    if (c.comoFunciona.length) cartoes.push({ titulo: "Como funciona", corpo: lista(c.comoFunciona) });
+    if (c.linhas.length)
+      cartoes.push({
+        titulo: "Sobre o que a gente fala",
+        corpo: (
+          <div className={st.lines}>
+            {c.linhas.map((l) => (
+              <div key={l.titulo} className={st.line}>
+                <b>{l.titulo}</b>
+                {l.descricao ? <p>{l.descricao}</p> : null}
+              </div>
+            ))}
+          </div>
+        ),
+      });
+    if (c.tomDeVoz.length) cartoes.push({ titulo: "Tom de voz", corpo: lista(c.tomDeVoz) });
+    if (c.regras.length) cartoes.push({ titulo: "Regras de conteúdo", corpo: lista(c.regras) });
+
     return (
       <div className={st.strat}>
         <header className={st.top}>
@@ -486,66 +552,14 @@ export function PlanejamentoView({
             ))}
           </div>
         ) : null}
-        {c.comQuemFalamos ? (
-          <section className={st.block}>
-            <h2>Com quem a gente fala</h2>
-            <p>{c.comQuemFalamos}</p>
-          </section>
-        ) : null}
-        {c.rotina.length ? (
-          <section className={st.block}>
-            <h2>Sua semana</h2>
-            <div className={st.rotina}>
-              {c.rotina.map((r) => (
-                <div key={r.dia} className={`${st.rd} ${r.tipo === "feed" ? st.rdFeed : r.tipo === "livre" || r.tipo === "plantao" ? st.rdOff : ""}`}>
-                  <b>{r.dia}</b>
-                  <span>{r.texto}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
-        {c.comoFunciona.length ? (
-          <section className={st.block}>
-            <h2>Como funciona</h2>
-            <ul>
-              {c.comoFunciona.map((t) => (
-                <li key={t}>{t}</li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-        {c.linhas.length ? (
-          <section className={st.block}>
-            <h2>Sobre o que a gente fala</h2>
-            <div className={st.lines}>
-              {c.linhas.map((l) => (
-                <div key={l.titulo} className={st.line}>
-                  <b>{l.titulo}</b>
-                  {l.descricao ? <p>{l.descricao}</p> : null}
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
-        {[
-          ["Tom de voz", c.tomDeVoz],
-          ["Regras de conteúdo", c.regras],
-        ].map(([titulo, itens]) =>
-          (itens as string[]).length ? (
-            <details key={titulo as string} className={`${st.block} ${st.fold}`}>
-              <summary>
-                <h2>{titulo as string}</h2>
-                <Chev />
-              </summary>
-              <ul>
-                {(itens as string[]).map((t) => (
-                  <li key={t}>{t}</li>
-                ))}
-              </ul>
-            </details>
-          ) : null,
-        )}
+        <div className={st.mural}>
+          {cartoes.map((k) => (
+            <section key={k.titulo} className={`${st.block} ${st.cartao}`}>
+              <h2>{k.titulo}</h2>
+              {k.corpo}
+            </section>
+          ))}
+        </div>
       </div>
     );
   }

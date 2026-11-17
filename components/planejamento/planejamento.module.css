@@ -46,12 +46,6 @@
 .bar i { display: block; height: 100%; background: var(--done); border-radius: 99px; transition: width 0.4s; }
 .progress span { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-.next {
-  all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; width: 100%; cursor: pointer;
-  background: var(--surface); color: var(--ink); border: 1.5px solid var(--olive); border-radius: 20px; padding: 18px 20px; margin-bottom: 22px;
-}
-.next .eyebrow { color: var(--olive-strong); }
-.next h2 { font: 600 20px/1.3 var(--body); letter-spacing: 0; }
 .go { color: var(--olive-strong); }
 .go { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 15px; margin-top: 4px; }
 
@@ -185,7 +179,14 @@
 /* Bootzy só nas datas. */
 .dataDia { font-family: var(--display); font-size: 30px; font-weight: 400; letter-spacing: 0.03em; line-height: 1.2; margin: 0; }
 .cdSel { background: var(--ink) !important; border-color: var(--ink) !important; color: var(--bg) !important; }
-.previa { margin-top: 16px; scroll-margin-bottom: 88px; }
+/* Moldura fixa do cartão do dia */
+.slot { display: grid; margin-top: 16px; scroll-margin-bottom: 88px; }
+.slot > * { grid-area: 1 / 1; visibility: hidden; }
+.slot > .on { visibility: visible; animation: nasce 280ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.previa { gap: 12px; }
+.previa .abrir { margin-top: auto; }
+.vazioCard { display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); border: 1.5px dashed var(--line); border-radius: 18px; padding: 28px 20px; }
+.clamp { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .previaItem { display: flex; flex-direction: column; gap: 12px; }
 .previaItem + .previaItem { border-top: 1px solid var(--line); padding-top: 16px; }
 .abrir { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; justify-content: center; min-height: 52px; border-radius: 14px; background: var(--ink); color: var(--bg); font-weight: 600; font-size: 16px; }
@@ -194,10 +195,10 @@
 .root { -webkit-tap-highlight-color: transparent; }
 
 /* Resposta: o toque reage na hora (pointer-down), sem esperar soltar. */
-.cd, .check, .next, .abrir, .copy, .pager button, .back, .ref, .tabs button, .fold > summary {
+.cd, .check, .abrir, .copy, .pager button, .back, .ref, .tabs button, .fold > summary {
   transition: transform 120ms cubic-bezier(0.2, 0.8, 0.2, 1), background-color 160ms ease, color 160ms ease, border-color 160ms ease;
 }
-.cdOn:active, .check:active, .next:active, .abrir:active, .copy:active, .pager button:active, .ref:active { transform: scale(0.97); }
+.cdOn:active, .check:active, .abrir:active, .copy:active, .pager button:active, .ref:active { transform: scale(0.97); }
 .tabs button:active, .back:active { opacity: 0.6; }
 
 /* Material: barra de abas translúcida, o conteúdo rola por baixo. */
@@ -210,18 +211,17 @@
 
 /* Cartão do dia: nasce de baixo do calendário, como parte dele. */
 @keyframes nasce { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: none; } }
-.previa { transform-origin: top center; animation: nasce 280ms cubic-bezier(0.2, 0.8, 0.2, 1); }
 
 /* Tipografia: títulos grandes mais fechados, texto corrido neutro, entrelinha menor onde a letra é grande. */
 .top h1, .dhead h1 { letter-spacing: -0.022em; line-height: 1.1; }
-.block h2, .next h2, .dhead h2 { letter-spacing: -0.012em; }
+.block h2, .dhead h2 { letter-spacing: -0.012em; }
 .dataDia { letter-spacing: 0.02em; }
 .eyebrow { letter-spacing: 0.1em; }
 .speech { letter-spacing: 0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .previa { animation: nasceSuave 200ms ease; }
-  .cdOn:active, .check:active, .next:active, .abrir:active, .copy:active, .pager button:active, .ref:active { transform: none; }
+  .slot > .on { animation: nasceSuave 200ms ease; }
+  .cdOn:active, .check:active, .abrir:active, .copy:active, .pager button:active, .ref:active { transform: none; }
 }
 @keyframes nasceSuave { from { opacity: 0; } to { opacity: 1; } }
 
@@ -232,3 +232,82 @@
   .root { --line: #b9ae8f; --muted: #4a4a3c; }
   .tabs { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
+
+/* ——— Foco visível (teclado) e hover só onde há ponteiro ——— */
+.root button:focus-visible, .root a:focus-visible, .root summary:focus-visible { outline: 3px solid var(--olive-strong); outline-offset: 2px; }
+@media (hover: hover) and (pointer: fine) {
+  .cdOn:hover { background: var(--sand); }
+  .cdSel:hover { background: var(--ink) !important; }
+  .check:hover, .pager button:hover, .ref:hover { border-color: var(--olive); }
+  .abrir:hover, .copy:hover { opacity: 0.88; }
+  .tabs button:hover, .back:hover { color: var(--ink); }
+}
+
+
+/* ——— iPad e desktop ——— */
+@media (min-width: 768px) {
+  .app { max-width: 760px; padding-top: 104px; padding-bottom: 48px; }
+  /* Abas vão pro topo, como no iPadOS e nos sites. */
+  .tabs { top: 0; bottom: auto; border-top: 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+  .tabs > div { max-width: none; display: flex; justify-content: center; gap: 8px; padding: 10px 16px; }
+  .tabs button { flex-direction: row; gap: 10px; min-height: 48px; padding: 0 22px; border-radius: 99px; font-size: 15px; }
+  .tabs button[aria-current="page"] { background: var(--sand); }
+  .tabs svg { width: 22px; height: 22px; }
+  .erro { bottom: 24px; }
+  .top h1 { font-size: 34px; }
+  .cd { min-height: 76px; padding-top: 12px; }
+  .cd b { font-size: 22px; }
+  .calHead, .calGrid { gap: 8px; }
+  .detail { max-width: 680px; margin: 0 auto; }
+}
+
+@media (min-width: 1000px) {
+  .app { max-width: 1160px; padding-left: 40px; padding-right: 40px; }
+  /* Agenda em duas colunas: calendário à esquerda, o dia à direita. */
+  .agenda { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); grid-template-rows: auto auto auto 1fr; column-gap: 48px; row-gap: 16px; align-items: start; }
+  .agenda > .top { grid-column: 1; grid-row: 1; margin-bottom: 2px; }
+  .agenda > .cal { grid-column: 1; grid-row: 2 / span 3; }
+  .agenda > .slot { grid-column: 2; grid-row: 2; margin-top: 0; }
+  .agenda > .combinados { grid-column: 2; grid-row: 3; margin-top: 0; }
+}
+
+/* ——— Leis de UX ——— */
+.root button, .root label, .root summary { touch-action: manipulation; }
+/* Zeigarnik: começado e não terminado fica meio preenchido. */
+.pipParcial { border-color: var(--done); background: linear-gradient(90deg, var(--done) 50%, transparent 50%); }
+/* Conectividade uniforme: o cartão do dia leva a mesma cor do dia escolhido. */
+.previa { border-color: var(--ink); border-width: 1.5px; }
+/* Pico-fim: terminar tem que ser bom. */
+.feito { background: var(--done-bg); color: var(--done); font-weight: 700; text-align: center; padding: 16px; border-radius: 16px; }
+
+/* ——— Estratégia: mural de cartões uniformes ——— */
+.mural { column-count: 1; column-gap: 18px; margin-top: 6px; }
+.cartao { break-inside: avoid; -webkit-column-break-inside: avoid; margin: 0 0 18px; padding: 20px; display: flex; }
+.cartao > * { min-width: 0; }
+.cartao h2 { font-size: 17px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.cartao ul { list-style: disc; }
+.cartao li::marker { color: var(--olive); }
+.lines { grid-template-columns: 1fr; }
+.line { background: var(--sand); }
+.rd { padding: 9px 12px; }
+.rd b { font-size: 14px; }
+@media (min-width: 768px) { .mural { column-count: 2; } }
+@media (min-width: 1000px) { .mural { column-count: 3; } }
+/* "Sua semana" em linhas finas: mesmo peso dos outros cartões, sem caixinhas empilhadas. */
+.cartao .rotina { gap: 0; }
+.cartao .rd, .cartao .rdFeed, .cartao .rdOff {
+  grid-template-columns: 40px minmax(0, 1fr); gap: 12px; padding: 10px 0; background: none; border: 0;
+  border-bottom: 1px solid var(--line); border-radius: 0; color: var(--ink);
+}
+.cartao .rd:first-child { padding-top: 2px; }
+.cartao .rd:last-child { border-bottom: 0; padding-bottom: 0; }
+.cartao .rd b { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.cartao .rdFeed b { color: var(--olive-strong); }
+.cartao .rdFeed span { font-weight: 600; }
+.cartao .rdOff span { color: var(--muted); }
+.clamp2 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.previa .cardtext { font-size: 20px; padding: 12px 14px; }
+.multi .previaItem { gap: 8px; }
+.multi .dmeta { display: none; }
+.multi .speech { padding: 10px 14px; }
+.multi .cardtext { font-size: 16px; padding: 10px 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
