@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getPlanejamentoBySlug, listMarcacoes } from "@/lib/planejamentos";
+import { getCurrentSession } from "@/lib/session";
+import { equipePodeEditar, getPlanejamentoBySlug, listMarcacoes } from "@/lib/planejamentos";
 import { semRascunhos } from "@/lib/planejamentoTypes";
 import { PlanejamentoView } from "@/components/planejamento/PlanejamentoView";
 
@@ -30,5 +31,8 @@ export default async function PlanejamentoPublicoPage({ params }: { params: Para
   }
 
   const marcadas = (await listMarcacoes([p.id])).get(p.id) ?? [];
-  return <PlanejamentoView slug={p.slug} clientName={p.client_name ?? ""} content={semRascunhos(p.content)} marcadas={marcadas} />;
+  // A equipe vê o botão de editar; o cliente nunca. Quem grava confere a sessão de novo.
+  const podeEditar = equipePodeEditar(await getCurrentSession());
+  // A equipe vê exatamente o que o cliente vê (rascunhos da IA seguem escondidos; esses se revisam no painel).
+  return <PlanejamentoView slug={p.slug} clientName={p.client_name ?? ""} content={semRascunhos(p.content)} marcadas={marcadas} podeEditar={podeEditar} />;
 }
