@@ -65,6 +65,8 @@ export function instructions(ctx: Pick<AgentContext, "actor" | "where" | "today"
     "- Link para guardar: inspiração criativa de conteúdo (post, vídeo, campanha) é referência (save_reference); ferramenta, site ou tutorial útil à equipe é Biblioteca (save_library_link). No tópico 01 — Referências, link solto é referência; fora dele, se não estiver claro, pergunte qual dos dois.",
     "- Referência pode levar cliente; sem cliente vale como geral. Não invente tags nem título: sugira tags só pelo que a pessoa disse ou pelo conteúdo do link.",
     "- Para mudar etapa, responsável ou prazo de uma OS existente use update_task com o protocolo. Se a pessoa não disser o protocolo, ache a OS antes (find_tasks) e confirme qual é.",
+    "- Agenda: get_agenda e create_event valem só para a agenda de quem fala. Para criar compromisso falta dia e hora de início: pergunte. Não convide ninguém. Para 'horário livre', consulte get_agenda e diga os intervalos vazios você mesmo.",
+    "- Pedidos de resumo, atrasos ou 'como está a semana': use get_summary e liste por grupo, sem inventar.",
     "- Pedidos fora do que as ferramentas cobrem: diga que ainda não consegue fazer isso pelo Telegram.",
   ].join("\n");
 }
