@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
-import { marcarPassoAction } from "@/app/planejamento/[slug]/actions";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, useTransition, type ElementType } from "react";
+import { editarCampoAction, marcarPassoAction, type RespostaEdicao } from "@/app/planejamento/[slug]/actions";
+import { aplicarEdicao } from "@/lib/planejamentoEdit";
 import {
   chaveMarcacao,
   diasNoMes,
@@ -48,6 +49,100 @@ function Chev() {
   );
 }
 
+type Gravar = (caminho: string[], valor: string) => Promise<boolean>;
+
+// Hora do último Esc que só cancelou uma edição: o modal ignora o Esc que vem junto.
+let escDeCampo = 0;
+
+/**
+ * Texto que a equipe edita ali mesmo. Fora do modo edição é só o texto, no mesmo
+ * elemento de sempre. No modo edição ganha contorno tracejado; ao tocar, o texto
+ * vira um campo com a MESMA fonte e o mesmo tamanho (nada se mexe). Salva ao sair
+ * do campo; Esc cancela; Enter salva (em texto longo, Ctrl/Cmd+Enter). Se o
+ * servidor recusar, o que foi digitado continua no campo.
+ */
+function Ed({
+  as: Tag = "span",
+  caminho,
+  valor,
+  editando,
+  gravar,
+  multi = false,
+  className = "",
+}: {
+  as?: ElementType;
+  caminho: string[];
+  valor: string;
+  editando: boolean;
+  gravar: Gravar;
+  multi?: boolean;
+  className?: string;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [rasc, setRasc] = useState(valor);
+  const cancelou = useRef(false);
+
+  if (!editando) return <Tag className={className}>{valor}</Tag>;
+
+  function abrir() {
+    cancelou.current = false;
+    setRasc(valor);
+    setAberto(true);
+  }
+
+  async function confirmar() {
+    if (cancelou.current) return;
+    if (rasc.trim() === valor.trim()) return setAberto(false);
+    if (await gravar(caminho, rasc)) setAberto(false);
+  }
+
+  if (!aberto) {
+    return (
+      <Tag
+        className={`${className} ${st.ed}`}
+        tabIndex={0}
+        title="Clique para editar"
+        onClick={abrir}
+        onKeyDown={(ev: React.KeyboardEvent) => {
+          if (ev.key === "Enter" || ev.key === " ") {
+            ev.preventDefault();
+            abrir();
+          }
+        }}
+      >
+        {valor}
+      </Tag>
+    );
+  }
+  return (
+    <Tag className={`${className} ${st.ed} ${st.edAberto}`}>
+      {/* A cópia invisível do texto (data-v) dá a altura, igual à do texto original; o campo fica por cima. */}
+      <span className={st.edBase} data-v={rasc}>
+        <textarea
+          className={st.edCampo}
+          value={rasc}
+          rows={1}
+          autoFocus
+          onChange={(ev) => setRasc(ev.target.value)}
+          onBlur={confirmar}
+          onKeyDown={(ev) => {
+            if (ev.key === "Escape") {
+              ev.preventDefault();
+              ev.stopPropagation();
+              escDeCampo = Date.now(); // o modal não fecha junto
+              cancelou.current = true;
+              setAberto(false);
+            } else if (ev.key === "Enter" && (!multi || ev.metaKey || ev.ctrlKey)) {
+              ev.preventDefault();
+              ev.currentTarget.blur();
+            }
+          }}
+        />
+      </span>
+    </Tag>
+  );
+}
+
 function Copiar({ texto, rotulo }: { texto: string; rotulo: string }) {
   const [estado, setEstado] = useState<"" | "ok" | "sel">("");
   return (
@@ -81,14 +176,30 @@ function Copiar({ texto, rotulo }: { texto: string; rotulo: string }) {
 export function PlanejamentoView({
   slug,
   clientName,
-  content: c,
+  content: conteudoInicial,
   marcadas: inicial,
+  podeEditar = false,
+  salvarCampo,
 }: {
   slug: string;
   clientName: string;
   content: PlanejamentoContent;
   marcadas: string[];
+  /** Só a equipe: liga o botão de editar o texto na própria página. */
+  podeEditar?: boolean;
+  /** Troca a gravação (testes e pré-visualização); por padrão grava pelo servidor. */
+  salvarCampo?: (caminho: string[], valor: string) => Promise<RespostaEdicao>;
 }) {
+  // O conteúdo vira estado: a edição aparece na hora e desfaz se o servidor recusar.
+  const [c, setC] = useState(conteudoInicial);
+  const cRef = useRef(c);
+  useLayoutEffect(() => {
+    cRef.current = c;
+  });
+  const [editando, setEditando] = useState(false);
+  const [aviso, setAviso] = useState<{ tipo: "salvando" | "salvo" | "erro"; msg: string; desfazer?: () => void } | null>(null);
+  const timerAviso = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const editavel = podeEditar && editando;
   const [marcadas, setMarcadas] = useState(() => new Set(inicial));
   // A página aberta mora no endereço (#semana-2, #e5, #estrategia): voltar do
   // celular funciona e dá pra mandar o link de uma entrega.
@@ -153,6 +264,51 @@ export function PlanejamentoView({
       window.dispatchEvent(new HashChangeEvent("hashchange"));
     }
   }
+
+  function mostrar(a: NonNullable<typeof aviso>) {
+    clearTimeout(timerAviso.current);
+    setAviso(a);
+    if (a.tipo !== "salvando") timerAviso.current = setTimeout(() => setAviso(null), a.tipo === "erro" ? 7000 : 6000);
+  }
+
+  // Grava um texto: mostra na hora, confirma no servidor e desfaz se ele recusar.
+  async function gravar(caminho: string[], valor: string): Promise<boolean> {
+    const r = aplicarEdicao(cRef.current, caminho, valor);
+    if (!r.ok) {
+      mostrar({ tipo: "erro", msg: r.erro });
+      return false;
+    }
+    setC(r.content);
+    cRef.current = r.content;
+    mostrar({ tipo: "salvando", msg: "Salvando…" });
+    const grava = salvarCampo ?? ((cam: string[], v: string) => editarCampoAction(slug, cam, v));
+    const resp: RespostaEdicao = await grava(caminho, valor).catch(() => ({ ok: false as const, erro: "Sem conexão. Toque de novo para tentar." }));
+    if (!resp.ok) {
+      const volta = aplicarEdicao(cRef.current, caminho, r.anterior);
+      if (volta.ok) {
+        setC(volta.content);
+        cRef.current = volta.content;
+      }
+      mostrar({ tipo: "erro", msg: resp.erro });
+      return false;
+    }
+    mostrar({ tipo: "salvo", msg: "Salvo ✓", desfazer: () => void gravar(caminho, r.anterior) });
+    return true;
+  }
+  const edp = { editando: editavel, gravar };
+  // O modal fica na camada de cima do navegador: o aviso precisa estar dentro dele pra aparecer.
+  const avisoEl = aviso ? (
+    <div role={aviso.tipo === "erro" ? "alert" : "status"} className={`${st.aviso} ${aviso.tipo === "erro" ? st.avisoErro : ""}`}>
+      <span>{aviso.msg}</span>
+      {aviso.desfazer ? (
+        <button type="button" onClick={() => aviso.desfazer?.()}>
+          Desfazer
+        </button>
+      ) : null}
+    </div>
+  ) : null;
+  const pe = (e: Entrega, ...r: (string | number)[]) => ["e", e.id, ...r.map(String)];
+  const pc = (...r: (string | number)[]) => ["s", ...r.map(String)];
 
   function marcar(e: Entrega, p: PassoId, valor: boolean) {
     const k = chaveMarcacao(e.id, p);
@@ -345,10 +501,8 @@ export function PlanejamentoView({
               <h2>Combinados do mês</h2>
               <Chev />
             </summary>
-            {c.avisos.map((a) => (
-              <p key={a} className={st.note}>
-                {a}
-              </p>
+            {c.avisos.map((a, i) => (
+              <Ed key={i} {...edp} as="p" className={st.note} caminho={pc("avisos", i)} valor={a} multi />
             ))}
           </details>
         ) : null}
@@ -369,13 +523,13 @@ export function PlanejamentoView({
       <>
         <div className={st.dhead}>
           {pills(e)}
-          <T>{e.titulo}</T>
-          {e.formato ? <p className={st.dmeta}>{e.formato}</p> : null}
+          <Ed {...edp} as={T} caminho={pe(e, "titulo")} valor={e.titulo} />
+          {e.formato ? <Ed {...edp} as="p" className={st.dmeta} caminho={pe(e, "formato")} valor={e.formato} /> : null}
         </div>
         {porque ? (
           <div className={st.why}>
             <span className={st.eyebrow}>Por que esse conteúdo</span>
-            <p>{porque}</p>
+            <Ed {...edp} as="p" caminho={pe(e, "porque")} valor={porque} multi />
           </div>
         ) : null}
         <div className={st.steps} style={{ padding: 0 }}>
@@ -385,10 +539,10 @@ export function PlanejamentoView({
           <section className={st.block}>
             <h2>Combinado pra esta entrega</h2>
             <dl className={st.dl}>
-              {e.detalhes.map((d) => (
-                <div key={d.rotulo}>
-                  <dt>{d.rotulo}</dt>
-                  <dd>{d.texto}</dd>
+              {e.detalhes.map((d, i) => (
+                <div key={i}>
+                  <Ed {...edp} as="dt" caminho={pe(e, "detalhes", i, "rotulo")} valor={d.rotulo} />
+                  <Ed {...edp} as="dd" caminho={pe(e, "detalhes", i, "texto")} valor={d.texto} multi />
                 </div>
               ))}
             </dl>
@@ -397,14 +551,14 @@ export function PlanejamentoView({
         {e.card ? (
           <section className={st.block}>
             <h2>Texto do card</h2>
-            <div className={st.cardtext}>{e.card}</div>
+            <Ed {...edp} as="div" className={st.cardtext} caminho={pe(e, "card")} valor={e.card} multi />
           </section>
         ) : null}
         {e.fala ? (
           <section className={st.block}>
             <h2>{e.telas.length ? "Opção 1 · você falando pra câmera" : "Fala pra câmera"}</h2>
             <p className={st.sub}>Leia com calma e grave do seu jeito.</p>
-            <div className={st.speech}>{e.fala}</div>
+            <Ed {...edp} as="div" className={st.speech} caminho={pe(e, "fala")} valor={e.fala} multi />
             <Copiar texto={e.fala} rotulo="Copiar fala" />
           </section>
         ) : null}
@@ -415,7 +569,7 @@ export function PlanejamentoView({
             <ol className={st.screens}>
               {e.telas.map((t, n) => (
                 <li key={n}>
-                  <span>{t}</span>
+                  <Ed {...edp} caminho={pe(e, "telas", n)} valor={t} />
                 </li>
               ))}
             </ol>
@@ -426,7 +580,9 @@ export function PlanejamentoView({
             <h2>Como fazer</h2>
             <ul>
               {e.comoFazer.map((t, n) => (
-                <li key={n}>{t}</li>
+                <li key={n}>
+                  <Ed {...edp} caminho={pe(e, "comoFazer", n)} valor={t} />
+                </li>
               ))}
             </ul>
           </section>
@@ -435,7 +591,7 @@ export function PlanejamentoView({
           <section className={st.block}>
             <h2>Legenda</h2>
             <p className={st.sub}>Pronta pra colar no Instagram.</p>
-            <div className={st.speech}>{e.legenda}</div>
+            <Ed {...edp} as="div" className={st.speech} caminho={pe(e, "legenda")} valor={e.legenda} multi />
             <Copiar texto={e.legenda} rotulo="Copiar legenda" />
           </section>
         ) : null}
@@ -450,7 +606,7 @@ export function PlanejamentoView({
             ))}
           </section>
         ) : null}
-        {e.observacao ? <p className={st.note}>{e.observacao}</p> : null}
+        {e.observacao ? <Ed {...edp} as="p" className={st.note} caminho={pe(e, "observacao")} valor={e.observacao} multi /> : null}
         <div className={st.steps} style={{ padding: 0 }}>
           {checks(e, "f")}
         </div>
@@ -528,46 +684,48 @@ export function PlanejamentoView({
   // Mural em colunas, como o Pinterest: todos os cartões com a mesma largura e o mesmo estilo,
   // alturas livres, sem buracos. Tudo aberto: toda informação aqui é importante.
   function estrategia() {
-    const lista = (itens: string[]) => (
+    const lista = (nome: string, itens: string[]) => (
       <ul>
-        {itens.map((t) => (
-          <li key={t}>{t}</li>
+        {itens.map((t, i) => (
+          <li key={i}>
+            <Ed {...edp} caminho={pc(nome, i)} valor={t} />
+          </li>
         ))}
       </ul>
     );
     const cartoes: { titulo: string; corpo: React.ReactNode }[] = [];
-    if (c.comQuemFalamos) cartoes.push({ titulo: "Com quem a gente fala", corpo: <p>{c.comQuemFalamos}</p> });
+    if (c.comQuemFalamos) cartoes.push({ titulo: "Com quem a gente fala", corpo: <Ed {...edp} as="p" caminho={pc("comQuemFalamos")} valor={c.comQuemFalamos} multi /> });
     if (c.rotina.length)
       cartoes.push({
         titulo: "Sua semana",
         corpo: (
           <div className={st.rotina}>
-            {c.rotina.map((r) => (
+            {c.rotina.map((r, i) => (
               <div key={r.dia} className={`${st.rd} ${r.tipo === "feed" ? st.rdFeed : r.tipo === "livre" || r.tipo === "plantao" ? st.rdOff : ""}`}>
                 <b>{r.dia}</b>
-                <span>{r.texto}</span>
+                <Ed {...edp} caminho={pc("rotina", i, "texto")} valor={r.texto} />
               </div>
             ))}
           </div>
         ),
       });
-    if (c.comoFunciona.length) cartoes.push({ titulo: "Como funciona", corpo: lista(c.comoFunciona) });
+    if (c.comoFunciona.length) cartoes.push({ titulo: "Como funciona", corpo: lista("comoFunciona", c.comoFunciona) });
     if (c.linhas.length)
       cartoes.push({
         titulo: "Sobre o que a gente fala",
         corpo: (
           <div className={st.lines}>
-            {c.linhas.map((l) => (
-              <div key={l.titulo} className={st.line}>
-                <b>{l.titulo}</b>
-                {l.descricao ? <p>{l.descricao}</p> : null}
+            {c.linhas.map((l, i) => (
+              <div key={i} className={st.line}>
+                <Ed {...edp} as="b" caminho={pc("linhas", i, "titulo")} valor={l.titulo} />
+                {l.descricao ? <Ed {...edp} as="p" caminho={pc("linhas", i, "descricao")} valor={l.descricao} multi /> : null}
               </div>
             ))}
           </div>
         ),
       });
-    if (c.tomDeVoz.length) cartoes.push({ titulo: "Tom de voz", corpo: lista(c.tomDeVoz) });
-    if (c.regras.length) cartoes.push({ titulo: "Regras de conteúdo", corpo: lista(c.regras) });
+    if (c.tomDeVoz.length) cartoes.push({ titulo: "Tom de voz", corpo: lista("tomDeVoz", c.tomDeVoz) });
+    if (c.regras.length) cartoes.push({ titulo: "Regras de conteúdo", corpo: lista("regras", c.regras) });
 
     return (
       <div className={st.strat}>
@@ -575,13 +733,11 @@ export function PlanejamentoView({
           <span className={st.eyebrow}>Estratégia do mês</span>
           <h1>O plano de {MESES[c.mes - 1]}</h1>
         </header>
-        {c.resumo ? <p className={st.lead}>{c.resumo}</p> : null}
+        {c.resumo ? <Ed {...edp} as="p" className={st.lead} caminho={pc("resumo")} valor={c.resumo} multi /> : null}
         {c.fatos.length ? (
           <div className={st.facts}>
-            {c.fatos.map((f) => (
-              <span key={f} className={st.fact}>
-                {f}
-              </span>
+            {c.fatos.map((f, i) => (
+              <Ed key={i} {...edp} className={st.fact} caminho={pc("fatos", i)} valor={f} />
             ))}
           </div>
         ) : null}
@@ -615,6 +771,9 @@ export function PlanejamentoView({
           ref={modalRef}
           className={st.modal}
           aria-label={diaAberto ? `Dia ${diaAberto} de ${MESES[c.mes - 1]}` : "Dia"}
+          onCancel={(ev) => {
+            if (Date.now() - escDeCampo < 400) ev.preventDefault();
+          }}
           onClose={() => {
             // Esc e o botão fechar voltam pra agenda; o botão "voltar" do navegador também.
             if (/^(e|dia-)\d+$/.test(window.location.hash.slice(1).toLowerCase())) ir("agenda");
@@ -625,16 +784,34 @@ export function PlanejamentoView({
         >
           {diaAberto ? (
             <div className={st.modalCorpo}>
-              <button type="button" className={st.fechar} aria-label="Fechar" onClick={() => modalRef.current?.close()}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
-                  <path d="M6 6l12 12M18 6L6 18" />
-                </svg>
-              </button>
+              {/* Barra de altura zero: os botões ficam por cima, sem empurrar o conteúdo. */}
+              <div className={st.barraModal}>
+                {podeEditar ? (
+                  <button type="button" className={`${st.editarModal} ${editando ? st.editarLigado : ""}`} aria-pressed={editando} onClick={() => setEditando((v) => !v)}>
+                    {editando ? "Concluir edição" : "Editar"}
+                  </button>
+                ) : null}
+                <button type="button" className={st.fechar} aria-label="Fechar" onClick={() => modalRef.current?.close()}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden>
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </button>
+              </div>
+              {avisoEl}
               <div className={st.detail}>{conteudoDia(diaAberto)}</div>
             </div>
           ) : null}
         </dialog>
       ) : null}
+      {podeEditar ? (
+        <button type="button" className={`${st.editar} ${editando ? st.editarLigado : ""}`} aria-pressed={editando} onClick={() => setEditando((v) => !v)}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+          </svg>
+          {editando ? "Concluir edição" : "Editar"}
+        </button>
+      ) : null}
+      {!(largo && diaAberto) ? avisoEl : null}
       {erro ? (
         <p role="alert" className={st.erro}>
           {erro}

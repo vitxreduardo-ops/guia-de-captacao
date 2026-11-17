@@ -1,6 +1,16 @@
 import "server-only";
+import type { Session } from "@/lib/auth";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { parseContent, type CampoTexto, type PlanejamentoContent } from "@/lib/planejamentoTypes";
+
+/**
+ * Quem pode editar o texto na página do planejamento: só a equipe (nunca o
+ * login de cliente do portal), respeitando as seções liberadas no painel.
+ */
+export function equipePodeEditar(session: Session | null): boolean {
+  if (!session || session.role === "client") return false;
+  return session.role === "admin" || session.allowedSections === null || session.allowedSections.includes("planejamentos");
+}
 
 export interface Planejamento {
   id: string;
