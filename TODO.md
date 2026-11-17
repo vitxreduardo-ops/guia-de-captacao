@@ -26,18 +26,26 @@ só no banco local (`scripts/teste-local.sh`) em 16/11/2026.
 - [ ] **Limpar tabelas que só crescem.** `telegram_processed_updates` (o
       Telegram só reenvia por 24 h) e `agent_conversations` (a memória só lê
       as últimas 2 h): apagar o que tem mais de 2 dias no cron diário.
-- [ ] **Fase 3 (Agent Core), branch `tatu-agent-core`.** Ferramentas desta
-      fase: `get_task`, `find_tasks`, `find_clients` e `create_task` (com
-      prévia e botões). Testado local com a OpenAI de verdade e confirmação
-      pelo webhook simulado. Falta: rodar a `0114_agent_core.sql` na
-      produção, deploy e testar no Telegram de verdade.
+- [x] **Fase 3 (Agent Core) no ar em 16/11/2026.** `get_task`, `find_tasks`,
+      `find_clients`, `create_task`; confirmação por botões.
+- [ ] **Fase 4 (operações), branch `tatu-agent-operacoes`.** Novas:
+      `save_reference`, `search_reference`, `save_library_link`,
+      `search_library`, `update_task`, `get_client`. Testado local com a
+      OpenAI real. `update_task` recusa mover para etapa visível ao cliente
+      (ele recebe push no celular) ou de pagamento recebido: essas ficam no
+      painel. Decidir se o agente deve poder fazê-las com um aviso extra.
+- [ ] **Título vazio em referência do YouTube.** `fetchLinkMeta` não traz o
+      título de alguns links (o card mostra o endereço). Dá pra usar o oEmbed
+      do YouTube (`youtube.com/oembed?url=…&format=json`), que não exige chave.
+- [ ] **Referências antigas sem `client_id`.** A 0115 liga só o que bate com o
+      nome do cliente sem ambiguidade; o resto fica geral para quem tem acesso
+      restrito. Conferir em `/admin/referencias` o que ficou sem cliente.
 - [ ] **Execução não é transacional.** `create_task` grava o card, os
       responsáveis, a atividade e a agenda em chamadas separadas (as mesmas
       do painel). Se uma falhar no meio, a ação fica `failed` e a mensagem
       manda conferir no painel. Ficar atômico pede uma função no Postgres.
-- [ ] **Fases 4 a 6**: referências, biblioteca, atualizar/mover tarefa,
-      agenda, relatórios, notificações. Cada uma é uma ferramenta nova em
-      `lib/agent/tools/`.
+- [ ] **Fases 5 e 6**: agenda, relatórios, notificações. Cada uma é uma
+      ferramenta nova em `lib/agent/tools/`.
 
 ## Minha Agenda
 

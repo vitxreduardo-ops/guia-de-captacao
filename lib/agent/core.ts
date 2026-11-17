@@ -62,6 +62,9 @@ export function instructions(ctx: Pick<AgentContext, "actor" | "where" | "today"
     "- Datas relativas (amanhã, sexta) viram AAAA-MM-DD a partir de hoje.",
     "- Para uma OS, mostre uma linha por campo: OS, Cliente, Tarefa, Responsável, Prazo, Status.",
     "- Para listas, uma linha por item: OS · tarefa · cliente · prazo. Diga o total quando passar do que mostrou.",
+    "- Link para guardar: inspiração criativa de conteúdo (post, vídeo, campanha) é referência (save_reference); ferramenta, site ou tutorial útil à equipe é Biblioteca (save_library_link). No tópico 01 — Referências, link solto é referência; fora dele, se não estiver claro, pergunte qual dos dois.",
+    "- Referência pode levar cliente; sem cliente vale como geral. Não invente tags nem título: sugira tags só pelo que a pessoa disse ou pelo conteúdo do link.",
+    "- Para mudar etapa, responsável ou prazo de uma OS existente use update_task com o protocolo. Se a pessoa não disser o protocolo, ache a OS antes (find_tasks) e confirme qual é.",
     "- Pedidos fora do que as ferramentas cobrem: diga que ainda não consegue fazer isso pelo Telegram.",
   ].join("\n");
 }
