@@ -44,8 +44,20 @@ só no banco local (`scripts/teste-local.sh`) em 16/11/2026.
       responsáveis, a atividade e a agenda em chamadas separadas (as mesmas
       do painel). Se uma falhar no meio, a ação fica `failed` e a mensagem
       manda conferir no painel. Ficar atômico pede uma função no Postgres.
-- [ ] **Fases 5 e 6**: agenda, relatórios, notificações. Cada uma é uma
-      ferramenta nova em `lib/agent/tools/`.
+- [ ] **Fase 5 (agenda e relatórios), só sob demanda.** Feitas:
+      `get_agenda` (compromissos do dia/intervalo, só da agenda de quem
+      pede), `create_event` (agenda principal, sem convidados, avisa
+      conflito de horário) e `get_summary` (atrasadas, prazos da semana,
+      follow-ups e pagamentos, respeitando seção e clientes). Falta:
+  - [ ] Testar de ponta a ponta com Google real (local não tem OAuth).
+  - [ ] `update_event` e `delete_event` (editar/cancelar compromisso).
+  - [ ] Evento com convidados (hoje recusado de propósito: o Google manda e-mail).
+  - [ ] Horário livre calculado em código (hoje o modelo deduz da lista).
+  - [ ] Agenda de outra pessoa da equipe ("o que o Vitor tem amanhã?").
+  - [ ] Relatório por cliente/período e por responsável.
+  - [ ] Mensagens proativas (resumo diário, aviso de atraso): exige cron da
+        Vercel; fica para depois, decisão de só responder quando perguntam.
+- [ ] **Fase 6**: permissões avançadas, histórico, automações.
 
 ## Minha Agenda
 
