@@ -74,8 +74,8 @@ describe("passosDa", () => {
   it("feed carrossel: Separei as fotos", () => {
     expect(passosDa(e({ tipo: "feed", formato: "Carrossel com 4 fotos" }))[0].label).toBe("Separei as fotos");
   });
-  it("feed card: Revisei a legenda", () => {
-    expect(passosDa(e({ tipo: "feed", card: "x" }))[0].label).toBe("Revisei a legenda");
+  it("feed card: Legenda ok", () => {
+    expect(passosDa(e({ tipo: "feed", card: "x" }))[0].label).toBe("Legenda ok");
   });
   it("reels: Gravei e Postei, mesmo sem fala nem telas", () => {
     expect(passosDa(e({ tipo: "reels" })).map((p) => p.label)).toEqual(["Gravei", "Postei"]);
