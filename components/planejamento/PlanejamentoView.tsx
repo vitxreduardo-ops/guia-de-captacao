@@ -99,6 +99,9 @@ export function PlanejamentoView({
     window.addEventListener("scroll", guardar, { passive: true });
     return () => window.removeEventListener("scroll", guardar);
   }, [rota]);
+  // Dia tocado no calendário: o roteiro aparece embaixo dele, sem sair da tela.
+  const [diaSel, setDiaSel] = useState<number | null>(null);
+  const previaRef = useRef<HTMLElement>(null);
   const [erro, setErro] = useState("");
   const [, startTransition] = useTransition();
 
@@ -180,7 +183,16 @@ export function PlanejamentoView({
 
   const SEMANA = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
+  function escolherDia(d: number) {
+    // Tocar de novo no mesmo dia fecha o cartão.
+    if (d === diaSel) return setDiaSel(null);
+    setDiaSel(d);
+    const reduzir = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    requestAnimationFrame(() => previaRef.current?.scrollIntoView({ behavior: reduzir ? "auto" : "smooth", block: "nearest" }));
+  }
+
   function agenda() {
+    const doDia = diaSel ? E.filter((e) => e.dia === diaSel) : [];
     const proxima = hoje ? E.find((e) => atrasado(e)) ?? E.find((e) => data(e.dia) >= hoje && !completo(e)) : undefined;
     const celulas: (number | null)[] = Array(((data(1).getDay() + 6) % 7)).fill(null);
     for (let d = 1; d <= diasNoMes(c.ano, c.mes); d++) celulas.push(d);
@@ -236,9 +248,9 @@ export function PlanejamentoView({
                   </span>
                 </>
               );
-              const cls = `${st.cd} ${ps.length ? st.cdOn : ""} ${ehHoje ? st.cdHoje : ""}`;
+              const cls = `${st.cd} ${ps.length ? st.cdOn : ""} ${ehHoje ? st.cdHoje : ""} ${d === diaSel ? st.cdSel : ""}`;
               return ps.length ? (
-                <button key={d} type="button" className={cls} aria-label={`${WDL[data(d).getDay()]} ${d}: ${ps.map((e) => `${TIPO[e.tipo]} ${e.titulo}`).join(", ")}`} onClick={() => ir(`dia-${d}`)}>
+                <button key={d} type="button" className={cls} aria-pressed={d === diaSel} aria-label={`${WDL[data(d).getDay()]} ${d}: ${ps.map((e) => `${TIPO[e.tipo]} ${e.titulo}`).join(", ")}`} onClick={() => escolherDia(d)}>
                   {miolo}
                 </button>
               ) : (
@@ -254,6 +266,39 @@ export function PlanejamentoView({
             <span><i className={`${st.pip} ${st.pipOk}`} /> Pronto</span>
           </p>
         </section>
+
+        {diaSel && doDia.length ? (
+          <section key={diaSel} ref={previaRef} className={`${st.block} ${st.previa}`} aria-live="polite">
+            <span className={st.eyebrow}>
+              {WDL[data(diaSel).getDay()][0].toUpperCase() + WDL[data(diaSel).getDay()].slice(1)}, {diaSel} de {MESES[c.mes - 1]}
+            </span>
+            {doDia.map((e) => (
+              <div key={e.id} className={st.previaItem}>
+                {pills(e)}
+                <h2>{e.titulo}</h2>
+                {e.formato ? <p className={st.dmeta}>{e.formato}</p> : null}
+                {e.fala ? (
+                  <p className={st.speech}>{e.fala}</p>
+                ) : e.telas.length ? (
+                  <ol className={st.screens}>
+                    {e.telas.map((t, n) => (
+                      <li key={n}>
+                        <span>{t}</span>
+                      </li>
+                    ))}
+                  </ol>
+                ) : e.card ? (
+                  <p className={st.cardtext}>{e.card}</p>
+                ) : (
+                  <p className={st.note}>Roteiro completo na página do dia.</p>
+                )}
+              </div>
+            ))}
+            <button type="button" className={st.abrir} onClick={() => ir(`dia-${diaSel}`)}>
+              Abrir o dia completo →
+            </button>
+          </section>
+        ) : null}
 
         {c.avisos.length ? (
           <details className={`${st.block} ${st.fold} ${st.combinados}`}>
@@ -387,21 +432,21 @@ export function PlanejamentoView({
         </button>
         {es.length === 0 ? (
           <div className={st.dhead}>
-            <h1>{nome[0].toUpperCase() + nome.slice(1)}, {dia} de {MESES[c.mes - 1]}</h1>
+            <h1 className={st.dataDia}>{nome[0].toUpperCase() + nome.slice(1)}, {dia} de {MESES[c.mes - 1]}</h1>
             <p className={st.note}>Sem postagem neste dia.</p>
           </div>
         ) : es.length === 1 ? (
           <>
-            <span className={st.eyebrow}>
+            <p className={st.dataDia}>
               {nome[0].toUpperCase() + nome.slice(1)}, {dia} de {MESES[c.mes - 1]}
-            </span>
+            </p>
             {corpo(es[0], "h1")}
           </>
         ) : (
           <>
             <div className={st.dhead}>
               <span className={st.eyebrow}>{es.length} entregas neste dia</span>
-              <h1>
+              <h1 className={st.dataDia}>
                 {nome[0].toUpperCase() + nome.slice(1)}, {dia} de {MESES[c.mes - 1]}
               </h1>
             </div>
