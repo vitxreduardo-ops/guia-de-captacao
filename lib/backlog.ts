@@ -26,6 +26,7 @@ import {
   brasiliaToISO,
 } from "@/lib/backlogTypes";
 import { parseBRLToCents } from "@/lib/billingTypes";
+import { cleanMediaUrls, igMediaProblem } from "@/lib/instagramMidia";
 
 export type {
   BacklogActivity,
@@ -418,10 +419,12 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
     ),
     ig_schedule: formData.get("ig_schedule") === "on",
     ig_publish_at: brasiliaToISO(String(formData.get("ig_publish_at") ?? "")),
-    ig_media_urls: String(formData.get("ig_media_urls") ?? "")
-      .split(/\s+/)
-      .map((u) => normalizeUrl(u))
-      .filter((u): u is string => Boolean(u)),
+    ig_media_urls: cleanMediaUrls(
+      String(formData.get("ig_media_urls") ?? "")
+        .split(/\s+/)
+        .map((u) => normalizeUrl(u))
+        .filter((u): u is string => Boolean(u))
+    ),
   };
 }
 
@@ -567,6 +570,10 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
     current.ig_status === "publicando" || current.ig_status === "publicado";
   if (!igLocked && fields.ig_schedule && !fields.ig_publish_at) {
     throw new Error("Informe data e hora da publicação no Instagram.");
+  }
+  if (!igLocked && fields.ig_schedule) {
+    const problem = igMediaProblem(fields.format, fields.ig_media_urls);
+    if (problem) throw new Error(problem);
   }
   const igFields = igLocked
     ? {}
