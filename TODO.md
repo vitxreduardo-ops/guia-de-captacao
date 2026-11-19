@@ -223,7 +223,35 @@ só no banco local (`scripts/teste-local.sh`) em 16/11/2026.
       respostas ficam (tabela nova no Supabase) e como o link é gerado por
       cliente.
 
+## Prioridade
+
+- [x] **Agendamento de post dentro do card (quadro de entregas).** Auditado e
+      corrigido em 19/11/2026: sem miniaturas (era um textarea de links),
+      sem contagem, links duplicados/quebrados aceitos, formato com
+      quantidade errada só falhava no cron (reel/story/foto com 2+ mídias
+      publicavam só a primeira; carrossel com 1 estourava na hora de
+      publicar), link do Drive colado à mão não era copiado, e o seletor
+      guardava a lista de um card ao abrir outro. Carrossel com proporções
+      diferentes (2 quadradas e 1 retangular) saía cortado: agora o seletor lê
+      a proporção de cada mídia e barra o agendamento (só no navegador; o
+      servidor não enxerga as dimensões). Também barra mídia fora da faixa do
+      feed (0,80 a 1,91), e a miniatura mostra a proporção real.
+- [x] **Experiência do agendamento, feita em 19/11/2026.** O card de entrega
+      ganhou duas abas ("Editar entrega" / "Publicar no Instagram"); a aba
+      tem formato, mídia, legenda (com contador /2200), capa, tags e o
+      agendamento. "Agendar e salvar" exige mídia válida e data futura e já
+      salva; o status mostra "publica qua, 26/11 às 10:00 (em 6 dias)".
+      PNG/WebP viram JPEG no navegador, envio com % de progresso, miniaturas
+      arrastáveis e botões maiores no toque. Falta testar no navegador o
+      envio real de arquivo e a conversão de PNG (o banco local não tem
+      Storage).
+
 ## Qualidade geral
+
+- [ ] **Verificar todos os erros 404 que ainda existem.** Passar por todas as
+      rotas do admin, do portal do cliente e das páginas públicas (`/guia`,
+      `/orcamento`, `/cliente`) e listar links, imagens e arquivos que
+      respondem 404. Anotar aqui cada um com a rota de origem.
 
 - [ ] **Erro de lint pré-existente:** `components/admin/DriveSyncForm.tsx:51`
       chama `setState` dentro de um efeito (`react-hooks/set-state-in-effect`).

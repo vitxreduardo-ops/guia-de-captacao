@@ -1,6 +1,7 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { isVideoUrl } from "@/lib/instagramMidia";
 
 // Instagram Login (graph.instagram.com): não exige Página do Facebook.
 const GRAPH = "https://graph.instagram.com/v26.0";
@@ -191,7 +192,6 @@ export async function refreshExpiringTokens(): Promise<number> {
 
 // ---- Publicação ----
 
-const VIDEO_EXT = /\.(mp4|mov)(\?|$)/i;
 
 export interface PublishInput {
   format: string;
@@ -208,7 +208,7 @@ export function buildContainerParams(input: PublishInput): {
 } {
   const { format, urls, caption } = input;
   if (urls.length === 0) throw new Error("Card sem mídia pública pra publicar.");
-  const isVideo = (u: string) => VIDEO_EXT.test(u);
+  const isVideo = isVideoUrl;
 
   // Card com mais de uma arte sai como carrossel; com uma, como foto.
   if (format === "carrossel" || (format === "card" && urls.length > 1)) {

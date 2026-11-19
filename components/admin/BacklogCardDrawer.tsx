@@ -1,8 +1,10 @@
 "use client";
 
 import { confirmar } from "@/components/ConfirmHost";
-import { InstagramMediaPicker } from "@/components/admin/InstagramMediaPicker";
+import { BacklogInstagramTab } from "@/components/admin/BacklogInstagramTab";
+import type { MediaState } from "@/components/admin/InstagramMediaPicker";
 import { useRef, useState, useTransition } from "react";
+import { flushSync } from "react-dom";
 import {
   Dialog,
   DialogContent,
@@ -474,14 +476,40 @@ export function BacklogCardDrawer({
   onDelete: (id: string) => Promise<void>;
 }) {
   const [pending, startTransition] = useTransition();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [tab, setTab] = useState<"entrega" | "instagram">("entrega");
+  // Formato, agendamento e data moram aqui porque as duas abas leem os mesmos.
+  const [format, setFormat] = useState<string>(card.format);
+  const igLocked = card.ig_status === "publicando" || card.ig_status === "publicado";
+  const [scheduled, setScheduled] = useState(card.ig_status === "agendado" || igLocked);
+  const [publishAt, setPublishAt] = useState(
+    card.ig_publish_at ? isoToBrasilia(card.ig_publish_at) : ""
+  );
+  const [media, setMedia] = useState<MediaState>({
+    count: card.ig_media_urls.length,
+    problem: null,
+  });
+  const [captionLength, setCaptionLength] = useState(card.caption.length);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // Agendado com mídia ou data faltando: o servidor só jogaria um erro que
+    // derruba a tela. Leva pra aba onde o motivo está escrito.
+    if (showBilling && scheduled && !igLocked && (media.count === 0 || media.problem || !publishAt)) {
+      setTab("instagram");
+      return;
+    }
     const formData = new FormData(event.currentTarget);
     startTransition(async () => {
       await onSave(formData);
       onClose();
     });
+  }
+
+  /** Agenda ou cancela e já salva: um clique só, sem ir procurar o "Salvar". */
+  function schedulePost(next: boolean) {
+    flushSync(() => setScheduled(next));
+    formRef.current?.requestSubmit();
   }
 
   async function handleDelete() {
@@ -519,7 +547,8 @@ export function BacklogCardDrawer({
       <select
         id="backlog-format"
         name="format"
-        defaultValue={card.format}
+        value={format}
+        onChange={(event) => setFormat(event.target.value)}
         className={inputClass}
       >
         {BACKLOG_FORMATS.map((format) => (
@@ -679,76 +708,27 @@ export function BacklogCardDrawer({
         id="backlog-caption"
         name="caption"
         defaultValue={card.caption}
-        rows={4}
+        onChange={(event) => setCaptionLength(event.target.value.length)}
+        rows={6}
         className={inputClass}
       />
+      <p
+        className={`mt-1 text-right text-xs ${captionLength > 2200 ? "text-red-600" : "text-neutral-500"}`}
+      >
+        {captionLength}/2200
+      </p>
     </div>
   );
 
-  const igClient = clients.find((c) => c.id === card.client_id);
-  const igLocked =
-    card.ig_status === "publicando" || card.ig_status === "publicado";
-  const igStatusLabel: Record<string, string> = {
-    agendado: "Agendado",
-    publicando: "Publicando…",
-    publicado: "Publicado",
-    falhou: "Falhou",
-  };
-  const instagramField = card.client_id ? (
-    <div className="flex flex-col gap-2 rounded-md border border-neutral-200 p-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className={labelClass}>Publicar no Instagram do cliente</span>
-        {card.ig_status ? (
-          <span className="text-xs font-medium text-neutral-700">
-            {igStatusLabel[card.ig_status]}
-          </span>
-        ) : null}
+  const igAccount = clients.find((c) => c.id === card.client_id)?.instagram ?? null;
+  const postFields = (
+    <>
+      {captionField}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {tagsField}
+        {coverField}
       </div>
-      {igClient?.instagram ? (
-        <>
-          <p className="text-xs text-neutral-500">
-            Conta conectada: @{igClient.instagram}. A legenda e o formato vêm
-            do bloco acima.
-          </p>
-          <InstagramMediaPicker initial={card.ig_media_urls} disabled={igLocked} />
-          <label className={labelClass} htmlFor="backlog-ig-at">
-            Publicar em (horário de Brasília)
-          </label>
-          <input
-            id="backlog-ig-at"
-            type="datetime-local"
-            name="ig_publish_at"
-            defaultValue={card.ig_publish_at ? isoToBrasilia(card.ig_publish_at) : ""}
-            disabled={igLocked}
-            className={inputClass}
-          />
-          <label className="flex items-center gap-2 text-sm text-neutral-700">
-            <input
-              type="checkbox"
-              name="ig_schedule"
-              defaultChecked={card.ig_status === "agendado" || igLocked}
-              disabled={igLocked}
-              className="h-4 w-4"
-            />
-            Agendar publicação automática
-          </label>
-          {card.ig_error ? (
-            <p className="text-xs text-red-600">{card.ig_error}</p>
-          ) : null}
-        </>
-      ) : (
-        <a
-          href={`/api/instagram/oauth/start?cliente=${card.client_id}`}
-          className="w-fit rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50"
-        >
-          Conectar Instagram deste cliente
-        </a>
-      )}
-    </div>
-  ) : (
-    <p className="rounded-md border border-dashed border-neutral-300 p-3 text-xs text-neutral-500">
-      Escolha o cliente e salve para publicar no Instagram dele.
-    </p>
+    </>
   );
 
   const clientPlanField = (
@@ -796,23 +776,94 @@ export function BacklogCardDrawer({
           bordas e miolo rolando por dentro. */}
       <DialogContent className="grid max-h-[calc(100dvh-6rem)] w-[calc(100%-3rem)] max-w-4xl grid-rows-[auto_minmax(0,1fr)_auto] gap-3 p-5 sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="text-base">
+          <DialogTitle className={showBilling ? "sr-only" : "text-base"}>
             {showBilling ? "Editar entrega" : "Editar material"}
           </DialogTitle>
+          {showBilling ? (
+            <div role="tablist" aria-label="Seções do card" className="flex gap-1 border-b border-neutral-200">
+              {(
+                [
+                  ["entrega", "Editar entrega"],
+                  ["instagram", "Publicar no Instagram"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  id={`backlog-tab-${id}`}
+                  aria-selected={tab === id}
+                  aria-controls={`backlog-panel-${id}`}
+                  tabIndex={tab === id ? 0 : -1}
+                  onClick={() => setTab(id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+                      event.preventDefault();
+                      const next = id === "entrega" ? "instagram" : "entrega";
+                      setTab(next);
+                      document.getElementById(`backlog-tab-${next}`)?.focus();
+                    }
+                  }}
+                  className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium sm:text-base pointer-coarse:min-h-11 ${
+                    tab === id
+                      ? "border-neutral-900 text-neutral-900"
+                      : "border-transparent text-neutral-500 hover:text-neutral-800"
+                  }`}
+                >
+                  {label}
+                  {id === "instagram" && card.ig_status === "agendado" ? (
+                    <span
+                      className="ml-2 inline-block h-2 w-2 rounded-full bg-emerald-500 align-middle"
+                      title="Agendado"
+                    />
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </DialogHeader>
 
         <form
           id="backlog-card-form"
+          ref={formRef}
           onSubmit={handleSubmit}
           className="grid min-h-0 content-start gap-5 overflow-y-auto sm:grid-cols-[1fr_20rem] sm:content-stretch sm:overflow-hidden"
         >
           <input type="hidden" name="id" value={card.id} />
 
           <div className="flex flex-col gap-4 sm:min-h-0 sm:overflow-y-auto sm:pr-2">
-            {titleField}
-
             {showBilling ? (
               <>
+                <div
+                  role="tabpanel"
+                  id="backlog-panel-instagram"
+                  aria-labelledby="backlog-tab-instagram"
+                  hidden={tab !== "instagram"}
+                  className={tab === "instagram" ? "flex flex-col gap-4" : "hidden"}
+                >
+                  <BacklogInstagramTab
+                    card={card}
+                    account={igAccount}
+                    format={format}
+                    onFormat={setFormat}
+                    scheduled={scheduled}
+                    publishAt={publishAt}
+                    onPublishAt={setPublishAt}
+                    media={media}
+                    onMedia={setMedia}
+                    onSchedule={schedulePost}
+                    busy={pending}
+                    postFields={postFields}
+                  />
+                </div>
+                <div
+                  role="tabpanel"
+                  id="backlog-panel-entrega"
+                  aria-labelledby="backlog-tab-entrega"
+                  hidden={tab !== "entrega"}
+                  className={tab === "entrega" ? "flex flex-col gap-4" : "hidden"}
+                >
+                {titleField}
                 <div className="grid grid-cols-2 gap-3">
                   {clientField}
                   {guideField}
@@ -885,24 +936,12 @@ export function BacklogCardDrawer({
 
                 {clientPlanField}
                 {descriptionField}
-
-                {/* Campos de post do Instagram: fechados por padrão, mas
-                    continuam no formulário e são salvos mesmo recolhidos. */}
-                <details className="rounded-md border border-neutral-200 p-3">
-                  <summary className="cursor-pointer text-xs font-medium text-neutral-600">
-                    Instagram (capa, legenda, tags)
-                  </summary>
-                  <div className="mt-3 flex flex-col gap-4">
-                    {coverField}
-                    {whatsappField}
-                    {tagsField}
-                    {captionField}
-                  </div>
-                </details>
-                {instagramField}
+                {whatsappField}
+                </div>
               </>
             ) : (
               <>
+                {titleField}
                 <div className="grid grid-cols-2 gap-3">
                   {formatField}
                   <div>
