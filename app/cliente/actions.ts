@@ -42,7 +42,7 @@ async function review(cardId: string, feedback: string | null) {
             ? `Cliente aprovou: ${card.title}`
             : `Cliente pediu ajuste: ${card.title}`,
         body: feedback ?? "",
-        link: "/admin/clientes/entregas",
+        link: "/admin/entregas",
         entityId: cardId,
       }).catch((err) => console.error("Falha ao avisar", err))
     )
@@ -87,7 +87,7 @@ export async function addIdeaAction(formData: FormData) {
     kind: "client_idea",
     title: "Cliente sugeriu uma ideia",
     body: title,
-    link: "/admin/clientes/entregas",
+    link: "/admin/entregas",
   }).catch((err) => console.error("Falha ao avisar da ideia", err));
   revalidatePath("/cliente", "layout");
   revalidatePath("/admin/area-do-cliente", "layout");

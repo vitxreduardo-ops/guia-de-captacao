@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { AdminHeader } from "@/components/admin/AdminHeader";
-import { ClientTabs } from "@/components/admin/ClientTabs";
 import { backlogBoardPath, findCardByProtocol } from "@/lib/backlog";
 import { getCurrentClientScope } from "@/lib/clientAccess";
 import { formatProtocol, parseProtocol } from "@/lib/protocol";
@@ -17,17 +15,8 @@ export default async function ProtocoloPage({
   const found = protocol ? await findCardByProtocol(protocol, await getCurrentClientScope()) : null;
 
   return (
-    <div className="mx-auto w-full max-w-2xl pb-10">
-      <AdminHeader
-        title="Buscar OS"
-        trail={[
-          { label: "Admin", href: "/admin" },
-          { label: "Clientes", href: "/admin/clientes" },
-          { label: "Buscar OS" },
-        ]}
-      />
-      <ClientTabs />
-      <form className="mt-4 flex gap-2" action="/admin/clientes/protocolo">
+    <div className="max-w-2xl">
+      <form className="flex gap-2" action="/admin/financeiro/os">
         <input
           name="q"
           defaultValue={q}
@@ -37,7 +26,7 @@ export default async function ProtocoloPage({
           aria-label="Protocolo da OS"
           className="w-full rounded-md border border-neutral-300 px-3 py-2 font-mono text-sm"
         />
-        <button className="rounded-md bg-neutral-900 px-4 py-2 text-sm text-white">Buscar</button>
+        <button className="rounded-md bg-(--tatu-ink) px-4 py-2 text-sm text-white">Buscar</button>
       </form>
 
       {q && !protocol ? (

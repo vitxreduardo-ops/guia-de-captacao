@@ -186,7 +186,7 @@ export async function setGalleryArticleAction(clientId: string, article: "do" | 
 export async function setColumnClientVisibleAction(columnId: string, visible: boolean) {
   await requireAdmin();
   await updateBacklogColumn(columnId, { clientVisible: visible });
-  revalidatePath("/admin/clientes/entregas");
+  revalidatePath("/admin/entregas");
   revalidateArea();
 }
 
@@ -209,7 +209,7 @@ export async function createMaterialAction(formData: FormData) {
     });
   }
   revalidateArea();
-  revalidatePath("/admin/clientes/entregas");
+  revalidatePath("/admin/entregas");
 }
 
 export async function updateMaterialAction(formData: FormData) {
@@ -220,7 +220,7 @@ export async function updateMaterialAction(formData: FormData) {
   if (!column_id) return;
   await updateClientMaterial(String(formData.get("id")), clientId, { ...fields, column_id });
   revalidateArea();
-  revalidatePath("/admin/clientes/entregas");
+  revalidatePath("/admin/entregas");
 }
 
 export async function deleteMaterialAction(id: string, clientId: string) {
@@ -228,5 +228,5 @@ export async function deleteMaterialAction(id: string, clientId: string) {
   await allowed(clientId);
   await deleteClientMaterial(id, clientId);
   revalidateArea();
-  revalidatePath("/admin/clientes/entregas");
+  revalidatePath("/admin/entregas");
 }

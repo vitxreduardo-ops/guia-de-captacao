@@ -16,9 +16,8 @@ import { assertClientAllowed, getCurrentClientScope } from "@/lib/clientAccess";
 import { requireTeam } from "@/lib/session";
 
 function revalidateMoney() {
-  revalidatePath("/admin/clientes/dinheiro");
-  revalidatePath("/admin/clientes/entregas");
-  revalidatePath("/admin/clientes/cadastro");
+  revalidatePath("/admin/financeiro", "layout");
+  revalidatePath("/admin/entregas", "layout");
 }
 
 /** Data AAAA-MM-DD válida, ou null (campo vazio = vencimento automático). */
@@ -43,7 +42,7 @@ async function readCardIds(formData: FormData): Promise<string[]> {
 
 /** "Recebi": uma entrega ou todas as de um cliente, com a forma de pagamento. */
 export async function markPaidAction(formData: FormData) {
-  await requireTeam("clientes");
+  await requireTeam("financeiro");
   const ids = await readCardIds(formData);
   const method = normalizePaymentMethod(formData.get("method")) ?? "pix";
   await markCardsPaid(ids, method, new Date().toLocaleDateString("sv-SE"));
@@ -51,14 +50,14 @@ export async function markPaidAction(formData: FormData) {
 }
 
 export async function markUnpaidAction(formData: FormData) {
-  await requireTeam("clientes");
+  await requireTeam("financeiro");
   await markCardsUnpaid(await readCardIds(formData));
   revalidateMoney();
 }
 
 /** "Recebi uma parte": o valor vem do campo, em reais. */
 export async function markPartialAction(formData: FormData) {
-  await requireTeam("clientes");
+  await requireTeam("financeiro");
   const [id] = await readCardIds(formData);
   const method = normalizePaymentMethod(formData.get("method")) ?? "pix";
   await addPartialPayment(
@@ -72,7 +71,7 @@ export async function markPartialAction(formData: FormData) {
 
 /** Corrige nome, quantidade, valor e produto de uma entrega, sem sair da tela. */
 export async function updateItemAction(formData: FormData) {
-  await requireTeam("clientes");
+  await requireTeam("financeiro");
   const [id] = await readCardIds(formData);
   await updateCardBilling(id, {
     title: String(formData.get("titulo") ?? ""),
@@ -86,7 +85,7 @@ export async function updateItemAction(formData: FormData) {
 
 /** Dia de pagamento, telefone e responsável, direto da cobrança. */
 export async function updateClientContactAction(formData: FormData) {
-  await requireTeam("clientes");
+  await requireTeam("financeiro");
   const clientId = String(formData.get("client"));
   assertClientAllowed(await getCurrentClientScope(), clientId);
   const day = String(formData.get("dia") ?? "").trim();
@@ -100,7 +99,7 @@ export async function updateClientContactAction(formData: FormData) {
 
 /** Muda (ou limpa) o vencimento de várias entregas de um cliente de uma vez. */
 export async function setDueAction(formData: FormData) {
-  await requireTeam("clientes");
+  await requireTeam("financeiro");
   const ids = await readCardIds(formData);
   await setCardsDue(ids, readDate(formData.get("vencimento")));
   revalidateMoney();

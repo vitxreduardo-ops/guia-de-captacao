@@ -47,10 +47,12 @@ import {
 const KANBAN_PATHS = [
   "/admin/backlog",
   "/admin/backlog/calendario",
-  "/admin/clientes/entregas",
-  "/admin/clientes/entregas/calendario",
-  "/admin/clientes/faturamento",
-  "/admin/clientes/resumo",
+  "/admin/entregas",
+  "/admin/entregas/calendario",
+  "/admin/financeiro",
+  "/admin/financeiro/cobrancas",
+  "/admin/financeiro/contas",
+  "/admin/financeiro/entradas",
 ];
 
 function revalidateBacklog() {

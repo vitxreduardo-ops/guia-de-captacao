@@ -15,7 +15,7 @@ import {
   setDueAction,
   updateClientContactAction,
   updateItemAction,
-} from "@/app/admin/clientes/dinheiro/actions";
+} from "@/app/admin/financeiro/actions";
 
 const CAMPO =
   "min-h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-base focus:border-neutral-500 focus:outline-none";
@@ -67,19 +67,19 @@ function ItemLinha({ item }: { item: MoneyItem }) {
         >
           <input type="hidden" name="card" value={item.cardId} />
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-neutral-700">Nome da entrega</span>
+            <span className="mb-1 block text-sm font-medium text-neutral-600">Nome da entrega</span>
             <input name="titulo" required defaultValue={item.title} autoFocus className={CAMPO} />
           </label>
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-neutral-700">Quantidade</span>
+            <span className="mb-1 block text-sm font-medium text-neutral-600">Quantidade</span>
             <input name="quantidade" type="number" min={1} required defaultValue={item.quantity} className={CAMPO} />
           </label>
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-neutral-700">Valor de cada uma</span>
+            <span className="mb-1 block text-sm font-medium text-neutral-600">Valor de cada uma</span>
             <input name="valor" required inputMode="decimal" defaultValue={paraCampo(item.unitCents)} className={CAMPO} />
           </label>
           <label className="block sm:col-span-3">
-            <span className="mb-1 block text-sm font-medium text-neutral-700">Vence em</span>
+            <span className="mb-1 block text-sm font-medium text-neutral-600">Vence em</span>
             <input name="vencimento" type="date" defaultValue={item.dueCustom ? (item.dueOn ?? "") : ""} className={`${CAMPO} sm:w-56`} />
             <span className="mt-1 block text-sm text-neutral-600">
               Deixe vazio para seguir o dia combinado com o cliente
@@ -87,14 +87,14 @@ function ItemLinha({ item }: { item: MoneyItem }) {
             </span>
           </label>
           <label className="block sm:col-span-3">
-            <span className="mb-1 block text-sm font-medium text-neutral-700">Produto ou serviço (opcional)</span>
+            <span className="mb-1 block text-sm font-medium text-neutral-600">Produto ou serviço (opcional)</span>
             <input name="produto" defaultValue={item.serviceName ?? ""} placeholder="Ex.: Reel editado" className={CAMPO} />
           </label>
           <div className="flex flex-wrap items-center gap-2 sm:col-span-3">
-            <button type="submit" disabled={pending} className={`rounded-lg bg-neutral-900 px-5 text-base font-medium text-white hover:bg-neutral-800 disabled:opacity-50 ${PRESS}`}>
+            <button type="submit" disabled={pending} className={`rounded-lg bg-(--tatu-ink) px-5 text-base font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}>
               {pending ? "Salvando…" : "Salvar"}
             </button>
-            <button type="button" onClick={() => setEditando(false)} className={`rounded-lg px-3 text-base text-neutral-700 underline ${PRESS}`}>
+            <button type="button" onClick={() => setEditando(false)} className={`rounded-lg px-3 text-base text-neutral-600 underline ${PRESS}`}>
               Cancelar
             </button>
             <p className="text-sm text-neutral-600">Também muda no card do quadro de Entregas.</p>
@@ -120,7 +120,7 @@ function ItemLinha({ item }: { item: MoneyItem }) {
             </p>
           ) : null}
           {entrou ? (
-            <p className="text-sm text-amber-700">
+            <p className="text-sm text-neutral-600">
               Já entrou {formatBRL(item.receivedCents)} · falta {formatBRL(item.openCents)}
             </p>
           ) : null}
@@ -141,7 +141,7 @@ function ItemLinha({ item }: { item: MoneyItem }) {
             type="button"
             disabled={pending}
             onClick={() => startTransition(() => markUnpaidAction(dados()))}
-            className={`rounded-lg bg-emerald-50 px-3 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:opacity-50 ${PRESS}`}
+            className={`rounded-lg bg-(--tatu-ink)/10 px-3 text-sm font-medium text-(--tatu-ink) hover:bg-(--tatu-ink)/15 disabled:opacity-50 ${PRESS}`}
             title="Clique para desfazer"
             aria-label={`${item.title || "Entrega"}: pago. Clique para desfazer`}
           >
@@ -165,7 +165,7 @@ function ItemLinha({ item }: { item: MoneyItem }) {
               disabled={pending}
               onClick={() => startTransition(() => markPaidAction(dados()))}
               aria-label={`${entrou ? "Recebi o resto de" : "Recebi"} ${item.title || "esta entrega"}`}
-              className={`rounded-lg border border-neutral-300 px-3 text-sm font-medium text-neutral-800 hover:bg-neutral-50 disabled:opacity-50 ${PRESS}`}
+              className={`rounded-lg border border-neutral-300 px-3 text-sm font-medium text-neutral-900 hover:bg-neutral-50 disabled:opacity-50 ${PRESS}`}
             >
               {pending ? "Salvando…" : entrou ? "Recebi o resto" : "Recebi"}
             </button>
@@ -184,7 +184,7 @@ function ItemLinha({ item }: { item: MoneyItem }) {
           className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-neutral-50 p-3"
         >
           <input type="hidden" name="card" value={item.cardId} />
-          <label className="text-base text-neutral-700" htmlFor={`parte-${item.cardId}`}>
+          <label className="text-base text-neutral-600" htmlFor={`parte-${item.cardId}`}>
             Quanto entrou agora?
           </label>
           <input
@@ -200,7 +200,7 @@ function ItemLinha({ item }: { item: MoneyItem }) {
           <button
             type="submit"
             disabled={pending}
-            className={`rounded-lg bg-neutral-900 px-4 text-base font-medium text-white hover:bg-neutral-800 disabled:opacity-50 ${PRESS}`}
+            className={`rounded-lg bg-(--tatu-ink) px-4 text-base font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}
           >
             Guardar
           </button>
@@ -211,8 +211,8 @@ function ItemLinha({ item }: { item: MoneyItem }) {
 }
 
 const STATUS = {
-  pago: { texto: "text-emerald-700", ponto: "bg-emerald-500" },
-  aberto: { texto: "text-amber-700", ponto: "bg-amber-500" },
+  pago: { texto: "text-neutral-600", ponto: "bg-(--tatu-ink)" },
+  aberto: { texto: "text-neutral-600", ponto: "bg-amber-500" },
   atrasado: { texto: "text-red-700", ponto: "bg-red-500" },
 } as const;
 
@@ -252,12 +252,12 @@ function ClienteLinha({
             className={`size-3 shrink-0 rounded-full ${cor.ponto}`}
           />
           <span className="min-w-0">
-            <span className="block truncate text-lg font-semibold text-neutral-900">
+            <span className="block truncate text-lg font-medium text-neutral-900">
               {client.name}
             </span>
             <span className={`block text-base ${cor.texto}`}>{resumo}</span>
           </span>
-          <span aria-hidden className="ml-auto text-neutral-400">
+          <span aria-hidden className="ml-auto text-neutral-500">
             {aberto ? "▴" : "▾"}
           </span>
         </button>
@@ -277,7 +277,7 @@ function ClienteLinha({
               type="submit"
               disabled={pending}
               aria-label={`Recebi tudo de ${client.name}`}
-              className={`rounded-lg bg-neutral-900 px-5 text-base font-medium text-white hover:bg-neutral-800 disabled:opacity-50 ${PRESS}`}
+              className={`rounded-lg bg-(--tatu-ink) px-5 text-base font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}
             >
               {pending ? "Salvando…" : "Recebi tudo"}
             </button>
@@ -300,12 +300,12 @@ function ClienteLinha({
                 mesNome={mesNome}
                 cents={client.openCents}
                 rotulo="Cobrar no WhatsApp"
-                className={`inline-flex items-center rounded-lg border border-neutral-300 px-4 text-base text-neutral-800 hover:bg-neutral-50 ${PRESS}`}
+                className={`inline-flex items-center rounded-lg border border-neutral-300 px-4 text-base text-neutral-900 hover:bg-neutral-50 ${PRESS}`}
               />
             ) : null}
 
             <form
-              action="/admin/clientes/faturamento/pdf"
+              action="/admin/financeiro/faturamento/pdf"
               className="flex flex-wrap items-center gap-2"
             >
               <input type="hidden" name="cliente" value={client.id} />
@@ -313,7 +313,7 @@ function ClienteLinha({
               <ContaSelect name="pagamento" ariaLabel="Conta que recebe o Pix (vai na cobrança e no PDF)" />
               <button
                 type="submit"
-                className={`rounded-lg border border-neutral-300 px-4 text-base text-neutral-800 hover:bg-neutral-50 ${PRESS}`}
+                className={`rounded-lg border border-neutral-300 px-4 text-base text-neutral-900 hover:bg-neutral-50 ${PRESS}`}
               >
                 Baixar relatório (PDF)
               </button>
@@ -324,7 +324,7 @@ function ClienteLinha({
                 type="button"
                 onClick={() => setVenc(!venc)}
                 aria-expanded={venc}
-                className={`rounded-lg px-3 text-base text-neutral-700 underline hover:text-neutral-900 ${PRESS}`}
+                className={`rounded-lg px-3 text-base text-neutral-600 underline hover:text-neutral-900 ${PRESS}`}
               >
                 Mudar vencimento
               </button>
@@ -334,13 +334,13 @@ function ClienteLinha({
               type="button"
               onClick={() => setContato(!contato)}
               aria-expanded={contato}
-              className={`rounded-lg px-3 text-base text-neutral-700 underline hover:text-neutral-900 ${PRESS}`}
+              className={`rounded-lg px-3 text-base text-neutral-600 underline hover:text-neutral-900 ${PRESS}`}
             >
               Editar contato e dia de pagamento
             </button>
 
             <Link
-              href={`/admin/clientes/cadastro?abrir=${client.id}`}
+              href={`/admin/financeiro/clientes?abrir=${client.id}`}
               className={`ml-auto inline-flex items-center rounded-lg px-3 text-base text-neutral-600 underline hover:text-neutral-900 ${PRESS}`}
             >
               Todos os dados
@@ -363,12 +363,12 @@ function ClienteLinha({
                   <input key={i.cardId} type="hidden" name="card" value={i.cardId} />
                 ))}
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-neutral-700">
+                <span className="mb-1 block text-sm font-medium text-neutral-600">
                   Novo vencimento das {client.items.filter((i) => i.openCents > 0).length} entregas em aberto
                 </span>
                 <input name="vencimento" type="date" className={`${CAMPO} sm:w-56`} />
               </label>
-              <button type="submit" disabled={pending} className={`rounded-lg bg-neutral-900 px-5 text-base font-medium text-white hover:bg-neutral-800 disabled:opacity-50 ${PRESS}`}>
+              <button type="submit" disabled={pending} className={`rounded-lg bg-(--tatu-ink) px-5 text-base font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}>
                 {pending ? "Salvando…" : "Aplicar"}
               </button>
               <p className="w-full text-sm text-neutral-600">
@@ -389,22 +389,22 @@ function ClienteLinha({
             >
               <input type="hidden" name="client" value={client.id} />
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-neutral-700">Dia em que paga</span>
+                <span className="mb-1 block text-sm font-medium text-neutral-600">Dia em que paga</span>
                 <input name="dia" type="number" min={1} max={31} defaultValue={client.paymentDay ?? ""} placeholder="10" className={CAMPO} />
               </label>
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-neutral-700">Telefone (WhatsApp)</span>
+                <span className="mb-1 block text-sm font-medium text-neutral-600">Telefone (WhatsApp)</span>
                 <input name="telefone" type="tel" inputMode="tel" defaultValue={client.phone ?? ""} placeholder="(00) 00000-0000" className={CAMPO} />
               </label>
               <label className="block">
-                <span className="mb-1 block text-sm font-medium text-neutral-700">Quem recebe a cobrança</span>
+                <span className="mb-1 block text-sm font-medium text-neutral-600">Quem recebe a cobrança</span>
                 <input name="responsavel" defaultValue={client.contactName ?? ""} className={CAMPO} />
               </label>
               <div className="flex items-center gap-2 sm:col-span-3">
-                <button type="submit" disabled={pending} className={`rounded-lg bg-neutral-900 px-5 text-base font-medium text-white hover:bg-neutral-800 disabled:opacity-50 ${PRESS}`}>
+                <button type="submit" disabled={pending} className={`rounded-lg bg-(--tatu-ink) px-5 text-base font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}>
                   {pending ? "Salvando…" : "Salvar"}
                 </button>
-                <button type="button" onClick={() => setContato(false)} className={`rounded-lg px-3 text-base text-neutral-700 underline ${PRESS}`}>
+                <button type="button" onClick={() => setContato(false)} className={`rounded-lg px-3 text-base text-neutral-600 underline ${PRESS}`}>
                   Cancelar
                 </button>
               </div>

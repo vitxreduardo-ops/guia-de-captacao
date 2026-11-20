@@ -13,7 +13,7 @@ import {
   instagramInviteTokenAction,
   setClientArchivedAction,
   updateClientAction,
-} from "@/app/admin/clientes/cadastro/actions";
+} from "@/app/admin/financeiro/clientes/actions";
 
 const inputClass =
   "w-full rounded-lg border border-neutral-300 px-3 py-2.5 text-base focus:border-neutral-500 focus:outline-none";
@@ -255,7 +255,7 @@ function ClientRow({
             <button
               type="submit"
               disabled={pending}
-              className={`rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50 ${PRESS}`}
+              className={`rounded-md bg-(--tatu-ink) px-3 py-1.5 text-xs font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}
             >
               {pending ? "Salvando..." : "Salvar"}
             </button>
@@ -333,7 +333,7 @@ function ClientRow({
       </span>
 
       <Link
-        href="/admin/clientes/dinheiro?aba=contas"
+        href="/admin/financeiro/contas"
         className={`rounded-lg px-3 text-base font-medium hover:underline pointer-coarse:min-h-11 inline-flex items-center ${
           summary.openCents === 0
             ? "text-emerald-700"

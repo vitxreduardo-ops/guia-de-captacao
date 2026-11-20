@@ -246,7 +246,7 @@ stage "Testar a conexão"
 say "Abra, logado no admin, trocando <ID> pelo id do cliente na galeria:"
 note "  ${INSTAGRAM_OAUTH_REDIRECT_URI%/api/instagram/oauth/callback}/api/instagram/oauth/start?cliente=<ID>"
 say "Ou: card do cliente em Clientes → Entregas → 'Conectar Instagram'."
-step "Autorize como o cliente testador. Volta em /admin/clientes/entregas?instagram=conectado."
+step "Autorize como o cliente testador. Volta em /admin/entregas?instagram=conectado."
 pause "Conectou? Enter pra finalizar"
 
 finish

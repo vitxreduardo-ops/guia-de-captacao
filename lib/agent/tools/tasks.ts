@@ -357,7 +357,7 @@ export const createTask: WriteTool<CreateTaskParams> = {
             kind: "card_assigned",
             title: "Novo material atribuído a você",
             body: card.title,
-            link: params.board === "entregas" ? "/admin/clientes/entregas" : "/admin/backlog",
+            link: params.board === "entregas" ? "/admin/entregas" : "/admin/backlog",
             entityId: card.id,
           })
         )
@@ -549,7 +549,7 @@ export const updateTask: WriteTool<UpdateTaskParams> = {
       if (upErr) throw upErr;
     }
 
-    const link = p.board === "entregas" ? "/admin/clientes/entregas" : "/admin/backlog";
+    const link = p.board === "entregas" ? "/admin/entregas" : "/admin/backlog";
     const done: string[] = [];
 
     if (p.column_id) {

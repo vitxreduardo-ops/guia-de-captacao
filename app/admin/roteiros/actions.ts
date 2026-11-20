@@ -542,7 +542,7 @@ export async function salvarPerfilClienteAction(
     // por Clientes. (Acesso restrito nem chega aqui: clientePermitido barra.)
     const id = (await perfilDoCliente(nome))?.id ?? (await createGalleryClient(nome.trim())).id;
     await salvarDescricaoDoCliente(id, descricao.trim().slice(0, MAX_DESCRICAO));
-    revalidatePath("/admin/clientes/cadastro");
+    revalidatePath("/admin/financeiro/clientes");
     return { ok: true, data: null };
   } catch (err) {
     return { ok: false, error: mensagem(err) };
