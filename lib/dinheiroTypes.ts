@@ -58,6 +58,8 @@ export interface MoneyMonth {
   openCents: number;
   /** Atrasado em qualquer mês, não só no aberto na tela. */
   overdueCents: number;
+  /** Quanto do `openCents` (só deste mês de trabalho) já passou do vencimento. */
+  monthOverdueCents: number;
   elsewhere: MoneyOpenElsewhere[];
 }
 

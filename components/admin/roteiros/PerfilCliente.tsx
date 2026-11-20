@@ -96,7 +96,7 @@ export default function PerfilCliente({ cliente }: { cliente: string }) {
             {perfil.cadastrado ? (
               // Nova aba: o formulário e a conversa ficam aqui.
               <a
-                href="/admin/clientes/cadastro"
+                href="/admin/financeiro/clientes"
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-xs text-neutral-500 underline hover:text-neutral-800"

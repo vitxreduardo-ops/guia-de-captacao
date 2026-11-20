@@ -17,11 +17,11 @@ function Detalhe({ titulo, itens, tom }: { titulo: string; itens: Item[]; tom: s
   const resto = itens.slice(4);
   return (
     <div className="mt-2">
-      <p className="text-xs font-medium tracking-wide text-neutral-500 uppercase">{titulo}</p>
+      <p className="text-xs font-medium text-neutral-500">{titulo}</p>
       <ul>
         {topo.map((i, idx) => (
           <li key={i.name + idx} className="flex justify-between gap-3">
-            <span className="min-w-0 truncate text-neutral-800">{i.name}</span>
+            <span className="min-w-0 truncate text-neutral-900">{i.name}</span>
             <span className={`tabular-nums ${tom}`}>{formatBRL(i.cents)}</span>
           </li>
         ))}
@@ -116,26 +116,26 @@ export function EntradasLinha({
 
   const cartao = a ? (
     <>
-      <p className="mb-1.5 font-semibold text-neutral-900 first-letter:uppercase">{a.title}</p>
-      <p className="flex justify-between gap-3 text-neutral-700">
+      <p className="mb-1.5 font-medium text-neutral-900 first-letter:uppercase">{a.title}</p>
+      <p className="flex justify-between gap-3 text-neutral-600">
         <span>Entrou</span>
-        <span className="font-medium tabular-nums text-emerald-700">{formatBRL(entrouAtivo)}</span>
+        <span className="font-medium tabular-nums text-neutral-900">{formatBRL(entrouAtivo)}</span>
       </p>
       {saidas ? (
         <>
-          <p className="flex justify-between gap-3 text-neutral-700">
+          <p className="flex justify-between gap-3 text-neutral-600">
             <span>Saiu</span>
             <span className="font-medium tabular-nums text-neutral-900">{formatBRL(saiuAtivo)}</span>
           </p>
-          <p className="mt-1 flex justify-between gap-3 border-t border-neutral-100 pt-1 text-neutral-700">
+          <p className="mt-1 flex justify-between gap-3 border-t border-neutral-100 pt-1 text-neutral-600">
             <span>Sobrou</span>
-            <span className={`font-semibold tabular-nums ${entrouAtivo - saiuAtivo < 0 ? "text-red-700" : "text-neutral-900"}`}>
+            <span className={`font-medium tabular-nums ${entrouAtivo - saiuAtivo < 0 ? "text-red-700" : "text-neutral-900"}`}>
               {formatBRL(entrouAtivo - saiuAtivo)}
             </span>
           </p>
         </>
       ) : null}
-      <Detalhe titulo="Quem pagou" itens={a.clientes ?? []} tom="text-emerald-700" />
+      <Detalhe titulo="Quem pagou" itens={a.clientes ?? []} tom="text-neutral-900" />
       {saidas ? <Detalhe titulo="O que saiu" itens={a.saidas ?? []} tom="text-neutral-900" /> : null}
     </>
   ) : null;
@@ -149,9 +149,9 @@ export function EntradasLinha({
       }}
     >
       {saidas ? (
-        <p className="mb-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-neutral-700">
+        <p className="mb-2 flex flex-wrap gap-x-5 gap-y-1 text-sm text-neutral-600">
           <span className="inline-flex items-center gap-1.5">
-            <span aria-hidden className="h-0.5 w-5 bg-emerald-600" /> Entrou
+            <span aria-hidden className="h-0.5 w-5 bg-(--tatu-ink)" /> Entrou
           </span>
           <span className="inline-flex items-center gap-1.5">
             <span aria-hidden className="w-5 border-t-2 border-dashed border-neutral-600" /> Saiu
@@ -169,8 +169,10 @@ export function EntradasLinha({
             .join("; ")}`}
           className="h-36 w-full"
         >
-          <path d={area} className="fill-emerald-500/10" />
-          <path d={curve} fill="none" className="stroke-emerald-600" strokeWidth={2.5} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          <line x1={0} x2={W} y1={PAD} y2={PAD} className="stroke-neutral-200" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+          <line x1={0} x2={W} y1={H - PAD} y2={H - PAD} className="stroke-neutral-200" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+          <path d={area} className="fill-(--tatu-ink)/10" />
+          <path d={curve} fill="none" className="stroke-(--tatu-ink)" strokeWidth={2.5} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
           {outXY ? (
             <path d={curveOf(outXY)} fill="none" className="stroke-neutral-600" strokeWidth={2} strokeDasharray="6 5" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
           ) : null}
@@ -179,8 +181,11 @@ export function EntradasLinha({
           ) : null}
         </svg>
 
-        {last ? dot(last, "bg-emerald-600") : null}
-        {ativo !== null && ativo !== xy.length - 1 ? dot(xy[ativo], "bg-emerald-600") : null}
+        <span aria-hidden className="pointer-events-none absolute top-0 left-0 bg-white/80 pr-1 text-xs text-neutral-500 tabular-nums">
+          {`R$ ${Math.round(max / 100).toLocaleString("pt-BR")}`}
+        </span>
+        {last ? dot(last, "bg-(--tatu-ink)") : null}
+        {ativo !== null && ativo !== xy.length - 1 ? dot(xy[ativo], "bg-(--tatu-ink)") : null}
         {ativo !== null && outXY ? dot(outXY[ativo], "bg-neutral-600") : null}
 
         {/* Uma faixa por mês, sobre o gráfico: o mouse, o toque e o Tab chegam
@@ -222,8 +227,8 @@ export function EntradasLinha({
       ) : null}
 
       <figcaption className="mt-1 flex justify-between text-xs text-neutral-600 sm:text-sm">
-        {points.map((p) => (
-          <span key={p.label}>{p.label}</span>
+        {points.map((p, i) => (
+          <span key={p.label} className={i === points.length - 1 ? "font-medium text-neutral-900" : undefined}>{p.label}</span>
         ))}
       </figcaption>
 

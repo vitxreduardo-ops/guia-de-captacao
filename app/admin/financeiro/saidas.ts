@@ -17,7 +17,7 @@ import { getCurrentSession, requireTeam } from "@/lib/session";
 
 /** Despesa é dinheiro do estúdio inteiro, não de um cliente: só quem vê todos os clientes mexe. */
 async function requireFullAccess() {
-  await requireTeam("clientes");
+  await requireTeam("financeiro");
   if ((await getCurrentClientScope()) !== null) {
     throw new Error("Só quem tem acesso a todos os clientes vê as despesas.");
   }
@@ -39,25 +39,25 @@ export async function addExpenseAction(formData: FormData) {
   } else {
     await addExpense({ ...fields, spentOn });
   }
-  revalidatePath("/admin/clientes/dinheiro");
+  revalidatePath("/admin/financeiro", "layout");
 }
 
 export async function deleteExpenseAction(formData: FormData) {
   await requireFullAccess();
   await deleteExpense(String(formData.get("id")));
-  revalidatePath("/admin/clientes/dinheiro");
+  revalidatePath("/admin/financeiro", "layout");
 }
 
 export async function stopRecurringAction(formData: FormData) {
   await requireFullAccess();
   await stopRecurringExpense(String(formData.get("id")), String(formData.get("mes")));
-  revalidatePath("/admin/clientes/dinheiro");
+  revalidatePath("/admin/financeiro", "layout");
 }
 
 export async function deleteRecurringAction(formData: FormData) {
   await requireFullAccess();
   await deleteRecurringExpense(String(formData.get("id")));
-  revalidatePath("/admin/clientes/dinheiro");
+  revalidatePath("/admin/financeiro", "layout");
 }
 
 function readExpenseFields(formData: FormData) {
@@ -73,7 +73,7 @@ export async function updateExpenseAction(formData: FormData) {
   const date = String(formData.get("data") ?? "");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Data inválida.");
   await updateExpense(String(formData.get("id")), { ...readExpenseFields(formData), spentOn: date });
-  revalidatePath("/admin/clientes/dinheiro");
+  revalidatePath("/admin/financeiro", "layout");
 }
 
 export async function updateRecurringAction(formData: FormData) {
@@ -82,5 +82,5 @@ export async function updateRecurringAction(formData: FormData) {
     ...readExpenseFields(formData),
     dayOfMonth: Number(formData.get("dia")),
   });
-  revalidatePath("/admin/clientes/dinheiro");
+  revalidatePath("/admin/financeiro", "layout");
 }

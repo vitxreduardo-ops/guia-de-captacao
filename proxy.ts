@@ -145,7 +145,9 @@ async function rotear(request: NextRequest) {
   // `/admin/usuarios` é sempre admin-only, checado à parte em requireAdmin().
   if (session.role !== "admin" && session.allowedSections !== null) {
     const section = path.split("/")[2];
-    if (section && !session.allowedSections.includes(section)) {
+    // `clientes` é a seção antiga (hoje Entregas e Financeiro): só redireciona
+    // para os endereços novos, que fazem a checagem de verdade.
+    if (section && section !== "clientes" && !session.allowedSections.includes(section)) {
       return NextResponse.redirect(fora("/admin"));
     }
   }

@@ -9,7 +9,7 @@ export class PermissionError extends Error {}
 
 /** Seção do painel que dá acesso a cada quadro. */
 export const BOARD_SECTION: Record<BacklogBoardKind, string> = {
-  entregas: "clientes",
+  entregas: "entregas",
   instagram: "backlog",
 };
 

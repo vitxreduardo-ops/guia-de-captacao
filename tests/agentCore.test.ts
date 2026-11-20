@@ -10,7 +10,7 @@ const actor: TelegramActor = {
   userId: "u1",
   username: "vitor",
   role: "member",
-  allowedSections: ["clientes"],
+  allowedSections: ["entregas"],
   allowedClientIds: ["c1"],
 };
 

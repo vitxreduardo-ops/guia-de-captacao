@@ -1,5 +1,4 @@
 import {
-  Briefcase,
   CalendarClock,
   HardDrive,
   House,
@@ -14,6 +13,7 @@ import {
   Library,
   Newspaper,
   NotebookText,
+  PackageCheck,
   PenLine,
   Receipt,
   ScrollText,
@@ -21,6 +21,7 @@ import {
   Target,
   UserRoundCheck,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -89,9 +90,15 @@ const ACTIONS: AdminAction[] = [
     group: "Criação",
   },
   {
-    href: "/admin/clientes",
-    label: "Clientes",
-    icon: Briefcase,
+    href: "/admin/entregas",
+    label: "Entregas",
+    icon: PackageCheck,
+    group: "Clientes",
+  },
+  {
+    href: "/admin/financeiro",
+    label: "Financeiro",
+    icon: Wallet,
     group: "Clientes",
   },
   {

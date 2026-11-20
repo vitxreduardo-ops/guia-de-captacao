@@ -134,6 +134,7 @@ export async function getMoneyMonth(
     paidCents: 0,
     openCents: 0,
     overdueCents: 0,
+    monthOverdueCents: 0,
     elsewhere: [],
   };
   if (clients.length === 0 || columns.length === 0) return empty;
@@ -184,6 +185,7 @@ export async function getMoneyMonth(
 
   const elsewhereMap = new Map<string, MoneyOpenElsewhere>();
   let overdueCents = 0;
+  let monthOverdueCents = 0;
 
   for (const card of cards) {
     const m = cardMonth(card);
@@ -230,6 +232,7 @@ export async function getMoneyMonth(
       .reduce((sum, i) => sum + i.openCents, 0);
     c.status = c.openCents === 0 ? "pago" : lateCents > 0 ? "atrasado" : "aberto";
     overdueCents += lateCents;
+    monthOverdueCents += lateCents;
   }
   const rank = { atrasado: 0, aberto: 1, pago: 2 } as const;
   list.sort(
@@ -250,6 +253,7 @@ export async function getMoneyMonth(
     paidCents: list.reduce((s, c) => s + c.paidCents, 0),
     openCents: list.reduce((s, c) => s + c.openCents, 0),
     overdueCents,
+    monthOverdueCents,
     elsewhere,
   };
 }
@@ -447,8 +451,8 @@ export async function getTodayView(
 }
 
 /**
- * Quem pagou em cada mês (pelo mês do trabalho, igual ao gráfico), do maior pro
- * menor. A chave é o mês, "AAAA-MM-01". Serve pro cartão que abre sobre o gráfico.
+ * Quem pagou em cada mês (pelo dia em que o dinheiro entrou, igual ao gráfico
+ * do Painel), do maior pro menor. A chave é o mês, "AAAA-MM-01". Serve pro cartão que abre sobre o gráfico.
  */
 export async function getPaidByClient(
   months: string[],
@@ -469,7 +473,10 @@ export async function getPaidByClient(
     .select(CARD_FIELDS)
     .in("column_id", [...paidByColumn.keys()])
     .not("client_id", "is", null)
-    .or(inRange(sorted[0], nextMonthKey(sorted[sorted.length - 1])));
+    .or(
+      inRange(sorted[0], nextMonthKey(sorted[sorted.length - 1])) +
+        `,and(paid_at.gte.${sorted[0]},paid_at.lt.${nextMonthKey(sorted[sorted.length - 1])})`
+    );
   const [cards, clients] = await Promise.all([
     clientScope ? query.in("client_id", clientScope) : query,
     supabase.from("gallery_clients").select("id, name"),
@@ -480,9 +487,12 @@ export async function getPaidByClient(
 
   const sums = new Map<string, Map<string, number>>();
   for (const card of (cards.data ?? []) as unknown as CardRow[]) {
-    const m = cardMonth(card);
+    const paid = paidByColumn.get(card.column_id) ?? false;
+    // Mesma regra do `getMoneyYear` no modo pagamento: o que está pago conta
+    // no mês em que foi pago; um pagamento parcial, no mês do trabalho.
+    const m = paid && card.paid_at ? monthKey(card.paid_at) : cardMonth(card);
     if (!m || !(m in result)) continue;
-    const received = toItem(card, paidByColumn.get(card.column_id) ?? false).receivedCents;
+    const received = toItem(card, paid).receivedCents;
     if (received === 0) continue;
     const perClient = sums.get(m) ?? new Map<string, number>();
     perClient.set(card.client_id, (perClient.get(card.client_id) ?? 0) + received);

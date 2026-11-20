@@ -549,7 +549,7 @@ export async function getBacklogCardBrief(
 
 /** Onde o card mora — o destino dos avisos da campainha. */
 export function backlogBoardPath(board: BacklogBoardKind): string {
-  return board === "entregas" ? "/admin/clientes/entregas" : "/admin/backlog";
+  return board === "entregas" ? "/admin/entregas" : "/admin/backlog";
 }
 
 export async function updateBacklogCard(id: string, fields: BacklogCardInput) {

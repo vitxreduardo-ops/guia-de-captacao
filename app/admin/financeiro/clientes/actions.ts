@@ -19,20 +19,19 @@ import { requireTeam } from "@/lib/session";
  * outra função só pra abrir um cliente novo.
  */
 function revalidateClients() {
-  revalidatePath("/admin/clientes/cadastro");
-  revalidatePath("/admin/clientes/entregas");
-  revalidatePath("/admin/clientes/faturamento");
+  revalidatePath("/admin/financeiro", "layout");
+  revalidatePath("/admin/entregas", "layout");
   revalidatePath("/admin/galerias");
 }
 
 export async function createClientAction(formData: FormData) {
-  await requireTeam("clientes");
+  await requireTeam("financeiro");
   await createGalleryClient(String(formData.get("name") ?? "").trim());
   revalidateClients();
 }
 
 export async function updateClientAction(formData: FormData) {
-  await requireTeam("clientes");
+  await requireTeam("financeiro");
   const id = String(formData.get("id"));
   assertClientAllowed(await getCurrentClientScope(), id);
 
@@ -42,11 +41,11 @@ export async function updateClientAction(formData: FormData) {
     formData.get("published") === "on" ? "published" : "draft"
   );
   revalidateClients();
-  revalidatePath("/admin/clientes/entregas");
+  revalidatePath("/admin/entregas", "layout");
 }
 
 export async function disconnectInstagramAction(formData: FormData) {
-  await requireTeam("clientes");
+  await requireTeam("financeiro");
   const id = String(formData.get("id"));
   assertClientAllowed(await getCurrentClientScope(), id);
 
@@ -56,20 +55,19 @@ export async function disconnectInstagramAction(formData: FormData) {
 
 /** Token do link que o cliente abre no celular dele pra conectar o Instagram. */
 export async function instagramInviteTokenAction(clientId: string) {
-  await requireTeam("clientes");
+  await requireTeam("financeiro");
   assertClientAllowed(await getCurrentClientScope(), clientId);
   return createInstagramInviteToken(clientId);
 }
 
 export async function setClientArchivedAction(formData: FormData) {
-  await requireTeam("clientes");
+  await requireTeam("financeiro");
   const id = String(formData.get("id"));
   assertClientAllowed(await getCurrentClientScope(), id);
 
   await setGalleryClientArchived(id, formData.get("archived") === "true");
   revalidateClients();
-  revalidatePath("/admin/clientes/entregas");
-  revalidatePath("/admin/clientes/resumo");
+  revalidatePath("/admin/entregas", "layout");
 }
 
 /**
@@ -78,12 +76,11 @@ export async function setClientArchivedAction(formData: FormData) {
  * isso antes, e aqui não há volta.
  */
 export async function deleteClientAction(formData: FormData) {
-  await requireTeam("clientes");
+  await requireTeam("financeiro");
   const id = String(formData.get("id"));
   assertClientAllowed(await getCurrentClientScope(), id);
 
   await deleteGalleryClient(id);
   revalidateClients();
-  revalidatePath("/admin/clientes/entregas");
-  revalidatePath("/admin/clientes/resumo");
+  revalidatePath("/admin/entregas", "layout");
 }

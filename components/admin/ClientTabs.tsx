@@ -1,20 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { usePathnameInterno } from "@/lib/usePathnameInterno";
+import type { SecaoTab } from "@/lib/secoesTabs";
 import { motion, useReducedMotion } from "motion/react";
-
-export const CLIENT_TABS = [
-  { href: "/admin/clientes/entregas", label: "Entregas" },
-  { href: "/admin/clientes/entregas/calendario", label: "Calendário" },
-  { href: "/admin/clientes/dinheiro?aba=painel", label: "Painel" },
-  { href: "/admin/clientes/dinheiro?aba=hoje", label: "Cobranças" },
-  { href: "/admin/clientes/dinheiro?aba=contas", label: "Contas" },
-  { href: "/admin/clientes/dinheiro?aba=resultado", label: "Entradas" },
-  { href: "/admin/clientes/dinheiro?aba=saidas", label: "Saídas" },
-  { href: "/admin/clientes/cadastro", label: "Clientes" },
-  { href: "/admin/clientes/protocolo", label: "Buscar OS" },
-];
 
 /**
  * Navegação da seção Clientes. A aba atual sai do caminho, não de prop.
@@ -25,15 +15,19 @@ export const CLIENT_TABS = [
  * vem de um gesto com inércia — é um toque, não um arremesso.
  */
 export function ClientTabs({
-  tabs = CLIENT_TABS,
-  label = "Seções de clientes",
+  tabs,
+  label = "Seções",
   current: currentHref,
+  tone = "preto",
 }: {
-  tabs?: { href: string; label: string }[];
+  tabs: SecaoTab[];
   label?: string;
+  /** Cor do fundo da aba ativa: preto (padrão) ou o verde-tinta da Tatú. */
+  tone?: "preto" | "tinta";
   /** Endereço (com query) da aba ativa, quando o caminho sozinho não basta. */
   current?: string;
-} = {}) {
+}) {
+  const mes = useSearchParams().get("mes");
   const interno = usePathnameInterno("/admin");
   const pathname = currentHref ?? interno;
   const reduceMotion = useReducedMotion();
@@ -51,7 +45,7 @@ export function ClientTabs({
         return (
           <Link
             key={tab.href}
-            href={tab.href}
+            href={tab.keepMonth && mes ? `${tab.href}?mes=${encodeURIComponent(mes)}` : tab.href}
             aria-current={current ? "page" : undefined}
             className={`relative shrink-0 rounded-md px-3 py-1.5 text-sm transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] pointer-coarse:min-h-11 pointer-coarse:flex pointer-coarse:items-center ${
               current
@@ -63,7 +57,7 @@ export function ClientTabs({
               <motion.span
                 layoutId="client-tab-indicator"
                 aria-hidden
-                className="absolute inset-0 rounded-md bg-neutral-900"
+                className={`absolute inset-0 rounded-md ${tone === "tinta" ? "bg-(--tatu-ink)" : "bg-neutral-900"}`}
                 transition={
                   reduceMotion
                     ? { duration: 0 }

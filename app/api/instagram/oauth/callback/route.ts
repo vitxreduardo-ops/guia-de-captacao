@@ -45,8 +45,8 @@ export async function GET(request: NextRequest) {
     : null;
   const destination = new URL(
     voltarAoCadastro
-      ? `/admin/clientes/cadastro?abrir=${clientId ?? ""}`
-      : "/admin/clientes/entregas",
+      ? `/admin/financeiro/clientes?abrir=${clientId ?? ""}`
+      : "/admin/entregas",
     request.url
   );
 
