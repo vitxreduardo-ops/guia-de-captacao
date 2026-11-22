@@ -83,7 +83,7 @@ export function BacklogFilters({
               type="button"
               className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm ${
                 count > 0
-                  ? "border-neutral-900 bg-neutral-900 text-white"
+                  ? "border-(--tatu-ink) bg-(--tatu-ink) text-white"
                   : "border-neutral-300 text-neutral-700 hover:bg-neutral-50"
               }`}
             >

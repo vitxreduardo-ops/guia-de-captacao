@@ -40,7 +40,9 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { BacklogCardDrawer } from "@/components/admin/BacklogCardDrawer";
 import { BacklogCardView } from "@/components/admin/BacklogCardView";
+import { Tooltip } from "@base-ui/react/tooltip";
 import { BacklogFilters } from "@/components/admin/BacklogFilters";
+import { BacklogQuickFilters } from "@/components/admin/BacklogQuickFilters";
 import { ClientGroup } from "@/components/admin/ClientGroup";
 import {
   BacklogToaster,
@@ -49,8 +51,10 @@ import {
 import {
   BACKLOG_COLUMN_COLORS,
   BACKLOG_FORMAT_LABELS,
+  BACKLOG_QUICKS,
   EMPTY_BACKLOG_FILTER,
   checklistProgress,
+  matchesQuick,
   countBacklogFilters,
   isApprovalColumn,
   filterBacklogCards,
@@ -65,6 +69,7 @@ import {
   type BacklogClientOption,
   type BacklogColumn,
   type BacklogFilter,
+  type BacklogQuick,
 } from "@/lib/backlogTypes";
 import {
   formatBRL,
@@ -407,6 +412,41 @@ function CardBody({
   );
 }
 
+const DRAG_LOCK_MESSAGE =
+  "Arrastar fica desativado enquanto há filtro ativo, pra não reordenar o quadro com base numa visão parcial. Limpe os filtros pra mover cards.";
+
+/**
+ * Explica por que não dá pra arrastar enquanto há filtro. Era um aviso amarelo
+ * no topo que empurrava o quadro pra baixo a cada clique num atalho; agora é
+ * um tooltip, que não ocupa lugar. A árvore é a mesma com ou sem filtro
+ * (`disabled`), então ligar o filtro não remonta o card nem fecha o que
+ * estiver aberto dentro dele.
+ */
+function DragLockTip({
+  locked,
+  children,
+  render,
+}: {
+  locked: boolean;
+  children: React.ReactNode;
+  render: React.ReactElement<Record<string, unknown>>;
+}) {
+  return (
+    <Tooltip.Root disabled={!locked}>
+      <Tooltip.Trigger delay={400} render={render}>
+        {children}
+      </Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Positioner side="top" sideOffset={6} className="z-50">
+          <Tooltip.Popup className="max-w-64 rounded-md bg-neutral-900 px-3 py-2 text-xs leading-relaxed text-white shadow-md transition-opacity data-[ending-style]:opacity-0 data-[starting-style]:opacity-0">
+            {DRAG_LOCK_MESSAGE}
+          </Tooltip.Popup>
+        </Tooltip.Positioner>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  );
+}
+
 function SortableCard({
   card,
   clientName,
@@ -443,16 +483,18 @@ function SortableCard({
       {...attributes}
       {...listeners}
     >
-      <CardBody
-        card={card}
-        clientName={clientName}
-        assigneeNames={assigneeNames}
-        checklist={checklist}
-        showApproval={showApproval}
-        compact={compact}
-        onOpen={onOpen}
-        onDuplicate={onDuplicate}
-      />
+      <DragLockTip locked={!draggable} render={<div />}>
+        <CardBody
+          card={card}
+          clientName={clientName}
+          assigneeNames={assigneeNames}
+          checklist={checklist}
+          showApproval={showApproval}
+          compact={compact}
+          onOpen={onOpen}
+          onDuplicate={onDuplicate}
+        />
+      </DragLockTip>
     </li>
   );
 }
@@ -803,30 +845,42 @@ function SortableColumn({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`w-72 shrink-0 rounded-lg border border-neutral-200 bg-neutral-50 p-3 ${
-        isDragging ? "opacity-50" : ""
-      }`}
+      className={`flex w-72 shrink-0 flex-col rounded-lg border border-neutral-200 bg-neutral-50 p-3 ${
+        // Entregas enchem rápido: a coluna para de crescer no tamanho da tela
+        // (descontada a barra de cima) e a lista rola por dentro, então o
+        // slider e o fim do quadro continuam à vista.
+        compact ? "max-h-[max(24rem,calc(100svh-13rem))]" : ""
+      } ${isDragging ? "opacity-50" : ""}`}
       {...attributes}
     >
       <ColumnHeader
         column={column}
         count={cards.length}
         dragHandle={
-          <span
-            {...listeners}
-            className={`select-none text-neutral-300 ${
-              draggable ? "cursor-grab" : "cursor-default"
-            }`}
-            aria-hidden
+          <DragLockTip
+            locked={!draggable}
+            render={
+              <span
+                {...listeners}
+                className={`select-none text-neutral-300 ${
+                  draggable ? "cursor-grab" : "cursor-default"
+                }`}
+                aria-hidden
+              />
+            }
           >
             ⠿
-          </span>
+          </DragLockTip>
         }
       />
 
       <div
         ref={setDropRef}
-        className={`min-h-16 rounded-md ${isOver ? "bg-neutral-200/60" : ""}`}
+        className={`min-h-16 rounded-md ${
+          compact
+            ? "-mr-1 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin]"
+            : ""
+        } ${isOver ? "bg-neutral-200/60" : ""}`}
       >
         <SortableContext
           items={orderedCards.map((card) => card.id)}
@@ -953,6 +1007,9 @@ export function KanbanBoard({
   const [maxScroll, setMaxScroll] = useState(0);
 
   const [filter, setFilter] = useState<BacklogFilter>(EMPTY_BACKLOG_FILTER);
+  // Atalhos de Entregas (atrasados, aguardando pagamento). Somam entre si e
+  // restringem junto com o filtro completo.
+  const [quick, setQuick] = useState<BacklogQuick[]>([]);
 
   // O servidor é a fonte da verdade: cada revalidação sobrescreve o estado
   // otimista deixado pelo arraste. Ajuste durante o render (e não num efeito)
@@ -994,11 +1051,33 @@ export function KanbanBoard({
     return () => observer.disconnect();
   }, [syncScroll, columns.length]);
 
-  const filtering = countBacklogFilters(filter) > 0;
+  const filtering = countBacklogFilters(filter) > 0 || quick.length > 0;
 
-  const visibleCards = useMemo(
-    () => filterBacklogCards(cards, filter, board.checklist),
-    [cards, filter, board.checklist]
+  const columnById = useMemo(
+    () => new Map(columns.map((column) => [column.id, column])),
+    [columns]
+  );
+
+  const visibleCards = useMemo(() => {
+    const filtered = filterBacklogCards(cards, filter, board.checklist);
+    if (quick.length === 0) return filtered;
+    return filtered.filter((card) =>
+      matchesQuick(card, columnById.get(card.column_id), quick)
+    );
+  }, [cards, filter, board.checklist, quick, columnById]);
+
+  // Quantos cards cada atalho pega hoje, sem contar o que já está ligado.
+  const quickCounts = useMemo(
+    () =>
+      Object.fromEntries(
+        BACKLOG_QUICKS.map((key) => [
+          key,
+          cards.filter((card) =>
+            matchesQuick(card, columnById.get(card.column_id), [key])
+          ).length,
+        ])
+      ) as Record<BacklogQuick, number>,
+    [cards, columnById]
   );
 
   function columnCards(columnId: string, source: BacklogCard[]) {
@@ -1144,7 +1223,20 @@ export function KanbanBoard({
         {/* `min-w-0`: sem isso a faixa de abas vira o piso de largura da linha
             e o `overflow-x-auto` da própria nav não chega a agir. */}
         <div className="min-w-0 max-w-full">{tabs}</div>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          {board.board === "entregas" ? (
+            <BacklogQuickFilters
+              active={quick}
+              counts={quickCounts}
+              onToggle={(key) =>
+                setQuick((current) =>
+                  current.includes(key)
+                    ? current.filter((item) => item !== key)
+                    : [...current, key]
+                )
+              }
+            />
+          ) : null}
           <BacklogFilters
             filter={filter}
             onChange={setFilter}
@@ -1159,13 +1251,6 @@ export function KanbanBoard({
           />
         </div>
       </div>
-
-      {filtering ? (
-        <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          Arrastar fica desativado enquanto há filtro ativo, pra não reordenar o
-          quadro com base numa visão parcial. Limpe os filtros pra mover cards.
-        </p>
-      ) : null}
 
       <DndContext
         // Id fixo: sem ele o dnd-kit gera os ids de acessibilidade por

@@ -314,6 +314,42 @@ export const EMPTY_BACKLOG_FILTER: BacklogFilter = {
   statuses: [],
 };
 
+/**
+ * Atalhos do quadro de Entregas, os botões à esquerda do "Filtro". Cada um
+ * responde uma pergunta só e soma com os outros (OU), como as opções de um
+ * bloco do filtro; o resultado ainda passa pelo filtro completo (E).
+ */
+export type BacklogQuick = "late" | "awaiting_payment";
+
+export const BACKLOG_QUICK_LABELS: Record<BacklogQuick, string> = {
+  late: "Atrasados",
+  awaiting_payment: "Aguardando pagamento",
+};
+
+export const BACKLOG_QUICKS = Object.keys(
+  BACKLOG_QUICK_LABELS
+) as BacklogQuick[];
+
+/**
+ * Atrasado é entrega com data que passou e ainda fora de coluna faturável:
+ * entrega concluída não está atrasada, mesmo com a data velha. Aguardando
+ * pagamento é a que já foi entregue (coluna faturável) e ainda não caiu na
+ * coluna de dinheiro recebido.
+ */
+export function matchesQuick(
+  card: BacklogCard,
+  column: Pick<BacklogColumn, "billable" | "paid"> | undefined,
+  quicks: BacklogQuick[],
+  today = todayIso()
+): boolean {
+  if (!column) return false;
+  return quicks.some((quick) =>
+    quick === "late"
+      ? Boolean(card.post_date) && card.post_date! < today && !column.billable
+      : column.billable && !column.paid
+  );
+}
+
 /** Quantos critérios estão ligados — vira o número na bolinha do botão. */
 export function countBacklogFilters(filter: BacklogFilter): number {
   return (
