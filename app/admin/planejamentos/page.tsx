@@ -77,7 +77,7 @@ export default async function PlanejamentosPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-3">
-                        {publicado ? <CopyLinkButton text={url} /> : null}
+                        {publicado ? <CopyLinkButton text={url} rotulo={`Planejamento · ${nome}`} /> : null}
                         <form action={publicarPlanejamentoAction}>
                           <input type="hidden" name="id" value={p.id} />
                           <input type="hidden" name="status" value={publicado ? "draft" : "published"} />

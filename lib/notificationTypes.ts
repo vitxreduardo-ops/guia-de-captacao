@@ -8,7 +8,8 @@ export type NotificationKind =
   | "card_approved"
   | "briefing_new"
   | "card_paid"
-  | "client_idea";
+  | "client_idea"
+  | "link_opened";
 
 export interface Notification {
   id: string;

@@ -114,7 +114,7 @@ export function ContractPublishBox({
           </a>
 
           {publicado || assinado ? (
-            <CopyLinkButton text={`${baseUrl}${caminho}`} />
+            <CopyLinkButton text={`${baseUrl}${caminho}`} rotulo={`Contrato · ${contract.client_name || contract.title}`} />
           ) : null}
 
           {/* Assinado não tem botão: voltar pra rascunho e reescrever deixaria

@@ -148,7 +148,7 @@ export default async function BriefingsDashboard() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <CopyLinkButton text={url} />
+                    <CopyLinkButton text={url} rotulo={`Briefing · ${link.client_name || "sem nome"}`} />
                     <form action={deleteBriefingLinkAction}>
                       <input type="hidden" name="id" value={link.id} />
                       <DeleteButton
