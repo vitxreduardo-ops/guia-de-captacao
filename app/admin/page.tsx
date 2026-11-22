@@ -1,32 +1,40 @@
 import { Suspense } from "react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { DailyTodoList } from "@/components/admin/DailyTodoList";
-import { UpcomingPosts } from "@/components/admin/UpcomingPosts";
+import { PainelMotion } from "@/components/admin/PainelMotion";
+import {
+  PainelAtencao,
+  PainelSemana,
+  PainelStats,
+  type Stat,
+} from "@/components/admin/PainelHoje";
 import {
   TodayAgenda,
   TodayAgendaSkeleton,
 } from "@/components/admin/TodayAgenda";
-import {
-  FollowupsToday,
-  PaymentsDue,
-} from "@/components/admin/Reminders";
+import { formatBRL } from "@/lib/billingTypes";
 import { listDailyTodos } from "@/lib/dailyTodos";
+import { getPainelCards } from "@/lib/painelHoje";
+import { attentionItems, longDate, weekFrom } from "@/lib/painelHojeText";
+import { dueLabel } from "@/lib/reminderText";
 import { getReminders } from "@/lib/reminders";
-import { listUpcomingPosts } from "@/lib/upcomingPosts";
 import { getCurrentSession, getCurrentUsername } from "@/lib/session";
 import { getUserCalendarAccount } from "@/lib/userCalendars";
 import { getCurrentClientScope } from "@/lib/clientAccess";
 
 export const dynamic = "force-dynamic";
 
+const plural = (n: number, one: string, many: string) =>
+  `${n} ${n === 1 ? one : many}`;
+
 export default async function AdminHub() {
   const clientScope = await getCurrentClientScope();
-  const [session, username, { todos, users }, upcoming, reminders] =
+  const [session, username, { todos, users }, cards, reminders] =
     await Promise.all([
       getCurrentSession(),
       getCurrentUsername(),
       listDailyTodos(),
-      listUpcomingPosts(clientScope),
+      getPainelCards(clientScope),
       getReminders(clientScope),
     ]);
 
@@ -38,59 +46,188 @@ export default async function AdminHub() {
   const currentUser =
     session && username ? { id: session.userId, username } : null;
 
+  const { today, week, late } = cards;
+  const days = weekFrom(today);
+
+  const attention = attentionItems({
+    today,
+    payments: reminders.payments,
+    followups: reminders.followups,
+    lateDeliveries: late,
+    todos,
+    money: formatBRL,
+  });
+
+  // Os quatro números: cada um responde "tá em dia?" e leva pra tela dele.
+  const openTodos = todos.filter((todo) => !todo.done);
+  const todosDue = openTodos.filter(
+    (todo) => todo.due_date && todo.due_date <= today
+  ).length;
+  const deliveriesWeek = week.filter((item) => item.lane === "clientes").length;
+  const followupsLate = reminders.followups.filter(
+    (prospect) => (prospect.next_contact_date ?? today) < today
+  ).length;
+  const receivable = reminders.payments.reduce((sum, p) => sum + p.cents, 0);
+  const overdue = reminders.payments.filter((p) => p.dueDate < today);
+  const overdueCents = overdue.reduce((sum, p) => sum + p.cents, 0);
+  // Do mais próximo ao mais distante: o primeiro é "o próximo a vencer".
+  const upcoming = reminders.payments
+    .filter((p) => p.dueDate >= today)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const upcomingCents = upcoming.reduce((sum, p) => sum + p.cents, 0);
+
+  const stats: Stat[] = [
+    {
+      label: "Tarefas abertas",
+      display: String(openTodos.length),
+      count: { kind: "int", value: openTodos.length },
+      notes: [
+        {
+          text:
+            todosDue > 0
+              ? `${todosDue} pra hoje ou antes`
+              : "nenhuma com prazo vencido",
+          tone: todosDue > 0 ? "alerta" : "neutro",
+        },
+      ],
+      href: "#tarefas-titulo",
+    },
+    {
+      label: "Entregas na semana",
+      display: String(deliveriesWeek),
+      count: { kind: "int", value: deliveriesWeek },
+      notes: [
+        {
+          text:
+            late.length > 0
+              ? plural(late.length, "atrasada", "atrasadas")
+              : "nenhuma atrasada",
+          tone: late.length > 0 ? "alerta" : "ok",
+        },
+      ],
+      href: "/admin/entregas",
+    },
+    {
+      label: "Follow-ups",
+      display: String(reminders.followups.length),
+      count: { kind: "int", value: reminders.followups.length },
+      notes: [
+        {
+          text:
+            reminders.followups.length === 0
+              ? "tudo em dia"
+              : followupsLate > 0
+                ? plural(followupsLate, "atrasado", "atrasados")
+                : "todos pra hoje",
+          tone:
+            reminders.followups.length === 0
+              ? "ok"
+              : followupsLate > 0
+                ? "alerta"
+                : "neutro",
+        },
+      ],
+      href: "/admin/prospeccao",
+    },
+    {
+      label: "A receber",
+      display: formatBRL(receivable),
+      count: { kind: "brl", value: receivable },
+      // Três respostas num cartão só: quanto já passou do dia, quanto vence
+      // nos próximos sete dias e de quantos clientes é.
+      notes: [
+        {
+          text:
+            overdueCents > 0
+              ? `${formatBRL(overdueCents)} vencido · ${plural(overdue.length, "cliente", "clientes")}`
+              : "nada vencido",
+          tone: overdueCents > 0 ? "alerta" : "ok",
+        },
+        {
+          text:
+            upcoming.length > 0
+              ? `${formatBRL(upcomingCents)} em 7 dias · próximo ${dueLabel(upcoming[0].dueDate, today)}`
+              : "nada vence em 7 dias",
+          tone: "neutro",
+        },
+      ],
+      href: "/admin/financeiro/cobrancas",
+    },
+  ];
+
   return (
     <div className="mx-auto w-full max-w-6xl pb-10">
-      <AdminHeader title="Painel" />
+      {/* `dense`: o h1 "Painel" fica pro leitor de tela, e quem vê lê a data. */}
+      <AdminHeader title="Painel" dense />
 
-
-      {/* Os atalhos saíram daqui pra barra do layout, onde valem pras 19
-          telas. Sobra a coluna do "o que tenho pela frente": agenda de hoje
-          em cima, próximas postagens embaixo.
-          items-start: sem isso o grid estica os dois lados pra mesma altura e
-          a coluna curta vira uma caixa vazia comprida. */}
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(240px,1fr)_2fr]">
-        {/* No mobile o wrapper vira `contents` e some, pra ordem da pilha
-            continuar sendo decidida pelo grid de fora. */}
-        <div className="max-lg:contents lg:space-y-6">
-          {/* Fora do Promise.all da página de propósito: são até cinco idas
-              ao Google, e o Painel não pode esperar por elas pra existir.
-              Chega por streaming, com o esqueleto no mesmo lugar. */}
-          {account ? (
-            <Suspense fallback={<TodayAgendaSkeleton />}>
-              <TodayAgenda account={account} />
-            </Suspense>
-          ) : null}
-
-          {/* Entre a agenda e as postagens: os três respondem a mesma
-              pergunta, e a prospecção é a única cujo atraso não aparece
-              sozinho em lugar nenhum. */}
-          <div className="max-lg:order-3">
-            <FollowupsToday
-              prospects={reminders.followups}
-              today={reminders.today}
-            />
-          </div>
-
-          {/* No celular cai por último, depois das tarefas — no desktop
-              fecha a coluna estreita, embaixo da agenda. */}
-          <div className="max-lg:order-4">
-            <UpcomingPosts posts={upcoming} />
-          </div>
-
-          <div className="max-lg:order-5">
-            <PaymentsDue
-              payments={reminders.payments}
-              today={reminders.today}
-            />
-          </div>
+      <PainelMotion>
+        <div data-anim className="mb-4">
+          <p className="text-2xl leading-8 font-medium tracking-tight text-neutral-900">
+            {longDate(today)}
+          </p>
+          <p className="mt-0.5 text-sm text-neutral-500">
+            {attention.length === 0 ? (
+              "Nada atrasado"
+            ) : (
+              <>
+                <span className="text-red-700">
+                  {plural(attention.length, "item", "itens")}
+                </span>
+                {attention.length === 1 ? " pede" : " pedem"} atenção
+              </>
+            )}
+          </p>
         </div>
 
-        {/* Filho direto do grid de propósito: é ele que ocupa a coluna
-            larga (2fr) no desktop. No celular sobe pro meio da pilha. */}
-        <section aria-labelledby="tarefas-titulo" className="max-lg:order-2">
-          <DailyTodoList todos={todos} users={users} currentUser={currentUser} />
-        </section>
-      </div>
+        <div data-anim className="mb-3">
+          <PainelStats stats={stats} />
+        </div>
+
+        {/* A mesma grade de quatro colunas e o mesmo vão dos contadores: as
+            bordas dos blocos de baixo caem nas bordas dos cartões de cima.
+            Tarefas ocupa duas colunas e as duas linhas, então a coluna da
+            esquerda fecha na mesma altura da direita; atenção e agenda
+            dividem as outras duas colunas. A faixa da semana atravessa as
+            quatro. No celular tudo empilha: atenção, tarefas, agenda, semana. */}
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:grid-cols-4">
+          <section
+            aria-labelledby="tarefas-titulo"
+            data-anim
+            className={`rounded-lg border border-neutral-200 bg-white p-4 max-lg:order-2 lg:col-span-2 ${
+              // Sem agenda não existe a segunda linha: ocupar duas deixaria o
+              // bloco 12px (o vão) mais alto que o vizinho.
+              account ? "lg:row-span-2" : ""
+            }`}
+          >
+            <DailyTodoList
+              todos={todos}
+              users={users}
+              currentUser={currentUser}
+            />
+          </section>
+
+          <div data-anim className="max-lg:order-1 lg:col-span-2 [&>section]:h-full">
+            <PainelAtencao items={attention} today={today} />
+          </div>
+
+          {/* Fora do Promise.all de propósito: são até cinco idas ao Google,
+              e o Painel não pode esperar por elas pra existir. */}
+          {account ? (
+            <div
+              data-anim
+              className="max-lg:order-3 lg:col-span-2 lg:[&>section]:h-full"
+            >
+              <Suspense fallback={<TodayAgendaSkeleton />}>
+                <TodayAgenda account={account} />
+              </Suspense>
+            </div>
+          ) : null}
+
+          <div data-anim className="max-lg:order-4 lg:col-span-4">
+            <PainelSemana days={days} items={week} />
+          </div>
+        </div>
+      </PainelMotion>
     </div>
   );
 }

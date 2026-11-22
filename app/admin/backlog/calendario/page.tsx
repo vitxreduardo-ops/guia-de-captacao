@@ -38,7 +38,7 @@ export default async function BacklogCalendarPage() {
         >
           Kanban
         </Link>
-        <span className="rounded-md bg-neutral-900 px-3 py-1.5 font-medium text-white">
+        <span className="rounded-md bg-(--tatu-ink) px-3 py-1.5 font-medium text-white">
           Calendário
         </span>
       </div>

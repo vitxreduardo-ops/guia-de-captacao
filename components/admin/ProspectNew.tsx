@@ -34,7 +34,7 @@ export function ProspectNew({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex min-h-10 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 sm:min-h-0 sm:px-3 sm:py-1.5 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+        className="inline-flex min-h-10 items-center rounded-md bg-(--tatu-ink) px-4 text-sm font-medium text-white hover:bg-(--tatu-ink)/90 sm:min-h-0 sm:px-3 sm:py-1.5 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
         Novo contato
       </button>
@@ -123,7 +123,7 @@ export function ProspectNew({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+          className="rounded-md bg-(--tatu-ink) px-3 py-1.5 text-xs font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           Adicionar
         </button>

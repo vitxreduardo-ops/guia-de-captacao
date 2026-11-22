@@ -112,7 +112,7 @@ export function BacklogFilters({
             onClick={() => onChange(EMPTY_BACKLOG_FILTER)}
             aria-label="Limpar filtro"
             tabIndex={count > 0 ? 0 : -1}
-            className={`flex size-8 items-center justify-center rounded-md bg-neutral-900 text-sm text-white transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-neutral-700 motion-reduce:transition-none pointer-coarse:size-11 ${
+            className={`flex size-8 items-center justify-center rounded-md bg-(--tatu-ink) text-sm text-white transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-(--tatu-ink)/90 motion-reduce:transition-none pointer-coarse:size-11 ${
               count > 0 ? "scale-100" : "scale-75"
             }`}
           >

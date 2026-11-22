@@ -180,7 +180,7 @@ export function RadarTable({
         <button
           type="button"
           onClick={() => dialog.current?.showModal()}
-          className="min-h-11 rounded-md bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-700 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none sm:min-h-0 sm:py-2"
+          className="min-h-11 rounded-md bg-(--tatu-ink) px-3 text-sm font-medium text-white hover:bg-(--tatu-ink)/90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none sm:min-h-0 sm:py-2"
         >
           Nova empresa
         </button>
@@ -288,7 +288,7 @@ export function RadarTable({
           {/* Alto o bastante pra acertar com o polegar em pé no meio da rua. */}
           <button
             type="submit"
-            className="min-h-11 w-full rounded bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-700 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+            className="min-h-11 w-full rounded bg-(--tatu-ink) px-3 text-sm font-medium text-white hover:bg-(--tatu-ink)/90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
           >
             Adicionar
           </button>

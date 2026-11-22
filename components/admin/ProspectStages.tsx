@@ -148,7 +148,7 @@ function StageRow({
         <button
           type="submit"
           disabled={pending}
-          className="inline-flex min-h-10 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
+          className="inline-flex min-h-10 items-center rounded-md bg-(--tatu-ink) px-4 text-sm font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
         >
           Salvar
         </button>
@@ -230,7 +230,7 @@ function NewStage() {
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex min-h-10 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
+        className="inline-flex min-h-10 items-center rounded-md bg-(--tatu-ink) px-4 text-sm font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
       >
         Criar
       </button>

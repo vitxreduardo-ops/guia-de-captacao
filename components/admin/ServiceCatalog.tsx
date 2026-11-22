@@ -61,7 +61,7 @@ function ServiceRow({ service }: { service: Service }) {
           <button
             type="submit"
             disabled={pending}
-            className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50 transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] pointer-coarse:min-h-11"
+            className="rounded-md bg-(--tatu-ink) px-3 py-1.5 text-xs font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] pointer-coarse:min-h-11"
           >
             Salvar
           </button>

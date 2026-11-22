@@ -94,7 +94,7 @@ export default function LoginForm({
 
       <button
         type="submit"
-        className="w-full rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+        className="w-full rounded-md bg-(--tatu-ink) px-3 py-2 text-sm font-medium text-white hover:bg-(--tatu-ink)/90"
       >
         Entrar
       </button>

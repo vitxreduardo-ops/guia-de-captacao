@@ -135,7 +135,7 @@ function NextContact({ prospect }: { prospect: ProspectRow }) {
           <button
             type="button"
             onClick={() => toggle("falei")}
-            className="inline-flex min-h-11 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 sm:min-h-0 sm:px-3.5 sm:py-2 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+            className="inline-flex min-h-11 items-center rounded-md bg-(--tatu-ink) px-4 text-sm font-medium text-white hover:bg-(--tatu-ink)/90 sm:min-h-0 sm:px-3.5 sm:py-2 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
           >
             {mode === "falei" ? "Fechar" : "Falei"}
           </button>
@@ -242,7 +242,7 @@ function TouchForm({
         <button
           type="submit"
           disabled={pending}
-          className="inline-flex min-h-10 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
+          className="inline-flex min-h-10 items-center rounded-md bg-(--tatu-ink) px-4 text-sm font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
         >
           Salvar
         </button>
@@ -293,7 +293,7 @@ function NoteBox({ prospectId }: { prospectId: string }) {
 }
 
 const TOUCH_DOT: Record<string, string> = {
-  contato: "bg-neutral-900 border-neutral-900",
+  contato: "bg-(--tatu-ink) border-neutral-900",
   nota: "bg-white border-neutral-300",
   etapa: "bg-white border-neutral-300",
 };
@@ -404,7 +404,7 @@ function MoveStage({
         <button
           type="submit"
           disabled={pending}
-          className="min-h-10 w-full rounded-md bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-xs"
+          className="min-h-10 w-full rounded-md bg-(--tatu-ink) px-3 text-sm font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-xs"
         >
           Mover para {target?.name}
         </button>
@@ -634,7 +634,7 @@ function Details({
         <button
           type="submit"
           disabled={pending}
-          className="inline-flex min-h-10 items-center rounded-md bg-neutral-900 px-4 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
+          className="inline-flex min-h-10 items-center rounded-md bg-(--tatu-ink) px-4 text-sm font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
         >
           Salvar
         </button>

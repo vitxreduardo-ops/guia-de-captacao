@@ -82,7 +82,7 @@ export function Destaques({
           type="button"
           onClick={gerar}
           disabled={pendente}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-700 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60 sm:min-h-0 sm:py-1.5"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-md bg-(--tatu-ink) px-3 text-sm font-medium text-white hover:bg-(--tatu-ink)/90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60 sm:min-h-0 sm:py-1.5"
         >
           <Sparkles className="size-4" aria-hidden />
           {pendente ? "Lendo as notícias…" : destaques && atual ? "Gerar de novo" : "Gerar destaques"}

@@ -133,7 +133,7 @@ export function MaterialForm({
 
       {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null}
       <div className="flex gap-2">
-        <button disabled={pending} className="min-h-11 rounded-md bg-neutral-900 px-4 text-sm font-medium text-white disabled:opacity-50">
+        <button disabled={pending} className="min-h-11 rounded-md bg-(--tatu-ink) px-4 text-sm font-medium text-white disabled:opacity-50">
           {pending ? "Salvando…" : initial?.id ? "Salvar alterações" : "Salvar e liberar"}
         </button>
         {initial?.id ? (

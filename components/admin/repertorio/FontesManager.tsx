@@ -76,7 +76,7 @@ function NovaFonte() {
         <button
           type="submit"
           disabled={pendente}
-          className="min-h-11 rounded-md bg-neutral-900 px-3 text-sm font-medium text-white hover:bg-neutral-700 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60 sm:min-h-0 sm:py-1.5"
+          className="min-h-11 rounded-md bg-(--tatu-ink) px-3 text-sm font-medium text-white hover:bg-(--tatu-ink)/90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60 sm:min-h-0 sm:py-1.5"
         >
           {pendente ? "Salvando e lendo o feed…" : "Adicionar e buscar notícias"}
         </button>

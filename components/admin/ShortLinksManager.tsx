@@ -161,7 +161,7 @@ function Linha({ l, clientes }: { l: ShortLinkComStats; clientes: Cliente[] }) {
               Me avisar no primeiro clique
             </label>
             <div className="flex flex-wrap items-center gap-2">
-              <button disabled={salvando} className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60 pointer-coarse:min-h-11">
+              <button disabled={salvando} className="rounded-md bg-(--tatu-ink) px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60 pointer-coarse:min-h-11">
                 {salvando ? "Salvando…" : "Salvar"}
               </button>
               {salvo?.erro && <span role="alert" className="text-xs text-red-600">{salvo.erro}</span>}
@@ -229,7 +229,7 @@ export function ShortLinksManager({ links, clientes }: { links: ShortLinkComStat
         <div className="flex items-center gap-3">
           <button
             disabled={pendente}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 pointer-coarse:min-h-11"
+            className="rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium text-white disabled:opacity-60 pointer-coarse:min-h-11"
           >
             {pendente ? "Criando…" : "Encurtar"}
           </button>

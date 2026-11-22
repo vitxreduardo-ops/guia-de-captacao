@@ -27,7 +27,7 @@ export default async function BacklogPage() {
           board={board}
           tabs={
             <div className="flex items-center gap-2 text-sm">
-              <span className="rounded-md bg-neutral-900 px-3 py-1.5 font-medium text-white">
+              <span className="rounded-md bg-(--tatu-ink) px-3 py-1.5 font-medium text-white">
                 Kanban
               </span>
               <Link

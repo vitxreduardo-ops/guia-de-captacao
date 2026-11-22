@@ -364,7 +364,7 @@ function VideoCard({
         </div>
         <button
           type="submit"
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
+          className="rounded-md bg-(--tatu-ink) px-3 py-1.5 text-xs font-medium text-white hover:bg-(--tatu-ink)/90"
         >
           Adicionar cena {nextSceneNumber}
         </button>
@@ -425,7 +425,7 @@ export function VideosSection({
           />
           <button
             type="submit"
-            className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+            className="rounded-md bg-(--tatu-ink) px-3 py-1.5 text-sm font-medium text-white hover:bg-(--tatu-ink)/90"
           >
             Salvar vídeo {nextVideoNumber} e adicionar o próximo
           </button>

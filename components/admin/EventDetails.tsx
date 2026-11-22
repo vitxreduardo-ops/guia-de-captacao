@@ -363,7 +363,7 @@ export function EventDetails({
                   <button
                     type="submit"
                     disabled={pending}
-                    className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-neutral-800 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
+                    className="rounded-md bg-(--tatu-ink) px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-(--tatu-ink)/90 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50"
                   >
                     {pending ? "Salvando..." : "Salvar"}
                   </button>
@@ -452,7 +452,7 @@ export function EventDetails({
                 <button
                   type="button"
                   onClick={() => startEditing(event)}
-                  className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-neutral-800 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+                  className="rounded-md bg-(--tatu-ink) px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-(--tatu-ink)/90 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   Editar
                 </button>
@@ -462,7 +462,7 @@ export function EventDetails({
                   href={event.meetLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-neutral-800 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+                  className="rounded-md bg-(--tatu-ink) px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-(--tatu-ink)/90 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   Entrar na chamada
                 </a>

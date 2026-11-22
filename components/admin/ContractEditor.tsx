@@ -1141,7 +1141,7 @@ export function ContractEditor({
           <div className="flex items-center gap-3">
             <button
               type="submit"
-              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+              className="rounded-md bg-(--tatu-ink) px-3 py-1.5 text-sm font-medium text-white hover:bg-(--tatu-ink)/90"
             >
               Salvar agora
             </button>

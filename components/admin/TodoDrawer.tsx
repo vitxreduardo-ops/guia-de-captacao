@@ -399,7 +399,7 @@ export function TodoDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-transform hover:bg-neutral-800 active:scale-[0.97]"
+            className="rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium text-white transition-transform hover:bg-(--tatu-ink)/90 active:scale-[0.97]"
           >
             Fechar
           </button>
