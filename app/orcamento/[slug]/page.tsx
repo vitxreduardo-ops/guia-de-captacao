@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import { notFound } from "next/navigation";
 import { getBudgetBySlugWithSections } from "@/lib/budgets";
 import { BudgetSections } from "@/components/budget/BudgetSections";
-import { AutoPrint } from "@/components/budget/AutoPrint";
+import { PdfPaginas } from "@/components/budget/PdfPaginas";
 import { getCurrentSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -81,7 +81,7 @@ export default async function PublicBudgetPage({
           {/* Slide 16:9 em vez de folha A4: proposta se apresenta na tela, e
               1280 de largura mantém o layout de desktop do site. */}
           <style>{"@page { size: 1280px 720px; margin: 0; }"}</style>
-          <AutoPrint />
+          <PdfPaginas />
         </>
       ) : null}
       <BudgetSections
