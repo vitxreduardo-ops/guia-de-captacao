@@ -8,7 +8,7 @@ import type { BudgetWithSections } from "@/lib/budgets";
 type Info = { title: string; client_name: string; client_whatsapp: string };
 
 const campo =
-  "w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none";
+  "w-full rounded-md border border-neutral-300 px-3 py-2 text-base sm:text-sm focus:border-neutral-500 focus:outline-none";
 const rotulo = "mb-1 block text-xs font-medium text-neutral-600";
 
 /**
@@ -110,7 +110,7 @@ export function BudgetGeneralInfoForm({
                 className={campo}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className={rotulo} htmlFor="info-client">
                   Cliente
