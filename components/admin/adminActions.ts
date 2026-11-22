@@ -11,6 +11,7 @@ import {
   LayoutGrid,
   Network,
   Library,
+  Link2,
   Newspaper,
   NotebookText,
   PackageCheck,
@@ -151,6 +152,7 @@ const ACTIONS: AdminAction[] = [
     icon: CalendarClock,
     group: "Rotina",
   },
+  { href: "/admin/links", label: "Links curtos", icon: Link2, group: "Rotina" },
   {
     href: "/admin/armazenamento",
     label: "Armazenamento",
