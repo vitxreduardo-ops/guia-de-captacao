@@ -96,7 +96,7 @@ function Continuar({
       type="button"
       onClick={onClick}
       disabled={obrigatorio && !preenchido}
-      className="mt-3 w-full rounded-md bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40 sm:hidden"
+      className="mt-3 w-full rounded-md bg-(--tatu-ink) px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40 sm:hidden"
     >
       {preenchido || obrigatorio ? "Continuar" : "Pular"}
     </button>
@@ -379,7 +379,7 @@ export default function CamposComuns({
           type="button"
           onClick={sugerirFramework}
           disabled={carregandoTriagem}
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {carregandoTriagem ? "Analisando..." : "Sugerir framework"}
         </button>

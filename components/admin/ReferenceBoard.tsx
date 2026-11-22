@@ -237,7 +237,7 @@ function PinForm({
           name="file"
           type="file"
           accept="image/*,video/*"
-          className="w-full text-sm text-neutral-600 file:mr-3 file:rounded-md file:border-0 file:bg-neutral-900 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-neutral-800"
+          className="w-full text-sm text-neutral-600 file:mr-3 file:rounded-md file:border-0 file:bg-(--tatu-ink) file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-neutral-800"
         />
         <p className="mt-1 text-xs text-neutral-500">
           Vai pra pasta de referências do Drive. Capa própria, que não expira.
@@ -509,7 +509,7 @@ export function ReferenceBoard({
         <button
           type="button"
           onClick={() => setEditing("new")}
-          className="flex items-center gap-1.5 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+          className="flex items-center gap-1.5 rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium text-white hover:bg-(--tatu-ink)/90"
         >
           <PlusIcon className="size-4" />
           Adicionar referência
@@ -734,7 +734,7 @@ export function ReferenceBoard({
               <button
                 type="submit"
                 form="reference-pin-form"
-                className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+                className="rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium text-white hover:bg-(--tatu-ink)/90"
               >
                 {editing === "new" ? "Adicionar" : "Salvar"}
               </button>

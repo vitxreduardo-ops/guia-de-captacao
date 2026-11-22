@@ -72,7 +72,7 @@ export function CalendarConnection({
         </p>
         <a
           href="/api/calendar/oauth/start"
-          className="mt-4 inline-block rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-neutral-800 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+          className="mt-4 inline-block rounded-md bg-(--tatu-ink) px-3 py-1.5 text-sm font-medium text-white transition-transform hover:bg-(--tatu-ink)/90 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           Conectar com o Google
         </a>

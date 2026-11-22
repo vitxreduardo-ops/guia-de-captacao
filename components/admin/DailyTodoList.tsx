@@ -475,7 +475,7 @@ export function DailyTodoList({
           pra acompanhar o estado otimista. */}
       <h2
         id="tarefas-titulo"
-        className="text-sm font-semibold tracking-tight text-neutral-900"
+        className="scroll-mt-20 text-sm font-semibold tracking-tight text-neutral-900"
       >
         Tarefas
         {visible.length > 0 ? (
@@ -504,7 +504,7 @@ export function DailyTodoList({
         />
         <button
           type="submit"
-          className="shrink-0 rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white transition-transform hover:bg-neutral-800 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97]"
+          className="shrink-0 rounded-md bg-(--tatu-ink) px-3 py-2 text-sm font-medium text-white transition-transform hover:bg-(--tatu-ink)/90 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97]"
         >
           Adicionar
         </button>

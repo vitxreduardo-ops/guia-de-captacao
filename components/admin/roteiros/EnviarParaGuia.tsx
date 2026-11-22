@@ -82,7 +82,7 @@ export default function EnviarParaGuia({ roteiroId }: { roteiroId: string }) {
             type="button"
             onClick={enviar}
             disabled={carregando || !guiaId}
-            className="rounded-md bg-neutral-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+            className="rounded-md bg-(--tatu-ink) px-2.5 py-1 text-xs font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50"
           >
             {carregando ? "Enviando..." : "Enviar"}
           </button>

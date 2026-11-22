@@ -102,7 +102,7 @@ export function IdeaRow({ idea, clientId }: { idea: EditorialIdea; clientId: str
               <button
                 onClick={save}
                 disabled={!title.trim()}
-                className="min-h-11 rounded-md bg-neutral-900 px-4 text-sm font-medium text-white disabled:opacity-50"
+                className="min-h-11 rounded-md bg-(--tatu-ink) px-4 text-sm font-medium text-white disabled:opacity-50"
               >
                 Salvar
               </button>

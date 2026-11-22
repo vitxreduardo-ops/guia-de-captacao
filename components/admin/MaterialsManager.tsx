@@ -59,7 +59,7 @@ export function MaterialsManager({
           type="button"
           onClick={() => setCreating((v) => !v)}
           aria-expanded={creating}
-          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md bg-neutral-900 px-4 text-sm font-medium text-white"
+          className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md bg-(--tatu-ink) px-4 text-sm font-medium text-white"
         >
           <Plus className="size-4" aria-hidden /> Novo material
         </button>

@@ -134,7 +134,7 @@ export default async function AdminDashboard({
             <button
               type="submit"
               form="busca-guias"
-              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+              className="rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium text-white hover:bg-(--tatu-ink)/90"
             >
               Filtrar
             </button>
@@ -161,7 +161,7 @@ export default async function AdminDashboard({
           />
           <button
             type="submit"
-            className="shrink-0 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium whitespace-nowrap text-white hover:bg-neutral-800"
+            className="shrink-0 rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium whitespace-nowrap text-white hover:bg-(--tatu-ink)/90"
           >
             Novo guia
           </button>

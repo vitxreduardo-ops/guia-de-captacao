@@ -31,7 +31,7 @@ const field = "min-h-11 w-full rounded-md border border-neutral-300 bg-white px-
 const btn =
   "inline-flex min-h-11 items-center gap-1.5 rounded-md border border-neutral-300 px-3 text-sm hover:bg-neutral-50 disabled:opacity-50";
 const btnPrimary =
-  "inline-flex min-h-11 items-center gap-1.5 rounded-md bg-neutral-900 px-4 text-sm font-medium text-white disabled:opacity-50";
+  "inline-flex min-h-11 items-center gap-1.5 rounded-md bg-(--tatu-ink) px-4 text-sm font-medium text-white disabled:opacity-50";
 
 const portalUrl = () => `${window.location.origin}/cliente`;
 const inviteUrl = (token: string) => `${window.location.origin}/convite/${token}`;

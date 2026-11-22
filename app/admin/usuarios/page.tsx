@@ -72,7 +72,7 @@ export default async function UsersPage() {
           </div>
           <button
             type="submit"
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+            className="rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium text-white hover:bg-(--tatu-ink)/90"
           >
             Gerar link de convite
           </button>
@@ -161,7 +161,7 @@ export default async function UsersPage() {
         </div>
         <button
           type="submit"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+          className="rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium text-white hover:bg-(--tatu-ink)/90"
         >
           Adicionar usuário
         </button>
@@ -303,7 +303,7 @@ export default async function UsersPage() {
               </p>
               <button
                 type="submit"
-                className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+                className="rounded-md bg-(--tatu-ink) px-3 py-1.5 text-sm font-medium text-white hover:bg-(--tatu-ink)/90"
               >
                 Salvar
               </button>

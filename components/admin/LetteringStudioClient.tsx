@@ -40,7 +40,7 @@ class BarreiraDoEstudio extends Component<
             limparRascunho();
             window.location.reload();
           }}
-          className="w-full rounded-md bg-neutral-900 px-4 py-3 text-sm font-medium text-white"
+          className="w-full rounded-md bg-(--tatu-ink) px-4 py-3 text-sm font-medium text-white"
         >
           Descartar rascunho e recomeçar
         </button>

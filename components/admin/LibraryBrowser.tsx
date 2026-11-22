@@ -389,7 +389,7 @@ export function LibraryBrowser({ links }: { links: LibraryLink[] }) {
         <button
           type="button"
           onClick={() => setEditing("new")}
-          className="flex items-center gap-1.5 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+          className="flex items-center gap-1.5 rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium text-white hover:bg-(--tatu-ink)/90"
         >
           <PlusIcon className="size-4" />
           Adicionar link
@@ -574,7 +574,7 @@ export function LibraryBrowser({ links }: { links: LibraryLink[] }) {
               <button
                 type="submit"
                 form="library-link-form"
-                className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+                className="rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium text-white hover:bg-(--tatu-ink)/90"
               >
                 {editing === "new" ? "Adicionar" : "Salvar"}
               </button>

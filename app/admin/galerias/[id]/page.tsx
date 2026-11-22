@@ -131,7 +131,7 @@ export default async function GalleryClientPage({ params }: { params: Params }) 
           />
           <button
             type="submit"
-            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+            className="rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium text-white hover:bg-(--tatu-ink)/90"
           >
             Salvar nome
           </button>
@@ -173,7 +173,7 @@ export default async function GalleryClientPage({ params }: { params: Params }) 
               />
               <button
                 type="submit"
-                className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+                className="rounded-md bg-(--tatu-ink) px-3 py-1.5 text-sm font-medium text-white hover:bg-(--tatu-ink)/90"
               >
                 {isPublished ? "Voltar para rascunho" : "Publicar"}
               </button>
@@ -287,7 +287,7 @@ export default async function GalleryClientPage({ params }: { params: Params }) 
           </p>
           <button
             type="submit"
-            className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800"
+            className="rounded-md bg-(--tatu-ink) px-3 py-1.5 text-xs font-medium text-white hover:bg-(--tatu-ink)/90"
           >
             Adicionar
           </button>

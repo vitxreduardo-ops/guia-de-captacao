@@ -969,3 +969,29 @@ html:has(.site) {
   content: var(--pdf-cliente, "");
   right: 128px;
 }
+
+/*
+  Entrada do Painel. Os blocos nascem invisíveis só quando o JS vai mesmo
+  animá-los (scripting ligado e sem pedido de menos movimento); o GSAP leva
+  cada um a opacity 1. A animação `painel-garantia` é a rede de segurança:
+  se a hidratação falhar, tudo aparece sozinho depois de 2,5s.
+*/
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  .painel-motion [data-anim] {
+    opacity: 0;
+    animation: painel-garantia 0s linear 2.5s forwards;
+  }
+}
+@keyframes painel-garantia {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Menos movimento no Painel: o toque ainda responde, mas sem encolher. */
+@media (prefers-reduced-motion: reduce) {
+  .painel-motion a:active {
+    transform: none;
+    opacity: 0.7;
+  }
+}

@@ -146,7 +146,7 @@ export function MessageBox({
             href={link}
             target="_blank"
             rel="noreferrer"
-            className="min-h-10 rounded-md bg-neutral-900 px-3 text-sm font-medium leading-10 text-white hover:bg-neutral-800 sm:min-h-0 sm:py-1.5 sm:leading-7"
+            className="min-h-10 rounded-md bg-(--tatu-ink) px-3 text-sm font-medium leading-10 text-white hover:bg-(--tatu-ink)/90 sm:min-h-0 sm:py-1.5 sm:leading-7"
           >
             Abrir no WhatsApp
           </a>

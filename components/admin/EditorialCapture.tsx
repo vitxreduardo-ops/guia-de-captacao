@@ -53,7 +53,7 @@ export function EditorialCapture({
         />
         <button
           disabled={pending}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-neutral-900 px-4 text-sm font-medium text-white disabled:opacity-60"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-(--tatu-ink) px-4 text-sm font-medium text-white disabled:opacity-60"
         >
           <Plus className="size-4" aria-hidden />
           {pending ? "Salvando" : "Anotar"}

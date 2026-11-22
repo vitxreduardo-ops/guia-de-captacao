@@ -16,7 +16,7 @@ type Previa = { videos: VideoImportado[]; alterados: string[]; deFora: string[] 
 const botao =
   "inline-flex items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-50";
 const botaoPrimario =
-  "rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50";
+  "rounded-md bg-(--tatu-ink) px-3 py-1.5 text-xs font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50";
 
 /**
  * Roteiro que o cliente já aprovou, colado do jeito que veio: a IA só recorta

@@ -77,7 +77,7 @@ export default async function GalleryClientsPage({
           ) : (
             <a
               href="/api/drive/oauth/start"
-              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+              className="rounded-md bg-(--tatu-ink) px-3 py-1.5 text-sm font-medium text-white hover:bg-(--tatu-ink)/90"
             >
               Conectar Google Drive
             </a>
@@ -97,7 +97,7 @@ export default async function GalleryClientsPage({
         />
         <button
           type="submit"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+          className="rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium text-white hover:bg-(--tatu-ink)/90"
         >
           Novo cliente
         </button>

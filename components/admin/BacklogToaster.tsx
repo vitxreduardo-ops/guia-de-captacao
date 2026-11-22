@@ -180,7 +180,7 @@ export function BacklogToaster() {
                   type="button"
                   onClick={() => answerPayment(true)}
                   disabled={pending}
-                  className={`rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 ${PRESS}`}
+                  className={`rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}
                 >
                   {pending ? "Salvando..." : "Confirmar pagamento"}
                 </button>
@@ -201,7 +201,7 @@ export function BacklogToaster() {
                 onClick={() => setConfirmingPayment(true)}
                 disabled={pending}
                 autoFocus
-                className={`flex-1 rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 ${PRESS}`}
+                className={`flex-1 rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}
               >
                 Já foi pago
               </button>
@@ -241,7 +241,7 @@ export function BacklogToaster() {
                 type="button"
                 onClick={submitText}
                 disabled={pending || !answer.trim()}
-                className={`rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50 ${PRESS}`}
+                className={`rounded-md bg-(--tatu-ink) px-4 py-2 text-sm font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}
               >
                 {pending ? "Salvando..." : "Salvar"}
               </button>
