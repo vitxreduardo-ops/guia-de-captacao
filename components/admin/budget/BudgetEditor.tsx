@@ -258,7 +258,10 @@ export function BudgetEditor({
     >
       {/* min-w-0: sem isto a coluna se recusa a encolher abaixo da largura do
           conteúdo, que é fixa em 1440, e o grid estoura a tela. */}
-      <div className="relative min-h-0 min-w-0">
+      {/* Abaixo de lg a prévia some: a proposta de 1440px encolhida para um
+          celular não se lê, e ocupava ~100 mil px de rolagem antes do painel.
+          Ali, "Abrir proposta" mostra a página de verdade. */}
+      <div className="relative hidden min-h-0 min-w-0 lg:block">
         <BudgetPreviewPane
           sections={sections}
           clientName={budget.client_name}
@@ -277,8 +280,8 @@ export function BudgetEditor({
       </div>
 
       <div
-        className={`flex min-h-0 flex-col gap-3 lg:overflow-y-auto ${
-          painelAberto ? "" : "hidden"
+        className={`flex min-h-0 flex-col gap-3 lg:overflow-y-auto max-lg:[&_input:not([type=checkbox],[type=range],[type=file],[type=radio])]:min-h-11 max-lg:[&_input:not([type=checkbox],[type=range],[type=file],[type=radio])]:text-base max-lg:[&_select]:text-base max-lg:[&_textarea]:text-base ${
+          painelAberto ? "" : "lg:hidden"
         }`}
       >
         {rascunho ? (
@@ -312,7 +315,7 @@ export function BudgetEditor({
           </div>
         ) : null}
 
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 rounded-lg border border-neutral-200 bg-white px-4 py-2.5">
           <span
             className={`text-xs ${
               estado.tipo === "erro" ? "text-red-600" : "text-neutral-500"
@@ -330,7 +333,7 @@ export function BudgetEditor({
               onClick={histDesfazer}
               disabled={histPilhas.passado === 0}
               title="Desfazer (⌘Z)"
-              className="rounded p-1 text-neutral-500 hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none disabled:opacity-30"
+              className="rounded p-2 text-neutral-500 hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none disabled:opacity-30 lg:p-1"
             >
               <Undo2 className="h-4 w-4" />
               <span className="sr-only">Desfazer</span>
@@ -340,15 +343,18 @@ export function BudgetEditor({
               onClick={histRefazer}
               disabled={histPilhas.futuro === 0}
               title="Refazer (⇧⌘Z)"
-              className="rounded p-1 text-neutral-500 hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none disabled:opacity-30"
+              className="rounded p-2 text-neutral-500 hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none disabled:opacity-30 lg:p-1"
             >
               <Redo2 className="h-4 w-4" />
               <span className="sr-only">Refazer</span>
             </button>
 
-            <span className="h-4 w-px bg-neutral-200" />
+            {/* Zoom e esconder o painel só fazem sentido com a prévia ao lado. */}
+            <span className="hidden h-4 w-px bg-neutral-200 lg:block" />
 
-            <ZoomControls zoom={zoom} onChange={setZoom} />
+            <div className="hidden lg:block">
+              <ZoomControls zoom={zoom} onChange={setZoom} />
+            </div>
 
             <span className="h-4 w-px bg-neutral-200" />
 
@@ -356,7 +362,7 @@ export function BudgetEditor({
               href={`/orcamento/${budget.slug}`}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-1.5 text-xs font-medium text-neutral-700 hover:text-neutral-900"
+              className="flex items-center gap-1.5 py-2 text-xs font-medium text-neutral-700 hover:text-neutral-900 lg:py-0"
             >
               Abrir proposta
               <ExternalLink className="h-3.5 w-3.5" />
@@ -365,7 +371,7 @@ export function BudgetEditor({
               type="button"
               onClick={() => setPainelAberto(false)}
               title="Esconder o painel e ver a proposta larga"
-              className="rounded p-1 text-neutral-500 hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none"
+              className="hidden rounded p-1 lg:block text-neutral-500 hover:text-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none"
             >
               <PanelRightClose className="h-4 w-4" />
               <span className="sr-only">Esconder o painel</span>
@@ -390,7 +396,7 @@ export function BudgetEditor({
               role="tab"
               aria-selected={tab === value}
               onClick={() => setTab(value)}
-              className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium uppercase tracking-[0.12em] transition-colors focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none ${
+              className={`flex-1 rounded-md px-3 py-3 text-xs lg:py-1.5 font-medium uppercase tracking-[0.12em] transition-colors focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:outline-none ${
                 tab === value
                   ? "bg-neutral-900 text-white"
                   : "text-neutral-500 hover:text-neutral-900"

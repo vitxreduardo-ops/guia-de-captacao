@@ -86,7 +86,7 @@ export function BudgetSectionPanel({
                       ? "Esconder esta seção do cliente"
                       : "Mostrar esta seção para o cliente"
                   }
-                  className={`rounded p-1 ${FOCUS_RING} ${
+                  className={`rounded p-2.5 lg:p-1 ${FOCUS_RING} ${
                     section.enabled
                       ? "text-neutral-600 hover:text-neutral-900"
                       : "text-neutral-300 hover:text-neutral-500"
@@ -107,7 +107,7 @@ export function BudgetSectionPanel({
                   onClick={() => onToggleOpen(section.kind)}
                   aria-hidden
                   tabIndex={-1}
-                  className="rounded p-1 text-neutral-400 hover:text-neutral-700"
+                  className="rounded p-2.5 text-neutral-400 hover:text-neutral-700 lg:p-1"
                 >
                   {aberta ? (
                     <Minus className="h-4 w-4" />
