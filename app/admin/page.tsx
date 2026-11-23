@@ -151,7 +151,7 @@ export default async function AdminHub() {
           tone: "neutro",
         },
       ],
-      href: "/admin/financeiro/cobrancas",
+      href: "/admin/financeiro/pagar-e-receber",
     },
   ];
 

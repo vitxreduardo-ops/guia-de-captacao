@@ -8,12 +8,37 @@ import {
 } from "@/lib/expensesTypes";
 
 function toExpense(row: Record<string, unknown>): Expense {
+  const client = row.client as { name?: string } | { name?: string }[] | null | undefined;
   return {
     id: row.id as string,
     description: (row.description as string) ?? "",
     amountCents: row.amount_cents as number,
     category: normalizeExpenseCategory(row.category),
     spentOn: row.spent_on as string,
+    paid: row.paid_on != null,
+    clientId: (row.client_id as string | null) ?? null,
+    clientName: (Array.isArray(client) ? client[0]?.name : client?.name) ?? null,
+  };
+}
+
+const COM_CLIENTE = "*, client:gallery_clients(name)";
+
+/** Data local em AAAA-MM-DD (toISOString viraria o dia anterior à noite). */
+function hojeIso(): string {
+  return new Date().toLocaleDateString("sv-SE");
+}
+
+/** A fixa debita sozinha no dia dela: passou do dia, já saiu do caixa. */
+function fixaParaExpense(r: Recurring, month: string): Expense {
+  const spentOn = dayIn(month, r.dayOfMonth);
+  return {
+    id: `fixa-${r.id}`,
+    description: r.description,
+    amountCents: r.amountCents,
+    category: r.category,
+    spentOn,
+    recurringId: r.id,
+    paid: spentOn <= hojeIso(),
   };
 }
 
@@ -64,7 +89,7 @@ export async function listExpenses(month: string): Promise<Expense[]> {
   const [single, recurring] = await Promise.all([
     getSupabaseServerClient()
       .from("expenses")
-      .select("*")
+      .select(COM_CLIENTE)
       .gte("spent_on", from)
       .lt("spent_on", nextMonthKey(from))
       .order("created_at", { ascending: false }),
@@ -73,14 +98,7 @@ export async function listExpenses(month: string): Promise<Expense[]> {
   if (single.error) throw single.error;
   const fixed: Expense[] = recurring
     .filter((r) => activeIn(r, from))
-    .map((r) => ({
-      id: `fixa-${r.id}`,
-      description: r.description,
-      amountCents: r.amountCents,
-      category: r.category,
-      spentOn: dayIn(from, r.dayOfMonth),
-      recurringId: r.id,
-    }));
+    .map((r) => fixaParaExpense(r, from));
   return [...(single.data ?? []).map(toExpense), ...fixed].sort((a, b) =>
     b.spentOn.localeCompare(a.spentOn)
   );
@@ -108,15 +126,7 @@ export async function listExpensesByMonth(months: string[]): Promise<Record<stri
   }
   for (const m of months) {
     for (const r of recurring) {
-      if (!activeIn(r, m)) continue;
-      result[m].push({
-        id: `fixa-${r.id}`,
-        description: r.description,
-        amountCents: r.amountCents,
-        category: r.category,
-        spentOn: dayIn(m, r.dayOfMonth),
-        recurringId: r.id,
-      });
+      if (activeIn(r, m)) result[m].push(fixaParaExpense(r, m));
     }
     result[m].sort((a, b) => b.amountCents - a.amountCents);
   }
@@ -149,17 +159,35 @@ export async function addExpense(fields: {
   description: string;
   amountCents: number;
   category: ExpenseCategory;
+  /** A data em que saiu — ou, se ainda vai pagar, o vencimento. */
   spentOn: string;
+  /** Já saiu do caixa? Falso = fica em "A pagar" até alguém marcar "Paguei". */
+  paid: boolean;
+  clientId: string | null;
   userId: string | null;
 }) {
   if (!(fields.amountCents > 0)) throw new Error("Informe um valor maior que zero.");
-  const { error } = await getSupabaseServerClient().from("expenses").insert({
-    description: fields.description.trim(),
-    amount_cents: fields.amountCents,
-    category: fields.category,
-    spent_on: fields.spentOn,
-    created_by: fields.userId,
-  });
+  const { error } = await getSupabaseServerClient()
+    .from("expenses")
+    .insert({
+      description: fields.description.trim(),
+      amount_cents: fields.amountCents,
+      category: fields.category,
+      spent_on: fields.spentOn,
+      paid_on: fields.paid ? (fields.spentOn <= hojeIso() ? fields.spentOn : hojeIso()) : null,
+      paid_marked_at: fields.paid ? new Date().toISOString() : null,
+      client_id: fields.clientId,
+      created_by: fields.userId,
+    });
+  if (error) throw error;
+}
+
+/** "Paguei": a saída que estava a pagar sai do caixa hoje. */
+export async function markExpensePaid(id: string, paidOn: string) {
+  const { error } = await getSupabaseServerClient()
+    .from("expenses")
+    .update({ paid_on: paidOn, paid_marked_at: new Date().toISOString() })
+    .eq("id", id);
   if (error) throw error;
 }
 
@@ -212,7 +240,13 @@ export async function deleteRecurringExpense(id: string) {
 /** Corrige uma despesa avulsa. */
 export async function updateExpense(
   id: string,
-  fields: { description: string; amountCents: number; category: ExpenseCategory; spentOn: string }
+  fields: {
+    description: string;
+    amountCents: number;
+    category: ExpenseCategory;
+    spentOn: string;
+    clientId: string | null;
+  }
 ) {
   if (!(fields.amountCents > 0)) throw new Error("Informe um valor maior que zero.");
   const { error } = await getSupabaseServerClient()
@@ -222,6 +256,7 @@ export async function updateExpense(
       amount_cents: fields.amountCents,
       category: fields.category,
       spent_on: fields.spentOn,
+      client_id: fields.clientId,
     })
     .eq("id", id);
   if (error) throw error;
@@ -279,4 +314,109 @@ export async function editRecurringFromMonth(
     .update({ ends_on: endsOn })
     .eq("id", id);
   if (endError) throw endError;
+}
+
+
+/**
+ * O que ainda vai sair do caixa: as avulsas sem "Paguei" (de qualquer data —
+ * vencida também conta) e as fixas dos próximos `meses` meses que ainda não
+ * debitaram. Da mais antiga pra mais nova.
+ */
+export async function listPayables(meses = 6): Promise<Expense[]> {
+  const hoje = hojeIso();
+  const primeiro = monthKey(hoje);
+  const [single, recurring] = await Promise.all([
+    getSupabaseServerClient()
+      .from("expenses")
+      .select(COM_CLIENTE)
+      .is("paid_on", null)
+      .order("spent_on"),
+    listRecurring(),
+  ]);
+  if (single.error) throw single.error;
+  const fixed: Expense[] = [];
+  let m = primeiro;
+  for (let i = 0; i < meses; i += 1) {
+    for (const r of recurring) {
+      if (!activeIn(r, m)) continue;
+      const e = fixaParaExpense(r, m);
+      if (!e.paid) fixed.push(e);
+    }
+    m = nextMonthKey(m);
+  }
+  return [...(single.data ?? []).map(toExpense), ...fixed].sort((a, b) =>
+    a.spentOn.localeCompare(b.spentOn)
+  );
+}
+
+/**
+ * Quanto saiu do caixa depois da conferência do saldo: o pago em dia posterior
+ * (até `ate`), o pago no mesmo dia mas marcado depois da hora conferida e as
+ * fixas que debitaram depois.
+ */
+export async function getPaidOutAfter(cashOn: string, cashAt: string, ate: string): Promise<number> {
+  const { data, error } = await getSupabaseServerClient()
+    .from("expenses")
+    .select("amount_cents")
+    .lte("paid_on", ate)
+    .or(`paid_on.gt.${cashOn},and(paid_on.eq.${cashOn},paid_marked_at.gt.${cashAt})`);
+  if (error) throw error;
+  let total = (data ?? []).reduce((s, r) => s + (r.amount_cents as number), 0);
+  const recurring = await listRecurring();
+  let m = monthKey(cashOn);
+  while (m <= ate) {
+    for (const r of recurring) {
+      if (!activeIn(r, m)) continue;
+      const dia = dayIn(m, r.dayOfMonth);
+      if (dia > cashOn && dia <= ate) total += r.amountCents;
+    }
+    m = nextMonthKey(m);
+  }
+  return total;
+}
+
+/**
+ * Custo mensal médio do estúdio: a média dos três últimos meses fechados.
+ * Sem histórico, vale o que as fixas pesam neste mês.
+ */
+export async function getCustoMensal(): Promise<number> {
+  const atual = monthKey(hojeIso());
+  const anteriores = [3, 2, 1].map((n) => {
+    const total = Number(atual.slice(0, 4)) * 12 + Number(atual.slice(5, 7)) - 1 - n;
+    return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, "0")}-01`;
+  });
+  const porMes = await listExpensesByMonth([...anteriores, atual]);
+  const soma = (m: string) => porMes[m].reduce((s, e) => s + e.amountCents, 0);
+  const media = Math.round(anteriores.reduce((s, m) => s + soma(m), 0) / anteriores.length);
+  if (media > 0) return media;
+  return porMes[atual].filter((e) => e.recurringId).reduce((s, e) => s + e.amountCents, 0);
+}
+
+/** Gasto de cliente no mês, por cliente: é o que a Análise tira do que o cliente rendeu. */
+export async function getClientCosts(month: string): Promise<Record<string, number>> {
+  const from = monthKey(month);
+  const { data, error } = await getSupabaseServerClient()
+    .from("expenses")
+    .select("client_id, amount_cents")
+    .not("client_id", "is", null)
+    .gte("spent_on", from)
+    .lt("spent_on", nextMonthKey(from));
+  if (error) throw error;
+  const result: Record<string, number> = {};
+  for (const row of data ?? []) {
+    const id = row.client_id as string;
+    result[id] = (result[id] ?? 0) + (row.amount_cents as number);
+  }
+  return result;
+}
+
+/** Tudo que se gastou só com um cliente, do mais recente para o mais antigo. */
+export async function listClientExpenses(clientId: string): Promise<Expense[]> {
+  const { data, error } = await getSupabaseServerClient()
+    .from("expenses")
+    .select(COM_CLIENTE)
+    .eq("client_id", clientId)
+    .order("spent_on", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map(toExpense);
 }

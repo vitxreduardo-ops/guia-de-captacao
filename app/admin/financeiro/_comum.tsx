@@ -1,32 +1,23 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { formatBRL, monthKey, monthLabel } from "@/lib/billingTypes";
-import { quando } from "@/lib/dinheiroTexto";
-import { CobrarLink } from "@/components/admin/ContaPix";
+import { monthKey, monthLabel } from "@/lib/billingTypes";
 import { getCurrentClientScope } from "@/lib/clientAccess";
-import type { TodayRow } from "@/lib/dinheiro";
 
 export const MES_CURTO = [
   "jan", "fev", "mar", "abr", "mai", "jun",
   "jul", "ago", "set", "out", "nov", "dez",
 ];
 
-export type Aba = "painel" | "hoje" | "contas" | "resultado" | "saidas";
+export type Aba = "painel" | "pagar" | "projecao" | "analise" | "extrato" | "contas";
 
 const CAMINHO: Record<Aba, string> = {
   painel: "/admin/financeiro",
-  hoje: "/admin/financeiro/cobrancas",
+  pagar: "/admin/financeiro/pagar-e-receber",
+  projecao: "/admin/financeiro/projecao",
+  analise: "/admin/financeiro/analise",
+  extrato: "/admin/financeiro/extrato",
   contas: "/admin/financeiro/contas",
-  resultado: "/admin/financeiro/entradas",
-  saidas: "/admin/financeiro/saidas",
 };
-
-/** Amarelo listrado: o "ainda falta" se distingue do "já entrou" mesmo sem cor. */
-export const FALTA_ESTILO = {
-  backgroundColor: "#fbbf24",
-  backgroundImage:
-    "repeating-linear-gradient(135deg, rgba(0,0,0,0.28) 0 2px, transparent 2px 6px)",
-} as const;
 
 export const FOCO =
   "focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none";
@@ -62,85 +53,6 @@ export function SetaMes({ href: destino, lado }: { href: string; lado: "anterior
     >
       <Icone className="size-5" strokeWidth={1.5} aria-hidden />
     </Link>
-  );
-}
-
-export function Numero({
-  label,
-  value,
-  note,
-  tone = "text-neutral-900",
-  unit,
-}: {
-  label: string;
-  value: number;
-  note?: string;
-  tone?: string;
-  /** Sem unit, o valor é dinheiro em centavos; com unit (ex.: "%"), é o número como está. */
-  unit?: string;
-}) {
-  return (
-    <div className="min-w-0 flex-1 basis-40">
-      <p className="text-sm text-neutral-600">{label}</p>
-      <p className={`text-xl font-medium tabular-nums ${tone}`}>{unit ? `${value}${unit}` : formatBRL(value)}</p>
-      {note ? <p className="text-sm text-neutral-500">{note}</p> : null}
-    </div>
-  );
-}
-
-export function comparar(atual: number, anterior: number, nomeAnterior: string): string {
-  const d = atual - anterior;
-  if (d === 0) return `igual a ${nomeAnterior}`;
-  return `${formatBRL(Math.abs(d))} a ${d > 0 ? "mais" : "menos"} que ${nomeAnterior}`;
-}
-
-export function Secao({ titulo, dica, children }: { titulo: string; dica?: string; children: React.ReactNode }) {
-  return (
-    <section className="mb-8">
-      <h2 className="text-lg font-medium text-neutral-900">{titulo}</h2>
-      {dica ? <p className="mb-2 text-base text-neutral-600">{dica}</p> : <div className="mb-2" />}
-      {children}
-    </section>
-  );
-}
-
-export function ListaHoje({ rows, mostrarCobrar }: { rows: TodayRow[]; mostrarCobrar?: boolean }) {
-  return (
-    <ul className="divide-y divide-neutral-100 rounded-xl border border-neutral-200 bg-white">
-      {rows.map((row) => {
-        return (
-          <li key={`${row.clientId}${row.month}${row.date}`} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
-            <div className="min-w-0 flex-1 basis-44">
-              <p className="text-base font-medium text-neutral-900">{row.name}</p>
-              <p className="text-sm text-neutral-500">
-                {mostrarCobrar === undefined ? "recebido " : `de ${mesLongo(row.month)} · `}
-                {row.date ? quando(row.date) : "sem dia combinado"}
-              </p>
-            </div>
-            <span className="text-base font-medium text-neutral-900 tabular-nums">{formatBRL(row.cents)}</span>
-            {mostrarCobrar ? (
-              <CobrarLink
-                cliente={row}
-                mesNome={mesLongo(row.month)}
-                cents={row.cents}
-                rotulo="Cobrar"
-                ariaLabel={`Cobrar ${row.name} no WhatsApp`}
-                className={`inline-flex min-h-11 items-center rounded-lg border border-neutral-300 px-4 text-base hover:bg-neutral-50 ${FOCO}`}
-              />
-            ) : null}
-            {mostrarCobrar !== undefined ? (
-              <Link
-                href={href("contas", row.month)}
-                aria-label={`Abrir ${mesLongo(row.month)} de ${row.name}`}
-                className={`inline-flex min-h-11 items-center rounded-lg px-3 text-base text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 ${FOCO}`}
-              >
-                Abrir
-              </Link>
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
   );
 }
 

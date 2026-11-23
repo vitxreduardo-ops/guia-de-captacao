@@ -7,6 +7,7 @@ import {
   deleteExpense,
   deleteRecurringExpense,
   editRecurringFromMonth,
+  markExpensePaid,
   stopRecurringExpense,
   updateExpense,
 } from "@/lib/expenses";
@@ -23,6 +24,12 @@ async function requireFullAccess() {
   }
 }
 
+/** Cliente do gasto: vazio = custo do estúdio. */
+function readClient(formData: FormData): string | null {
+  const id = String(formData.get("cliente") ?? "").trim();
+  return /^[0-9a-f-]{36}$/i.test(id) ? id : null;
+}
+
 export async function addExpenseAction(formData: FormData) {
   await requireFullAccess();
   const session = await getCurrentSession();
@@ -34,10 +41,11 @@ export async function addExpenseAction(formData: FormData) {
     category: normalizeExpenseCategory(formData.get("categoria")),
     userId: session?.userId ?? null,
   };
+  const paid = formData.get("situacao") !== "pagar";
   if (formData.get("repete") === "on") {
     await addRecurringExpense({ ...fields, startsOn: spentOn });
   } else {
-    await addExpense({ ...fields, spentOn });
+    await addExpense({ ...fields, spentOn, paid, clientId: readClient(formData) });
   }
   revalidatePath("/admin/financeiro", "layout");
 }
@@ -45,6 +53,13 @@ export async function addExpenseAction(formData: FormData) {
 export async function deleteExpenseAction(formData: FormData) {
   await requireFullAccess();
   await deleteExpense(String(formData.get("id")));
+  revalidatePath("/admin/financeiro", "layout");
+}
+
+/** "Paguei": a conta a pagar sai do caixa hoje. */
+export async function markExpensePaidAction(formData: FormData) {
+  await requireFullAccess();
+  await markExpensePaid(String(formData.get("id")), new Date().toLocaleDateString("sv-SE"));
   revalidatePath("/admin/financeiro", "layout");
 }
 
@@ -72,7 +87,11 @@ export async function updateExpenseAction(formData: FormData) {
   await requireFullAccess();
   const date = String(formData.get("data") ?? "");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Data inválida.");
-  await updateExpense(String(formData.get("id")), { ...readExpenseFields(formData), spentOn: date });
+  await updateExpense(String(formData.get("id")), {
+    ...readExpenseFields(formData),
+    spentOn: date,
+    clientId: readClient(formData),
+  });
   revalidatePath("/admin/financeiro", "layout");
 }
 

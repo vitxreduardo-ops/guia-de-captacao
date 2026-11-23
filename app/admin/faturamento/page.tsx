@@ -2,5 +2,5 @@ import { redirect } from "next/navigation";
 
 /** Endereço antigo, de antes da seção Clientes existir. */
 export default function FaturamentoRedirectPage() {
-  redirect("/admin/financeiro/cobrancas");
+  redirect("/admin/financeiro/pagar-e-receber");
 }

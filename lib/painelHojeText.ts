@@ -85,7 +85,7 @@ export function attentionItems(input: AttentionInput): AttentionItem[] {
       title: payment.clientName,
       detail: `${input.money(payment.cents)} · venceu ${dueLabel(payment.dueDate, today)}`,
       due: payment.dueDate,
-      href: "/admin/financeiro/cobrancas",
+      href: "/admin/financeiro/pagar-e-receber",
     });
   }
 

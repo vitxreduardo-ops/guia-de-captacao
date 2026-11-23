@@ -83,6 +83,7 @@ function toItem(row: CardRow, paid: boolean, dueOn: string | null = row.due_on):
   const receivedCents = paid ? totalCents : Math.min(row.paid_cents ?? 0, totalCents);
   return {
     cardId: row.id,
+    month: cardMonth(row),
     title: row.title ?? "",
     serviceName: row.custom_service || service?.name || null,
     date: row.post_date,
@@ -680,4 +681,228 @@ export async function getLiveInvoice(
       payment_method: item.method,
     })),
   };
+}
+
+// ------------------------------------------------- caixa (a receber / recebido)
+
+export interface ReceivableRow {
+  clientId: string;
+  name: string;
+  contactName: string | null;
+  phone: string | null;
+  month: string;
+  cents: number;
+  /** Vencimento AAAA-MM-DD, ou null quando o cliente não tem dia combinado. */
+  due: string | null;
+  cardIds: string[];
+}
+
+/**
+ * Tudo que ainda falta entrar, de qualquer mês, uma linha por cliente + mês +
+ * vencimento. É a lista do "A receber" e a base da projeção do caixa.
+ */
+export async function getReceivables(clientScope: string[] | null): Promise<ReceivableRow[]> {
+  const supabase = getSupabaseServerClient();
+  const unpaidIds = (await billableColumns()).filter((c) => !c.paid).map((c) => c.id);
+  if (unpaidIds.length === 0) return [];
+  const cards = supabase
+    .from("backlog_cards")
+    .select(CARD_FIELDS)
+    .in("column_id", unpaidIds)
+    .not("client_id", "is", null);
+  const clientsQuery = supabase
+    .from("gallery_clients")
+    .select("id, name, contact_name, phone, payment_day")
+    .is("archived_at", null);
+  const [cardsResult, clientsResult] = await Promise.all([
+    clientScope ? cards.in("client_id", clientScope) : cards,
+    clientScope ? clientsQuery.in("id", clientScope) : clientsQuery,
+  ]);
+  if (cardsResult.error) throw cardsResult.error;
+  if (clientsResult.error) throw clientsResult.error;
+  const byId = new Map((clientsResult.data ?? []).map((c) => [c.id as string, c]));
+
+  const rows = new Map<string, ReceivableRow>();
+  for (const card of (cardsResult.data ?? []) as unknown as CardRow[]) {
+    const client = byId.get(card.client_id);
+    const m = cardMonth(card);
+    if (!client || !m) continue;
+    const cents = toItem(card, false).openCents;
+    if (cents === 0) continue;
+    const due = effectiveDue(card, (client.payment_day as number | null) ?? null);
+    const key = `${card.client_id}|${m}|${due ?? ""}`;
+    const row = rows.get(key) ?? {
+      clientId: card.client_id,
+      name: client.name as string,
+      contactName: (client.contact_name as string | null) ?? null,
+      phone: (client.phone as string | null) ?? null,
+      month: m,
+      cents: 0,
+      due,
+      cardIds: [],
+    };
+    row.cents += cents;
+    row.cardIds.push(card.id);
+    rows.set(key, row);
+  }
+  return [...rows.values()].sort(
+    (a, b) => (a.due ?? "9999").localeCompare(b.due ?? "9999") || b.cents - a.cents
+  );
+}
+
+export interface ReceivedRow {
+  /** Uma linha por entrega: é o que dá para corrigir. */
+  cardId: string;
+  clientId: string;
+  name: string;
+  title: string;
+  /** Dia em que o dinheiro entrou. */
+  date: string;
+  cents: number;
+  method: string | null;
+}
+
+/**
+ * O que entrou (pelo dia do pagamento) com `de <= dia < ate`, entrega por
+ * entrega. Pagamento parcial não tem data, então só aparece aqui quando a
+ * entrega fecha.
+ */
+export async function getReceived(
+  de: string,
+  ate: string,
+  clientScope: string[] | null
+): Promise<ReceivedRow[]> {
+  const supabase = getSupabaseServerClient();
+  const paidIds = (await billableColumns()).filter((c) => c.paid).map((c) => c.id);
+  if (paidIds.length === 0) return [];
+  const query = supabase
+    .from("backlog_cards")
+    .select(CARD_FIELDS)
+    .in("column_id", paidIds)
+    .not("client_id", "is", null)
+    .gte("paid_at", de)
+    .lt("paid_at", ate);
+  const [cards, clients] = await Promise.all([
+    clientScope ? query.in("client_id", clientScope) : query,
+    supabase.from("gallery_clients").select("id, name"),
+  ]);
+  if (cards.error) throw cards.error;
+  if (clients.error) throw clients.error;
+  const names = new Map((clients.data ?? []).map((c) => [c.id as string, c.name as string]));
+
+  const rows: ReceivedRow[] = [];
+  for (const card of (cards.data ?? []) as unknown as CardRow[]) {
+    if (!card.paid_at) continue;
+    rows.push({
+      cardId: card.id,
+      clientId: card.client_id,
+      name: names.get(card.client_id) ?? "Cliente",
+      title: card.title ?? "",
+      date: card.paid_at,
+      cents: toItem(card, true).totalCents,
+      method: card.payment_method,
+    });
+  }
+  return rows.sort((x, y) => y.date.localeCompare(x.date) || y.cents - x.cents);
+}
+
+/** Corrige um recebimento: quanto foi, em que dia e como. */
+export async function updateReceived(
+  cardId: string,
+  fields: { totalCents: number; paidAt: string; method: PaymentMethod }
+) {
+  if (!(fields.totalCents > 0)) throw new Error("Informe um valor maior que zero.");
+  const supabase = getSupabaseServerClient();
+  const { data, error } = await supabase.from("backlog_cards").select("quantity").eq("id", cardId).single();
+  if (error) throw error;
+  const quantity = (data.quantity as number | null) ?? 1;
+  // Mantém a quantidade quando o total divide certo; senão vira uma entrega de valor único.
+  const keep = fields.totalCents % quantity === 0;
+  const { error: upError } = await supabase
+    .from("backlog_cards")
+    .update({
+      quantity: keep ? quantity : 1,
+      unit_price_cents: keep ? fields.totalCents / quantity : fields.totalCents,
+    })
+    .eq("id", cardId);
+  if (upError) throw upError;
+  await setBacklogCardPayment({ cardId, paidAt: fields.paidAt, paymentMethod: fields.method });
+}
+
+/**
+ * Quanto entrou depois da conferência do saldo: pagamentos de dia posterior
+ * e os do mesmo dia que foram marcados depois da hora conferida.
+ */
+export async function getReceivedAfter(cashOn: string, cashAt: string): Promise<number> {
+  const paidIds = (await billableColumns()).filter((c) => c.paid).map((c) => c.id);
+  if (paidIds.length === 0) return 0;
+  const { data, error } = await getSupabaseServerClient()
+    .from("backlog_cards")
+    .select(CARD_FIELDS)
+    .in("column_id", paidIds)
+    .not("client_id", "is", null)
+    .or(`paid_at.gt.${cashOn},and(paid_at.eq.${cashOn},updated_at.gt.${cashAt})`);
+  if (error) throw error;
+  return ((data ?? []) as unknown as CardRow[]).reduce((s, card) => s + toItem(card, true).totalCents, 0);
+}
+
+export interface ClientMoney {
+  id: string;
+  name: string;
+  contactName: string | null;
+  phone: string | null;
+  paymentDay: number | null;
+  /** Tudo que o cliente já tem de entrega com valor, de qualquer mês. */
+  items: MoneyItem[];
+  receivedCents: number;
+  openCents: number;
+  overdueCents: number;
+}
+
+/** O financeiro de um cliente inteiro, sem recorte de mês. Null se o cliente não existe. */
+export async function getClientMoney(clientId: string): Promise<ClientMoney | null> {
+  const supabase = getSupabaseServerClient();
+  const [clientResult, columns] = await Promise.all([
+    supabase
+      .from("gallery_clients")
+      .select("id, name, contact_name, phone, payment_day")
+      .eq("id", clientId)
+      .maybeSingle(),
+    billableColumns(),
+  ]);
+  if (clientResult.error) throw clientResult.error;
+  const client = clientResult.data;
+  if (!client) return null;
+  const paidByColumn = new Map(columns.map((c) => [c.id, c.paid]));
+  const paymentDay = (client.payment_day as number | null) ?? null;
+  const result: ClientMoney = {
+    id: client.id as string,
+    name: client.name as string,
+    contactName: (client.contact_name as string | null) ?? null,
+    phone: (client.phone as string | null) ?? null,
+    paymentDay,
+    items: [],
+    receivedCents: 0,
+    openCents: 0,
+    overdueCents: 0,
+  };
+  if (columns.length === 0) return result;
+
+  const { data, error } = await supabase
+    .from("backlog_cards")
+    .select(CARD_FIELDS)
+    .eq("client_id", clientId)
+    .in("column_id", [...paidByColumn.keys()]);
+  if (error) throw error;
+  const hoje = iso(new Date());
+  for (const card of (data ?? []) as unknown as CardRow[]) {
+    const item = toItem(card, paidByColumn.get(card.column_id) ?? false, effectiveDue(card, paymentDay));
+    if (item.totalCents === 0) continue;
+    result.items.push(item);
+    result.receivedCents += item.receivedCents;
+    result.openCents += item.openCents;
+    if (item.openCents > 0 && item.dueOn && item.dueOn < hoje) result.overdueCents += item.openCents;
+  }
+  result.items.sort((a, b) => (a.dueOn ?? "9999").localeCompare(b.dueOn ?? "9999"));
+  return result;
 }

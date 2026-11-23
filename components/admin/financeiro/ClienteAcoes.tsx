@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
+import { Janela } from "@/components/admin/financeiro/Acoes";
+import { BOTAO } from "@/components/admin/financeiro/ui";
 import { formatBRL } from "@/lib/billingTypes";
 import { CobrarLink, ContaSelect } from "@/components/admin/ContaPix";
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from "@/lib/backlogTypes";
 import type { PaymentMethod } from "@/lib/backlogTypes";
-import type { MoneyClient, MoneyItem } from "@/lib/dinheiroTypes";
+import type { MoneyItem } from "@/lib/dinheiroTypes";
 import { diaPorExtenso, frasePrazo } from "@/lib/dinheiroTexto";
 import {
   markPaidAction,
@@ -42,7 +44,7 @@ function SeletorForma({ id }: { id: string }) {
   );
 }
 
-function ItemLinha({ item }: { item: MoneyItem }) {
+export function ItemLinha({ item }: { item: MoneyItem }) {
   const [pending, startTransition] = useTransition();
   const [parcial, setParcial] = useState(false);
   const [editando, setEditando] = useState(false);
@@ -210,232 +212,126 @@ function ItemLinha({ item }: { item: MoneyItem }) {
   );
 }
 
-const STATUS = {
-  pago: { texto: "text-neutral-600", ponto: "bg-(--tatu-ink)" },
-  aberto: { texto: "text-neutral-600", ponto: "bg-amber-500" },
-  atrasado: { texto: "text-red-700", ponto: "bg-red-500" },
-} as const;
+export interface ClienteBasico {
+  id: string;
+  name: string;
+  contactName: string | null;
+  phone: string | null;
+  paymentDay: number | null;
+}
 
-function ClienteLinha({
+/** Tudo que se faz com o dinheiro de um cliente, sem sair da página dele. */
+export function ClienteAcoes({
   client,
-  mes,
-  mesNome,
-  aberto: abertoInicial,
+  abertos,
+  meses,
 }: {
-  client: MoneyClient;
-  mes: string;
-  mesNome: string;
-  aberto: boolean;
+  client: ClienteBasico;
+  /** Entregas com valor em aberto, de qualquer mês. */
+  abertos: MoneyItem[];
+  /** Meses com entregas, para escolher o do relatório em PDF. */
+  meses: { key: string; label: string }[];
 }) {
-  const [aberto, setAberto] = useState(abertoInicial);
-  const [contato, setContato] = useState(false);
-  const [venc, setVenc] = useState(false);
   const [pending, startTransition] = useTransition();
-  const cor = STATUS[client.status];
-
-  const resumo =
-    client.status === "pago"
-      ? `Tudo pago · ${formatBRL(client.paidCents)}`
-      : `Falta ${formatBRL(client.openCents)} · ${frasePrazo(client.dueDate)}`;
+  const openCents = abertos.reduce((s, i) => s + i.openCents, 0);
 
   return (
-    <li className="rounded-xl border border-neutral-200 bg-white">
-      <div className="flex flex-wrap items-center gap-3 p-4">
-        <button
-          type="button"
-          aria-expanded={aberto}
-          onClick={() => setAberto(!aberto)}
-          className={`flex min-w-0 flex-1 basis-56 items-center gap-3 rounded-lg text-left ${PRESS}`}
-        >
-          <span
-            aria-hidden
-            className={`size-3 shrink-0 rounded-full ${cor.ponto}`}
-          />
-          <span className="min-w-0">
-            <span className="block truncate text-lg font-medium text-neutral-900">
-              {client.name}
-            </span>
-            <span className={`block text-base ${cor.texto}`}>{resumo}</span>
-          </span>
-          <span aria-hidden className="ml-auto text-neutral-500">
-            {aberto ? "▴" : "▾"}
-          </span>
-        </button>
-
-        {client.status !== "pago" ? (
-          <form
-            action={(f) => startTransition(() => markPaidAction(f))}
-            className="flex items-center gap-2"
-          >
-            {client.items
-              .filter((i) => i.openCents > 0)
-              .map((i) => (
-                <input key={i.cardId} type="hidden" name="card" value={i.cardId} />
-              ))}
+    <div className="flex flex-wrap items-center gap-2">
+      {abertos.length > 0 ? (
+        <>
+          <form action={(f) => startTransition(() => markPaidAction(f))} className="flex items-center gap-2">
+            {abertos.map((i) => (
+              <input key={i.cardId} type="hidden" name="card" value={i.cardId} />
+            ))}
             <SeletorForma id={`forma-${client.id}`} />
-            <button
-              type="submit"
-              disabled={pending}
-              aria-label={`Recebi tudo de ${client.name}`}
-              className={`rounded-lg bg-(--tatu-ink) px-5 text-base font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}
-            >
+            <button type="submit" disabled={pending} aria-label={`Recebi tudo de ${client.name}`} className={BOTAO.cheio}>
               {pending ? "Salvando…" : "Recebi tudo"}
             </button>
           </form>
-        ) : null}
-      </div>
-
-      {aberto ? (
-        <div className="border-t border-neutral-100 px-4 pb-4">
-          <ul className="divide-y divide-neutral-100">
-            {client.items.map((item) => (
-              <ItemLinha key={item.cardId} item={item} />
-            ))}
-          </ul>
-
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {client.status !== "pago" ? (
-              <CobrarLink
-                cliente={client}
-                mesNome={mesNome}
-                cents={client.openCents}
-                rotulo="Cobrar no WhatsApp"
-                className={`inline-flex items-center rounded-lg border border-neutral-300 px-4 text-base text-neutral-900 hover:bg-neutral-50 ${PRESS}`}
-              />
-            ) : null}
-
-            <form
-              action="/admin/financeiro/faturamento/pdf"
-              className="flex flex-wrap items-center gap-2"
-            >
-              <input type="hidden" name="cliente" value={client.id} />
-              <input type="hidden" name="mes" value={mes} />
-              <ContaSelect name="pagamento" ariaLabel="Conta que recebe o Pix (vai na cobrança e no PDF)" />
-              <button
-                type="submit"
-                className={`rounded-lg border border-neutral-300 px-4 text-base text-neutral-900 hover:bg-neutral-50 ${PRESS}`}
+          <CobrarLink
+            cliente={client}
+            mesNome="suas entregas em aberto"
+            cents={openCents}
+            rotulo="Cobrar no WhatsApp"
+            className={BOTAO.contorno}
+          />
+          <Janela rotulo="Mudar vencimento" titulo="Mudar vencimento" variante="contorno">
+            {(fechar) => (
+              <form
+                action={(f) =>
+                  startTransition(async () => {
+                    await setDueAction(f);
+                    fechar();
+                  })
+                }
+                className="grid gap-3"
               >
-                Baixar relatório (PDF)
-              </button>
-            </form>
-
-            {client.status !== "pago" ? (
-              <button
-                type="button"
-                onClick={() => setVenc(!venc)}
-                aria-expanded={venc}
-                className={`rounded-lg px-3 text-base text-neutral-600 underline hover:text-neutral-900 ${PRESS}`}
-              >
-                Mudar vencimento
-              </button>
-            ) : null}
-
-            <button
-              type="button"
-              onClick={() => setContato(!contato)}
-              aria-expanded={contato}
-              className={`rounded-lg px-3 text-base text-neutral-600 underline hover:text-neutral-900 ${PRESS}`}
-            >
-              Editar contato e dia de pagamento
-            </button>
-
-            <Link
-              href={`/admin/financeiro/clientes?abrir=${client.id}`}
-              className={`ml-auto inline-flex items-center rounded-lg px-3 text-base text-neutral-600 underline hover:text-neutral-900 ${PRESS}`}
-            >
-              Todos os dados
-            </Link>
-          </div>
-
-          {venc ? (
-            <form
-              action={(f) =>
-                startTransition(async () => {
-                  await setDueAction(f);
-                  setVenc(false);
-                })
-              }
-              className="mt-3 flex flex-wrap items-end gap-3 rounded-lg bg-neutral-50 p-3"
-            >
-              {client.items
-                .filter((i) => i.openCents > 0)
-                .map((i) => (
+                {abertos.map((i) => (
                   <input key={i.cardId} type="hidden" name="card" value={i.cardId} />
                 ))}
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-neutral-600">
-                  Novo vencimento das {client.items.filter((i) => i.openCents > 0).length} entregas em aberto
-                </span>
-                <input name="vencimento" type="date" className={`${CAMPO} sm:w-56`} />
-              </label>
-              <button type="submit" disabled={pending} className={`rounded-lg bg-(--tatu-ink) px-5 text-base font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}>
-                {pending ? "Salvando…" : "Aplicar"}
-              </button>
-              <p className="w-full text-sm text-neutral-600">
-                Deixe a data vazia e toque em Aplicar para voltar ao vencimento automático.
-              </p>
-            </form>
-          ) : null}
-
-          {contato ? (
-            <form
-              action={(f) =>
-                startTransition(async () => {
-                  await updateClientContactAction(f);
-                  setContato(false);
-                })
-              }
-              className="mt-3 grid gap-3 rounded-lg bg-neutral-50 p-3 sm:grid-cols-3"
-            >
-              <input type="hidden" name="client" value={client.id} />
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-neutral-600">Dia em que paga</span>
-                <input name="dia" type="number" min={1} max={31} defaultValue={client.paymentDay ?? ""} placeholder="10" className={CAMPO} />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-neutral-600">Telefone (WhatsApp)</span>
-                <input name="telefone" type="tel" inputMode="tel" defaultValue={client.phone ?? ""} placeholder="(00) 00000-0000" className={CAMPO} />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-sm font-medium text-neutral-600">Quem recebe a cobrança</span>
-                <input name="responsavel" defaultValue={client.contactName ?? ""} className={CAMPO} />
-              </label>
-              <div className="flex items-center gap-2 sm:col-span-3">
-                <button type="submit" disabled={pending} className={`rounded-lg bg-(--tatu-ink) px-5 text-base font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}>
-                  {pending ? "Salvando…" : "Salvar"}
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium text-neutral-600">
+                    Novo vencimento das {abertos.length} entregas em aberto
+                  </span>
+                  <input name="vencimento" type="date" className={`${CAMPO} sm:w-56`} />
+                </label>
+                <p className="text-sm text-neutral-600">Deixe a data vazia para voltar ao vencimento automático.</p>
+                <button type="submit" disabled={pending} className={`${BOTAO.cheio} justify-self-start`}>
+                  {pending ? "Salvando…" : "Aplicar"}
                 </button>
-                <button type="button" onClick={() => setContato(false)} className={`rounded-lg px-3 text-base text-neutral-600 underline ${PRESS}`}>
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          ) : null}
-        </div>
+              </form>
+            )}
+          </Janela>
+        </>
       ) : null}
-    </li>
-  );
-}
 
-export function DinheiroClientes({
-  clients,
-  mes,
-  mesNome,
-}: {
-  clients: MoneyClient[];
-  mes: string;
-  mesNome: string;
-}) {
-  return (
-    <ul className="space-y-3">
-      {clients.map((client) => (
-        <ClienteLinha
-          key={client.id}
-          client={client}
-          mes={mes}
-          mesNome={mesNome}
-          aberto={clients.length <= 2}
-        />
-      ))}
-    </ul>
+      <Janela rotulo="Contato e dia de pagamento" titulo="Contato e dia de pagamento" variante="contorno">
+        {(fechar) => (
+          <form
+            action={(f) =>
+              startTransition(async () => {
+                await updateClientContactAction(f);
+                fechar();
+              })
+            }
+            className="grid gap-3 sm:grid-cols-2"
+          >
+            <input type="hidden" name="client" value={client.id} />
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-neutral-600">Dia em que paga</span>
+              <input name="dia" type="number" min={1} max={31} defaultValue={client.paymentDay ?? ""} placeholder="10" className={CAMPO} />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-sm font-medium text-neutral-600">Telefone (WhatsApp)</span>
+              <input name="telefone" type="tel" inputMode="tel" defaultValue={client.phone ?? ""} placeholder="(00) 00000-0000" className={CAMPO} />
+            </label>
+            <label className="block sm:col-span-2">
+              <span className="mb-1 block text-sm font-medium text-neutral-600">Quem recebe a cobrança</span>
+              <input name="responsavel" defaultValue={client.contactName ?? ""} className={CAMPO} />
+            </label>
+            <button type="submit" disabled={pending} className={`${BOTAO.cheio} justify-self-start`}>
+              {pending ? "Salvando…" : "Salvar"}
+            </button>
+          </form>
+        )}
+      </Janela>
+
+      {meses.length > 0 ? (
+        <form action="/admin/financeiro/faturamento/pdf" className="flex flex-wrap items-center gap-2">
+          <input type="hidden" name="cliente" value={client.id} />
+          <select name="mes" aria-label="Mês do relatório" className="min-h-11 rounded-lg border border-neutral-300 bg-white px-3 text-base">
+            {meses.map((m) => (
+              <option key={m.key} value={m.key}>{m.label}</option>
+            ))}
+          </select>
+          <ContaSelect name="pagamento" ariaLabel="Conta que recebe o Pix (vai na cobrança e no PDF)" />
+          <button type="submit" className={BOTAO.contorno}>Baixar relatório (PDF)</button>
+        </form>
+      ) : null}
+
+      <Link href={`/admin/financeiro/clientes?abrir=${client.id}`} className="ml-auto inline-flex min-h-11 items-center text-base text-neutral-600 underline hover:text-neutral-900">
+        Todos os dados do cliente
+      </Link>
+    </div>
   );
 }

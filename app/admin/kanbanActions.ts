@@ -50,9 +50,11 @@ const KANBAN_PATHS = [
   "/admin/entregas",
   "/admin/entregas/calendario",
   "/admin/financeiro",
-  "/admin/financeiro/cobrancas",
+  "/admin/financeiro/pagar-e-receber",
+  "/admin/financeiro/projecao",
+  "/admin/financeiro/analise",
+  "/admin/financeiro/extrato",
   "/admin/financeiro/contas",
-  "/admin/financeiro/entradas",
 ];
 
 function revalidateBacklog() {
