@@ -33,4 +33,9 @@ export interface Expense {
   spentOn: string;
   /** Preenchido quando veio de uma despesa que se repete todo mês. */
   recurringId?: string;
+  /** Já saiu do caixa? A fixa conta como paga quando o dia dela passa; a avulsa, quando alguém marca "Paguei". */
+  paid: boolean;
+  /** Gasto de um cliente específico (entra na margem dele); vazio = custo do estúdio. */
+  clientId?: string | null;
+  clientName?: string | null;
 }

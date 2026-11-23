@@ -4,6 +4,7 @@ import { confirmar } from "@/components/ConfirmHost";
 import { useRef, useState, useTransition } from "react";
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from "@/lib/expensesTypes";
 import { formatBRL } from "@/lib/billingTypes";
+import { Janela } from "@/components/admin/financeiro/Acoes";
 
 const paraCampo = (cents: number) => (cents / 100).toFixed(2).replace(".", ",");
 import type { Expense } from "@/lib/expensesTypes";
@@ -11,19 +12,51 @@ import {
   addExpenseAction,
   deleteExpenseAction,
   deleteRecurringAction,
+  markExpensePaidAction,
   stopRecurringAction,
   updateExpenseAction,
   updateRecurringAction,
 } from "@/app/admin/financeiro/saidas";
+
+export type ClienteOpcao = { id: string; name: string };
+
+function CampoCliente({ clientes, valor }: { clientes: ClienteOpcao[]; valor?: string | null }) {
+  if (clientes.length === 0) return null;
+  return (
+    <label className="block sm:col-span-3">
+      <span className="mb-1 block text-sm font-medium text-neutral-600">Gasto de algum cliente? (entra na margem dele)</span>
+      <select name="cliente" defaultValue={valor ?? ""} className={CAMPO}>
+        <option value="">Não, é do estúdio</option>
+        {clientes.map((c) => (
+          <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
 
 const CAMPO =
   "min-h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-base focus:border-neutral-500 focus:outline-none";
 const PRESS =
   "transition-transform focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.97] min-h-11";
 
-/** Lançar o que saiu é uma linha só: o quê, quanto, quando, de que tipo. */
-export function SaidasForm({ today }: { today: string }) {
+/** Lançar o que saiu (ou vai sair): o quê, quanto, quando, de que tipo. */
+export function SaidasForm({
+  today,
+  clientes = [],
+  clienteInicial = null,
+  onDone,
+  className = "mb-6 rounded-xl border border-neutral-200 bg-white p-4",
+}: {
+  today: string;
+  clientes?: ClienteOpcao[];
+  /** Já vem escolhido quando o gasto é lançado da página de um cliente. */
+  clienteInicial?: string | null;
+  onDone?: () => void;
+  className?: string;
+}) {
   const [pending, startTransition] = useTransition();
+  const [situacao, setSituacao] = useState<"pago" | "pagar">("pago");
   const formRef = useRef<HTMLFormElement>(null);
 
   return (
@@ -33,10 +66,23 @@ export function SaidasForm({ today }: { today: string }) {
         startTransition(async () => {
           await addExpenseAction(f);
           formRef.current?.reset();
+          setSituacao("pago");
+          onDone?.();
         })
       }
-      className="mb-6 grid gap-3 rounded-xl border border-neutral-200 bg-white p-4 sm:grid-cols-[1fr_9rem_10rem]"
+      className={`grid gap-3 sm:grid-cols-[1fr_9rem_10rem] ${className}`}
     >
+      <div role="radiogroup" aria-label="Situação" className="flex gap-1 rounded-lg border border-neutral-300 p-1 sm:col-span-3">
+        {([["pago", "Já paguei"], ["pagar", "Vou pagar"]] as const).map(([id, rotulo]) => (
+          <label
+            key={id}
+            className={`flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-md text-base ${situacao === id ? "bg-(--tatu-ink) font-medium text-white" : "text-neutral-600 hover:bg-neutral-100"}`}
+          >
+            <input type="radio" name="situacao" value={id} checked={situacao === id} onChange={() => setSituacao(id)} className="sr-only" />
+            {rotulo}
+          </label>
+        ))}
+      </div>
       <label className="block">
         <span className="mb-1 block text-sm font-medium text-neutral-600">O que foi?</span>
         <input name="descricao" required placeholder="Ex.: assinatura do Adobe" className={CAMPO} />
@@ -46,10 +92,10 @@ export function SaidasForm({ today }: { today: string }) {
         <input name="valor" required inputMode="decimal" placeholder="R$ 0,00" className={CAMPO} />
       </label>
       <label className="block">
-        <span className="mb-1 block text-sm font-medium text-neutral-600">Quando?</span>
+        <span className="mb-1 block text-sm font-medium text-neutral-600">{situacao === "pagar" ? "Vence em" : "Quando?"}</span>
         <input name="data" type="date" required defaultValue={today} className={CAMPO} />
       </label>
-      <label className="block sm:col-span-2">
+      <label className="block sm:col-span-3">
         <span className="mb-1 block text-sm font-medium text-neutral-600">Tipo</span>
         <select name="categoria" defaultValue="outros" className={CAMPO}>
           {EXPENSE_CATEGORIES.map((c) => (
@@ -57,6 +103,7 @@ export function SaidasForm({ today }: { today: string }) {
           ))}
         </select>
       </label>
+      <CampoCliente clientes={clientes} valor={clienteInicial} />
       <label className="flex min-h-11 items-center gap-2 self-end text-base text-neutral-900 sm:col-span-2">
         <input type="checkbox" name="repete" className="size-5" />
         Repete todo mês (aluguel, assinaturas)
@@ -76,10 +123,12 @@ export function SaidaLinha({
   expense,
   month,
   monthName,
+  clientes = [],
 }: {
   expense: Expense;
   month: string;
   monthName: string;
+  clientes?: ClienteOpcao[];
 }) {
   const [pending, startTransition] = useTransition();
   const [editando, setEditando] = useState(false);
@@ -126,6 +175,7 @@ export function SaidaLinha({
               ))}
             </select>
           </label>
+          {fixa ? null : <CampoCliente clientes={clientes} valor={expense.clientId} />}
           <div className="flex items-end gap-2">
             <button type="submit" disabled={pending} className={`rounded-lg bg-(--tatu-ink) px-5 text-base font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}>
               {pending ? "Salvando…" : "Salvar"}
@@ -149,11 +199,30 @@ export function SaidaLinha({
       <div className="min-w-0 flex-1 basis-44">
         <p className="text-base text-neutral-900">{expense.description || "Sem descrição"}</p>
         <p className="text-sm text-neutral-500">
-          {EXPENSE_CATEGORY_LABELS[expense.category]} ·{" "}
+          {EXPENSE_CATEGORY_LABELS[expense.category]}
+          {expense.clientName ? ` · ${expense.clientName}` : ""} ·{" "}
+          {expense.paid ? "" : "vence "}
           {new Date(`${expense.spentOn}T12:00:00`).toLocaleDateString("pt-BR", { day: "numeric", month: "long" })}
         </p>
       </div>
+      {expense.paid ? null : (
+        <span className="rounded-md bg-amber-100 px-2 py-1 text-sm text-amber-900">A pagar</span>
+      )}
       <span className="text-base font-medium text-neutral-900 tabular-nums">{formatBRL(expense.amountCents)}</span>
+      {!expense.paid && !expense.recurringId ? (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            const f = new FormData();
+            f.set("id", expense.id);
+            startTransition(() => markExpensePaidAction(f));
+          }}
+          className={`rounded-lg bg-(--tatu-ink) px-4 text-base font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}
+        >
+          Paguei
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={() => setEditando(true)}
@@ -209,5 +278,24 @@ export function SaidaLinha({
         </button>
       )}
     </li>
+  );
+}
+
+/** "+ Lançar saída": o formulário numa janela, aberta de qualquer aba do Financeiro. */
+export function LancarSaida({
+  today,
+  clientes,
+  clienteInicial = null,
+  variante = "cheio",
+}: {
+  today: string;
+  clientes: ClienteOpcao[];
+  clienteInicial?: string | null;
+  variante?: "cheio" | "claro" | "contorno";
+}) {
+  return (
+    <Janela rotulo="+ Lançar saída" titulo="Lançar saída" variante={variante}>
+      {(fechar) => <SaidasForm today={today} clientes={clientes} clienteInicial={clienteInicial} onDone={fechar} className="" />}
+    </Janela>
   );
 }

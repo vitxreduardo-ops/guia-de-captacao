@@ -41,7 +41,7 @@ export function ClientTabs({
       className="flex items-center gap-1 overflow-x-auto rounded-lg border border-neutral-200 bg-white/90 p-1 backdrop-blur-md [scrollbar-width:none] sm:flex-wrap sm:overflow-visible"
     >
       {tabs.map((tab) => {
-        const current = pathname === tab.href;
+        const current = pathname === tab.href || (tab.prefix === true && pathname.startsWith(`${tab.href}/`));
         return (
           <Link
             key={tab.href}

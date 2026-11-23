@@ -3,6 +3,8 @@
 
 export interface MoneyItem {
   cardId: string;
+  /** Mês de trabalho da entrega, AAAA-MM-01. */
+  month: string | null;
   title: string;
   serviceName: string | null;
   date: string | null;

@@ -6,6 +6,7 @@ import {
   getCardClientIds,
   markCardsPaid,
   markCardsUnpaid,
+  updateReceived,
   setCardsDue,
   updateCardBilling,
   updateClientContact,
@@ -52,6 +53,20 @@ export async function markPaidAction(formData: FormData) {
 export async function markUnpaidAction(formData: FormData) {
   await requireTeam("financeiro");
   await markCardsUnpaid(await readCardIds(formData));
+  revalidateMoney();
+}
+
+/** Corrige um recebimento já marcado: valor, dia e forma de pagamento. */
+export async function updateReceivedAction(formData: FormData) {
+  await requireTeam("financeiro");
+  const [id] = await readCardIds(formData);
+  const date = readDate(formData.get("data"));
+  if (!date) throw new Error("Informe o dia do pagamento.");
+  await updateReceived(id, {
+    totalCents: parseBRLToCents(formData.get("valor")),
+    paidAt: date,
+    method: normalizePaymentMethod(formData.get("method")) ?? "pix",
+  });
   revalidateMoney();
 }
 
