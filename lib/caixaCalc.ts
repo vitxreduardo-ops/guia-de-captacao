@@ -170,3 +170,16 @@ export function fimDoMes(iso: string): string {
   const m = Number(iso.slice(5, 7));
   return `${iso.slice(0, 7)}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`;
 }
+
+/**
+ * Só o que pertence a `mes` (AAAA-MM-01). No mês corrente entra também o que
+ * já venceu e continua aberto; nos outros, só o que vence dentro dele. É o que
+ * impede o "A pagar" de somar as fixas dos próximos meses todas juntas.
+ */
+export function doMes<T>(itens: T[], data: (t: T) => string, mes: string, hoje: string): T[] {
+  const atual = `${hoje.slice(0, 7)}-01`;
+  return itens.filter((t) => {
+    const d = data(t);
+    return mes === atual ? d <= fimDoMes(hoje) : `${d.slice(0, 7)}-01` === mes;
+  });
+}

@@ -6,7 +6,7 @@ import { FazerAgora } from "@/components/admin/financeiro/FazerAgora";
 import { Ancora, BOTAO, Barra, CARTAO, Dinheiro } from "@/components/admin/financeiro/ui";
 import { getCaixa, getResultadoAno, getUltimosLancamentos, listClientOptions } from "@/lib/caixa";
 import { formatBRL, monthKey } from "@/lib/billingTypes";
-import { faixaDe } from "@/lib/caixaCalc";
+import { doMes, faixaDe } from "@/lib/caixaCalc";
 import { getCurrentClientScope } from "@/lib/clientAccess";
 import { frasePrazo, quando } from "@/lib/dinheiroTexto";
 import { saveCashAction, saveRevenueGoalAction } from "./caixa";
@@ -34,8 +34,10 @@ export default async function Page() {
 
   const somaReceber = c.receber.reduce((s, r) => s + r.cents, 0);
   const atrasadoReceber = c.receber.filter((r) => faixaDe(r.due, c.hoje) === "atrasado").reduce((s, r) => s + r.cents, 0);
-  const somaPagar = c.pagar.reduce((s, e) => s + e.amountCents, 0);
-  const atrasadoPagar = c.pagar.filter((e) => e.spentOn < c.hoje).reduce((s, e) => s + e.amountCents, 0);
+  // A pagar é o do mês corrente (com o que já venceu); os meses seguintes ficam em A pagar e receber.
+  const pagarMes = doMes(c.pagar, (e) => e.spentOn, mes, c.hoje);
+  const somaPagar = pagarMes.reduce((s, e) => s + e.amountCents, 0);
+  const atrasadoPagar = pagarMes.filter((e) => e.spentOn < c.hoje).reduce((s, e) => s + e.amountCents, 0);
 
   const [atualizadoEm] = c.settings.cashOn ? [c.settings.cashOn.split("-").reverse().join("/")] : [null];
 
@@ -167,14 +169,14 @@ export default async function Page() {
 
       {verTudo ? (
         <section className={`${CARTAO} lg:col-start-3 lg:row-start-1`}>
-          <h2 className="text-sm text-neutral-600">A pagar</h2>
+          <h2 className="text-sm text-neutral-600">A pagar em {mesLongo(mes)}</h2>
           <Dinheiro cents={somaPagar} className="text-2xl" centavos={false} />
           <p className="text-sm text-neutral-500">
-            {c.pagar.length === 0 ? "Nada em aberto" : atrasadoPagar > 0 ? `${formatBRL(atrasadoPagar)} vencido` : "Nada vencido"}
+            {pagarMes.length === 0 ? "Nada em aberto" : atrasadoPagar > 0 ? `${formatBRL(atrasadoPagar)} vencido` : "Nada vencido"}
           </p>
           <MiniLista
             vazio="Use + Lançar saída e escolha Vou pagar para a conta aparecer aqui."
-            itens={c.pagar.slice(0, 3).map((e) => ({
+            itens={pagarMes.slice(0, 3).map((e) => ({
               key: `${e.id}${e.spentOn}`,
               titulo: e.description || "Sem descrição",
               detalhe: frasePrazo(e.spentOn),

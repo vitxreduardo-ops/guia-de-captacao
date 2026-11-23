@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { EditarValor } from "@/components/admin/financeiro/Acoes";
+import { BotaoAcao, EditarValor } from "@/components/admin/financeiro/Acoes";
 import { FazerAgora } from "@/components/admin/financeiro/FazerAgora";
 import { Ancora, Anel, CARTAO, Dado, Dinheiro, Vazio } from "@/components/admin/financeiro/ui";
-import { getCaixa, getResultadoAno } from "@/lib/caixa";
+import { getCaixa, getResultadoAno, listReserveDeposits } from "@/lib/caixa";
 import { formatBRL, monthKey } from "@/lib/billingTypes";
 import { getMoneyMonth } from "@/lib/dinheiro";
 import { getClientCosts } from "@/lib/expenses";
-import { saveRevenueGoalAction, saveReserveRateAction } from "../caixa";
+import { markReserveDoneAction, saveReserveBaseAction, saveRevenueGoalAction, saveReserveRateAction, unmarkReserveDoneAction } from "../caixa";
 import { FOCO, MES_CURTO, SetaMes, href, lerParametros, shiftMonth } from "../_comum";
 export const dynamic = "force-dynamic";
 
@@ -15,11 +15,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   if (scope !== null) {
     return <Vazio>A análise do estúdio só aparece para quem tem acesso a todos os clientes.</Vazio>;
   }
-  const [c, ano, dadosMes, custos] = await Promise.all([
+  const [c, ano, dadosMes, custos, depositos] = await Promise.all([
     getCaixa(),
     getResultadoAno(year),
     getMoneyMonth(month, null),
     getClientCosts(month),
+    listReserveDeposits(),
   ]);
   const taxa = c.settings.reserveRateBps;
   const reservaDe = (v: number) => Math.round((v * taxa) / 10_000);
@@ -31,7 +32,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   const meta = c.settings.revenueGoalCents;
   const pctMeta = meta ? Math.max(0, Math.round((entrou / meta) * 100)) : 0;
   const totalAno = sobrouMes.reduce((s, v) => s + v, 0);
-  const reservaAno = ano.entrou.reduce((s, e) => s + reservaDe(e), 0);
+  // Só conta na reserva guardada o que foi marcado como "Reserva feita", somado ao que já havia.
+  const guardada = c.settings.reserveBaseCents + depositos.reduce((s, d) => s + d.cents, 0);
+  const feitaNoMes = depositos.some((d) => d.month === monthKey(month));
   const taxaTexto = String(taxa / 100).replace(".", ",");
 
   // Margem por cliente: o que o cliente rendeu no mês menos o que se gastou só com ele.
@@ -102,11 +105,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
           <h2 className="text-sm text-neutral-600">Reserva estimada</h2>
           <Dinheiro cents={reservaDe(entrou)} className="text-2xl" centavos={false} />
           <p className="text-sm text-neutral-500">{taxaTexto}% sobre o que entrou em {mesNome(month)}</p>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <Dado label="Entrou no mês" cents={entrou} />
-            <Dado label={`Acumulado em ${year}`} cents={reservaAno} />
-          </div>
-          <div className="mt-3">
+          <div className="mt-3 flex flex-wrap gap-2">
+            {feitaNoMes ? (
+              <BotaoAcao action={unmarkReserveDoneAction} campos={{ mes: month }} variante="contorno" ariaLabel="Reserva feita. Toque para desfazer">
+                ✓ Reserva feita
+              </BotaoAcao>
+            ) : (
+              <BotaoAcao action={markReserveDoneAction} campos={{ mes: month }} variante="cheio">
+                Reserva feita
+              </BotaoAcao>
+            )}
             <EditarValor
               rotulo="Mudar % de reserva"
               titulo="% de reserva estimada"
@@ -114,6 +122,22 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
               action={saveReserveRateAction}
               valorInicial={taxaTexto}
               sufixo="%"
+            />
+          </div>
+          <div className="mt-3 flex items-end justify-between gap-2 border-t border-neutral-100 pt-3">
+            <Dado
+              label="Guardado na reserva"
+              cents={guardada}
+              note={`${depositos.length} ${depositos.length === 1 ? "mês marcado" : "meses marcados"}${c.settings.reserveBaseCents > 0 ? ` + ${formatBRL(c.settings.reserveBaseCents)} que já havia` : ""}`}
+            />
+            <EditarValor
+              icone
+              rotulo="Editar o valor já guardado"
+              titulo="Quanto já tem na reserva?"
+              dica="Informe o que já está guardado. Cada mês em que você tocar em Reserva feita soma ao valor."
+              action={saveReserveBaseAction}
+              valorInicial={c.settings.reserveBaseCents > 0 ? (c.settings.reserveBaseCents / 100).toFixed(2).replace(".", ",") : ""}
+              placeholder="R$ 0,00"
             />
           </div>
         </section>

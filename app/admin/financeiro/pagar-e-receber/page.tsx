@@ -1,10 +1,11 @@
+import Link from "next/link";
 import { ContaSelect } from "@/components/admin/ContaPix";
 import { LancarSaida } from "@/components/admin/SaidasForm";
 import { EditarValor } from "@/components/admin/financeiro/Acoes";
 import { LinhaPagar, LinhaReceber } from "@/components/admin/financeiro/Linhas";
-import { Ancora, CARTAO, Dado, Dinheiro, Vazio } from "@/components/admin/financeiro/ui";
+import { Ancora, BOTAO, CARTAO, Dado, Dinheiro, Vazio } from "@/components/admin/financeiro/ui";
 import { getCaixa, listClientOptions } from "@/lib/caixa";
-import { FAIXAS, FAIXA_ROTULO, faixaDe, fimDoMes, type Faixa } from "@/lib/caixaCalc";
+import { FAIXAS, FAIXA_ROTULO, doMes, faixaDe, fimDoMes, somarMeses, type Faixa } from "@/lib/caixaCalc";
 import { formatBRL } from "@/lib/billingTypes";
 import { getCurrentClientScope } from "@/lib/clientAccess";
 import { saveCashAction } from "../caixa";
@@ -20,7 +21,10 @@ function porFaixa<T>(itens: T[], data: (t: T) => string | null, hoje: string) {
   return FAIXAS.filter((f) => grupos.has(f)).map((f) => ({ faixa: f, itens: grupos.get(f)! }));
 }
 
-export default async function Page() {
+const LINK_MES = BOTAO.contorno;
+
+export default async function Page({ searchParams }: { searchParams: Promise<{ pagar?: string }> }) {
+  const { pagar: pagarParam } = await searchParams;
   const scope = await getCurrentClientScope();
   const verTudo = scope === null;
   const c = await getCaixa(scope);
@@ -30,9 +34,18 @@ export default async function Page() {
   const receberAteFim = c.receber.filter((r) => r.due !== null && r.due <= fim).reduce((s, r) => s + r.cents, 0);
   const pagarAteFim = c.pagar.filter((e) => e.spentOn <= fim).reduce((s, e) => s + e.amountCents, 0);
   const somaReceber = c.receber.reduce((s, r) => s + r.cents, 0);
-  const somaPagar = c.pagar.reduce((s, e) => s + e.amountCents, 0);
+  // A pagar mostra um mês por vez (o corrente, com o que já venceu); o seguinte abre por link.
+  const atual = `${c.hoje.slice(0, 7)}-01`;
+  const mesPagar = /^\d{4}-\d{2}$/.test(pagarParam ?? "") ? `${pagarParam}-01` : atual;
+  const mesVisto = mesPagar >= atual && mesPagar <= somarMeses(atual, 5) ? mesPagar : atual;
+  const anterior = mesVisto > atual ? somarMeses(mesVisto, -1) : null;
+  const seguinte = mesVisto < somarMeses(atual, 5) ? somarMeses(mesVisto, 1) : null;
+  const pagarMes = doMes(c.pagar, (e) => e.spentOn, mesVisto, c.hoje);
+  const somaPagar = pagarMes.reduce((s, e) => s + e.amountCents, 0);
+  const rotuloMes = (m: string) => (m === atual ? "este mês" : mesLongo(m));
+  const linkMes = (m: string) => (m === atual ? "/admin/financeiro/pagar-e-receber" : `/admin/financeiro/pagar-e-receber?pagar=${m.slice(0, 7)}`);
   const grupoReceber = porFaixa(c.receber, (r) => r.due, c.hoje);
-  const grupoPagar = porFaixa(c.pagar, (e) => e.spentOn, c.hoje);
+  const grupoPagar = porFaixa(pagarMes, (e) => e.spentOn, c.hoje);
   const mesFim = mesLongo(`${fim.slice(0, 7)}-01`);
 
   return (
@@ -108,22 +121,34 @@ export default async function Page() {
         {verTudo ? (
           <section className={CARTAO} aria-labelledby="pagar-titulo">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 id="pagar-titulo" className="text-lg font-medium text-neutral-900">A pagar</h2>
+              <h2 id="pagar-titulo" className="text-lg font-medium text-neutral-900">
+                A pagar <span className="font-normal text-neutral-500">· {mesLongo(mesVisto)}</span>
+              </h2>
               <Dinheiro cents={somaPagar} className="text-xl" centavos={false} />
             </div>
-            <div className="mt-3">
+            {mesVisto === atual ? <p className="text-sm text-neutral-500">Inclui o que já venceu e ainda não foi pago.</p> : null}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <LancarSaida today={c.hoje} clientes={clientes} />
+              {anterior ? (
+                <Link href={linkMes(anterior)} className={LINK_MES}>← {rotuloMes(anterior)}</Link>
+              ) : null}
+              {seguinte ? (
+                <Link href={linkMes(seguinte)} className={LINK_MES}>Abrir {mesLongo(seguinte)} →</Link>
+              ) : null}
             </div>
-            {c.pagar.length === 0 ? (
+            {pagarMes.length === 0 ? (
               <div className="mt-3">
-                <Vazio>Nada a pagar. Em + Lançar saída, escolha Vou pagar para a conta ficar aqui até você pagar.</Vazio>
+                <Vazio>Nada a pagar em {mesLongo(mesVisto)}. Em + Lançar saída, escolha Vou pagar para a conta ficar aqui até você pagar.</Vazio>
               </div>
             ) : (
               grupoPagar.map(({ faixa, itens }) => (
                 <div key={faixa}>
-                  <h3 className={`mt-4 text-sm font-medium ${faixa === "atrasado" ? "text-red-700" : "text-neutral-600"}`}>
-                    {FAIXA_ROTULO[faixa]} · {formatBRL(itens.reduce((s, e) => s + e.amountCents, 0))}
-                  </h3>
+                  {/* Num mês futuro tudo é "depois": o título só atrapalha. */}
+                  {mesVisto === atual ? (
+                    <h3 className={`mt-4 text-sm font-medium ${faixa === "atrasado" ? "text-red-700" : "text-neutral-600"}`}>
+                      {FAIXA_ROTULO[faixa]} · {formatBRL(itens.reduce((s, e) => s + e.amountCents, 0))}
+                    </h3>
+                  ) : null}
                   <ul className="divide-y divide-neutral-100">
                     {itens.map((e) => (
                       <LinhaPagar key={`${e.id}${e.spentOn}`} e={e} atrasada={faixa === "atrasado"} />
