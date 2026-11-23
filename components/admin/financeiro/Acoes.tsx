@@ -1,5 +1,6 @@
 "use client";
 
+import { Pencil } from "lucide-react";
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { BOTAO } from "@/components/admin/financeiro/ui";
 
@@ -51,6 +52,7 @@ export function EditarValor({
   sufixo,
   variante = "contorno",
   ariaLabel,
+  icone = false,
 }: {
   rotulo: string;
   titulo: string;
@@ -61,14 +63,28 @@ export function EditarValor({
   sufixo?: string;
   variante?: keyof typeof BOTAO;
   ariaLabel?: string;
+  /** Mostra só um lápis no lugar do texto (o `rotulo` vira o nome falado). */
+  icone?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [pending, start] = useTransition();
   return (
     <>
-      <button type="button" aria-label={ariaLabel} onClick={() => ref.current?.showModal()} className={BOTAO[variante]}>
-        {rotulo}
-      </button>
+      {icone ? (
+        <button
+          type="button"
+          aria-label={ariaLabel ?? rotulo}
+          title={rotulo}
+          onClick={() => ref.current?.showModal()}
+          className="inline-flex size-11 items-center justify-center rounded-lg text-neutral-600 transition-transform hover:bg-neutral-100 hover:text-neutral-900 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-neutral-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+        >
+          <Pencil className="size-5" strokeWidth={1.5} aria-hidden />
+        </button>
+      ) : (
+        <button type="button" aria-label={ariaLabel} onClick={() => ref.current?.showModal()} className={BOTAO[variante]}>
+          {rotulo}
+        </button>
+      )}
       <dialog
         ref={ref}
         aria-label={titulo}
@@ -92,6 +108,7 @@ export function EditarValor({
               name="valor"
               inputMode="decimal"
               autoFocus
+              onFocus={(e) => e.currentTarget.select()}
               defaultValue={valorInicial}
               placeholder={placeholder}
               className="min-h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-base focus:border-neutral-500 focus:outline-none"

@@ -17,6 +17,8 @@ export interface FinanceSettings {
   /** Reserva estimada: parte do que entra que fica guardada, em centésimos de por cento (600 = 6%). */
   reserveRateBps: number;
   reserveGoalMonths: number;
+  /** Quanto já havia na reserva guardada quando a pessoa informou. */
+  reserveBaseCents: number;
 }
 
 export const hojeIso = () => new Date().toLocaleDateString("sv-SE");
@@ -35,6 +37,7 @@ export async function getFinanceSettings(): Promise<FinanceSettings> {
     revenueGoalCents: data?.revenue_goal_cents != null ? Number(data.revenue_goal_cents) : null,
     reserveRateBps: (data?.reserve_rate_bps as number | undefined) ?? 600,
     reserveGoalMonths: Number(data?.reserve_goal_months ?? 3),
+    reserveBaseCents: Number(data?.reserve_base_cents ?? 0),
   };
 }
 
@@ -45,6 +48,7 @@ export async function saveFinanceSettings(fields: Partial<{
   revenueGoalCents: number | null;
   reserveRateBps: number;
   reserveGoalMonths: number;
+  reserveBaseCents: number;
 }>) {
   const row: Record<string, unknown> = { id: true };
   if (fields.cashCents !== undefined) row.cash_cents = fields.cashCents;
@@ -52,6 +56,7 @@ export async function saveFinanceSettings(fields: Partial<{
   if (fields.cashAt !== undefined) row.cash_at = fields.cashAt;
   if (fields.revenueGoalCents !== undefined) row.revenue_goal_cents = fields.revenueGoalCents;
   if (fields.reserveRateBps !== undefined) row.reserve_rate_bps = fields.reserveRateBps;
+  if (fields.reserveBaseCents !== undefined) row.reserve_base_cents = fields.reserveBaseCents;
   if (fields.reserveGoalMonths !== undefined) row.reserve_goal_months = fields.reserveGoalMonths;
   const { error } = await getSupabaseServerClient().from("finance_settings").upsert(row);
   if (error) throw error;
@@ -209,4 +214,29 @@ export async function getUltimosLancamentos(limite = 6): Promise<Lancamento[]> {
       tipo: "saida",
     }));
   return [...entradas, ...pagas].sort((a, b) => b.data.localeCompare(a.data)).slice(0, limite);
+}
+
+/** Meses em que a pessoa tocou em "Reserva feita", com o valor guardado em cada um. */
+export async function listReserveDeposits(): Promise<{ month: string; cents: number }[]> {
+  const { data, error } = await getSupabaseServerClient()
+    .from("reserve_deposits")
+    .select("month, cents")
+    .order("month");
+  if (error) throw error;
+  return (data ?? []).map((r) => ({ month: r.month as string, cents: Number(r.cents) }));
+}
+
+export async function setReserveDeposit(month: string, cents: number) {
+  const { error } = await getSupabaseServerClient()
+    .from("reserve_deposits")
+    .upsert({ month: monthKey(month), cents, done_at: new Date().toISOString() });
+  if (error) throw error;
+}
+
+export async function removeReserveDeposit(month: string) {
+  const { error } = await getSupabaseServerClient()
+    .from("reserve_deposits")
+    .delete()
+    .eq("month", monthKey(month));
+  if (error) throw error;
 }
