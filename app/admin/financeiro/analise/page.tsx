@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BotaoAcao, EditarValor } from "@/components/admin/financeiro/Acoes";
+import { SobrouAno } from "@/components/admin/financeiro/SobrouAno";
 import { FazerAgora } from "@/components/admin/financeiro/FazerAgora";
 import { Ancora, Anel, CARTAO, Dado, Dinheiro, Vazio } from "@/components/admin/financeiro/ui";
 import { getCaixa, getResultadoAno, listReserveDeposits } from "@/lib/caixa";
@@ -7,7 +8,7 @@ import { formatBRL, monthKey } from "@/lib/billingTypes";
 import { getMoneyMonth } from "@/lib/dinheiro";
 import { getClientCosts } from "@/lib/expenses";
 import { markReserveDoneAction, saveReserveBaseAction, saveRevenueGoalAction, saveReserveRateAction, unmarkReserveDoneAction } from "../caixa";
-import { FOCO, MES_CURTO, SetaMes, href, lerParametros, shiftMonth } from "../_comum";
+import { SetaMes, href, lerParametros, shiftMonth } from "../_comum";
 export const dynamic = "force-dynamic";
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ mes?: string }> }) {
@@ -47,10 +48,6 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
     .filter((cl) => cl.rendeu > 0 || cl.gastou > 0)
     .sort((a, b) => b.rendeu - a.rendeu);
 
-  const topo = Math.max(0, ...sobrouMes);
-  const fundo = Math.min(0, ...sobrouMes);
-  const faixa = Math.max(1, topo - fundo);
-  const zero = (topo / faixa) * 100;
 
   return (
     <>
@@ -169,32 +166,17 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
         <section className={`${CARTAO} lg:col-start-3 lg:row-start-2`}>
           <h2 className="text-lg font-medium text-neutral-900">Quanto sobrou em {year}</h2>
           <p className="mb-3 text-sm text-neutral-500">Total do ano: {formatBRL(totalAno)}. Toque num mês para abrir.</p>
-          <ol className="grid grid-cols-12 gap-1">
-            {sobrouMes.map((v, idx) => {
-              const key = `${year}-${String(idx + 1).padStart(2, "0")}-01`;
-              const atual = key === monthKey(month);
-              const h = (Math.abs(v) / faixa) * 100;
-              return (
-                <li key={key}>
-                  <Link
-                    href={href("analise", key)}
-                    aria-current={atual ? "page" : undefined}
-                    aria-label={`${MES_CURTO[idx]}: sobrou ${formatBRL(v)}`}
-                    title={`${MES_CURTO[idx]}: ${formatBRL(v)}`}
-                    className={`flex flex-col items-center gap-1 rounded-md p-0.5 ${FOCO} ${atual ? "bg-neutral-100" : "hover:bg-neutral-50"}`}
-                  >
-                    <span className="relative block h-28 w-full">
-                      <span
-                        className={`absolute inset-x-0 rounded-sm ${v < 0 ? "bg-red-600" : atual ? "bg-(--tatu-ink)" : "bg-(--tatu-olive)"}`}
-                        style={v < 0 ? { top: `${zero}%`, height: `${h}%` } : { bottom: `${100 - zero}%`, height: `${h}%` }}
-                      />
-                    </span>
-                    <span className={`text-xs ${atual ? "font-medium text-neutral-900" : "text-neutral-600"}`}>{MES_CURTO[idx]}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ol>
+          <SobrouAno
+            ano={year}
+            atual={i}
+            meses={sobrouMes.map((v, idx) => ({
+              href: href("analise", `${year}-${String(idx + 1).padStart(2, "0")}-01`),
+              entrou: ano.entrou[idx],
+              saiu: ano.saiu[idx],
+              reserva: reservaDe(ano.entrou[idx]),
+              sobrou: v,
+            }))}
+          />
         </section>
 
         <section className={`${CARTAO} lg:col-span-3 lg:row-start-3`}>
