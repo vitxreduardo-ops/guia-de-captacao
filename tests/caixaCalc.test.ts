@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { faixaDe, fimDoMes, livreParaGastar, projetar, reserva, simular, somarMeses } from "@/lib/caixaCalc";
+import { doMes, faixaDe, fimDoMes, livreParaGastar, projetar, reserva, simular, somarMeses } from "@/lib/caixaCalc";
 
 const base = projetar({
   hoje: "2026-11-22",
@@ -60,5 +60,14 @@ describe("caixaCalc", () => {
     expect(faixaDe("2026-12-01", hoje)).toBe("depois");
     expect(faixaDe(null, hoje)).toBe("semData");
     expect(fimDoMes("2026-02-10")).toBe("2026-02-28");
+  });
+
+  it("filtra as contas por mês sem somar as dos meses seguintes", () => {
+    const hoje = "2026-11-22";
+    const contas = ["2026-10-30", "2026-11-25", "2026-12-05", "2027-01-05"];
+    const d = (s: string) => s;
+    // mês corrente: o vencido e o que vence em novembro
+    expect(doMes(contas, d, "2026-11-01", hoje)).toEqual(["2026-10-30", "2026-11-25"]);
+    expect(doMes(contas, d, "2026-12-01", hoje)).toEqual(["2026-12-05"]);
   });
 });
