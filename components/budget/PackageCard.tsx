@@ -36,31 +36,33 @@ export function PackageCard({
 
   return (
     <RevealItem
-      className={`relative flex flex-col bg-[var(--tatu-cream)] p-7 pdf:p-5 text-[var(--tatu-ink)] ${
+      // No PDF os cards dividem as linhas da grade (subgrid): nome, preço e lista alinham
+      // de um pacote ao outro, mesmo com nomes e descrições de tamanhos diferentes.
+      className={`relative flex flex-col bg-[var(--tatu-cream)] p-7 pdf:grid pdf:row-span-7 pdf:grid-rows-subgrid pdf:p-5 pdf:pt-6 text-[var(--tatu-ink)] ${
         highlighted
           ? "border-[1.5px] border-[var(--tatu-olive)]"
           : "border border-[var(--tatu-taupe)]"
       }`}
     >
-      <div className="mb-5 flex items-start justify-between gap-3">
-        <span className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--tatu-ink)]/50">
+      <div className="mb-5 flex items-start justify-between gap-3 pdf:row-start-1 pdf:mb-0 pdf:h-0">
+        <span className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--tatu-ink)]/50 pdf:hidden">
           Opção {String(index + 1).padStart(2, "0")}
         </span>
         {highlighted ? (
-          <span className="bg-[var(--tatu-ink)] px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-[var(--tatu-cream)]">
+          <span className="bg-[var(--tatu-ink)] px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-[var(--tatu-cream)] pdf:absolute pdf:right-0 pdf:top-0">
             Recomendado
           </span>
         ) : null}
       </div>
 
-      <p className="text-2xl font-bold">{pkg.name}</p>
+      <p className="text-2xl font-bold pdf:row-start-2 pdf:text-[19px] pdf:leading-tight pdf:tracking-wide">{pkg.name}</p>
       {pkg.subtitle ? (
-        <p className="mt-1 text-sm text-[var(--tatu-ink)]/60">{pkg.subtitle}</p>
+        <p className="mt-1 text-sm text-[var(--tatu-ink)]/60 pdf:row-start-3">{pkg.subtitle}</p>
       ) : null}
 
       <p
         style={{ fontFamily: "Bootzy, sans-serif" }}
-        className="mt-6 pdf:mt-4 text-4xl leading-none tracking-wide"
+        className="mt-6 pdf:mt-3 pdf:row-start-4 text-4xl leading-none tracking-wide"
       >
         {priceText}
         {pkg.price > 0 && pkg.unit ? (
@@ -70,16 +72,16 @@ export function PackageCard({
         ) : null}
       </p>
       {pkg.description ? (
-        <p className="mt-2 text-sm text-[var(--tatu-ink)]/60">{pkg.description}</p>
+        <p className="mt-2 text-sm text-[var(--tatu-ink)]/60 pdf:row-start-5">{pkg.description}</p>
       ) : null}
 
       {pkg.items.length > 0 ? (
-        <ul className="mb-7 mt-6 flex-1 pdf:my-4">
+        <ul className="mb-7 mt-6 flex-1 pdf:row-start-6 pdf:mb-0 pdf:mt-4">
           {pkg.items.map((item, i) => {
             const itemOpen = openItem === i;
             const itemPanelId = `${baseId}-item-${i}`;
             const expandable = item.description !== "";
-            const rowClass = "flex w-full items-start gap-3 py-3 pdf:py-2 text-left";
+            const rowClass = "flex w-full items-start gap-3 py-3 pdf:py-1.5 text-left";
             const content = (
               <>
                 <span className="pt-0.5 text-[11px] tabular-nums text-[var(--tatu-ink)]/50">
@@ -141,14 +143,15 @@ export function PackageCard({
           })}
         </ul>
       ) : (
-        <div className="flex-1" />
+        <div className="flex-1 pdf:row-start-6" />
       )}
 
       <a
         href={ctaHref}
         target="_blank"
         rel="noreferrer"
-        className={`block py-3 text-center text-xs font-bold uppercase tracking-widest ${
+        // Botão de link não serve num PDF apresentado; sai do slide.
+        className={`block pdf:hidden py-3 text-center text-xs font-bold uppercase tracking-widest ${
           highlighted
             ? "bg-[var(--tatu-ink)] text-[var(--tatu-cream)]"
             : "border border-[var(--tatu-ink)]/40 text-[var(--tatu-ink)] hover:bg-[var(--tatu-taupe)]/30"
