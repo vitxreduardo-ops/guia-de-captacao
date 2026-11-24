@@ -921,6 +921,15 @@ html:has(.site) {
   width: var(--pdf-w);
   margin: 0 auto;
 }
+/* Sem transição nenhuma: com "reduzir movimento" ligado a regra lá de cima dá
+   0,01ms a tudo, e o AutoPrint mede o scale/width ainda no valor antigo (a
+   transição só assenta no quadro seguinte). Resultado: nada encolhia e os
+   pacotes viravam um slide cada, numa coluna de 1/4 da largura. */
+.proposta-pdf *,
+.proposta-pdf *::before,
+.proposta-pdf *::after {
+  transition: none !important;
+}
 .proposta-pdf [data-reveal] {
   opacity: 1 !important;
   transform: none !important;
@@ -936,8 +945,8 @@ html:has(.site) {
   flex-direction: column;
   justify-content: center;
   min-height: var(--pdf-h);
-  padding-top: 64px;
-  padding-bottom: 64px;
+  padding-top: 48px;
+  padding-bottom: 56px;
   /* Seção que não cabe continua na página seguinte com o mesmo respiro. */
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;

@@ -134,7 +134,8 @@ export function CoverSection({
         {hasPricing && data.cta ? (
           <a
             href="#pacotes"
-            className="inline-block w-fit bg-[var(--tatu-ink)] px-7 py-3.5 text-sm font-bold uppercase tracking-widest text-[var(--tatu-cream)]"
+            // No PDF a seta "↓" não leva a lugar nenhum: o slide seguinte já é a proposta.
+            className="inline-block w-fit pdf:hidden bg-[var(--tatu-ink)] px-7 py-3.5 text-sm font-bold uppercase tracking-widest text-[var(--tatu-cream)]"
           >
             {data.cta} ↓
           </a>
