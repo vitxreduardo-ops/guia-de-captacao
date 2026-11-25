@@ -45,12 +45,23 @@ export async function saveReserveRateAction(formData: FormData) {
   revalidatePath("/admin/financeiro", "layout");
 }
 
-/** Meta de reserva, em meses de custo. */
-export async function saveReserveGoalAction(formData: FormData) {
+/**
+ * Reserva mínima em caixa: valor em reais, meses de custo, ou os dois (vale o
+ * maior). Os dois vazios voltam ao padrão (um mês de custo).
+ */
+export async function saveReserveMinAction(formData: FormData) {
   await requireFullAccess();
-  const months = Number(String(formData.get("valor") ?? "").replace(",", "."));
-  if (!Number.isFinite(months) || months <= 0 || months > 24) throw new Error("A meta vai de 0,5 a 24 meses.");
-  await saveFinanceSettings({ reserveGoalMonths: Math.round(months * 10) / 10 });
+  const rawValor = String(formData.get("valor") ?? "").trim();
+  const rawMeses = String(formData.get("meses") ?? "").trim().replace(",", ".");
+  const cents = rawValor === "" ? null : parseBRLToCents(rawValor);
+  const meses = rawMeses === "" ? null : Number(rawMeses);
+  if (meses !== null && (!Number.isFinite(meses) || meses <= 0 || meses > 24)) {
+    throw new Error("Os meses de custo vão de 0,5 a 24.");
+  }
+  await saveFinanceSettings({
+    reserveMinCents: cents !== null && cents > 0 ? cents : null,
+    reserveMinMonths: meses === null ? null : Math.round(meses * 10) / 10,
+  });
   revalidatePath("/admin/financeiro", "layout");
 }
 

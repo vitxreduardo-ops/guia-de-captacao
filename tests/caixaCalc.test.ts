@@ -30,9 +30,17 @@ describe("caixaCalc", () => {
   });
 
   it("calcula reserva e quanto está livre", () => {
-    const r = reserva({ caixa: 100_00, custoMensal: 40_00, metaMeses: 3 });
-    expect(r).toEqual({ minimaCents: 40_00, metaCents: 120_00, meses: 2.5 });
-    expect(reserva({ caixa: 1, custoMensal: 0, metaMeses: 3 }).meses).toBeNull();
+    // sem nada definido: um mês de custo
+    const r = reserva({ caixa: 100_00, custoMensal: 40_00, minCents: null, minMeses: null });
+    expect(r).toEqual({ minimaCents: 40_00, origem: "padrao", folgaCents: 60_00, meses: 2.5 });
+    // valor fixo: o custo não manda no piso
+    expect(reserva({ caixa: 100_00, custoMensal: 40_00, minCents: 50_00, minMeses: null })).toMatchObject({ minimaCents: 50_00, origem: "valor" });
+    // meses de custo
+    expect(reserva({ caixa: 100_00, custoMensal: 40_00, minCents: null, minMeses: 2 })).toMatchObject({ minimaCents: 80_00, origem: "meses" });
+    // os dois juntos: vale o maior
+    expect(reserva({ caixa: 100_00, custoMensal: 40_00, minCents: 50_00, minMeses: 2 })).toMatchObject({ minimaCents: 80_00, origem: "ambos" });
+    expect(reserva({ caixa: 100_00, custoMensal: 40_00, minCents: 200_00, minMeses: 2 })).toMatchObject({ minimaCents: 200_00, origem: "ambos", folgaCents: -100_00 });
+    expect(reserva({ caixa: 1, custoMensal: 0, minCents: null, minMeses: null }).meses).toBeNull();
     expect(livreParaGastar(base.menorCents, r.minimaCents)).toBe(10_00);
     expect(livreParaGastar(10_00, 40_00)).toBe(0);
   });

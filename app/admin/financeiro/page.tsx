@@ -127,15 +127,16 @@ export default async function Page() {
                 />
               )}
             </div>
-            {c.reservaMeses !== null ? (
+            {c.reservaFolga !== null && c.reservaMinima > 0 && c.caixaHoje !== null ? (
               <div>
                 <div className="mb-1 flex items-baseline justify-between gap-2">
-                  <p className="text-sm text-(--tatu-cream)/75">Reserva</p>
-                  <p className="text-sm tabular-nums">
-                    {c.reservaMeses.toFixed(1).replace(".", ",")} de {String(c.settings.reserveGoalMonths).replace(".", ",")} meses
-                  </p>
+                  <p className="text-sm text-(--tatu-cream)/75">Reserva mínima</p>
+                  <p className="text-sm tabular-nums">{formatBRL(c.reservaMinima)}</p>
                 </div>
-                <Barra pct={(c.reservaMeses / c.settings.reserveGoalMonths) * 100} escuro rotulo="Reserva em meses de custo" />
+                <Barra pct={(c.caixaHoje / c.reservaMinima) * 100} escuro rotulo="Caixa em relação à reserva mínima" />
+                <p className="mt-1 text-sm text-(--tatu-cream)/75">
+                  {c.reservaFolga >= 0 ? `Folga de ${formatBRL(c.reservaFolga)}` : `Faltam ${formatBRL(-c.reservaFolga)}`}
+                </p>
               </div>
             ) : null}
             <LancarSaida today={c.hoje} clientes={clientes} variante="claro" />

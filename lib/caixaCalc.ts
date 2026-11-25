@@ -92,16 +92,37 @@ export function projetar(args: {
   return { caixaHoje: args.caixa, meses, menorCents, menorMes, semDataCents };
 }
 
+export type OrigemReserva = "valor" | "meses" | "ambos" | "padrao";
+
 /**
- * Reserva mínima = um mês de custo. A meta (em meses) é a do estúdio.
- * `meses` é quanto tempo o caixa aguenta pagando só os custos; null quando
- * ainda não há custo para comparar.
+ * Reserva mínima em caixa: o piso que o caixa não pode furar. A pessoa define
+ * um valor fixo, uma quantidade de meses de custo, ou os dois (vale o maior).
+ * Sem nenhum dos dois, vale um mês de custo. Os meses de custo que o caixa
+ * cobre (`meses`) são só informação: não definem o piso.
  */
-export function reserva(args: { caixa: number; custoMensal: number; metaMeses: number }) {
-  const minimaCents = args.custoMensal;
+export function reserva(args: {
+  caixa: number;
+  custoMensal: number;
+  minCents: number | null;
+  minMeses: number | null;
+}) {
+  const porMeses = args.minMeses !== null ? Math.round(args.custoMensal * args.minMeses) : null;
+  const origem: OrigemReserva =
+    args.minCents !== null && porMeses !== null
+      ? "ambos"
+      : args.minCents !== null
+        ? "valor"
+        : porMeses !== null
+          ? "meses"
+          : "padrao";
+  const minimaCents =
+    origem === "padrao" ? args.custoMensal : Math.max(args.minCents ?? 0, porMeses ?? 0);
   return {
     minimaCents,
-    metaCents: Math.round(args.custoMensal * args.metaMeses),
+    origem,
+    /** Quanto o caixa está acima (ou, negativo, abaixo) do piso. */
+    folgaCents: args.caixa - minimaCents,
+    /** Quantos meses de custo o caixa cobre; null sem custo para comparar. */
     meses: args.custoMensal > 0 ? args.caixa / args.custoMensal : null,
   };
 }
@@ -182,4 +203,13 @@ export function doMes<T>(itens: T[], data: (t: T) => string, mes: string, hoje: 
     const d = data(t);
     return mes === atual ? d <= fimDoMes(hoje) : `${d.slice(0, 7)}-01` === mes;
   });
+}
+
+/** De onde vem o piso da reserva, em palavras (a tela mostra embaixo do valor). */
+export function rotuloReserva(origem: OrigemReserva, minMeses: number | null): string {
+  const m = minMeses === null ? "" : `${String(minMeses).replace(".", ",")} ${minMeses === 1 ? "mês" : "meses"} de custo`;
+  if (origem === "valor") return "valor fixo";
+  if (origem === "meses") return m;
+  if (origem === "ambos") return `o maior entre o valor fixo e ${m}`;
+  return "1 mês de custo (padrão)";
 }

@@ -1,10 +1,11 @@
-import { EditarValor } from "@/components/admin/financeiro/Acoes";
+import { EditarCampos, EditarValor } from "@/components/admin/financeiro/Acoes";
 import { ProjecaoInterativa } from "@/components/admin/financeiro/ProjecaoInterativa";
 import { Ancora, Barra, CARTAO, Dado, Dinheiro, Vazio } from "@/components/admin/financeiro/ui";
 import { getCaixa } from "@/lib/caixa";
 import { formatBRL, monthLabel } from "@/lib/billingTypes";
+import { rotuloReserva } from "@/lib/caixaCalc";
 import { getCurrentClientScope } from "@/lib/clientAccess";
-import { saveCashAction, saveReserveGoalAction } from "../caixa";
+import { saveCashAction, saveReserveMinAction } from "../caixa";
 export const dynamic = "force-dynamic";
 
 const nomeMes = (m: string) => monthLabel(m).split(" de ")[0];
@@ -30,9 +31,9 @@ export default async function Page() {
     );
   }
   const p = c.projecao;
-  const meta = c.settings.reserveGoalMonths;
-  const metaMeses = String(meta).replace(".", ",");
-  const reservaMeses = c.reservaMeses;
+  const { reserveMinCents, reserveMinMonths } = c.settings;
+  const origemTxt = rotuloReserva(c.reservaOrigem, reserveMinMonths);
+  const folga = c.reservaFolga ?? 0;
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[21rem_minmax(0,1fr)]">
@@ -44,7 +45,7 @@ export default async function Page() {
         </div>
         <div className="mt-auto grid grid-cols-2 gap-3 border-t border-(--tatu-cream)/20 pt-4">
           <Dado escuro label="Menor caixa" cents={p.menorCents} note={p.menorMes ? `em ${nomeMes(p.menorMes)}` : "hoje"} />
-          <Dado escuro label="Reserva mínima" cents={c.reservaMinima} note="1 mês de custo" />
+          <Dado escuro label="Reserva mínima" cents={c.reservaMinima} note={origemTxt} />
         </div>
         {p.semDataCents > 0 ? (
           <p className="text-sm text-(--tatu-cream)/75">
@@ -63,33 +64,50 @@ export default async function Page() {
       <section className={`${CARTAO} lg:col-start-2 lg:row-start-2`}>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h2 className="text-lg font-medium text-neutral-900">Sua reserva</h2>
-            <p className="text-base text-neutral-600">Quanto tempo o caixa aguenta pagando só os custos.</p>
+            <h2 className="text-lg font-medium text-neutral-900">Reserva mínima em caixa</h2>
+            <p className="text-base text-neutral-600">O piso que o caixa não pode furar.</p>
           </div>
-          <EditarValor
-            rotulo="Mudar meta"
-            titulo="Meta de reserva, em meses de custo"
-            dica="Quantos meses de custo o estúdio quer ter guardados."
-            action={saveReserveGoalAction}
-            valorInicial={metaMeses}
-            sufixo="meses"
+          <EditarCampos
+            rotulo="Mudar"
+            titulo="Reserva mínima em caixa"
+            dica="Preencha o valor, os meses de custo ou os dois (vale o maior). Com os dois vazios, vale 1 mês de custo. Retiradas de pró-labore entram na conta do custo quando lançadas como saída; o valor fixo não depende delas."
+            action={saveReserveMinAction}
+            campos={[
+              {
+                name: "valor",
+                label: "Valor mínimo em caixa",
+                placeholder: "R$ 5.000,00",
+                valorInicial: reserveMinCents !== null ? (reserveMinCents / 100).toFixed(2).replace(".", ",") : "",
+              },
+              {
+                name: "meses",
+                label: "Meses de custo",
+                placeholder: "Ex.: 2",
+                sufixo: "meses",
+                valorInicial: reserveMinMonths !== null ? String(reserveMinMonths).replace(".", ",") : "",
+              },
+            ]}
           />
         </div>
-        {reservaMeses === null ? (
-          <p className="mt-3 text-base text-neutral-600">Lance as saídas do estúdio para o app calcular quantos meses de custo o caixa cobre.</p>
-        ) : (
-          <>
-            <p className="mt-3 text-3xl font-medium tabular-nums text-neutral-900">
-              {reservaMeses.toFixed(1).replace(".", ",")} <span className="text-lg font-normal text-neutral-600">meses · meta {metaMeses}</span>
+        <p className="mt-3 text-3xl font-medium tabular-nums text-neutral-900">{formatBRL(c.reservaMinima)}</p>
+        <p className="text-sm text-neutral-500">{origemTxt}</p>
+        <div className="mt-3">
+          <Barra pct={c.reservaMinima > 0 ? (c.caixaHoje / c.reservaMinima) * 100 : 100} rotulo="Caixa em relação à reserva mínima" />
+        </div>
+        <p className={`mt-1 text-base ${folga < 0 ? "text-red-700" : "text-neutral-600"}`}>
+          {folga >= 0 ? `Folga de ${formatBRL(folga)} acima do mínimo.` : `Faltam ${formatBRL(-folga)} para chegar ao mínimo.`}
+        </p>
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          <Dado label="Em caixa" cents={c.caixaHoje} />
+          <Dado label="Custo por mês" cents={c.custoMensal} note="média de 3 meses" />
+          <div className="min-w-0">
+            <p className="text-sm text-neutral-600">Cobre</p>
+            <p className="text-lg font-medium tabular-nums">
+              {c.reservaMeses === null ? "—" : `${c.reservaMeses.toFixed(1).replace(".", ",")} meses`}
             </p>
-            <div className="mt-2"><Barra pct={(reservaMeses / meta) * 100} rotulo="Reserva em meses de custo" /></div>
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              <Dado label="Em caixa" cents={c.caixaHoje} />
-              <Dado label="Custo por mês" cents={c.custoMensal} note="média de 3 meses" />
-              <Dado label="Meta em reais" cents={Math.round(c.custoMensal * meta)} />
-            </div>
-          </>
-        )}
+            <p className="text-sm text-neutral-500">de custo, só informação</p>
+          </div>
+        </div>
       </section>
     </div>
   );
