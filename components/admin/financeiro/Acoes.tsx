@@ -129,6 +129,77 @@ export function EditarValor({
   );
 }
 
+/** Janela com vários campos de texto (ex.: valor e meses da reserva mínima). */
+export function EditarCampos({
+  rotulo,
+  titulo,
+  dica,
+  action,
+  campos,
+  variante = "contorno",
+}: {
+  rotulo: string;
+  titulo: string;
+  dica?: string;
+  action: (formData: FormData) => Promise<void>;
+  campos: { name: string; label: string; valorInicial?: string; placeholder?: string; sufixo?: string }[];
+  variante?: keyof typeof BOTAO;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [pending, start] = useTransition();
+  return (
+    <>
+      <button type="button" onClick={() => ref.current?.showModal()} className={BOTAO[variante]}>
+        {rotulo}
+      </button>
+      <dialog
+        ref={ref}
+        aria-label={titulo}
+        onClick={(e) => e.target === ref.current && ref.current?.close()}
+        className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-xl border border-neutral-200 bg-white p-0 text-neutral-900 shadow-xl backdrop:bg-black/40"
+      >
+        <form
+          action={(f) =>
+            start(async () => {
+              await action(f);
+              ref.current?.close();
+            })
+          }
+          className="grid gap-3 p-5"
+        >
+          <h2 className="text-lg font-medium">{titulo}</h2>
+          {dica ? <p className="text-base text-neutral-600">{dica}</p> : null}
+          {campos.map((c, i) => (
+            <label key={c.name} className="block">
+              <span className="mb-1 block text-sm font-medium text-neutral-600">{c.label}</span>
+              <span className="flex items-center gap-2">
+                <input
+                  name={c.name}
+                  inputMode="decimal"
+                  autoFocus={i === 0}
+                  onFocus={(e) => e.currentTarget.select()}
+                  defaultValue={c.valorInicial}
+                  placeholder={c.placeholder}
+                  className="min-h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-base focus:border-neutral-500 focus:outline-none"
+                />
+                {c.sufixo ? <span className="text-base text-neutral-600">{c.sufixo}</span> : null}
+              </span>
+            </label>
+          ))}
+          <div className="flex gap-2">
+            <button type="submit" disabled={pending} className={BOTAO.cheio}>
+              {pending ? "Salvando…" : "Salvar"}
+            </button>
+            <button type="button" onClick={() => ref.current?.close()} className={BOTAO.contorno}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </dialog>
+    </>
+  );
+}
+
 /** Botão + janela de uma área maior (o formulário de lançar saída). */
 export function Janela({
   rotulo,

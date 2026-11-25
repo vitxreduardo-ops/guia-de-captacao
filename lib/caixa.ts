@@ -3,7 +3,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getMoneyYear, getReceived, getReceivedAfter, getReceivables, type ReceivableRow } from "@/lib/dinheiro";
 import { getCustoMensal, getExpenseYear, getPaidOutAfter, listExpensesByMonth, listPayables } from "@/lib/expenses";
 import { monthKey } from "@/lib/billingTypes";
-import { livreParaGastar, projetar, reserva, type Projecao } from "@/lib/caixaCalc";
+import { livreParaGastar, projetar, reserva, type OrigemReserva, type Projecao } from "@/lib/caixaCalc";
 import type { Expense } from "@/lib/expensesTypes";
 
 export interface FinanceSettings {
@@ -16,7 +16,10 @@ export interface FinanceSettings {
   revenueGoalCents: number | null;
   /** Reserva estimada: parte do que entra que fica guardada, em centésimos de por cento (600 = 6%). */
   reserveRateBps: number;
-  reserveGoalMonths: number;
+  /** Reserva mínima em reais; null = não definida. */
+  reserveMinCents: number | null;
+  /** Reserva mínima em meses de custo; null = não definida. */
+  reserveMinMonths: number | null;
   /** Quanto já havia na reserva guardada quando a pessoa informou. */
   reserveBaseCents: number;
 }
@@ -36,7 +39,8 @@ export async function getFinanceSettings(): Promise<FinanceSettings> {
     cashAt: (data?.cash_at as string | null) ?? null,
     revenueGoalCents: data?.revenue_goal_cents != null ? Number(data.revenue_goal_cents) : null,
     reserveRateBps: (data?.reserve_rate_bps as number | undefined) ?? 600,
-    reserveGoalMonths: Number(data?.reserve_goal_months ?? 3),
+    reserveMinCents: data?.reserve_min_cents != null ? Number(data.reserve_min_cents) : null,
+    reserveMinMonths: data?.reserve_min_months != null ? Number(data.reserve_min_months) : null,
     reserveBaseCents: Number(data?.reserve_base_cents ?? 0),
   };
 }
@@ -47,7 +51,8 @@ export async function saveFinanceSettings(fields: Partial<{
   cashAt: string;
   revenueGoalCents: number | null;
   reserveRateBps: number;
-  reserveGoalMonths: number;
+  reserveMinCents: number | null;
+  reserveMinMonths: number | null;
   reserveBaseCents: number;
 }>) {
   const row: Record<string, unknown> = { id: true };
@@ -57,7 +62,8 @@ export async function saveFinanceSettings(fields: Partial<{
   if (fields.revenueGoalCents !== undefined) row.revenue_goal_cents = fields.revenueGoalCents;
   if (fields.reserveRateBps !== undefined) row.reserve_rate_bps = fields.reserveRateBps;
   if (fields.reserveBaseCents !== undefined) row.reserve_base_cents = fields.reserveBaseCents;
-  if (fields.reserveGoalMonths !== undefined) row.reserve_goal_months = fields.reserveGoalMonths;
+  if (fields.reserveMinCents !== undefined) row.reserve_min_cents = fields.reserveMinCents;
+  if (fields.reserveMinMonths !== undefined) row.reserve_min_months = fields.reserveMinMonths;
   const { error } = await getSupabaseServerClient().from("finance_settings").upsert(row);
   if (error) throw error;
 }
@@ -76,8 +82,12 @@ export interface CaixaView {
   pagar: Expense[];
   projecao: Projecao | null;
   custoMensal: number;
+  /** O piso do caixa em centavos (ver `reserva` em caixaCalc). */
   reservaMinima: number;
-  /** Meses de custo que o caixa aguenta. */
+  reservaOrigem: OrigemReserva;
+  /** Quanto o caixa está acima (ou abaixo, negativo) do piso; null sem saldo. */
+  reservaFolga: number | null;
+  /** Meses de custo que o caixa cobre: só informação. */
   reservaMeses: number | null;
   livre: number | null;
 }
@@ -96,6 +106,8 @@ export async function getCaixa(scope: string[] | null = null): Promise<CaixaView
       projecao: null,
       custoMensal: 0,
       reservaMinima: 0,
+      reservaOrigem: "padrao",
+      reservaFolga: null,
       reservaMeses: null,
       livre: null,
     };
@@ -130,7 +142,8 @@ export async function getCaixa(scope: string[] | null = null): Promise<CaixaView
   const r = reserva({
     caixa: caixaHoje ?? 0,
     custoMensal,
-    metaMeses: settings.reserveGoalMonths,
+    minCents: settings.reserveMinCents,
+    minMeses: settings.reserveMinMonths,
   });
   return {
     settings,
@@ -141,6 +154,8 @@ export async function getCaixa(scope: string[] | null = null): Promise<CaixaView
     projecao,
     custoMensal,
     reservaMinima: r.minimaCents,
+    reservaOrigem: r.origem,
+    reservaFolga: caixaHoje === null ? null : r.folgaCents,
     reservaMeses: caixaHoje === null ? null : r.meses,
     livre: projecao ? livreParaGastar(projecao.menorCents, r.minimaCents) : null,
   };
