@@ -92,6 +92,41 @@ export function projetar(args: {
   return { caixaHoje: args.caixa, meses, menorCents, menorMes, semDataCents };
 }
 
+export interface Recorrente {
+  clientId: string;
+  cents: number;
+  /** Dia do mês em que o dinheiro cai (1 a 31; em mês curto vale o último dia). */
+  dia: number;
+}
+
+/**
+ * Entradas previstas dos clientes recorrentes nos próximos meses. Em cada mês
+ * entra só o que falta: o valor mensal menos o que já está lançado (ou já
+ * entrou) daquele cliente naquele mês, para não contar a mesma cobrança duas
+ * vezes. O dia que já passou neste mês fica de fora: ou já entrou no saldo, ou
+ * está vencido e lançado.
+ */
+export function previstoRecorrentes(args: {
+  hoje: string;
+  meses: number;
+  recorrentes: Recorrente[];
+  jaLancado: (clientId: string, mes: string) => number;
+}): Entrada[] {
+  const primeiro = mesDe(args.hoje);
+  const saida: Entrada[] = [];
+  for (let i = 0; i < args.meses; i++) {
+    const mes = somarMeses(primeiro, i);
+    const ultimoDia = Number(fimDoMes(mes).slice(8));
+    for (const r of args.recorrentes) {
+      const date = `${mes.slice(0, 7)}-${String(Math.min(r.dia, ultimoDia)).padStart(2, "0")}`;
+      if (date < args.hoje) continue;
+      const falta = r.cents - args.jaLancado(r.clientId, mes);
+      if (falta > 0) saida.push({ date, cents: falta });
+    }
+  }
+  return saida;
+}
+
 export type OrigemReserva = "valor" | "meses" | "ambos" | "padrao";
 
 /**

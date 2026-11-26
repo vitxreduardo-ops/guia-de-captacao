@@ -8,10 +8,11 @@ import {
   deleteRecurringExpense,
   editRecurringFromMonth,
   markExpensePaid,
+  reimburse,
   stopRecurringExpense,
   updateExpense,
 } from "@/lib/expenses";
-import { normalizeExpenseCategory } from "@/lib/expensesTypes";
+import { normalizeExpenseCategory, normalizePagoPor } from "@/lib/expensesTypes";
 import { parseBRLToCents } from "@/lib/billingTypes";
 import { getCurrentClientScope } from "@/lib/clientAccess";
 import { getCurrentSession, requireTeam } from "@/lib/session";
@@ -45,7 +46,7 @@ export async function addExpenseAction(formData: FormData) {
   if (formData.get("repete") === "on") {
     await addRecurringExpense({ ...fields, startsOn: spentOn });
   } else {
-    await addExpense({ ...fields, spentOn, paid, clientId: readClient(formData) });
+    await addExpense({ ...fields, spentOn, paid, clientId: readClient(formData), paidBy: normalizePagoPor(formData.get("pagoPor")) });
   }
   revalidatePath("/admin/financeiro", "layout");
 }
@@ -91,6 +92,7 @@ export async function updateExpenseAction(formData: FormData) {
     ...readExpenseFields(formData),
     spentOn: date,
     clientId: readClient(formData),
+    paidBy: normalizePagoPor(formData.get("pagoPor")),
   });
   revalidatePath("/admin/financeiro", "layout");
 }
@@ -101,5 +103,14 @@ export async function updateRecurringAction(formData: FormData) {
     ...readExpenseFields(formData),
     dayOfMonth: Number(formData.get("dia")),
   });
+  revalidatePath("/admin/financeiro", "layout");
+}
+
+/** "Reembolsei": o estúdio devolveu à pessoa tudo que ela pagou no cartão dela. */
+export async function reimburseAction(formData: FormData) {
+  await requireFullAccess();
+  const pessoa = normalizePagoPor(formData.get("pessoa"));
+  if (!pessoa) throw new Error("Pessoa inválida.");
+  await reimburse(pessoa, new Date().toLocaleDateString("sv-SE"));
   revalidatePath("/admin/financeiro", "layout");
 }

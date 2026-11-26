@@ -846,6 +846,24 @@ export async function getReceivedAfter(cashOn: string, cashAt: string): Promise<
   return ((data ?? []) as unknown as CardRow[]).reduce((s, card) => s + toItem(card, true).totalCents, 0);
 }
 
+/** O que cada cliente já pagou desde o dia 1 do mês de `dia` (AAAA-MM-DD), por id de cliente. */
+export async function getPagoNoMes(dia: string): Promise<Map<string, number>> {
+  const paidIds = (await billableColumns()).filter((c) => c.paid).map((c) => c.id);
+  const porCliente = new Map<string, number>();
+  if (paidIds.length === 0) return porCliente;
+  const { data, error } = await getSupabaseServerClient()
+    .from("backlog_cards")
+    .select(CARD_FIELDS)
+    .in("column_id", paidIds)
+    .not("client_id", "is", null)
+    .gte("paid_at", monthKey(dia));
+  if (error) throw error;
+  for (const card of (data ?? []) as unknown as CardRow[]) {
+    porCliente.set(card.client_id, (porCliente.get(card.client_id) ?? 0) + toItem(card, true).totalCents);
+  }
+  return porCliente;
+}
+
 export interface ClientMoney {
   id: string;
   name: string;

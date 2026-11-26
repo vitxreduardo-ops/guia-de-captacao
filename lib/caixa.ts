@@ -1,9 +1,9 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { getMoneyYear, getReceived, getReceivedAfter, getReceivables, type ReceivableRow } from "@/lib/dinheiro";
+import { getMoneyYear, getPagoNoMes, getReceived, getReceivedAfter, getReceivables, type ReceivableRow } from "@/lib/dinheiro";
 import { getCustoMensal, getExpenseYear, getPaidOutAfter, listExpensesByMonth, listPayables } from "@/lib/expenses";
 import { monthKey } from "@/lib/billingTypes";
-import { livreParaGastar, projetar, reserva, type OrigemReserva, type Projecao } from "@/lib/caixaCalc";
+import { livreParaGastar, previstoRecorrentes, projetar, reserva, type Recorrente, type OrigemReserva, type Projecao } from "@/lib/caixaCalc";
 import type { Expense } from "@/lib/expensesTypes";
 
 export interface FinanceSettings {
@@ -73,8 +73,16 @@ export async function saveFinanceSettings(fields: Partial<{
  * o que falta pagar, a projeção e a reserva. As abas Visão geral, A pagar e
  * receber e Projeção leem daqui, então os números nunca divergem entre elas.
  */
+export interface ClienteRecorrente extends Recorrente {
+  name: string;
+}
+
 export interface CaixaView {
   settings: FinanceSettings;
+  /** Clientes recorrentes cadastrados na Projeção (vazio para quem vê só alguns clientes). */
+  recorrentes: ClienteRecorrente[];
+  /** Quanto os recorrentes acrescentam à projeção; 0 com a previsão desligada. */
+  previstoCents: number;
   hoje: string;
   /** Null enquanto o saldo não foi informado. */
   caixaHoje: number | null;
@@ -92,13 +100,18 @@ export interface CaixaView {
   livre: number | null;
 }
 
-export async function getCaixa(scope: string[] | null = null): Promise<CaixaView> {
+export async function getCaixa(
+  scope: string[] | null = null,
+  opcoes: { recorrentes?: boolean } = {}
+): Promise<CaixaView> {
   const hoje = hojeIso();
   // Caixa, contas a pagar e reserva são do estúdio todo: quem só vê alguns
   // clientes recebe apenas a lista do que falta receber deles.
   if (scope !== null) {
     return {
       settings: await getFinanceSettings(),
+      recorrentes: [],
+      previstoCents: 0,
       hoje,
       caixaHoje: null,
       receber: await getReceivables(scope),
@@ -112,11 +125,13 @@ export async function getCaixa(scope: string[] | null = null): Promise<CaixaView
       livre: null,
     };
   }
-  const [settings, receber, pagar, custoMensal] = await Promise.all([
+  const [settings, receber, pagar, custoMensal, recorrentes, pagoNoMes] = await Promise.all([
     getFinanceSettings(),
     getReceivables(null),
     listPayables(6),
     getCustoMensal(),
+    listRecurring(),
+    getPagoNoMes(hoje),
   ]);
 
   let caixaHoje: number | null = null;
@@ -130,13 +145,28 @@ export async function getCaixa(scope: string[] | null = null): Promise<CaixaView
     caixaHoje = settings.cashCents + entrou - saiu;
   }
 
+  // Já lançado por cliente e mês de vencimento; neste mês conta também o que já foi pago.
+  const lancado = new Map<string, number>();
+  for (const r of receber) {
+    if (r.due) lancado.set(`${r.clientId}|${monthKey(r.due)}`, (lancado.get(`${r.clientId}|${monthKey(r.due)}`) ?? 0) + r.cents);
+  }
+  const mesAtual = monthKey(hoje);
+  const previsto = opcoes.recorrentes === false
+    ? []
+    : previstoRecorrentes({
+        hoje,
+        meses: 6,
+        recorrentes,
+        jaLancado: (c, m) => (lancado.get(`${c}|${m}`) ?? 0) + (m === mesAtual ? (pagoNoMes.get(c) ?? 0) : 0),
+      });
+
   const projecao =
     caixaHoje === null
       ? null
       : projetar({
           hoje,
           caixa: caixaHoje,
-          entradas: receber.map((r) => ({ date: r.due, cents: r.cents })),
+          entradas: [...receber.map((r) => ({ date: r.due, cents: r.cents })), ...previsto],
           saidas: pagar.map((e) => ({ date: e.spentOn, cents: e.amountCents })),
         });
   const r = reserva({
@@ -147,6 +177,8 @@ export async function getCaixa(scope: string[] | null = null): Promise<CaixaView
   });
   return {
     settings,
+    recorrentes,
+    previstoCents: previsto.reduce((t, e) => t + e.cents, 0),
     hoje,
     caixaHoje,
     receber,
@@ -167,15 +199,48 @@ function nextDay(iso: string): string {
   return d.toLocaleDateString("sv-SE");
 }
 
-/** Clientes ativos, para escolher de quem é um gasto. */
-export async function listClientOptions(): Promise<{ id: string; name: string }[]> {
+/** Clientes ativos, para escolher de quem é um gasto (e quem é recorrente). */
+export async function listClientOptions(): Promise<{ id: string; name: string; paymentDay: number | null }[]> {
   const { data, error } = await getSupabaseServerClient()
     .from("gallery_clients")
-    .select("id, name")
+    .select("id, name, payment_day")
     .is("archived_at", null)
     .order("name");
   if (error) throw error;
-  return (data ?? []).map((c) => ({ id: c.id as string, name: c.name as string }));
+  return (data ?? []).map((c) => ({
+    id: c.id as string,
+    name: c.name as string,
+    paymentDay: (c.payment_day as number | null) ?? null,
+  }));
+}
+
+/** Clientes recorrentes da Projeção; cliente arquivado fica de fora. */
+export async function listRecurring(): Promise<ClienteRecorrente[]> {
+  const { data, error } = await getSupabaseServerClient()
+    .from("recurring_clients")
+    .select("client_id, cents, pay_day, gallery_clients!inner(name, archived_at)")
+    .is("gallery_clients.archived_at", null);
+  if (error) throw error;
+  return ((data ?? []) as unknown as { client_id: string; cents: number | string; pay_day: number; gallery_clients: { name: string } | { name: string }[] }[])
+    .map((r) => ({
+      clientId: r.client_id,
+      cents: Number(r.cents),
+      dia: r.pay_day,
+      name: (Array.isArray(r.gallery_clients) ? r.gallery_clients[0] : r.gallery_clients).name,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+}
+
+export async function saveRecurring(clientId: string, cents: number, dia: number) {
+  const { error } = await getSupabaseServerClient()
+    .from("recurring_clients")
+    .upsert({ client_id: clientId, cents, pay_day: dia });
+  if (error) throw error;
+}
+
+export async function removeRecurring(clientId: string) {
+  const { error } = await getSupabaseServerClient().from("recurring_clients").delete().eq("client_id", clientId);
+  if (error) throw error;
 }
 
 /**

@@ -3,7 +3,9 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { monthKey, nextMonthKey } from "@/lib/billingTypes";
 import {
   normalizeExpenseCategory,
+  normalizePagoPor,
   type Expense,
+  type PagoPor,
   type ExpenseCategory,
 } from "@/lib/expensesTypes";
 
@@ -18,6 +20,7 @@ function toExpense(row: Record<string, unknown>): Expense {
     paid: row.paid_on != null,
     clientId: (row.client_id as string | null) ?? null,
     clientName: (Array.isArray(client) ? client[0]?.name : client?.name) ?? null,
+    paidBy: normalizePagoPor(row.paid_by),
   };
 }
 
@@ -165,11 +168,15 @@ export async function addExpense(fields: {
   paid: boolean;
   clientId: string | null;
   userId: string | null;
+  /** Cartão pessoal de quem pagou: fica a reembolsar, fora do caixa até lá. */
+  paidBy?: PagoPor | null;
 }) {
   if (!(fields.amountCents > 0)) throw new Error("Informe um valor maior que zero.");
+  if (fields.paidBy) fields = { ...fields, paid: false };
   const { error } = await getSupabaseServerClient()
     .from("expenses")
     .insert({
+      paid_by: fields.paidBy ?? null,
       description: fields.description.trim(),
       amount_cents: fields.amountCents,
       category: fields.category,
@@ -246,10 +253,28 @@ export async function updateExpense(
     category: ExpenseCategory;
     spentOn: string;
     clientId: string | null;
+    paidBy: PagoPor | null;
   }
 ) {
   if (!(fields.amountCents > 0)) throw new Error("Informe um valor maior que zero.");
-  const { error } = await getSupabaseServerClient()
+  const supabase = getSupabaseServerClient();
+  const { data: old, error: oldError } = await supabase
+    .from("expenses")
+    .select("paid_by, paid_on")
+    .eq("id", id)
+    .single();
+  if (oldError) throw oldError;
+  // Trocar quem pagou muda o caixa: virou cartão pessoal = volta a ficar a reembolsar;
+  // voltou a ser da empresa sem reembolso = saiu do caixa na data do gasto.
+  const pago: Record<string, string | null> = {};
+  if (fields.paidBy && !old.paid_by) {
+    pago.paid_on = null;
+    pago.paid_marked_at = null;
+  } else if (!fields.paidBy && old.paid_by && old.paid_on === null) {
+    pago.paid_on = fields.spentOn <= hojeIso() ? fields.spentOn : hojeIso();
+    pago.paid_marked_at = new Date().toISOString();
+  }
+  const { error } = await supabase
     .from("expenses")
     .update({
       description: fields.description.trim(),
@@ -257,6 +282,8 @@ export async function updateExpense(
       category: fields.category,
       spent_on: fields.spentOn,
       client_id: fields.clientId,
+      paid_by: fields.paidBy,
+      ...pago,
     })
     .eq("id", id);
   if (error) throw error;
@@ -419,4 +446,14 @@ export async function listClientExpenses(clientId: string): Promise<Expense[]> {
     .order("spent_on", { ascending: false });
   if (error) throw error;
   return (data ?? []).map(toExpense);
+}
+
+/** "Reembolsei": tudo que a pessoa pagou e ainda não recebeu sai do caixa hoje, de uma vez. */
+export async function reimburse(pessoa: PagoPor, paidOn: string) {
+  const { error } = await getSupabaseServerClient()
+    .from("expenses")
+    .update({ paid_on: paidOn, paid_marked_at: new Date().toISOString() })
+    .eq("paid_by", pessoa)
+    .is("paid_on", null);
+  if (error) throw error;
 }

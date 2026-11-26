@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { parseBRLToCents } from "@/lib/billingTypes";
-import { getResultadoAno, getFinanceSettings, removeReserveDeposit, saveFinanceSettings, setReserveDeposit } from "@/lib/caixa";
+import { getResultadoAno, getFinanceSettings, removeRecurring, removeReserveDeposit, saveRecurring, saveFinanceSettings, setReserveDeposit } from "@/lib/caixa";
 import { getCurrentClientScope } from "@/lib/clientAccess";
 import { requireTeam } from "@/lib/session";
 
@@ -94,5 +94,24 @@ export async function markReserveDoneAction(formData: FormData) {
 export async function unmarkReserveDoneAction(formData: FormData) {
   await requireFullAccess();
   await removeReserveDeposit(readMonth(formData));
+  revalidatePath("/admin/financeiro", "layout");
+}
+
+/** Cliente recorrente da Projeção: quanto cai por mês e em que dia. Vale para novo e para edição. */
+export async function saveRecurringAction(formData: FormData) {
+  await requireFullAccess();
+  const clientId = String(formData.get("cliente") ?? "");
+  const cents = parseBRLToCents(formData.get("valor"));
+  const dia = Number(formData.get("dia"));
+  if (!clientId) throw new Error("Escolha o cliente.");
+  if (cents <= 0) throw new Error("Informe o valor mensal.");
+  if (!Number.isInteger(dia) || dia < 1 || dia > 31) throw new Error("O dia vai de 1 a 31.");
+  await saveRecurring(clientId, cents, dia);
+  revalidatePath("/admin/financeiro", "layout");
+}
+
+export async function removeRecurringAction(formData: FormData) {
+  await requireFullAccess();
+  await removeRecurring(String(formData.get("cliente") ?? ""));
   revalidatePath("/admin/financeiro", "layout");
 }
