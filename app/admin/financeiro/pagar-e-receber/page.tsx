@@ -1,14 +1,17 @@
 import Link from "next/link";
+import { ArrowDownLeft, ArrowUpRight, Wallet } from "lucide-react";
 import { ContaSelect } from "@/components/admin/ContaPix";
 import { LancarSaida } from "@/components/admin/SaidasForm";
-import { BotaoAcao, EditarValor } from "@/components/admin/financeiro/Acoes";
+import { EditarValor } from "@/components/admin/financeiro/Acoes";
 import { LinhaPagar, LinhaReceber } from "@/components/admin/financeiro/Linhas";
 import { Ancora, BOTAO, CARTAO, Dado, Dinheiro, Vazio } from "@/components/admin/financeiro/ui";
 import { getCaixa, listClientOptions } from "@/lib/caixa";
 import { FAIXAS, FAIXA_ROTULO, doMes, faixaDe, fimDoMes, somarMeses, type Faixa } from "@/lib/caixaCalc";
 import { formatBRL } from "@/lib/billingTypes";
 import { PAGO_POR, PAGO_POR_LABELS } from "@/lib/expensesTypes";
-import { reimburseAction } from "../saidas";
+import { reimburseAction, undoReimbursementAction } from "../saidas";
+import { Reembolsos } from "@/components/admin/financeiro/Reembolsos";
+import { listReimbursementHistory } from "@/lib/expenses";
 import { getCurrentClientScope } from "@/lib/clientAccess";
 import { saveCashAction } from "../caixa";
 import { mesLongo } from "../_comum";
@@ -31,6 +34,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   const verTudo = scope === null;
   const c = await getCaixa(scope);
   const clientes = verTudo ? await listClientOptions() : [];
+  const historicoReembolsos = verTudo ? await listReimbursementHistory() : [];
   const fim = fimDoMes(c.hoje);
 
   const receberAteFim = c.receber.filter((r) => r.due !== null && r.due <= fim).reduce((s, r) => s + r.cents, 0);
@@ -81,9 +85,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
                 <p className="text-sm text-(--tatu-cream)/75">só com o que já está lançado</p>
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <Dado escuro label="Em caixa hoje" cents={c.caixaHoje} />
-                <Dado escuro label="+ A receber" cents={receberAteFim} />
-                <Dado escuro label="− A pagar" cents={pagarAteFim} />
+                <Dado escuro icone={Wallet} label="Em caixa hoje" cents={c.caixaHoje} />
+                <Dado escuro icone={ArrowUpRight} label="+ A receber" cents={receberAteFim} />
+                <Dado escuro icone={ArrowDownLeft} label="− A pagar" cents={pagarAteFim} />
               </div>
             </>
           )}
@@ -166,57 +170,21 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
       </div>
 
       {verTudo ? (
-        <section className={CARTAO} aria-labelledby="reembolsos-titulo">
-          <h2 id="reembolsos-titulo" className="text-lg font-medium text-neutral-900">Reembolsos</h2>
-          <p className="text-base text-neutral-600">
-            Gastos do estúdio pagos no cartão pessoal. Saem do caixa quando você marca o reembolso.
-          </p>
-          {reembolsos.length === 0 ? (
-            <div className="mt-3">
-              <Vazio>Ninguém tem nada a receber. Ao lançar uma saída, escolha em Pago por quem pagou no cartão.</Vazio>
-            </div>
-          ) : (
-            <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
-              {reembolsos.map(({ pessoa, itens }) => {
-                const total = itens.reduce((s, e) => s + e.amountCents, 0);
-                const nome = PAGO_POR_LABELS[pessoa];
-                return (
-                  <div key={pessoa} className="rounded-lg border border-neutral-200 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm text-neutral-600">
-                          {nome} · {itens.length} {itens.length === 1 ? "conta" : "contas"}
-                        </p>
-                        <Dinheiro cents={total} className="text-2xl" />
-                      </div>
-                      <BotaoAcao
-                        action={reimburseAction}
-                        campos={{ pessoa }}
-                        ariaLabel={`Marcar ${formatBRL(total)} como reembolsado para ${nome}`}
-                        variante="cheio"
-                      >
-                        Reembolsei
-                      </BotaoAcao>
-                    </div>
-                    <ul className="mt-2 divide-y divide-neutral-100">
-                      {itens.map((e) => (
-                        <li key={`${e.id}${e.spentOn}`} className="flex items-baseline justify-between gap-3 py-2 text-base">
-                          <span className="min-w-0 truncate">
-                            {e.description || "Sem descrição"}{" "}
-                            <span className="text-sm text-neutral-500">
-                              · {new Date(`${e.spentOn}T12:00:00`).toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}
-                            </span>
-                          </span>
-                          <span className="tabular-nums">{formatBRL(e.amountCents)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
+        <Reembolsos
+          grupos={reembolsos.map(({ pessoa, itens }) => ({
+            pessoa,
+            nome: PAGO_POR_LABELS[pessoa],
+            itens: itens.map((e) => ({
+              key: `${e.id}${e.spentOn}`,
+              descricao: e.description,
+              data: new Date(`${e.spentOn}T12:00:00`).toLocaleDateString("pt-BR", { day: "numeric", month: "short" }),
+              cents: e.amountCents,
+            })),
+          }))}
+          historico={historicoReembolsos.map((h) => ({ id: h.id, nome: PAGO_POR_LABELS[h.person], quando: h.markedAt, cents: h.totalCents }))}
+          reembolsar={reimburseAction}
+          desfazer={undoReimbursementAction}
+        />
       ) : null}
     </div>
   );

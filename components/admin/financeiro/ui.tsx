@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { formatBRL } from "@/lib/billingTypes";
 
@@ -64,16 +65,22 @@ export function Dado({
   note,
   tom = "",
   escuro = false,
+  icone: Icone,
 }: {
   label: string;
   cents: number;
   note?: string;
   tom?: string;
   escuro?: boolean;
+  /** Ícone Lucide antes do rótulo (só onde a tela pede). */
+  icone?: LucideIcon;
 }) {
   return (
     <div className="min-w-0">
-      <p className={`text-sm ${escuro ? "text-(--tatu-cream)/75" : "text-neutral-600"}`}>{label}</p>
+      <p className={`flex items-center gap-1.5 text-sm ${escuro ? "text-(--tatu-cream)/75" : "text-neutral-600"}`}>
+        {Icone ? <Icone aria-hidden className="size-4 shrink-0" strokeWidth={1.75} /> : null}
+        {label}
+      </p>
       <p className={`text-lg font-medium tabular-nums ${tom}`}>{formatBRL(cents)}</p>
       {note ? <p className={`text-sm ${escuro ? "text-(--tatu-cream)/75" : "text-neutral-500"}`}>{note}</p> : null}
     </div>

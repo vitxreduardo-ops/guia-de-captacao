@@ -9,6 +9,7 @@ import {
   editRecurringFromMonth,
   markExpensePaid,
   reimburse,
+  undoReimbursement,
   stopRecurringExpense,
   updateExpense,
 } from "@/lib/expenses";
@@ -107,11 +108,18 @@ export async function updateRecurringAction(formData: FormData) {
   revalidatePath("/admin/financeiro", "layout");
 }
 
-/** "Reembolsei": o estúdio devolveu à pessoa tudo que ela pagou no cartão dela. */
-export async function reimburseAction(formData: FormData) {
+/** "Reembolsei": o estúdio devolveu à pessoa tudo que ela pagou no cartão dela. Devolve o id para o desfazer. */
+export async function reimburseAction(formData: FormData): Promise<string> {
   await requireFullAccess();
   const pessoa = normalizePagoPor(formData.get("pessoa"));
   if (!pessoa) throw new Error("Pessoa inválida.");
-  await reimburse(pessoa, new Date().toLocaleDateString("sv-SE"));
+  const id = await reimburse(pessoa, new Date().toLocaleDateString("sv-SE"));
+  revalidatePath("/admin/financeiro", "layout");
+  return id;
+}
+
+export async function undoReimbursementAction(formData: FormData) {
+  await requireFullAccess();
+  await undoReimbursement(String(formData.get("id")));
   revalidatePath("/admin/financeiro", "layout");
 }

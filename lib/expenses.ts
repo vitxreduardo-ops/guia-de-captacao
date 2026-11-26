@@ -454,16 +454,21 @@ export async function getPaidOutAfter(cashOn: string, cashAt: string, ate: strin
     let anterior = "";
     for (const ev of reembolsos.filter((e) => e.person === pessoa)) {
       const depois = ev.through > cashOn || (ev.through === cashOn && Date.parse(ev.markedAt) > Date.parse(cashAt));
-      if (depois && ev.through <= ate) {
-        for (const r of recurring.filter((x) => x.paidBy === pessoa)) {
-          for (let mes = monthKey(r.startsOn); mes <= ev.through; mes = nextMonthKey(mes)) {
-            if (!activeIn(r, mes)) continue;
-            const dia = dayIn(mes, r.dayOfMonth);
-            if (dia > anterior && dia <= ev.through) total += r.amountCents;
-          }
-        }
-      }
+      if (depois && ev.through <= ate) total += parcelasFixas(recurring, pessoa, anterior, ev.through);
       anterior = ev.through;
+    }
+  }
+  return total;
+}
+
+/** Soma das parcelas mensais no cartão de `pessoa` que vencem depois de `de` e até `ate` (inclusive). */
+function parcelasFixas(recurring: Recurring[], pessoa: PagoPor, de: string, ate: string): number {
+  let total = 0;
+  for (const r of recurring.filter((x) => x.paidBy === pessoa)) {
+    for (let mes = monthKey(r.startsOn); mes <= ate; mes = nextMonthKey(mes)) {
+      if (!activeIn(r, mes)) continue;
+      const dia = dayIn(mes, r.dayOfMonth);
+      if (dia > de && dia <= ate) total += r.amountCents;
     }
   }
   return total;
@@ -515,16 +520,77 @@ export async function listClientExpenses(clientId: string): Promise<Expense[]> {
   return (data ?? []).map(toExpense);
 }
 
-/** "Reembolsei": tudo que a pessoa pagou e ainda não recebeu sai do caixa hoje, de uma vez. */
-export async function reimburse(pessoa: PagoPor, paidOn: string) {
-  const { error: evError } = await getSupabaseServerClient()
+/** "Reembolsei": tudo que a pessoa pagou e ainda não recebeu sai do caixa hoje, de uma vez. Devolve o id para poder desfazer. */
+export async function reimburse(pessoa: PagoPor, paidOn: string): Promise<string> {
+  const supabase = getSupabaseServerClient();
+  const { data: ev, error: evError } = await supabase
     .from("expense_reimbursements")
-    .insert({ person: pessoa, through: paidOn });
+    .insert({ person: pessoa, through: paidOn })
+    .select("id")
+    .single();
   if (evError) throw evError;
-  const { error } = await getSupabaseServerClient()
+  const { error } = await supabase
     .from("expenses")
-    .update({ paid_on: paidOn, paid_marked_at: new Date().toISOString() })
+    .update({ paid_on: paidOn, paid_marked_at: new Date().toISOString(), reimbursement_id: ev.id })
     .eq("paid_by", pessoa)
     .is("paid_on", null);
   if (error) throw error;
+  return ev.id as string;
+}
+
+/** Desfaz um "Reembolsei": as saídas que ele quitou voltam a ser devidas e a parcela mensal também. */
+export async function undoReimbursement(id: string) {
+  const supabase = getSupabaseServerClient();
+  const { error } = await supabase
+    .from("expenses")
+    .update({ paid_on: null, paid_marked_at: null, reimbursement_id: null })
+    .eq("reimbursement_id", id);
+  if (error) throw error;
+  const { error: delError } = await supabase.from("expense_reimbursements").delete().eq("id", id);
+  if (delError) throw delError;
+}
+
+export interface ReembolsoFeito {
+  id: string;
+  person: PagoPor;
+  markedAt: string;
+  totalCents: number;
+}
+
+/** Os últimos reembolsos, do mais novo para o mais antigo, com quanto cada um quitou. */
+export async function listReimbursementHistory(limit = 5): Promise<ReembolsoFeito[]> {
+  const supabase = getSupabaseServerClient();
+  const [reembolsos, recurring, avulsas] = await Promise.all([
+    listReimbursements(),
+    listRecurring(),
+    supabase.from("expenses").select("reimbursement_id, amount_cents").not("reimbursement_id", "is", null),
+  ]);
+  if (avulsas.error) throw avulsas.error;
+  const porId = new Map<string, number>();
+  for (const a of avulsas.data ?? []) {
+    const k = a.reimbursement_id as string;
+    porId.set(k, (porId.get(k) ?? 0) + (a.amount_cents as number));
+  }
+  const { data, error } = await supabase.from("expense_reimbursements").select("id, person, through, marked_at");
+  if (error) throw error;
+  const anterior = new Map<string, string>(); // id do reembolso -> `through` do anterior da mesma pessoa
+  for (const pessoa of PAGO_POR) {
+    let prev = "";
+    for (const ev of reembolsos.filter((e) => e.person === pessoa)) {
+      const row = (data ?? []).find((d) => d.person === pessoa && d.through === ev.through && Date.parse(d.marked_at as string) === Date.parse(ev.markedAt));
+      if (row) anterior.set(row.id as string, prev);
+      prev = ev.through;
+    }
+  }
+  return (data ?? [])
+    .map((d) => ({
+      id: d.id as string,
+      person: d.person as PagoPor,
+      markedAt: d.marked_at as string,
+      totalCents:
+        (porId.get(d.id as string) ?? 0) +
+        parcelasFixas(recurring, d.person as PagoPor, anterior.get(d.id as string) ?? "", d.through as string),
+    }))
+    .sort((a, b) => b.markedAt.localeCompare(a.markedAt))
+    .slice(0, limit);
 }
