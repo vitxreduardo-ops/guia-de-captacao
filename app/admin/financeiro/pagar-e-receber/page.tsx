@@ -44,7 +44,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   const seguinte = mesVisto < somarMeses(atual, 5) ? somarMeses(mesVisto, 1) : null;
   // Cartão pessoal não é conta a pagar: fica no bloco Reembolsos (mas segue no total e na projeção).
   const pagarMes = doMes(c.pagar.filter((e) => !e.paidBy), (e) => e.spentOn, mesVisto, c.hoje);
-  const reembolsos = PAGO_POR.map((p) => ({ pessoa: p, itens: c.pagar.filter((e) => e.paidBy === p) })).filter((r) => r.itens.length > 0);
+  const reembolsos = PAGO_POR.map((p) => ({ pessoa: p, itens: c.pagar.filter((e) => e.paidBy === p && e.spentOn <= c.hoje) })).filter((r) => r.itens.length > 0);
   const somaPagar = pagarMes.reduce((s, e) => s + e.amountCents, 0);
   const rotuloMes = (m: string) => (m === atual ? "este mês" : mesLongo(m));
   const linkMes = (m: string) => (m === atual ? "/admin/financeiro/pagar-e-receber" : `/admin/financeiro/pagar-e-receber?pagar=${m.slice(0, 7)}`);
@@ -200,7 +200,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
                     </div>
                     <ul className="mt-2 divide-y divide-neutral-100">
                       {itens.map((e) => (
-                        <li key={e.id} className="flex items-baseline justify-between gap-3 py-2 text-base">
+                        <li key={`${e.id}${e.spentOn}`} className="flex items-baseline justify-between gap-3 py-2 text-base">
                           <span className="min-w-0 truncate">
                             {e.description || "Sem descrição"}{" "}
                             <span className="text-sm text-neutral-500">

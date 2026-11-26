@@ -44,7 +44,7 @@ export async function addExpenseAction(formData: FormData) {
   };
   const paid = formData.get("situacao") !== "pagar";
   if (formData.get("repete") === "on") {
-    await addRecurringExpense({ ...fields, startsOn: spentOn });
+    await addRecurringExpense({ ...fields, startsOn: spentOn, paidBy: normalizePagoPor(formData.get("pagoPor")) });
   } else {
     await addExpense({ ...fields, spentOn, paid, clientId: readClient(formData), paidBy: normalizePagoPor(formData.get("pagoPor")) });
   }
@@ -102,6 +102,7 @@ export async function updateRecurringAction(formData: FormData) {
   await editRecurringFromMonth(String(formData.get("id")), String(formData.get("mes")), {
     ...readExpenseFields(formData),
     dayOfMonth: Number(formData.get("dia")),
+    paidBy: normalizePagoPor(formData.get("pagoPor")),
   });
   revalidatePath("/admin/financeiro", "layout");
 }

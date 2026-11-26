@@ -2,6 +2,7 @@ import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { monthKey, nextMonthKey } from "@/lib/billingTypes";
 import {
+  PAGO_POR,
   normalizeExpenseCategory,
   normalizePagoPor,
   type Expense,
@@ -26,13 +27,49 @@ function toExpense(row: Record<string, unknown>): Expense {
 
 const COM_CLIENTE = "*, client:gallery_clients(name)";
 
+function somarMesesChave(month: string, delta: number): string {
+  let m = month;
+  for (let i = 0; i < delta; i += 1) m = nextMonthKey(m);
+  return m;
+}
+
 /** Data local em AAAA-MM-DD (toISOString viraria o dia anterior à noite). */
 function hojeIso(): string {
   return new Date().toLocaleDateString("sv-SE");
 }
 
-/** A fixa debita sozinha no dia dela: passou do dia, já saiu do caixa. */
-function fixaParaExpense(r: Recurring, month: string): Expense {
+interface Reembolso {
+  person: PagoPor;
+  through: string;
+  markedAt: string;
+}
+
+async function listReimbursements(): Promise<Reembolso[]> {
+  const { data, error } = await getSupabaseServerClient()
+    .from("expense_reimbursements")
+    .select("person, through, marked_at")
+    .order("through");
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    person: r.person as PagoPor,
+    through: r.through as string,
+    markedAt: r.marked_at as string,
+  }));
+}
+
+/** Até que dia cada pessoa já foi reembolsada das parcelas mensais. */
+type Quitado = Partial<Record<PagoPor, string>>;
+function quitadoAte(reembolsos: Reembolso[]): Quitado {
+  const q: Quitado = {};
+  for (const r of reembolsos) if (r.through > (q[r.person] ?? "")) q[r.person] = r.through;
+  return q;
+}
+
+/**
+ * A fixa da empresa debita sozinha no dia dela: passou do dia, já saiu do caixa.
+ * A paga no cartão pessoal só sai do caixa quando a parcela é reembolsada.
+ */
+function fixaParaExpense(r: Recurring, month: string, quitado: Quitado): Expense {
   const spentOn = dayIn(month, r.dayOfMonth);
   return {
     id: `fixa-${r.id}`,
@@ -41,7 +78,8 @@ function fixaParaExpense(r: Recurring, month: string): Expense {
     category: r.category,
     spentOn,
     recurringId: r.id,
-    paid: spentOn <= hojeIso(),
+    paid: r.paidBy ? spentOn <= (quitado[r.paidBy] ?? "") : spentOn <= hojeIso(),
+    paidBy: r.paidBy,
   };
 }
 
@@ -53,6 +91,7 @@ interface Recurring {
   dayOfMonth: number;
   startsOn: string;
   endsOn: string | null;
+  paidBy: PagoPor | null;
 }
 
 async function listRecurring(): Promise<Recurring[]> {
@@ -68,6 +107,7 @@ async function listRecurring(): Promise<Recurring[]> {
     dayOfMonth: row.day_of_month as number,
     startsOn: row.starts_on as string,
     endsOn: (row.ends_on as string | null) ?? null,
+    paidBy: normalizePagoPor(row.paid_by),
   }));
 }
 
@@ -89,7 +129,7 @@ function dayIn(month: string, day: number): string {
 /** Despesas do mês — avulsas e fixas —, da mais recente pra mais antiga. */
 export async function listExpenses(month: string): Promise<Expense[]> {
   const from = monthKey(month);
-  const [single, recurring] = await Promise.all([
+  const [single, recurring, reembolsos] = await Promise.all([
     getSupabaseServerClient()
       .from("expenses")
       .select(COM_CLIENTE)
@@ -97,11 +137,13 @@ export async function listExpenses(month: string): Promise<Expense[]> {
       .lt("spent_on", nextMonthKey(from))
       .order("created_at", { ascending: false }),
     listRecurring(),
+    listReimbursements(),
   ]);
+  const quitado = quitadoAte(reembolsos);
   if (single.error) throw single.error;
   const fixed: Expense[] = recurring
     .filter((r) => activeIn(r, from))
-    .map((r) => fixaParaExpense(r, from));
+    .map((r) => fixaParaExpense(r, from, quitado));
   return [...(single.data ?? []).map(toExpense), ...fixed].sort((a, b) =>
     b.spentOn.localeCompare(a.spentOn)
   );
@@ -113,14 +155,16 @@ export async function listExpensesByMonth(months: string[]): Promise<Record<stri
   for (const m of months) result[m] = [];
   if (months.length === 0) return result;
   const sorted = [...months].sort();
-  const [single, recurring] = await Promise.all([
+  const [single, recurring, reembolsos] = await Promise.all([
     getSupabaseServerClient()
       .from("expenses")
       .select("*")
       .gte("spent_on", sorted[0])
       .lt("spent_on", nextMonthKey(sorted[sorted.length - 1])),
     listRecurring(),
+    listReimbursements(),
   ]);
+  const quitado = quitadoAte(reembolsos);
   if (single.error) throw single.error;
   for (const row of single.data ?? []) {
     const e = toExpense(row);
@@ -129,7 +173,7 @@ export async function listExpensesByMonth(months: string[]): Promise<Record<stri
   }
   for (const m of months) {
     for (const r of recurring) {
-      if (activeIn(r, m)) result[m].push(fixaParaExpense(r, m));
+      if (activeIn(r, m)) result[m].push(fixaParaExpense(r, m, quitado));
     }
     result[m].sort((a, b) => b.amountCents - a.amountCents);
   }
@@ -210,9 +254,11 @@ export async function addRecurringExpense(fields: {
   category: ExpenseCategory;
   startsOn: string;
   userId: string | null;
+  paidBy?: PagoPor | null;
 }) {
   if (!(fields.amountCents > 0)) throw new Error("Informe um valor maior que zero.");
   const { error } = await getSupabaseServerClient().from("recurring_expenses").insert({
+    paid_by: fields.paidBy ?? null,
     description: fields.description.trim(),
     amount_cents: fields.amountCents,
     category: fields.category,
@@ -297,7 +343,7 @@ export async function updateExpense(
 export async function editRecurringFromMonth(
   id: string,
   month: string,
-  fields: { description: string; amountCents: number; category: ExpenseCategory; dayOfMonth: number }
+  fields: { description: string; amountCents: number; category: ExpenseCategory; dayOfMonth: number; paidBy: PagoPor | null }
 ) {
   if (!(fields.amountCents > 0)) throw new Error("Informe um valor maior que zero.");
   if (!(fields.dayOfMonth >= 1 && fields.dayOfMonth <= 31)) throw new Error("Dia do mês inválido.");
@@ -316,6 +362,7 @@ export async function editRecurringFromMonth(
     amount_cents: fields.amountCents,
     category: fields.category,
     day_of_month: fields.dayOfMonth,
+    paid_by: fields.paidBy,
   };
 
   if (monthKey(old.starts_on as string) >= first) {
@@ -352,24 +399,26 @@ export async function editRecurringFromMonth(
 export async function listPayables(meses = 6): Promise<Expense[]> {
   const hoje = hojeIso();
   const primeiro = monthKey(hoje);
-  const [single, recurring] = await Promise.all([
+  const [single, recurring, reembolsos] = await Promise.all([
     getSupabaseServerClient()
       .from("expenses")
       .select(COM_CLIENTE)
       .is("paid_on", null)
       .order("spent_on"),
     listRecurring(),
+    listReimbursements(),
   ]);
+  const quitado = quitadoAte(reembolsos);
   if (single.error) throw single.error;
   const fixed: Expense[] = [];
-  let m = primeiro;
-  for (let i = 0; i < meses; i += 1) {
-    for (const r of recurring) {
+  const ultimo = somarMesesChave(primeiro, meses - 1);
+  for (const r of recurring) {
+    // Parcela de cartão pessoal vencida em mês passado continua devida até o reembolso.
+    for (let m = r.paidBy ? monthKey(r.startsOn) : primeiro; m <= ultimo; m = nextMonthKey(m)) {
       if (!activeIn(r, m)) continue;
-      const e = fixaParaExpense(r, m);
+      const e = fixaParaExpense(r, m, quitado);
       if (!e.paid) fixed.push(e);
     }
-    m = nextMonthKey(m);
   }
   return [...(single.data ?? []).map(toExpense), ...fixed].sort((a, b) =>
     a.spentOn.localeCompare(b.spentOn)
@@ -389,15 +438,33 @@ export async function getPaidOutAfter(cashOn: string, cashAt: string, ate: strin
     .or(`paid_on.gt.${cashOn},and(paid_on.eq.${cashOn},paid_marked_at.gt.${cashAt})`);
   if (error) throw error;
   let total = (data ?? []).reduce((s, r) => s + (r.amount_cents as number), 0);
-  const recurring = await listRecurring();
+  const [recurring, reembolsos] = await Promise.all([listRecurring(), listReimbursements()]);
   let m = monthKey(cashOn);
   while (m <= ate) {
     for (const r of recurring) {
-      if (!activeIn(r, m)) continue;
+      if (r.paidBy || !activeIn(r, m)) continue;
       const dia = dayIn(m, r.dayOfMonth);
       if (dia > cashOn && dia <= ate) total += r.amountCents;
     }
     m = nextMonthKey(m);
+  }
+  // Fixa no cartão pessoal: sai do caixa no dia do "Reembolsei", e cada reembolso
+  // quita as parcelas vencidas entre o anterior e o dele.
+  for (const pessoa of PAGO_POR) {
+    let anterior = "";
+    for (const ev of reembolsos.filter((e) => e.person === pessoa)) {
+      const depois = ev.through > cashOn || (ev.through === cashOn && Date.parse(ev.markedAt) > Date.parse(cashAt));
+      if (depois && ev.through <= ate) {
+        for (const r of recurring.filter((x) => x.paidBy === pessoa)) {
+          for (let mes = monthKey(r.startsOn); mes <= ev.through; mes = nextMonthKey(mes)) {
+            if (!activeIn(r, mes)) continue;
+            const dia = dayIn(mes, r.dayOfMonth);
+            if (dia > anterior && dia <= ev.through) total += r.amountCents;
+          }
+        }
+      }
+      anterior = ev.through;
+    }
   }
   return total;
 }
@@ -450,6 +517,10 @@ export async function listClientExpenses(clientId: string): Promise<Expense[]> {
 
 /** "Reembolsei": tudo que a pessoa pagou e ainda não recebeu sai do caixa hoje, de uma vez. */
 export async function reimburse(pessoa: PagoPor, paidOn: string) {
+  const { error: evError } = await getSupabaseServerClient()
+    .from("expense_reimbursements")
+    .insert({ person: pessoa, through: paidOn });
+  if (evError) throw evError;
   const { error } = await getSupabaseServerClient()
     .from("expenses")
     .update({ paid_on: paidOn, paid_marked_at: new Date().toISOString() })
