@@ -106,7 +106,15 @@ export async function saveRecurringAction(formData: FormData) {
   if (!clientId) throw new Error("Escolha o cliente.");
   if (cents <= 0) throw new Error("Informe o valor mensal.");
   if (!Number.isInteger(dia) || dia < 1 || dia > 31) throw new Error("O dia vai de 1 a 31.");
-  await saveRecurring(clientId, cents, dia);
+  const data = (k: string) => {
+    const v = String(formData.get(k) ?? "");
+    return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+  };
+  const inicio = data("inicio");
+  const fim = data("fim");
+  if (!inicio) throw new Error("Informe quando o contrato começa.");
+  if (fim && fim < inicio) throw new Error("O fim do contrato não pode ser antes do começo.");
+  await saveRecurring(clientId, cents, dia, inicio, fim);
   revalidatePath("/admin/financeiro", "layout");
 }
 
