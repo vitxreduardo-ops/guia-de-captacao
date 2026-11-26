@@ -191,7 +191,7 @@ export function SaidaLinha({
               ))}
             </select>
           </label>
-          {fixa ? null : <CampoPagoPor valor={expense.paidBy} />}
+          <CampoPagoPor valor={expense.paidBy} />
           {fixa ? null : <CampoCliente clientes={clientes} valor={expense.clientId} />}
           <div className="flex items-end gap-2">
             <button type="submit" disabled={pending} className={`rounded-lg bg-(--tatu-ink) px-5 text-base font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}>
