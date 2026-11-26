@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { ContaSelect } from "@/components/admin/ContaPix";
 import { LancarSaida } from "@/components/admin/SaidasForm";
-import { EditarValor } from "@/components/admin/financeiro/Acoes";
+import { BotaoAcao, EditarValor } from "@/components/admin/financeiro/Acoes";
 import { LinhaPagar, LinhaReceber } from "@/components/admin/financeiro/Linhas";
 import { Ancora, BOTAO, CARTAO, Dado, Dinheiro, Vazio } from "@/components/admin/financeiro/ui";
 import { getCaixa, listClientOptions } from "@/lib/caixa";
 import { FAIXAS, FAIXA_ROTULO, doMes, faixaDe, fimDoMes, somarMeses, type Faixa } from "@/lib/caixaCalc";
 import { formatBRL } from "@/lib/billingTypes";
+import { PAGO_POR, PAGO_POR_LABELS } from "@/lib/expensesTypes";
+import { reimburseAction } from "../saidas";
 import { getCurrentClientScope } from "@/lib/clientAccess";
 import { saveCashAction } from "../caixa";
 import { mesLongo } from "../_comum";
@@ -40,7 +42,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   const mesVisto = mesPagar >= atual && mesPagar <= somarMeses(atual, 5) ? mesPagar : atual;
   const anterior = mesVisto > atual ? somarMeses(mesVisto, -1) : null;
   const seguinte = mesVisto < somarMeses(atual, 5) ? somarMeses(mesVisto, 1) : null;
-  const pagarMes = doMes(c.pagar, (e) => e.spentOn, mesVisto, c.hoje);
+  // Cartão pessoal não é conta a pagar: fica no bloco Reembolsos (mas segue no total e na projeção).
+  const pagarMes = doMes(c.pagar.filter((e) => !e.paidBy), (e) => e.spentOn, mesVisto, c.hoje);
+  const reembolsos = PAGO_POR.map((p) => ({ pessoa: p, itens: c.pagar.filter((e) => e.paidBy === p) })).filter((r) => r.itens.length > 0);
   const somaPagar = pagarMes.reduce((s, e) => s + e.amountCents, 0);
   const rotuloMes = (m: string) => (m === atual ? "este mês" : mesLongo(m));
   const linkMes = (m: string) => (m === atual ? "/admin/financeiro/pagar-e-receber" : `/admin/financeiro/pagar-e-receber?pagar=${m.slice(0, 7)}`);
@@ -86,8 +90,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
         </Ancora>
       ) : null}
 
-      <div className={`grid grid-cols-[minmax(0,1fr)] gap-4 ${verTudo ? "lg:grid-cols-2" : ""} lg:items-start`}>
-        <section className={CARTAO} aria-labelledby="receber-titulo">
+      <div className={`grid grid-cols-[minmax(0,1fr)] gap-4 ${verTudo ? "lg:grid-cols-2" : ""}`}>
+        <section className={`${CARTAO} flex flex-col`} aria-labelledby="receber-titulo">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="receber-titulo" className="text-lg font-medium text-neutral-900">A receber</h2>
             <Dinheiro cents={somaReceber} className="text-xl" centavos={false} />
@@ -99,8 +103,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
             </div>
           ) : null}
           {c.receber.length === 0 ? (
-            <div className="mt-3">
-              <Vazio>Nada a receber. Quando um trabalho vai para a coluna de pagamento em Entregas, ele aparece aqui.</Vazio>
+            <div className="mt-3 flex flex-1 flex-col">
+              <Vazio className="flex flex-1 items-center justify-center">Nada a receber. Quando um trabalho vai para a coluna de pagamento em Entregas, ele aparece aqui.</Vazio>
             </div>
           ) : (
             grupoReceber.map(({ faixa, itens }) => (
@@ -119,7 +123,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
         </section>
 
         {verTudo ? (
-          <section className={CARTAO} aria-labelledby="pagar-titulo">
+          <section className={`${CARTAO} flex flex-col`} aria-labelledby="pagar-titulo">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 id="pagar-titulo" className="text-lg font-medium text-neutral-900">
                 A pagar <span className="font-normal text-neutral-500">· {mesLongo(mesVisto)}</span>
@@ -137,8 +141,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
               ) : null}
             </div>
             {pagarMes.length === 0 ? (
-              <div className="mt-3">
-                <Vazio>Nada a pagar em {mesLongo(mesVisto)}. Em + Lançar saída, escolha Vou pagar para a conta ficar aqui até você pagar.</Vazio>
+              <div className="mt-3 flex flex-1 flex-col">
+                <Vazio className="flex flex-1 items-center justify-center">Nada a pagar em {mesLongo(mesVisto)}. Em + Lançar saída, escolha Vou pagar para a conta ficar aqui até você pagar.</Vazio>
               </div>
             ) : (
               grupoPagar.map(({ faixa, itens }) => (
@@ -160,6 +164,60 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
           </section>
         ) : null}
       </div>
+
+      {verTudo ? (
+        <section className={CARTAO} aria-labelledby="reembolsos-titulo">
+          <h2 id="reembolsos-titulo" className="text-lg font-medium text-neutral-900">Reembolsos</h2>
+          <p className="text-base text-neutral-600">
+            Gastos do estúdio pagos no cartão pessoal. Saem do caixa quando você marca o reembolso.
+          </p>
+          {reembolsos.length === 0 ? (
+            <div className="mt-3">
+              <Vazio>Ninguém tem nada a receber. Ao lançar uma saída, escolha em Pago por quem pagou no cartão.</Vazio>
+            </div>
+          ) : (
+            <div className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
+              {reembolsos.map(({ pessoa, itens }) => {
+                const total = itens.reduce((s, e) => s + e.amountCents, 0);
+                const nome = PAGO_POR_LABELS[pessoa];
+                return (
+                  <div key={pessoa} className="rounded-lg border border-neutral-200 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm text-neutral-600">
+                          {nome} · {itens.length} {itens.length === 1 ? "conta" : "contas"}
+                        </p>
+                        <Dinheiro cents={total} className="text-2xl" />
+                      </div>
+                      <BotaoAcao
+                        action={reimburseAction}
+                        campos={{ pessoa }}
+                        ariaLabel={`Marcar ${formatBRL(total)} como reembolsado para ${nome}`}
+                        variante="cheio"
+                      >
+                        Reembolsei
+                      </BotaoAcao>
+                    </div>
+                    <ul className="mt-2 divide-y divide-neutral-100">
+                      {itens.map((e) => (
+                        <li key={e.id} className="flex items-baseline justify-between gap-3 py-2 text-base">
+                          <span className="min-w-0 truncate">
+                            {e.description || "Sem descrição"}{" "}
+                            <span className="text-sm text-neutral-500">
+                              · {new Date(`${e.spentOn}T12:00:00`).toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}
+                            </span>
+                          </span>
+                          <span className="tabular-nums">{formatBRL(e.amountCents)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }

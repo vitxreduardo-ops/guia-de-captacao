@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { doMes, faixaDe, fimDoMes, livreParaGastar, projetar, reserva, simular, somarMeses } from "@/lib/caixaCalc";
+import { doMes, faixaDe, fimDoMes, livreParaGastar, previstoRecorrentes, projetar, reserva, simular, somarMeses } from "@/lib/caixaCalc";
 
 const base = projetar({
   hoje: "2026-11-22",
@@ -77,5 +77,25 @@ describe("caixaCalc", () => {
     // mês corrente: o vencido e o que vence em novembro
     expect(doMes(contas, d, "2026-11-01", hoje)).toEqual(["2026-10-30", "2026-11-25"]);
     expect(doMes(contas, d, "2026-12-01", hoje)).toEqual(["2026-12-05"]);
+  });
+
+  it("prevê os recorrentes sem contar o que já está lançado", () => {
+    const lancado = new Map([["a|2026-12-01", 300_00], ["a|2026-11-01", 1_000_00]]);
+    const prev = previstoRecorrentes({
+      hoje: "2026-11-22",
+      meses: 3,
+      recorrentes: [
+        { clientId: "a", cents: 1_000_00, dia: 10 },
+        { clientId: "b", cents: 500_00, dia: 31 },
+      ],
+      jaLancado: (c, m) => lancado.get(`${c}|${m}`) ?? 0,
+    });
+    expect(prev).toEqual([
+      { date: "2026-11-30", cents: 500_00 }, // b: dia 31 cai no fim de novembro; a de novembro já está lançada e o dia 10 passou
+      { date: "2026-12-10", cents: 700_00 }, // a: 1.000 menos 300 já lançados
+      { date: "2026-12-31", cents: 500_00 },
+      { date: "2027-01-10", cents: 1_000_00 },
+      { date: "2027-01-31", cents: 500_00 },
+    ]);
   });
 });

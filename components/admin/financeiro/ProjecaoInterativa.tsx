@@ -9,6 +9,7 @@ import { CARTAO } from "@/components/admin/financeiro/ui";
 const CAMPO =
   "min-h-11 w-full rounded-lg border border-neutral-300 bg-white px-3 text-base focus:border-neutral-500 focus:outline-none";
 const MESES_NOME = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const MAX_PARCELAS = 24;
 const nomeMes = (m: string) => MESES_NOME[Number(m.slice(5, 7)) - 1];
 
 /**
@@ -32,11 +33,15 @@ export function ProjecaoInterativa({
   const [mes, setMes] = useState(base.meses[Math.min(1, base.meses.length - 1)].month);
   const [parcelas, setParcelas] = useState(3);
 
-  const cents = parseBRLToCents(valor);
+  const total = parseBRLToCents(valor);
+  // No parcelado a pessoa informa o total; a parcela quem calcula é o sistema.
+  const cents = tipo === "parcelado" ? Math.round(total / parcelas) : total;
   const sim = useMemo(
     () => (cents > 0 ? simular(base, { cents, tipo, mes, parcelas }, reservaMinima) : null),
     [base, cents, tipo, mes, parcelas, reservaMinima]
   );
+  const inicio = Math.max(0, base.meses.findIndex((m) => m.month === mes));
+  const foraDoGrafico = tipo === "parcelado" && inicio + parcelas > base.meses.length;
 
   const menor = sim ?? { menorCents: base.menorCents, cabe: base.menorCents >= reservaMinima };
   const idxMenor = (sim?.fim ?? base.meses.map((m) => m.fim)).reduce(
@@ -90,7 +95,7 @@ export function ProjecaoInterativa({
         <div className="mt-3 grid grid-cols-2 gap-3">
           <label className="block">
             <span className="mb-1 block text-sm font-medium text-neutral-600">
-              {tipo === "uma" ? "Valor" : tipo === "parcelado" ? "Valor da parcela" : "Valor por mês"}
+              {tipo === "uma" ? "Valor" : tipo === "parcelado" ? "Valor total" : "Valor por mês"}
             </span>
             <input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" placeholder="R$ 0,00" className={CAMPO} />
           </label>
@@ -103,25 +108,34 @@ export function ProjecaoInterativa({
             </select>
           </label>
           {/* Sempre no lugar: some só o conteúdo, não o espaço. */}
-          <label className={`col-span-2 block ${tipo === "parcelado" ? "" : "invisible"}`} aria-hidden={tipo !== "parcelado"}>
+          <label className={`block ${tipo === "parcelado" ? "" : "invisible"}`} aria-hidden={tipo !== "parcelado"}>
             <span className="mb-1 block text-sm font-medium text-neutral-600">Parcelas</span>
             <input
               type="number"
               min={1}
-              max={base.meses.length}
+              max={MAX_PARCELAS}
               value={parcelas}
               disabled={tipo !== "parcelado"}
-              onChange={(e) => setParcelas(Math.max(1, Math.min(base.meses.length, Number(e.target.value) || 1)))}
+              onChange={(e) => setParcelas(Math.max(1, Math.min(MAX_PARCELAS, Number(e.target.value) || 1)))}
               className={CAMPO}
             />
           </label>
+          <div className={tipo === "parcelado" ? "" : "invisible"} aria-hidden={tipo !== "parcelado"}>
+            <span className="mb-1 block text-sm font-medium text-neutral-600">Cada parcela</span>
+            <p className="flex min-h-11 items-center rounded-lg bg-neutral-100 px-3 text-base font-medium text-neutral-900" aria-live="polite">
+              {total > 0 ? formatBRL(cents) : "—"}
+            </p>
+          </div>
         </div>
         <p className="mt-2 min-h-12 text-base text-neutral-900" aria-live="polite">
           {sim
             ? sim.cabe
               ? `Cabe: sobram ${formatBRL(sim.sobraCents)} acima da reserva mínima no pior mês.`
               : `Não cabe: faltam ${formatBRL(-sim.sobraCents)} para manter a reserva mínima no pior mês.`
-            : "Digite um valor e a linha do caixa mostra o efeito."}
+            : tipo === "parcelado"
+              ? "Digite o valor total e as parcelas: o sistema calcula cada uma."
+              : "Digite um valor e a linha do caixa mostra o efeito."}
+          {sim && foraDoGrafico && ` O gráfico vai até ${nomeMes(base.meses.at(-1)!.month)}; as parcelas seguintes ficam de fora.`}
         </p>
       </section>
     </>

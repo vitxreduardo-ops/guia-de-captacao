@@ -148,9 +148,9 @@ export function Anel({ pct, rotulo }: { pct: number; rotulo: string }) {
 }
 
 /** Frase quando falta cadastrar algo: leva direto à ação, sem mandar para outra tela. */
-export function Vazio({ children }: { children: ReactNode }) {
+export function Vazio({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <p className="rounded-xl border border-dashed border-neutral-300 p-6 text-center text-base text-neutral-600">
+    <p className={`rounded-xl border border-dashed border-neutral-300 p-6 text-center text-base text-neutral-600 ${className}`}>
       {children}
     </p>
   );

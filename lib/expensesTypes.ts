@@ -38,4 +38,14 @@ export interface Expense {
   /** Gasto de um cliente específico (entra na margem dele); vazio = custo do estúdio. */
   clientId?: string | null;
   clientName?: string | null;
+  /** Pago no cartão pessoal de alguém: só sai do caixa quando o estúdio reembolsa (paid vira true). */
+  paidBy?: PagoPor | null;
+}
+
+export const PAGO_POR = ["vitor", "rebeca"] as const;
+export type PagoPor = (typeof PAGO_POR)[number];
+export const PAGO_POR_LABELS: Record<PagoPor, string> = { vitor: "Vitor", rebeca: "Rebeca" };
+
+export function normalizePagoPor(value: unknown): PagoPor | null {
+  return (PAGO_POR as readonly string[]).includes(String(value)) ? (value as PagoPor) : null;
 }

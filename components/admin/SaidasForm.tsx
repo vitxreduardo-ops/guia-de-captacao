@@ -2,7 +2,7 @@
 
 import { confirmar } from "@/components/ConfirmHost";
 import { useRef, useState, useTransition } from "react";
-import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from "@/lib/expensesTypes";
+import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, PAGO_POR, PAGO_POR_LABELS } from "@/lib/expensesTypes";
 import { formatBRL } from "@/lib/billingTypes";
 import { Janela } from "@/components/admin/financeiro/Acoes";
 
@@ -29,6 +29,21 @@ function CampoCliente({ clientes, valor }: { clientes: ClienteOpcao[]; valor?: s
         <option value="">Não, é do estúdio</option>
         {clientes.map((c) => (
           <option key={c.id} value={c.id}>{c.name}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/** De onde saiu o dinheiro: cartão pessoal fica a reembolsar e só sai do caixa no reembolso. */
+function CampoPagoPor({ valor }: { valor?: string | null }) {
+  return (
+    <label className="block sm:col-span-3">
+      <span className="mb-1 block text-sm font-medium text-neutral-600">Pago por</span>
+      <select name="pagoPor" defaultValue={valor ?? ""} className={CAMPO}>
+        <option value="">Empresa</option>
+        {PAGO_POR.map((p) => (
+          <option key={p} value={p}>{PAGO_POR_LABELS[p]} (cartão pessoal, a reembolsar)</option>
         ))}
       </select>
     </label>
@@ -103,6 +118,7 @@ export function SaidasForm({
           ))}
         </select>
       </label>
+      <CampoPagoPor />
       <CampoCliente clientes={clientes} valor={clienteInicial} />
       <label className="flex min-h-11 items-center gap-2 self-end text-base text-neutral-900 sm:col-span-2">
         <input type="checkbox" name="repete" className="size-5" />
@@ -175,6 +191,7 @@ export function SaidaLinha({
               ))}
             </select>
           </label>
+          {fixa ? null : <CampoPagoPor valor={expense.paidBy} />}
           {fixa ? null : <CampoCliente clientes={clientes} valor={expense.clientId} />}
           <div className="flex items-end gap-2">
             <button type="submit" disabled={pending} className={`rounded-lg bg-(--tatu-ink) px-5 text-base font-medium text-white hover:bg-(--tatu-ink)/90 disabled:opacity-50 ${PRESS}`}>
@@ -200,16 +217,19 @@ export function SaidaLinha({
         <p className="text-base text-neutral-900">{expense.description || "Sem descrição"}</p>
         <p className="text-sm text-neutral-500">
           {EXPENSE_CATEGORY_LABELS[expense.category]}
-          {expense.clientName ? ` · ${expense.clientName}` : ""} ·{" "}
-          {expense.paid ? "" : "vence "}
+          {expense.clientName ? ` · ${expense.clientName}` : ""}
+          {expense.paidBy ? ` · cartão ${expense.paidBy === "rebeca" ? "da" : "do"} ${PAGO_POR_LABELS[expense.paidBy]}${expense.paid ? ", reembolsado" : ""}` : ""} ·{" "}
+          {expense.paid || expense.paidBy ? "" : "vence "}
           {new Date(`${expense.spentOn}T12:00:00`).toLocaleDateString("pt-BR", { day: "numeric", month: "long" })}
         </p>
       </div>
       {expense.paid ? null : (
-        <span className="rounded-md bg-amber-100 px-2 py-1 text-sm text-amber-900">A pagar</span>
+        <span className="rounded-md bg-amber-100 px-2 py-1 text-sm text-amber-900">
+          {expense.paidBy ? "A reembolsar" : "A pagar"}
+        </span>
       )}
       <span className="text-base font-medium text-neutral-900 tabular-nums">{formatBRL(expense.amountCents)}</span>
-      {!expense.paid && !expense.recurringId ? (
+      {!expense.paid && !expense.recurringId && !expense.paidBy ? (
         <button
           type="button"
           disabled={pending}

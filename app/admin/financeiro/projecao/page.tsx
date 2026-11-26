@@ -1,20 +1,22 @@
 import { EditarCampos, EditarValor } from "@/components/admin/financeiro/Acoes";
+import { Recorrentes } from "@/components/admin/financeiro/Recorrentes";
 import { ProjecaoInterativa } from "@/components/admin/financeiro/ProjecaoInterativa";
 import { Ancora, Barra, CARTAO, Dado, Dinheiro, Vazio } from "@/components/admin/financeiro/ui";
-import { getCaixa } from "@/lib/caixa";
+import { getCaixa, listClientOptions } from "@/lib/caixa";
 import { formatBRL, monthLabel } from "@/lib/billingTypes";
 import { rotuloReserva } from "@/lib/caixaCalc";
 import { getCurrentClientScope } from "@/lib/clientAccess";
-import { saveCashAction, saveReserveMinAction } from "../caixa";
+import { removeRecurringAction, saveCashAction, saveRecurringAction, saveReserveMinAction } from "../caixa";
 export const dynamic = "force-dynamic";
 
 const nomeMes = (m: string) => monthLabel(m).split(" de ")[0];
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ recorrentes?: string }> }) {
   if ((await getCurrentClientScope()) !== null) {
     return <Vazio>A projeção do caixa só aparece para quem tem acesso a todos os clientes.</Vazio>;
   }
-  const c = await getCaixa();
+  const ligado = (await searchParams).recorrentes !== "nao";
+  const [c, clientes] = await Promise.all([getCaixa(null, { recorrentes: ligado }), listClientOptions()]);
   if (!c.projecao || c.caixaHoje === null || c.livre === null) {
     return (
       <Ancora label="Informar saldo" className="flex flex-col items-start gap-4">
@@ -109,6 +111,16 @@ export default async function Page() {
           </div>
         </div>
       </section>
+
+      <Recorrentes
+        className="lg:col-span-2"
+        itens={c.recorrentes}
+        clientes={clientes}
+        ligado={ligado}
+        previstoCents={c.previstoCents}
+        salvar={saveRecurringAction}
+        remover={removeRecurringAction}
+      />
     </div>
   );
 }
