@@ -19,7 +19,12 @@ interface Item {
   name: string;
   cents: number;
   dia: number;
+  inicio?: string | null;
+  fim?: string | null;
 }
+const dm = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
+const periodo = (inicio?: string | null, fim?: string | null) =>
+  `${inicio ? `desde ${dm(inicio)}` : ""}${fim ? ` até ${dm(fim)}` : inicio ? ", sem data de fim" : ""}`;
 type Acao = (formData: FormData) => Promise<void>;
 
 function Formulario({
@@ -36,6 +41,7 @@ function Formulario({
   const [cliente, setCliente] = useState(atual?.clientId ?? opcoes[0]?.id ?? "");
   const [dia, setDia] = useState(atual ? String(atual.dia) : String(opcoes[0]?.paymentDay ?? ""));
   const [erro, setErro] = useState("");
+  const [hoje] = useState(() => new Date().toLocaleDateString("sv-SE"));
   const [pending, start] = useTransition();
 
   if (!atual && opcoes.length === 0) {
@@ -104,6 +110,17 @@ function Formulario({
           />
         </label>
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-neutral-600">Início do contrato</span>
+          <input name="inicio" type="date" required defaultValue={atual?.inicio ?? hoje} className={CAMPO} />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-neutral-600">Fim do contrato</span>
+          <input name="fim" type="date" defaultValue={atual?.fim ?? ""} className={CAMPO} />
+        </label>
+      </div>
+      <p className="-mt-1 text-sm text-neutral-500">Deixe o fim vazio se o contrato não tem data para acabar.</p>
       <p className="min-h-6 text-base text-red-700" role="alert">{erro}</p>
       <div className="flex gap-2">
         <button type="submit" disabled={pending} className={BOTAO.cheio}>{pending ? "Salvando…" : "Salvar"}</button>
@@ -158,6 +175,7 @@ export function Recorrentes({
               <p className="text-base tabular-nums text-neutral-700">
                 {formatBRL(i.cents)} <span className="text-neutral-500">todo dia {i.dia}</span>
               </p>
+              <p className="text-sm text-neutral-500">{periodo(i.inicio, i.fim)}</p>
               <div className="flex gap-1">
                 <Janela rotulo="Editar" titulo={`Recorrente: ${i.name}`} variante="contorno">
                   {(fechar) => <Formulario action={salvar} opcoes={livres} atual={i} fechar={fechar} />}

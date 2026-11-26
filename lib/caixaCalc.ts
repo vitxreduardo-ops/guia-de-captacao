@@ -97,6 +97,9 @@ export interface Recorrente {
   cents: number;
   /** Dia do mês em que o dinheiro cai (1 a 31; em mês curto vale o último dia). */
   dia: number;
+  /** Contrato: a previsão só vale de `inicio` a `fim` (AAAA-MM-DD; fim vazio = sem data de fim). */
+  inicio?: string | null;
+  fim?: string | null;
 }
 
 /**
@@ -120,6 +123,7 @@ export function previstoRecorrentes(args: {
     for (const r of args.recorrentes) {
       const date = `${mes.slice(0, 7)}-${String(Math.min(r.dia, ultimoDia)).padStart(2, "0")}`;
       if (date < args.hoje) continue;
+      if ((r.inicio && date < r.inicio) || (r.fim && date > r.fim)) continue;
       const falta = r.cents - args.jaLancado(r.clientId, mes);
       if (falta > 0) saida.push({ date, cents: falta });
     }

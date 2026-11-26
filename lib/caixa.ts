@@ -218,23 +218,25 @@ export async function listClientOptions(): Promise<{ id: string; name: string; p
 export async function listRecurring(): Promise<ClienteRecorrente[]> {
   const { data, error } = await getSupabaseServerClient()
     .from("recurring_clients")
-    .select("client_id, cents, pay_day, gallery_clients!inner(name, archived_at)")
+    .select("client_id, cents, pay_day, starts_on, ends_on, gallery_clients!inner(name, archived_at)")
     .is("gallery_clients.archived_at", null);
   if (error) throw error;
-  return ((data ?? []) as unknown as { client_id: string; cents: number | string; pay_day: number; gallery_clients: { name: string } | { name: string }[] }[])
+  return ((data ?? []) as unknown as { client_id: string; cents: number | string; pay_day: number; starts_on: string; ends_on: string | null; gallery_clients: { name: string } | { name: string }[] }[])
     .map((r) => ({
       clientId: r.client_id,
       cents: Number(r.cents),
       dia: r.pay_day,
+      inicio: r.starts_on,
+      fim: r.ends_on,
       name: (Array.isArray(r.gallery_clients) ? r.gallery_clients[0] : r.gallery_clients).name,
     }))
     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 }
 
-export async function saveRecurring(clientId: string, cents: number, dia: number) {
+export async function saveRecurring(clientId: string, cents: number, dia: number, inicio: string, fim: string | null) {
   const { error } = await getSupabaseServerClient()
     .from("recurring_clients")
-    .upsert({ client_id: clientId, cents, pay_day: dia });
+    .upsert({ client_id: clientId, cents, pay_day: dia, starts_on: inicio, ends_on: fim });
   if (error) throw error;
 }
 

@@ -98,4 +98,17 @@ describe("caixaCalc", () => {
       { date: "2027-01-31", cents: 500_00 },
     ]);
   });
+
+  it("só prevê dentro do contrato", () => {
+    const prev = previstoRecorrentes({
+      hoje: "2026-11-22",
+      meses: 4,
+      recorrentes: [{ clientId: "a", cents: 100_00, dia: 10, inicio: "2027-01-01", fim: "2027-02-28" }],
+      jaLancado: () => 0,
+    });
+    expect(prev).toEqual([
+      { date: "2027-01-10", cents: 100_00 },
+      { date: "2027-02-10", cents: 100_00 },
+    ]);
+  });
 });
