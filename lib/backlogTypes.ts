@@ -96,6 +96,8 @@ export interface BacklogCard {
   quantity: number;
   unit_price_cents: number | null;
   paid_at: string | null;
+  /** Vencimento escolhido à mão; vazio = dia de pagamento do cliente. */
+  due_on: string | null;
   payment_method: PaymentMethod | null;
   billing_month: string | null;
   tags: string[];

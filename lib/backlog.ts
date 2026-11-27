@@ -373,6 +373,8 @@ export interface BacklogCardInput {
   quantity: number;
   unit_price_cents: number | null;
   paid_at: string | null;
+  /** undefined = o formulário não tem o campo; não mexe. */
+  due_on?: string | null;
   payment_method: PaymentMethod | null;
   billing_month: string | null;
   ig_schedule: boolean;
@@ -412,6 +414,7 @@ export function readBacklogCardInput(formData: FormData): BacklogCardInput {
     quantity: normalizeQuantity(formData.get("quantity")),
     unit_price_cents: normalizePrice(formData.get("unit_price_cents")),
     paid_at: normalizeDate(formData.get("paid_at")),
+    due_on: formData.has("due_on") ? normalizeDate(formData.get("due_on")) : undefined,
     payment_method: normalizePaymentMethod(formData.get("payment_method")),
     // <input type="month"> manda "2026-10"; a coluna guarda o dia 1.
     billing_month: normalizeDate(
@@ -473,6 +476,7 @@ export async function createBacklogCard(
       quantity: fields.quantity ?? 1,
       unit_price_cents: fields.unit_price_cents ?? null,
       paid_at: fields.paid_at ?? null,
+      due_on: fields.due_on ?? null,
       payment_method: fields.payment_method ?? null,
       billing_month: fields.billing_month ?? null,
     })
@@ -619,6 +623,7 @@ export async function updateBacklogCard(id: string, fields: BacklogCardInput) {
       quantity: fields.quantity,
       unit_price_cents: fields.unit_price_cents,
       paid_at: fields.paid_at,
+      due_on: fields.due_on,
       payment_method: fields.payment_method,
       billing_month: fields.billing_month,
       ...igFields,
@@ -721,6 +726,7 @@ export async function duplicateBacklogCard(id: string): Promise<BacklogCard> {
     sent_whatsapp_at: _sentAt,
     google_event_id: _eventId,
     paid_at: _paidAt,
+    due_on: _dueOn,
     payment_method: _paymentMethod,
     billing_month: _billingMonth,
     position: _position,
