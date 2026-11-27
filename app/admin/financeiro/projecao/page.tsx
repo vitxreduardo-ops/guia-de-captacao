@@ -49,6 +49,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ r
           <Dado escuro label="Menor caixa" cents={p.menorCents} note={p.menorMes ? `em ${nomeMes(p.menorMes)}` : "hoje"} />
           <Dado escuro label="Reserva mínima" cents={c.reservaMinima} note={origemTxt} />
         </div>
+        {c.emProducaoCents > 0 ? (
+          <p className="text-sm text-(--tatu-cream)/75">
+            Conta com {formatBRL(c.emProducaoCents)} de entregas ainda em produção, na data em que o cliente paga.
+          </p>
+        ) : null}
         {p.semDataCents > 0 ? (
           <p className="text-sm text-(--tatu-cream)/75">
             {formatBRL(p.semDataCents)} a receber estão sem dia combinado e ficam fora desta conta.
