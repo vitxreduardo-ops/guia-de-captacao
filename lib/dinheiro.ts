@@ -702,8 +702,27 @@ export interface ReceivableRow {
  * vencimento. É a lista do "A receber" e a base da projeção do caixa.
  */
 export async function getReceivables(clientScope: string[] | null): Promise<ReceivableRow[]> {
-  const supabase = getSupabaseServerClient();
   const unpaidIds = (await billableColumns()).filter((c) => !c.paid).map((c) => c.id);
+  return receivablesIn(unpaidIds, clientScope);
+}
+
+/**
+ * Entregas com valor que ainda estão em produção (colunas antes da cobrança).
+ * Não vão para a lista do A receber, mas a projeção do caixa conta com elas
+ * na data em que o cliente deve pagar.
+ */
+export async function getPipelineReceivables(clientScope: string[] | null): Promise<ReceivableRow[]> {
+  const { data, error } = await getSupabaseServerClient()
+    .from("backlog_columns")
+    .select("id")
+    .eq("board", "entregas")
+    .eq("billable", false);
+  if (error) throw error;
+  return receivablesIn((data ?? []).map((c) => c.id as string), clientScope);
+}
+
+async function receivablesIn(unpaidIds: string[], clientScope: string[] | null): Promise<ReceivableRow[]> {
+  const supabase = getSupabaseServerClient();
   if (unpaidIds.length === 0) return [];
   const cards = supabase
     .from("backlog_cards")

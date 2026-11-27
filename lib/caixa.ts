@@ -1,6 +1,6 @@
 import "server-only";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { getMoneyYear, getPagoNoMes, getReceived, getReceivedAfter, getReceivables, type ReceivableRow } from "@/lib/dinheiro";
+import { getMoneyYear, getPagoNoMes, getReceived, getPipelineReceivables, getReceivedAfter, getReceivables, type ReceivableRow } from "@/lib/dinheiro";
 import { getCustoMensal, getExpenseYear, getPaidOutAfter, listExpensesByMonth, listPayables } from "@/lib/expenses";
 import { monthKey } from "@/lib/billingTypes";
 import { livreParaGastar, previstoRecorrentes, projetar, reserva, type Recorrente, type OrigemReserva, type Projecao } from "@/lib/caixaCalc";
@@ -83,6 +83,8 @@ export interface CaixaView {
   recorrentes: ClienteRecorrente[];
   /** Quanto os recorrentes acrescentam à projeção; 0 com a previsão desligada. */
   previstoCents: number;
+  /** Entregas com valor ainda em produção: a projeção conta, a lista do A receber não. */
+  emProducaoCents: number;
   hoje: string;
   /** Null enquanto o saldo não foi informado. */
   caixaHoje: number | null;
@@ -112,6 +114,7 @@ export async function getCaixa(
       settings: await getFinanceSettings(),
       recorrentes: [],
       previstoCents: 0,
+      emProducaoCents: 0,
       hoje,
       caixaHoje: null,
       receber: await getReceivables(scope),
@@ -125,9 +128,10 @@ export async function getCaixa(
       livre: null,
     };
   }
-  const [settings, receber, pagar, custoMensal, recorrentes, pagoNoMes] = await Promise.all([
+  const [settings, receber, emProducao, pagar, custoMensal, recorrentes, pagoNoMes] = await Promise.all([
     getFinanceSettings(),
     getReceivables(null),
+    getPipelineReceivables(null),
     listPayables(6),
     getCustoMensal(),
     listRecurring(),
@@ -147,7 +151,7 @@ export async function getCaixa(
 
   // Já lançado por cliente e mês de vencimento; neste mês conta também o que já foi pago.
   const lancado = new Map<string, number>();
-  for (const r of receber) {
+  for (const r of [...receber, ...emProducao]) {
     if (r.due) lancado.set(`${r.clientId}|${monthKey(r.due)}`, (lancado.get(`${r.clientId}|${monthKey(r.due)}`) ?? 0) + r.cents);
   }
   const mesAtual = monthKey(hoje);
@@ -166,7 +170,7 @@ export async function getCaixa(
       : projetar({
           hoje,
           caixa: caixaHoje,
-          entradas: [...receber.map((r) => ({ date: r.due, cents: r.cents })), ...previsto],
+          entradas: [...receber, ...emProducao].map((r) => ({ date: r.due, cents: r.cents })).concat(previsto),
           saidas: pagar.map((e) => ({ date: e.spentOn, cents: e.amountCents })),
         });
   const r = reserva({
@@ -179,6 +183,7 @@ export async function getCaixa(
     settings,
     recorrentes,
     previstoCents: previsto.reduce((t, e) => t + e.cents, 0),
+    emProducaoCents: emProducao.reduce((t, r) => t + r.cents, 0),
     hoje,
     caixaHoje,
     receber,
