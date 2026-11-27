@@ -398,9 +398,22 @@ function BillingFields({
 
       {/* Data e forma normalmente vêm do diálogo que aparece ao arrastar para
           Entregue; aqui elas existem para corrigir sem mover o card de novo. */}
+      <label className="mt-2 block text-xs font-medium text-neutral-600">
+        Vence em
+        <input
+          type="date"
+          name="due_on"
+          defaultValue={card.due_on ?? ""}
+          className={`mt-1 ${inputClass}`}
+        />
+        <span className="mt-1 block font-normal text-neutral-500">
+          Quando o cliente deve pagar. Vazio = dia de pagamento do cliente.
+        </span>
+      </label>
+
       <div className="mt-2 grid grid-cols-2 gap-2">
         <label className="text-xs font-medium text-neutral-600">
-          Data de pagamento
+          Recebido em
           <input
             type="date"
             name="paid_at"

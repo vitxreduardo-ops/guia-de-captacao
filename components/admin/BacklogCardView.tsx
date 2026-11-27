@@ -212,11 +212,16 @@ export function BacklogCardView({
 
           {showBilling ? (
             <Field label="Pagamento">
-              {card.paid_at || card.payment_method
+              {card.paid_at || card.payment_method || card.due_on
                 ? [
+                    !card.paid_at && card.due_on
+                      ? `Vence em ${formatBacklogDateShort(card.due_on)}`
+                      : null,
                     card.paid_at
-                      ? `Data de pagamento ${formatBacklogDateShort(card.paid_at)}`
-                      : "Pago",
+                      ? `Recebido em ${formatBacklogDateShort(card.paid_at)}`
+                      : card.due_on
+                        ? null
+                        : "Pago",
                     card.payment_method
                       ? PAYMENT_METHOD_LABELS[card.payment_method]
                       : null,

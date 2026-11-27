@@ -432,8 +432,8 @@ export async function getTodayView(
     const row = rows.get(key) ?? {
       clientId: card.client_id,
       name: client.name as string,
-      contactName: (client.contact_name as string | null) ?? null,
-      phone: (client.phone as string | null) ?? null,
+      contactName: (client?.contact_name as string | null) ?? null,
+      phone: (client?.phone as string | null) ?? null,
       month: m,
       cents: 0,
       date,
@@ -581,7 +581,7 @@ export async function getCardClientIds(cardIds: string[]): Promise<string[]> {
     .select("client_id")
     .in("id", cardIds);
   if (error) throw error;
-  return [...new Set((data ?? []).map((r) => r.client_id as string))];
+  return [...new Set((data ?? []).map((r) => r.client_id as string | null).filter((c): c is string => !!c))];
 }
 
 // --------------------------------------------------------------- edição
@@ -727,8 +727,7 @@ async function receivablesIn(unpaidIds: string[], clientScope: string[] | null):
   const cards = supabase
     .from("backlog_cards")
     .select(CARD_FIELDS)
-    .in("column_id", unpaidIds)
-    .not("client_id", "is", null);
+    .in("column_id", unpaidIds);
   const clientsQuery = supabase
     .from("gallery_clients")
     .select("id, name, contact_name, phone, payment_day")
@@ -743,18 +742,19 @@ async function receivablesIn(unpaidIds: string[], clientScope: string[] | null):
 
   const rows = new Map<string, ReceivableRow>();
   for (const card of (cardsResult.data ?? []) as unknown as CardRow[]) {
-    const client = byId.get(card.client_id);
+    // Sem cliente: entra pelo título do card, uma linha por entrega.
+    const client = card.client_id ? byId.get(card.client_id) : null;
     const m = cardMonth(card);
-    if (!client || !m) continue;
+    if ((card.client_id && !client) || !m) continue;
     const cents = toItem(card, false).openCents;
     if (cents === 0) continue;
-    const due = effectiveDue(card, (client.payment_day as number | null) ?? null);
-    const key = `${card.client_id}|${m}|${due ?? ""}`;
+    const due = effectiveDue(card, (client?.payment_day as number | null) ?? null);
+    const key = client ? `${card.client_id}|${m}|${due ?? ""}` : `card|${card.id}`;
     const row = rows.get(key) ?? {
-      clientId: card.client_id,
-      name: client.name as string,
-      contactName: (client.contact_name as string | null) ?? null,
-      phone: (client.phone as string | null) ?? null,
+      clientId: card.client_id ?? "",
+      name: client ? (client.name as string) : `${card.title || "Entrega"} (sem cliente)`,
+      contactName: (client?.contact_name as string | null) ?? null,
+      phone: (client?.phone as string | null) ?? null,
       month: m,
       cents: 0,
       due,
