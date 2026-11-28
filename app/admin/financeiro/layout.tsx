@@ -1,4 +1,5 @@
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { OcultarValores } from "@/components/admin/financeiro/OcultarValores";
 import { ClientTabs } from "@/components/admin/ClientTabs";
 import { getCurrentClientScope } from "@/lib/clientAccess";
 import { FINANCEIRO_SO_ESTUDIO, FINANCEIRO_TABS } from "@/lib/secoesTabs";
@@ -16,10 +17,13 @@ export default async function FinanceiroLayout({ children }: { children: React.R
         title="Financeiro"
         trail={[{ label: "Admin", href: "/admin" }, { label: "Financeiro" }]}
       />
-      <div className="mb-4">
-        <ClientTabs tabs={tabs} label="Abas do Financeiro" tone="tinta" />
+      <div className="mb-4 flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <ClientTabs tabs={tabs} label="Abas do Financeiro" tone="tinta" />
+        </div>
+        <OcultarValores alvo="[data-valores]" />
       </div>
-      {children}
+      <div data-valores>{children}</div>
     </div>
   );
 }

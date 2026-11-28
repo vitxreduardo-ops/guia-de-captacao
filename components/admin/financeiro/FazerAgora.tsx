@@ -7,7 +7,8 @@ import { markPaidAction } from "@/app/admin/financeiro/actions";
 import { markExpensePaidAction } from "@/app/admin/financeiro/saidas";
 import { formatBRL } from "@/lib/billingTypes";
 import { frasePrazo } from "@/lib/dinheiroTexto";
-import type { ReceivableRow } from "@/lib/dinheiro";
+import { SemDataLinha } from "@/components/admin/financeiro/SemDataLinha";
+import type { ReceivableRow, SemDataRow } from "@/lib/dinheiro";
 import type { Expense } from "@/lib/expensesTypes";
 
 const LIMITE = 5;
@@ -20,10 +21,12 @@ const LIMITE = 5;
 export function FazerAgora({
   receber,
   pagar,
+  semData = [],
   hoje,
   className = "",
 }: {
   receber: ReceivableRow[];
+  semData?: SemDataRow[];
   pagar: Expense[];
   hoje: string;
   className?: string;
@@ -35,7 +38,7 @@ export function FazerAgora({
   const atrasadas = receber.filter((r) => r.due !== null && r.due < hoje);
   const vencendo = pagar.filter((e) => !e.recurringId && e.spentOn <= ate);
   const semDia = receber.filter((r) => r.due === null);
-  const total = atrasadas.length + vencendo.length + (semDia.length ? 1 : 0);
+  const total = semData.length + atrasadas.length + vencendo.length + (semDia.length ? 1 : 0);
 
   // Do mais antigo ao mais novo: atrasado há mais tempo primeiro, de receber e de pagar misturados.
   const linhas = [
@@ -43,8 +46,10 @@ export function FazerAgora({
     ...vencendo.map((e) => ({ data: e.spentOn, no: <LinhaPagarAgora key={`p${e.id}${e.spentOn}`} e={e} hoje={hoje} /> })),
   ].sort((a, b) => a.data.localeCompare(b.data));
 
-  const exibidas = linhas.slice(0, LIMITE - (semDia.length ? 1 : 0));
-  const resto = total - exibidas.length - (semDia.length ? 1 : 0);
+  // Dado quebrado vem primeiro: enquanto não for corrigido, os números não batem entre as telas.
+  const fixas = semData.length + (semDia.length ? 1 : 0);
+  const exibidas = linhas.slice(0, Math.max(0, LIMITE - fixas));
+  const resto = total - exibidas.length - fixas;
 
   return (
     <section aria-labelledby="fazer-agora" className={`${CARTAO} ${className}`}>
@@ -59,6 +64,9 @@ export function FazerAgora({
         </div>
       ) : (
         <ul className="mt-1 divide-y divide-neutral-100">
+          {semData.map((r) => (
+            <SemDataLinha key={`d${r.cardId}`} r={r} />
+          ))}
           {exibidas.map((l) => l.no)}
           {semDia.length ? (
             <li className="flex flex-wrap items-center gap-x-3 gap-y-2 py-3">

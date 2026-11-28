@@ -5,7 +5,7 @@ import { FazerAgora } from "@/components/admin/financeiro/FazerAgora";
 import { Ancora, Anel, CARTAO, Dado, Dinheiro, Vazio } from "@/components/admin/financeiro/ui";
 import { getCaixa, getResultadoAno, listReserveDeposits } from "@/lib/caixa";
 import { formatBRL, monthKey } from "@/lib/billingTypes";
-import { getMoneyMonth } from "@/lib/dinheiro";
+import { getMoneyMonth, getSemDataPagamento } from "@/lib/dinheiro";
 import { getClientCosts } from "@/lib/expenses";
 import { markReserveDoneAction, saveReserveBaseAction, saveRevenueGoalAction, saveReserveRateAction, unmarkReserveDoneAction } from "../caixa";
 import { SetaMes, href, lerParametros, shiftMonth } from "../_comum";
@@ -16,12 +16,13 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   if (scope !== null) {
     return <Vazio>A análise do estúdio só aparece para quem tem acesso a todos os clientes.</Vazio>;
   }
-  const [c, ano, dadosMes, custos, depositos] = await Promise.all([
+  const [c, ano, dadosMes, custos, depositos, semData] = await Promise.all([
     getCaixa(),
     getResultadoAno(year),
     getMoneyMonth(month, null),
     getClientCosts(month),
     listReserveDeposits(),
+    getSemDataPagamento(null),
   ]);
   const taxa = c.settings.reserveRateBps;
   const reservaDe = (v: number) => Math.round((v * taxa) / 10_000);
@@ -96,7 +97,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
           </div>
         </Ancora>
 
-        <FazerAgora receber={c.receber} pagar={c.pagar} hoje={c.hoje} className="lg:col-span-2 lg:col-start-1 lg:row-start-2" />
+        <FazerAgora receber={c.receber} pagar={c.pagar} semData={semData} hoje={c.hoje} className="lg:col-span-2 lg:col-start-1 lg:row-start-2" />
 
         <section className={`${CARTAO} lg:col-start-3 lg:row-start-1`}>
           <h2 className="text-sm text-neutral-600">Reserva estimada</h2>
