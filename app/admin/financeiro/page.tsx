@@ -7,6 +7,7 @@ import { Ancora, BOTAO, Barra, CARTAO, Dinheiro } from "@/components/admin/finan
 import { getCaixa, getResultadoAno, getUltimosLancamentos, listClientOptions } from "@/lib/caixa";
 import { formatBRL, monthKey } from "@/lib/billingTypes";
 import { doMes, faixaDe } from "@/lib/caixaCalc";
+import { getSemDataPagamento } from "@/lib/dinheiro";
 import { getCurrentClientScope } from "@/lib/clientAccess";
 import { frasePrazo, quando } from "@/lib/dinheiroTexto";
 import { saveCashAction, saveRevenueGoalAction } from "./caixa";
@@ -18,7 +19,7 @@ const paraCampo = (cents: number) => (cents / 100).toFixed(2).replace(".", ",");
 export default async function Page() {
   const scope = await getCurrentClientScope();
   const verTudo = scope === null;
-  const c = await getCaixa(scope);
+  const [c, semData] = await Promise.all([getCaixa(scope), getSemDataPagamento(scope)]);
   const mes = monthKey(c.hoje);
   const ano = Number(mes.slice(0, 4));
   const [resultado, ultimos, clientes] = await Promise.all([
@@ -145,7 +146,7 @@ export default async function Page() {
       </Ancora>
 
       {/* No celular a fila de ações vem logo depois do número; no desktop ela desce para a segunda linha. */}
-      <FazerAgora receber={c.receber} pagar={c.pagar} hoje={c.hoje} className="lg:col-span-2 lg:col-start-2 lg:row-start-2" />
+      <FazerAgora receber={c.receber} pagar={c.pagar} semData={semData} hoje={c.hoje} className="lg:col-span-2 lg:col-start-2 lg:row-start-2" />
 
       <section className={`${CARTAO} lg:col-start-2 lg:row-start-1`}>
         <h2 className="text-sm text-neutral-600">A receber</h2>

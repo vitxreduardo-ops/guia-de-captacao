@@ -825,6 +825,44 @@ export async function getReceived(
   return rows.sort((x, y) => y.date.localeCompare(x.date) || y.cents - x.cents);
 }
 
+export interface SemDataRow {
+  cardId: string;
+  name: string;
+  title: string;
+  /** Dia da entrega, usado como sugestão para o dia do pagamento. */
+  date: string;
+  cents: number;
+}
+
+/** Entregas na coluna de paga, com valor, mas sem dia de pagamento: contam em Entrou e somem do Extrato e do caixa. */
+export async function getSemDataPagamento(clientScope: string[] | null): Promise<SemDataRow[]> {
+  const supabase = getSupabaseServerClient();
+  const paidIds = (await billableColumns()).filter((c) => c.paid).map((c) => c.id);
+  if (paidIds.length === 0) return [];
+  const query = supabase
+    .from("backlog_cards")
+    .select(CARD_FIELDS)
+    .in("column_id", paidIds)
+    .not("client_id", "is", null)
+    .is("paid_at", null);
+  const [cards, clients] = await Promise.all([
+    clientScope ? query.in("client_id", clientScope) : query,
+    supabase.from("gallery_clients").select("id, name"),
+  ]);
+  if (cards.error) throw cards.error;
+  if (clients.error) throw clients.error;
+  const names = new Map((clients.data ?? []).map((c) => [c.id as string, c.name as string]));
+  return ((cards.data ?? []) as unknown as CardRow[])
+    .map((card) => ({
+      cardId: card.id,
+      name: names.get(card.client_id) ?? "Cliente",
+      title: card.title ?? "",
+      date: card.post_date ?? "",
+      cents: toItem(card, true).totalCents,
+    }))
+    .filter((r) => r.cents > 0);
+}
+
 /** Corrige um recebimento: quanto foi, em que dia e como. */
 export async function updateReceived(
   cardId: string,
